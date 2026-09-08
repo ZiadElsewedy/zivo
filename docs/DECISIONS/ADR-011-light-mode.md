@@ -41,9 +41,27 @@ a change nobody asked for is a regression even when it is prettier.
 
 **2. The active palette is process-wide, and the root is the only thing that
 sets it.** `ZivoTheme.use(brightness)` is called in the builder that wraps
-`MaterialApp`, above every route; a change to the mode rebuilds that whole
-subtree. A token read during `build` is therefore always the palette of the
-frame being built.
+`MaterialApp`, above every route.
+
+**And swapping it repaints the app, explicitly.** This is the part the first
+cut got wrong, and it is worth stating plainly because it is not obvious:
+nothing in the tree is *subscribed* to the palette — that is the whole point
+of reading tokens by name — so rebuilding the root does not reach the screens.
+`Element.updateChild` returns early for any child whose widget compares equal
+to the one it already has, and every `const` widget does. `home: const
+AuthGate()` alone stopped the rebuild at the first element under
+`MaterialApp`. The app switched to light, and every screen that was already
+built stayed dark; screens came out right only where a stream tick or a
+freshly pushed route happened to rebuild them anyway, which is why Settings
+looked correct and Today, Hub and You did not.
+
+So `ZivoTheme.use` marks the whole tree dirty from
+`WidgetsBinding.instance.rootElement` when the skin actually changes. It runs
+in a post-frame callback, because `markNeedsBuild` on an element that has
+already built in the current frame is an error — one stale frame, against a
+screen that would otherwise stay wrong indefinitely. `MaterialApp` also gets
+`themeAnimationDuration: Duration.zero`, since a 200ms `ThemeData` lerp under
+tokens that snap just spends those 200ms showing half of each skin.
 
 *What this forbids:* **never cache a token.** Not in a field, not in a
 `static final`, not in `initState`. A `static` field is evaluated once and
@@ -106,8 +124,17 @@ carries a comment saying which case it is.
   urgent, because a literal cannot flip.
 * `flutter analyze` is the safety net for the caching rule only at the point
   where a `const` breaks. A `static final Color x = TrainColors.ink` compiles
-  fine and is silently wrong — the one thing here a reviewer still has to
-  watch for by eye.
+  fine and is silently wrong. The tests are the real net: `light_mode_smoke_test`
+  builds each screen **in dark and then switches to light**, which is the
+  sequence the app goes through and the only one in which a cached skin or a
+  skipped element shows up at all. Rendering straight into light hides both —
+  the first version of that test did exactly that, and passed while the app
+  was visibly broken.
+* **A full rebuild on every skin change** is the standing cost of the global
+  palette. It is a one-off, it preserves every `State` and the navigation
+  stack, and it is imperceptible next to the swap itself — but it is the
+  reason the swap cannot animate, and therefore the thing to weigh if
+  context-resolved tokens are ever reconsidered.
 
 ## Not decided here
 

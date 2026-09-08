@@ -24,9 +24,14 @@ import '../support/fake_profile_repository.dart';
 void main() {
   // The active palette is process-wide (ADR-011), so a test that changes it
   // puts it back.
-  tearDown(() => ZivoTheme.use(Brightness.dark));
+  setUp(ZivoTheme.resetForTesting);
+  tearDown(ZivoTheme.resetForTesting);
 
-  Widget host(ThemeController controller, {VoidCallback? onBuild}) {
+  Widget host(
+    ThemeController controller, {
+    VoidCallback? onBuild,
+    Widget? home,
+  }) {
     final diet = InMemoryDietRepository();
     addTearDown(diet.dispose);
     return AppScope(
@@ -51,20 +56,22 @@ void main() {
           return MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: Builder(
-              builder: (context) {
-                onBuild?.call();
-                return Scaffold(
-                  backgroundColor: TrainColors.base,
-                  body: Center(
-                    child: TextButton(
-                      onPressed: () => showThemeSheet(context),
-                      child: const Text('open'),
-                    ),
-                  ),
-                );
-              },
-            ),
+            home:
+                home ??
+                Builder(
+                  builder: (context) {
+                    onBuild?.call();
+                    return Scaffold(
+                      backgroundColor: TrainColors.base,
+                      body: Center(
+                        child: TextButton(
+                          onPressed: () => showThemeSheet(context),
+                          child: const Text('open'),
+                        ),
+                      ),
+                    );
+                  },
+                ),
           );
         },
       ),
@@ -124,6 +131,32 @@ void main() {
     );
   });
 
+  testWidgets('a const screen repaints when the skin flips', (tester) async {
+    // The bug this is here for: `TrainColors` is read by name, so nothing in
+    // the tree is subscribed to it, and `Element.updateChild` skips any child
+    // whose widget compares equal to the one it already has. Every `const`
+    // widget does — `home: const AuthGate()` kept the whole app on whichever
+    // skin it was first built in, and only screens that a stream tick
+    // happened to rebuild came out right.
+    final controller = ThemeController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(host(controller, home: const _ConstScreen()));
+    await tester.pumpAndSettle();
+    expect(_ConstScreen.lastPainted, ZivoPalette.dark.ink);
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('theme-light')));
+    await tester.pumpAndSettle();
+
+    expect(
+      _ConstScreen.lastPainted,
+      ZivoPalette.light.ink,
+      reason: 'the const screen kept the skin it was first built in',
+    );
+  });
+
   testWidgets('the type ladder answers to the skin too', (tester) async {
     // `AppText`'s steps were `static` *fields*, which Dart evaluates once, on
     // first touch — the whole app would have kept the ink of whichever skin
@@ -144,4 +177,27 @@ void main() {
     expect(AppText.rowTitle.color, ZivoPalette.light.ink);
     expect(AppText.body.color, ZivoPalette.light.ink2);
   });
+}
+
+/// A `const` screen with the picker on it — the shape `ZivoApp` uses for
+/// `home:`, and the one that exposed the missing repaint.
+class _ConstScreen extends StatelessWidget {
+  const _ConstScreen();
+
+  /// The ink this screen last actually painted with.
+  static Color? lastPainted;
+
+  @override
+  Widget build(BuildContext context) {
+    lastPainted = TrainColors.ink;
+    return Scaffold(
+      backgroundColor: TrainColors.base,
+      body: Center(
+        child: TextButton(
+          onPressed: () => showThemeSheet(context),
+          child: const Text('open'),
+        ),
+      ),
+    );
+  }
 }

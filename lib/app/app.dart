@@ -173,7 +173,8 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       widget.profiles ?? FirestoreProfileRepository();
   // Auth bookkeeping (account metadata + event log) follows the Firestore
   // flag: a real recorder against the live backend, a silent no-op offline.
-  late final AuthActivityRepository _activity = widget.activity ??
+  late final AuthActivityRepository _activity =
+      widget.activity ??
       (_useFirestore
           ? FirestoreAuthActivityRepository()
           : const NoopAuthActivityRepository());
@@ -470,6 +471,9 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
               ThemeMode.light => Brightness.light,
               ThemeMode.system => MediaQuery.platformBrightnessOf(context),
             };
+            // Swapping the skin also repaints the tree — nothing in it is
+            // subscribed to the palette, so `const` screens would otherwise
+            // keep whichever skin they were first built in (ADR-011).
             ZivoTheme.use(brightness);
             final dark = brightness == Brightness.dark;
             return MaterialApp(
@@ -479,6 +483,11 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
               theme: AppTheme.light,
               darkTheme: AppTheme.dark,
               themeMode: mode,
+              // No cross-fade. `MaterialApp` lerps `ThemeData` over 200ms by
+              // default, and the tokens under it snap — so an animated swap
+              // spends those 200ms with a half-dark `scaffoldBackgroundColor`
+              // under fully-light surfaces. One skin at a time.
+              themeAnimationDuration: Duration.zero,
               locale: locale,
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,

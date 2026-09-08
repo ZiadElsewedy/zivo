@@ -33,6 +33,10 @@ double _contrast(Color ink, Color over) {
 }
 
 void main() {
+  // `ZivoTheme.use` reaches for the widget binding to schedule the repaint a
+  // skin change implies, so even these value-level tests need one.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('the dark skin is the one that shipped', () {
     // ADR-011 moved these values out of `TrainColors` and into a palette
     // instance. If that move changed any of them, it changed the look of an
@@ -172,7 +176,8 @@ void main() {
   });
 
   group('ZivoTheme', () {
-    tearDown(() => ZivoTheme.use(Brightness.dark));
+    setUp(ZivoTheme.resetForTesting);
+    tearDown(ZivoTheme.resetForTesting);
 
     test('swapping the skin swaps what every token reads back', () {
       ZivoTheme.use(Brightness.light);

@@ -602,17 +602,68 @@ const _fabGradientLight = LinearGradient(
 abstract final class ZivoTheme {
   static ZivoPalette _palette = ZivoPalette.dark;
 
+  /// The skin the tree has actually been *painted* in, as against the one
+  /// [palette] now holds. Null until the first swap.
+  static Brightness? _painted;
+
   /// The active palette. Never cache this in a field or a `static final` —
   /// read it (or the `TrainColors` token that wraps it) inside `build`.
   static ZivoPalette get palette => _palette;
 
   static Brightness get brightness => _palette.brightness;
 
-  /// Swaps the active skin. Called by the root, and by tests that need to
-  /// render a screen in a chosen brightness.
+  /// Swaps the active skin, and repaints the app if that changed anything.
+  ///
+  /// Called by the root on every build, and by tests that need to render a
+  /// screen in a chosen brightness. Idempotent: passing the skin already in
+  /// use does nothing at all.
   static void use(Brightness brightness) {
     _palette = brightness == Brightness.dark
         ? ZivoPalette.dark
         : ZivoPalette.light;
+    if (_painted == brightness) return;
+    final first = _painted == null;
+    _painted = brightness;
+    if (!first) _repaintApp();
+  }
+
+  /// **Marks the entire widget tree dirty.**
+  ///
+  /// The palette is read *by name* off `TrainColors`, not looked up through
+  /// an `InheritedWidget`, so nothing in the tree is subscribed to it and
+  /// rebuilding the root is not enough: `Element.updateChild` skips any child
+  /// whose widget compares equal to the one it already has, which every
+  /// `const` widget does. `home: const AuthGate()` alone stopped the rebuild
+  /// at the first element under `MaterialApp`, and every screen kept the skin
+  /// it was first built in — picking up the new one only where a stream tick
+  /// or a freshly pushed route happened to rebuild it anyway. That is a
+  /// half-repainted app, and it is what the first cut of light mode shipped.
+  ///
+  /// It runs after the frame because `markNeedsBuild` on an element that has
+  /// already built in the current one is an error. The cost is a single stale
+  /// frame against a screen that would otherwise stay wrong indefinitely.
+  ///
+  /// This is the standing price of a global palette, and the reason to
+  /// revisit context-resolved tokens if the swap ever needs to animate.
+  /// See `docs/DECISIONS/ADR-011-light-mode.md`.
+  static void _repaintApp() {
+    final binding = WidgetsBinding.instance;
+    binding.addPostFrameCallback((_) {
+      void markDirty(Element element) {
+        element.markNeedsBuild();
+        element.visitChildren(markDirty);
+      }
+
+      binding.rootElement?.visitChildren(markDirty);
+    });
+  }
+
+  /// Puts the swap machinery back to "nothing painted yet" — for tests that
+  /// pump a fresh tree and would otherwise inherit the previous one's idea of
+  /// what is already on screen.
+  @visibleForTesting
+  static void resetForTesting() {
+    _palette = ZivoPalette.dark;
+    _painted = null;
   }
 }

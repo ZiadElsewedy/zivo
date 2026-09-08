@@ -44,6 +44,21 @@ double _contrast(Color ink, Color over) {
 void main() {
   const ground = ZivoPalette.light;
 
+  setUp(ZivoTheme.resetForTesting);
+  tearDown(ZivoTheme.resetForTesting);
+
+  /// Builds [page] **in dark first, then switches to light** — the sequence
+  /// the app actually goes through, because it launches on dark and the user
+  /// changes it from Settings. Rendering straight into light would hide
+  /// exactly the bugs that matter: a `static` that cached the first skin it
+  /// saw, and a `const` screen whose element is skipped on the rebuild.
+  Future<void> pumpThenFlipToLight(WidgetTester tester, Widget page) async {
+    await tester.pumpWidget(wrapWithScope(page, brightness: Brightness.dark));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(wrapWithScope(page, brightness: Brightness.light));
+    await tester.pumpAndSettle();
+  }
+
   /// Every rendered run of text, with the style the framework actually
   /// resolved — `RichText` rather than `Text`, so inherited defaults and
   /// `DefaultTextStyle` are already folded in.
@@ -82,19 +97,13 @@ void main() {
   }
 
   testWidgets('the Hub reads on paper', (tester) async {
-    await tester.pumpWidget(
-      wrapWithScope(const HubPage(), brightness: Brightness.light),
-    );
-    await tester.pumpAndSettle();
+    await pumpThenFlipToLight(tester, const HubPage());
     expect(tester.takeException(), isNull);
     expectNothingVanishes(tester, 'Hub');
   });
 
   testWidgets('Settings reads on paper', (tester) async {
-    await tester.pumpWidget(
-      wrapWithScope(const SettingsPage(), brightness: Brightness.light),
-    );
-    await tester.pumpAndSettle();
+    await pumpThenFlipToLight(tester, const SettingsPage());
     expect(tester.takeException(), isNull);
     expectNothingVanishes(tester, 'Settings');
   });
@@ -102,19 +111,13 @@ void main() {
   testWidgets('a chart screen reads on paper', (tester) async {
     // Charts are where a skin usually breaks first: axis labels and grid
     // rules are the quietest ink on any screen.
-    await tester.pumpWidget(
-      wrapWithScope(const WorkoutProgressPage(), brightness: Brightness.light),
-    );
-    await tester.pumpAndSettle();
+    await pumpThenFlipToLight(tester, const WorkoutProgressPage());
     expect(tester.takeException(), isNull);
     expectNothingVanishes(tester, 'Workout progress');
   });
 
   testWidgets('Moments reads on paper', (tester) async {
-    await tester.pumpWidget(
-      wrapWithScope(const MomentsTimelinePage(), brightness: Brightness.light),
-    );
-    await tester.pumpAndSettle();
+    await pumpThenFlipToLight(tester, const MomentsTimelinePage());
     expect(tester.takeException(), isNull);
     expectNothingVanishes(tester, 'Moments');
   });

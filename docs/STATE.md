@@ -39,7 +39,10 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   *one system* stands; its *dark-only* half is superseded by
   [ADR-011](DECISIONS/ADR-011-light-mode.md). The values live in `ZivoPalette.dark` /
   `.light`; `TrainColors` keeps its exact API as getters over whichever is active, and
-  `ZivoTheme.use()` swaps it at the root. **The rule this adds: never cache a token** —
+  `ZivoTheme.use()` swaps it at the root *and repaints the whole tree* — nothing is
+  subscribed to the palette, so a `const` screen would otherwise keep the skin it was
+  first built in (that shipped broken once; see the ADR).
+  **The rule this adds: never cache a token** —
   not in a field, not in a `static final`, not in `initState`. A `static` field is
   evaluated once and pins the app to whichever skin drew first. A new colour must be
   added to *both* palettes (the constructor requires every field, so this is a compile
