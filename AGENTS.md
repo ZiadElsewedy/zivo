@@ -61,6 +61,8 @@ spirit. Owner: Ziad.
   [`lib/core/theme/`](lib/core/theme) and [`lib/core/motion/springs.dart`](lib/core/motion/springs.dart),
   and the shared capture widgets. **One palette only — `TrainColors`; `AppColors`/`AppShadows`
   are deleted and must not come back** ([ADR-006](docs/DECISIONS/ADR-006-one-design-system.md)).
+  **One palette, now in two skins** — dark and light are two `ZivoPalette` instances,
+  and a new colour goes in **both** ([ADR-011](docs/DECISIONS/ADR-011-light-mode.md)).
   **One type system only — three families, all named in `train_tokens.dart`: Manrope (text),
   Azeret Mono (numbers), Instrument Serif italic (ZIVO speaking). Never call `GoogleFonts`
   anywhere else** ([ADR-009](docs/DECISIONS/ADR-009-one-type-system.md)).
@@ -90,7 +92,7 @@ spirit. Owner: Ziad.
 **Architecture:** clean layering per feature — `presentation/` (pages · widgets) →
 `domain/` (entities · repository interfaces) → `data/` (Firestore + in-memory impls).
 Entry: [`lib/main.dart`](lib/main.dart) → [`lib/app/app.dart`](lib/app/app.dart) (wires all
-repos, provides `AppScope`, dark `MaterialApp`, `home: AuthGate`).
+repos, provides `AppScope`, a `MaterialApp` on the chosen skin, `home: AuthGate`).
 
 | Feature | What it is | Folder + map | Deep doc / ADR |
 |---|---|---|---|
@@ -106,6 +108,7 @@ repos, provides `AppScope`, dark `MaterialApp`, `home: AuthGate`).
 | **hub** | Module launcher tab | [`lib/features/hub/`](lib/features/hub/FEATURE.md) | — |
 | **shell** | 4-tab scaffold (Today · Hub · Ask · You) + floating bottom bar + capture FAB | [`lib/features/shell/`](lib/features/shell/FEATURE.md) | — |
 | **capture** | Quick-capture sheet + shared capture widgets | [`lib/features/capture/`](lib/features/capture/FEATURE.md) | — |
+| **sleep** | Apple Health / Health Connect sleep + manual logging, with provenance on every number — training recovery | [`lib/features/sleep/`](lib/features/sleep/FEATURE.md) | [SLEEP_SYSTEM.md](docs/SLEEP_SYSTEM.md), [ADR-010](docs/DECISIONS/ADR-010-sleep-provenance.md) |
 | **device** | Pedometer step counter (Today's Move ring) | [`lib/features/device/`](lib/features/device/FEATURE.md) | — |
 
 **Shared / cross-cutting (`lib/core/`):**
@@ -113,7 +116,7 @@ repos, provides `AppScope`, dark `MaterialApp`, `home: AuthGate`).
 | Path | Role |
 |---|---|
 | [`core/scope/app_scope.dart`](lib/core/scope/app_scope.dart) | DI seam — `AppScope.of(context)`. **Add new repos here + in `app.dart`.** |
-| [`core/theme/`](lib/core/theme) | Design tokens: colors, typography, spacing, shadows, icons (Lucide), theme |
+| [`core/theme/`](lib/core/theme) | Design tokens: colors, typography, spacing, shadows, icons (Phosphor), theme. **`zivo_palette.dart` holds the two skins** (`ZivoPalette.dark`/`.light`); `TrainColors` is the façade every screen reads, resolving through whichever `ZivoTheme.use()` last set. **Never cache a token in a field, a `static final`, or `initState`** — see [ADR-011](docs/DECISIONS/ADR-011-light-mode.md) |
 | [`l10n/`](lib/l10n) + [`core/l10n/`](lib/core/l10n) | Arabic + English. Read strings via **`l(context)`**; add keys to `app_en.arb` (with a `@description`) *and* `app_ar.arb`. **Keying a string is not licence to reword it** — the English must come out byte-identical. A `domain/` enum persisted by `name` is an **id** and never carries copy: its labels go in a `presentation/*_labels.dart` taking a `BuildContext` (`workout_labels.dart`, `diet_labels.dart`, `password_rule_labels.dart`, `capture_source_labels.dart`) |
 | [`core/util/bidi.dart`](lib/core/util/bidi.dart) | **Arabic is not just a string swap.** A composed run of digits and neutral punctuation (`3 × 8–10 · rest 1:30`, `12/15`, `+4%`, `~1270`, `UTC+03:00`) is reordered by the bidi algorithm in an RTL paragraph and comes out backwards — `8–10` renders as `10–8`. Pin every such run with **`ltrFor(context, s)`** (a no-op under LTR, so English is untouched), and wrap text ZIVO did not write — a plan name, an exercise name, a location — with **`isolate(s)`** (first-strong, so the run decides its own direction). `stripBidi` + `test/support/bidi_finders.dart` are the test-side counterparts |
 | [`core/motion/springs.dart`](lib/core/motion/springs.dart) | Apple-style springs (damping + response) — the one motion material |
@@ -187,10 +190,14 @@ launcher file; those are kept to a one-line pointer here so there is a single so
 | [`docs/STATE.md`](docs/STATE.md) | **Current state — read every session** | live |
 | [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) | Deep architecture/conventions reference | reference |
 | [`docs/WORKOUT_SYSTEM.md`](docs/WORKOUT_SYSTEM.md) | Splits · sessions · progression engine | reference |
+| [`docs/SLEEP_SYSTEM.md`](docs/SLEEP_SYSTEM.md) | **Sleep: platform capability research + the provenance/accuracy design** | reference |
 | [`docs/UX_BLUEPRINT.md`](docs/UX_BLUEPRINT.md) | Interaction/screen blueprints | design intent |
 | [`docs/ZIVO-brand-system.md`](docs/ZIVO-brand-system.md) | Motion · tone · meaning identity (colour superseded by ADR-006, type by ADR-009) | reference |
 | [`docs/PLAN.md`](docs/PLAN.md) | Long-term milestone plan | aspirational |
 | [`docs/DECISIONS/`](docs/DECISIONS) | Architecture decision records (ADRs) | reference |
 | [`docs/DECISIONS/ADR-008-presentation-controllers.md`](docs/DECISIONS/ADR-008-presentation-controllers.md) | **When a page gets a controller, and the rules that keep the seam honest** | reference |
 | [`docs/DECISIONS/ADR-009-one-type-system.md`](docs/DECISIONS/ADR-009-one-type-system.md) | **Three typefaces, one system — what `AppText` and `TrainType` are each for** | reference |
+| [`docs/DECISIONS/ADR-010-sleep-provenance.md`](docs/DECISIONS/ADR-010-sleep-provenance.md) | **Why every sleep number carries how it was produced, and what that forbids** | reference |
+| [`docs/DECISIONS/ADR-011-light-mode.md`](docs/DECISIONS/ADR-011-light-mode.md) | **Two skins on one system — how a token resolves, and why you must never cache one** | reference |
+| [`docs/DECISIONS/ADR-012-streaks-and-session-duration.md`](docs/DECISIONS/ADR-012-streaks-and-session-duration.md) | **What a streak means, why calendar maths never uses `Duration`, and why a session's duration is measured rather than capped** | reference |
 | [`docs/build_configurations.md`](docs/build_configurations.md) | Build configs + dart-defines | reference |

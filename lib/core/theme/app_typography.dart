@@ -1,4 +1,4 @@
-import 'package:flutter/painting.dart';
+import 'package:flutter/widgets.dart';
 
 import 'train_tokens.dart';
 
@@ -23,6 +23,11 @@ import 'train_tokens.dart';
 /// [TrainType] stays the right API for the handoff's numeric surfaces, which
 /// specify a size per element rather than a ladder. Two APIs, one type system.
 abstract final class AppText {
+  // Every step below is a **getter**, not a field. A `static TextStyle x = …`
+  // is evaluated once, the first time it is touched, and would therefore pin
+  // the ladder to whichever skin happened to be active at that moment — the
+  // whole app would keep the ink of the first screen it ever drew. See
+  // `docs/DECISIONS/ADR-011-light-mode.md`.
   static const _tabular = [FontFeature.tabularFigures()];
 
   // ---- Display (Manrope, heavy + tight) ----
@@ -30,7 +35,7 @@ abstract final class AppText {
   // same number, so the two display steps each go up one weight to hold the
   // hierarchy they had.
 
-  static TextStyle greeting = TrainType.ui(
+  static TextStyle get greeting => TrainType.ui(
     size: 34,
     weight: FontWeight.w800,
     tracking: -0.02,
@@ -38,7 +43,7 @@ abstract final class AppText {
     color: TrainColors.ink,
   );
 
-  static TextStyle cardTitle = TrainType.ui(
+  static TextStyle get cardTitle => TrainType.ui(
     size: 24,
     weight: FontWeight.w700,
     tracking: -0.015,
@@ -50,7 +55,7 @@ abstract final class AppText {
   /// by the rest ring and the goal block, where a big numeral earns its size
   /// from scale, not weight, and tabular figures keep it from reflowing as it
   /// counts or as digits are typed.
-  static TextStyle heroNumber = TrainType.mono(
+  static TextStyle get heroNumber => TrainType.mono(
     size: 66,
     weight: FontWeight.w300,
     tracking: -0.05,
@@ -60,26 +65,20 @@ abstract final class AppText {
 
   // ---- Text (Manrope) ----
 
-  static TextStyle sectionLabel = TrainType.caption(
+  static TextStyle get sectionLabel => TrainType.caption(
     size: 12,
     tracking: 0.11,
     weight: FontWeight.w600,
     color: TrainColors.ink3,
   );
 
-  static TextStyle hueLabel = TrainType.caption(
-    size: 11,
-    tracking: 0.1,
-    weight: FontWeight.w700,
-  );
+  static TextStyle get hueLabel =>
+      TrainType.caption(size: 11, tracking: 0.1, weight: FontWeight.w700);
 
-  static TextStyle tabLabel = TrainType.caption(
-    size: 9.5,
-    tracking: 0.063,
-    weight: FontWeight.w600,
-  );
+  static TextStyle get tabLabel =>
+      TrainType.caption(size: 9.5, tracking: 0.063, weight: FontWeight.w600);
 
-  static TextStyle rowTitle = TrainType.ui(
+  static TextStyle get rowTitle => TrainType.ui(
     size: 16.5,
     weight: FontWeight.w500,
     height: 1.3,
@@ -88,14 +87,14 @@ abstract final class AppText {
 
   /// Body runs at 45% ink on a near-black ground, where Manrope's Regular is
   /// thinner than Hanken's was at the same number. w500 holds the old density.
-  static TextStyle body = TrainType.ui(
+  static TextStyle get body => TrainType.ui(
     size: 14.5,
     weight: FontWeight.w500,
     height: 1.5,
     color: TrainColors.ink2,
   );
 
-  static TextStyle meta = TrainType.ui(
+  static TextStyle get meta => TrainType.ui(
     size: 13,
     weight: FontWeight.w600,
     height: 1.2,
@@ -103,18 +102,15 @@ abstract final class AppText {
   ).copyWith(fontFeatures: _tabular);
 
   /// Money. Mono because an amount is a number, and amounts sit in columns.
-  static TextStyle amount = TrainType.mono(
+  static TextStyle get amount => TrainType.mono(
     size: 16,
     weight: FontWeight.w500,
     tracking: -0.02,
     color: TrainColors.ink,
   );
 
-  static TextStyle button = TrainType.ui(
-    size: 14,
-    weight: FontWeight.w700,
-    color: TrainColors.ink,
-  );
+  static TextStyle get button =>
+      TrainType.ui(size: 14, weight: FontWeight.w700, color: TrainColors.ink);
 
   // ---- Aside (Instrument Serif italic) ----
 
@@ -122,7 +118,12 @@ abstract final class AppText {
   /// purpose: the italic serif is ZIVO's speaking voice, and it was split
   /// across two families (Fraunces here, Instrument Serif there) with the
   /// reserved one used *once* in the whole app. One voice, one face.
-  static TextStyle aside = TrainType.serif(
+  ///
+  /// It takes a [BuildContext] — alone in this ladder — because it is the one
+  /// step whose *style* is not universal: the italic is a Latin convention and
+  /// gets synthesised onto Arabic as a slant. See [TrainType.serifVoice].
+  static TextStyle aside(BuildContext context) => TrainType.serifVoice(
+    context,
     size: 21,
     height: 1.32,
     color: TrainColors.ink2,

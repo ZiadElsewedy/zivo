@@ -31,6 +31,7 @@ class SessionHeader extends StatelessWidget {
     required this.isPaused,
     required this.onClose,
     required this.onDiscard,
+    this.onFinishNow,
     required this.onTogglePause,
     super.key,
   });
@@ -40,6 +41,11 @@ class SessionHeader extends StatelessWidget {
   final bool isPaused;
   final VoidCallback onClose;
   final VoidCallback onDiscard;
+
+  /// End the workout here, keeping what's logged — null while there is
+  /// nothing worth keeping (no completed set yet), where Close and Discard
+  /// already say everything there is to say.
+  final VoidCallback? onFinishNow;
 
   /// Null once the session completes — nothing left to pause.
   final VoidCallback? onTogglePause;
@@ -51,10 +57,10 @@ class SessionHeader extends StatelessWidget {
         TrainCircleButton(
           semanticLabel: l(context).actionClose,
           onTap: onClose,
-          child: const Icon(
+          child: Icon(
             Icons.close_rounded,
             size: 15,
-            color: Color(0xBFF4F4F0),
+            color: TrainColors.inkAt(0.75),
           ),
         ),
         Expanded(
@@ -108,7 +114,7 @@ class SessionHeader extends StatelessWidget {
                         size: 9.5,
                         weight: FontWeight.w600,
                         tracking: 0.18,
-                        color: const Color(0x73F4F4F0),
+                        color: TrainColors.ink2,
                       ),
                     ),
                   const SizedBox(height: 6),
@@ -127,9 +133,7 @@ class SessionHeader extends StatelessWidget {
                       weight: FontWeight.w400,
                       tracking: -0.01,
                       height: 1,
-                      color: isPaused
-                          ? const Color(0x66F4F4F0)
-                          : TrainColors.inkPlain,
+                      color: isPaused ? TrainColors.ink3 : TrainColors.inkPlain,
                     ),
                   ),
                 ],
@@ -137,6 +141,23 @@ class SessionHeader extends StatelessWidget {
             ),
           ),
         ),
+        // "I'm done, even though there are sets left." Sits BEFORE discard so
+        // the constructive exit is the one the thumb reaches first — leaving
+        // a session open for want of this button is what produced the
+        // nineteen-hour workouts in the first place.
+        if (onFinishNow != null) ...[
+          TrainCircleButton(
+            key: const Key('finish-now'),
+            semanticLabel: l(context).liveFinishNow,
+            onTap: onFinishNow!,
+            child: Icon(
+              AppIcons.stopCircle,
+              size: 16,
+              color: TrainColors.inkAt(0.6),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
         TrainCircleButton(
           semanticLabel: l(context).liveDiscardWorkout,
           onTap: onDiscard,
@@ -144,10 +165,10 @@ class SessionHeader extends StatelessWidget {
           // behind its own confirm dialog shouldn't also be the loudest thing
           // in the bar. Flare stays reserved for the confirm dialog's actual
           // "Discard" button, where committing to it is the whole point.
-          child: const Icon(
+          child: Icon(
             Icons.delete_outline_rounded,
             size: 16,
-            color: Color(0x99F4F4F0),
+            color: TrainColors.inkAt(0.6),
           ),
         ),
       ],
@@ -173,11 +194,11 @@ class SessionBackChip extends StatelessWidget {
         },
         borderRadius: BorderRadius.circular(999),
         child: Padding(
-          padding: const EdgeInsets.only(top: 8, right: 12, bottom: 2),
+          padding: const EdgeInsetsDirectional.only(top: 8, end: 12, bottom: 2),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(AppIcons.back, size: 11, color: Color(0x66F4F4F0)),
+              Icon(AppIcons.back, size: 11, color: TrainColors.ink3),
               const SizedBox(width: 5),
               Text(
                 l(context).actionBackCaps,
@@ -185,7 +206,7 @@ class SessionBackChip extends StatelessWidget {
                   size: 8.5,
                   weight: FontWeight.w600,
                   tracking: 0.16,
-                  color: const Color(0x66F4F4F0),
+                  color: TrainColors.ink3,
                 ),
               ),
             ],

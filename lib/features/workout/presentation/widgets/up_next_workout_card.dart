@@ -15,6 +15,7 @@ import '../pages/workout_day_details_page.dart';
 import 'change_workout_sheet.dart';
 import 'workout_start_sheet.dart' show CardScale;
 import '../../../../l10n/l10n.dart';
+import '../../../../core/util/bidi.dart';
 
 /// The "up next" training card — the day due next in the active plan's
 /// rotation, built to the workout-tracking design handoff: a green slab with
@@ -199,7 +200,7 @@ class _UpNextWorkoutCardState extends State<UpNextWorkoutCard>
                             size: 9.5,
                             weight: FontWeight.w600,
                             tracking: 0.16,
-                            color: const Color(0xFF7EF0BB),
+                            color: TrainColors.sessionInkMuted,
                           ),
                         ),
                       ),
@@ -223,7 +224,11 @@ class _UpNextWorkoutCardState extends State<UpNextWorkoutCard>
                     stats: [
                       ('${day.exerciseCount}', l(context).workoutExercises),
                       ('${plannedSetCount(day)}', l(context).workoutSets),
-                      if (minutes > 0) ('~$minutes', l(context).workoutMinutes),
+                      if (minutes > 0)
+                        (
+                          ltrFor(context, '~$minutes'),
+                          l(context).workoutMinutes,
+                        ),
                     ],
                   ),
                   const SizedBox(height: 22),
@@ -276,7 +281,7 @@ class _ChangePill extends StatelessWidget {
               size: 11.5,
               weight: FontWeight.w700,
               height: 1,
-              color: const Color(0xFFEAFFF4),
+              color: TrainColors.sessionInk,
             ),
           ),
         ),
@@ -323,7 +328,7 @@ class _StatRow extends StatelessWidget {
                     size: 8.5,
                     weight: FontWeight.w500,
                     tracking: 0.14,
-                    color: const Color(0x8CEAFFF4),
+                    color: TrainColors.sessionInk.withValues(alpha: 0.55),
                   ),
                 ),
               ],

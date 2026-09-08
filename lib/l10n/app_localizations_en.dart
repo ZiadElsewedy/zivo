@@ -424,6 +424,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get todayBuildManually => 'Build manually instead';
 
   @override
+  String todayEmptySplitTitle(String plan) {
+    return '$plan has no days';
+  }
+
+  @override
   String get todayEmptySplitBody =>
       'Add training days and exercises to this split and it will show up here, ready to start.';
 
@@ -432,6 +437,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get todayGetStarted => 'Get started';
+
+  @override
+  String get todayGetStartedBody =>
+      'Import a plan or log a spend — ZIVO builds Today from there.';
 
   @override
   String get todayImportWorkoutPlan => 'Import a\nworkout plan';
@@ -595,6 +604,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workoutFullCycle => 'Full cycle';
+
+  @override
+  String get workoutMoreSection => 'More';
 
   @override
   String get workoutAnyDayNote =>
@@ -1105,6 +1117,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get planNoDays => 'No days yet.';
 
   @override
+  String get planDaySlot => 'Slot';
+
+  @override
+  String get planDaySlotHint => 'A';
+
+  @override
+  String get planDayLabel => 'Label';
+
+  @override
+  String get planDayLabelHint => 'Day label (optional)';
+
+  @override
+  String get planDayNotesOptional => 'Notes (optional)';
+
+  @override
+  String get workoutShortestSession => 'shortest';
+
+  @override
+  String get workoutLongestSession => 'longest';
+
+  @override
   String get planAddDay => 'Add day';
 
   @override
@@ -1118,9 +1151,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get planEveryDay => 'Every day';
-
-  @override
-  String get planDayLabelHint => 'Day label (optional)';
 
   @override
   String get planMealNameHint => 'Meal name';
@@ -1179,7 +1209,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logSaveFood => 'Save food';
 
   @override
+  String get dietBasisLogged => 'logged by you';
+
+  @override
+  String get dietBasisTicked => 'from ticked meals, not weighed';
+
+  @override
+  String get dietBasisNothing => 'nothing logged yet';
+
+  @override
+  String get dietFindingObservation => 'Observation';
+
+  @override
+  String get dietFindingAnalysis => 'Analysis';
+
+  @override
+  String get dietFindingSuggestion => 'Suggestion';
+
+  @override
+  String get dietFindingWarning => 'Warning';
+
+  @override
+  String get dietFindingGoingWell => 'Going well';
+
+  @override
+  String get dietFindingWorthKnowing => 'Worth knowing';
+
+  @override
   String get dietEaten => 'Eaten';
+
+  @override
+  String get dietNotEaten => 'Not eaten';
 
   @override
   String get adoptSaveAsTarget => 'Save as my target';
@@ -1237,14 +1297,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String dietPlanArchiveHint(String name) {
     return 'This removes $name for good. Archiving keeps it and takes it off the Diet screen just the same.';
-  }
-
-  @override
-  String get sessionDeleteTitle => 'Delete this session?';
-
-  @override
-  String sessionDeleteBody(String day) {
-    return 'This permanently removes your \"$day\" session and everything logged in it. This can\'t be undone.';
   }
 
   @override
@@ -1355,6 +1407,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get workoutBodyweightEmpty =>
       'Log your first weigh-in to start the trend.';
+
+  @override
+  String get workoutBodyweightAllWeighIns => 'All weigh-ins';
 
   @override
   String get workoutThisWeekCaps => 'THIS WEEK';
@@ -1808,6 +1863,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workoutToFailure => 'To failure';
 
   @override
+  String get planDefaultRest => 'Default rest';
+
+  @override
+  String planDefaultRestValue(String time) {
+    return 'Default rest · $time';
+  }
+
+  @override
+  String get planDefaultRestNote =>
+      'Sets every exercise in this plan to this rest. Editing one exercise afterward still overrides it individually.';
+
+  @override
+  String get planSetAll => 'Set all';
+
+  @override
   String workoutRestFor(String time) {
     return 'rest $time';
   }
@@ -1893,6 +1963,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get askReplyStyle => 'Reply style';
+
+  @override
+  String get timeAgoNow => 'now';
+
+  @override
+  String timeAgoMinutes(int minutes) {
+    return '${minutes}m';
+  }
+
+  @override
+  String timeAgoHours(int hours) {
+    return '${hours}h';
+  }
+
+  @override
+  String timeAgoDays(int days) {
+    return '${days}d';
+  }
+
+  @override
+  String get askReplyStyleConcise => 'Concise';
+
+  @override
+  String get askReplyStyleBalanced => 'Balanced';
+
+  @override
+  String get askReplyStyleDetailed => 'Detailed';
 
   @override
   String get askChats => 'Chats';
@@ -2464,6 +2561,21 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String dietKcalLeftOfTarget(String kcal) {
+    return '$kcal kcal left of target';
+  }
+
+  @override
+  String dietKcalLeftOfPlan(String kcal) {
+    return '$kcal kcal left of plan';
+  }
+
+  @override
+  String dietKcalOverTarget(String kcal) {
+    return '$kcal kcal over target';
+  }
+
+  @override
   String dietMealsEaten(int eaten, int total) {
     return '$eaten of $total meals eaten';
   }
@@ -2833,6 +2945,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dietWhatsInIt => 'What’s in it';
 
   @override
+  String get dietSupplementMark => 'Supplement';
+
+  @override
   String get dietNoItemsListed => 'No items listed for this meal.';
 
   @override
@@ -3129,9 +3244,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionDetailsTitle => 'Session details';
 
   @override
-  String get sessionDeleteAction => 'Delete session';
-
-  @override
   String get sessionStatusCompleted => 'Completed';
 
   @override
@@ -3274,6 +3386,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsThemeDark => 'Dark';
+
+  @override
+  String get settingsThemeLight => 'Light';
+
+  @override
+  String get settingsThemeSystem => 'Match my phone';
 
   @override
   String get settingsVersion => 'Version';
@@ -4267,4 +4385,872 @@ class AppLocalizationsEn extends AppLocalizations {
   String privacyContactBody(String email) {
     return 'Questions about privacy or your data can be sent to $email.';
   }
+
+  @override
+  String get sleepTitle => 'Sleep';
+
+  @override
+  String get sleepHubSubtitle => 'Last night';
+
+  @override
+  String get sleepLastNight => 'Last night';
+
+  @override
+  String get sleepNoDataTitle => 'No sleep recorded';
+
+  @override
+  String get sleepNoDataBody =>
+      'Log a night yourself, or connect a device that tracks sleep.';
+
+  @override
+  String get sleepNotVisibleTitle => 'No sleep data visible to ZIVO';
+
+  @override
+  String sleepNotVisibleBody(String provider) {
+    return '$provider doesn\'t say whether an app was refused access, so this may mean permission is off rather than that there\'s nothing there.';
+  }
+
+  @override
+  String get sleepPermissionDeniedTitle => 'ZIVO can\'t read your sleep';
+
+  @override
+  String sleepPermissionDeniedBody(String provider) {
+    return 'Allow Sleep access in $provider to see nights measured by your watch or another app.';
+  }
+
+  @override
+  String get sleepUnavailableTitle => 'No health app on this device';
+
+  @override
+  String get sleepUnavailableBody => 'You can still log nights yourself.';
+
+  @override
+  String sleepHistoryUnavailable(String provider) {
+    return 'Older nights need history access in $provider.';
+  }
+
+  @override
+  String get sleepSyncFailed => 'Couldn\'t read sleep just now.';
+
+  @override
+  String sleepConnect(String provider) {
+    return 'Connect $provider';
+  }
+
+  @override
+  String get sleepProviderApple => 'Apple Health';
+
+  @override
+  String get sleepProviderHealthConnect => 'Health Connect';
+
+  @override
+  String get sleepProviderYou => 'You';
+
+  @override
+  String get sleepGoingToSleep => 'I\'m going to sleep';
+
+  @override
+  String get sleepImAwake => 'I\'m awake';
+
+  @override
+  String sleepMarkOpenSince(String time) {
+    return 'Sleeping since $time';
+  }
+
+  @override
+  String get sleepMarkCancel => 'Not sleeping after all';
+
+  @override
+  String get sleepEditNight => 'Edit this night';
+
+  @override
+  String get sleepEditHint =>
+      'Your correction is saved as your own, and the measured times are kept.';
+
+  @override
+  String sleepOnsetMeasured(String time) {
+    return 'Asleep $time';
+  }
+
+  @override
+  String sleepOnsetPlatform(String time) {
+    return 'Sleep recorded $time';
+  }
+
+  @override
+  String sleepOnsetReported(String time) {
+    return 'You logged $time';
+  }
+
+  @override
+  String sleepOnsetEstimated(String time) {
+    return 'Likely asleep around $time';
+  }
+
+  @override
+  String sleepWakeMeasured(String time) {
+    return 'Awake $time';
+  }
+
+  @override
+  String sleepWakePlatform(String time) {
+    return 'Wake recorded $time';
+  }
+
+  @override
+  String sleepWakeReported(String time) {
+    return 'You logged $time';
+  }
+
+  @override
+  String sleepWakeEstimated(String time) {
+    return 'Likely awake around $time';
+  }
+
+  @override
+  String sleepLastPhoneUse(String time) {
+    return 'Last phone use $time';
+  }
+
+  @override
+  String get sleepMethodMeasured => 'Measured';
+
+  @override
+  String get sleepMethodRecorded => 'Recorded';
+
+  @override
+  String get sleepMethodLogged => 'Logged by you';
+
+  @override
+  String get sleepMethodEstimated => 'Estimate';
+
+  @override
+  String get sleepConfidenceHigh => 'High confidence';
+
+  @override
+  String get sleepConfidenceMedium => 'Medium confidence';
+
+  @override
+  String get sleepConfidenceLow => 'Low confidence';
+
+  @override
+  String sleepSourceChip(String provider, String method) {
+    return '$provider · $method';
+  }
+
+  @override
+  String get sleepDurationLabel => 'Asleep';
+
+  @override
+  String get sleepTimeInBedLabel => 'In bed';
+
+  @override
+  String get sleepEfficiencyLabel => 'Efficiency';
+
+  @override
+  String get sleepEfficiencyUnknown => 'Not tracked';
+
+  @override
+  String sleepInterruptionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count interruptions',
+      one: '1 interruption',
+      zero: 'No interruptions',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sleepNapCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count naps',
+      one: '1 nap',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sleepSpansDstNote =>
+      'This night crossed a clock change, so its length differs from the times shown.';
+
+  @override
+  String get sleepTargetsTitle => 'Your targets';
+
+  @override
+  String get sleepTargetBedtime => 'Bedtime';
+
+  @override
+  String get sleepTargetWake => 'Wake';
+
+  @override
+  String get sleepTargetDuration => 'Sleep length';
+
+  @override
+  String get sleepTargetsHint =>
+      'Used for the target line and nothing else — ZIVO never scores a night.';
+
+  @override
+  String get sleepNoTargets => 'Set a target to see how your nights compare.';
+
+  @override
+  String sleepDeltaLonger(String amount, String target) {
+    return '$amount more than your $target target';
+  }
+
+  @override
+  String sleepDeltaShorter(String amount, String target) {
+    return '$amount less than your $target target';
+  }
+
+  @override
+  String sleepDeltaOnTarget(String target) {
+    return 'On your $target target';
+  }
+
+  @override
+  String sleepBedtimeLater(String amount) {
+    return '$amount later than your target bedtime';
+  }
+
+  @override
+  String sleepBedtimeEarlier(String amount) {
+    return '$amount earlier than your target bedtime';
+  }
+
+  @override
+  String get sleepBedtimeOnTarget => 'On your target bedtime';
+
+  @override
+  String get sleepWhyTitle => 'Why this number?';
+
+  @override
+  String get sleepWhySole => 'Only one source had this night.';
+
+  @override
+  String get sleepWhyMethod =>
+      'Chosen because it was measured rather than entered or estimated.';
+
+  @override
+  String get sleepWhyCoverage =>
+      'Chosen because more of the night was actually recorded.';
+
+  @override
+  String get sleepWhyDetail => 'Chosen because it included sleep stages.';
+
+  @override
+  String get sleepWhyOverride => 'You set this night yourself.';
+
+  @override
+  String sleepDisagreement(String provider, String amount) {
+    return '$provider recorded a different time — $amount apart.';
+  }
+
+  @override
+  String get sleepCoverageLabel => 'Recorded coverage';
+
+  @override
+  String sleepRecordedBy(String provider) {
+    return 'Recorded by $provider';
+  }
+
+  @override
+  String get sleepUseThisInstead => 'Use this one instead';
+
+  @override
+  String get sleepWeekTitle => 'This week';
+
+  @override
+  String get sleepWeekAverage => 'Average';
+
+  @override
+  String get sleepWeekConsistency => 'Consistency';
+
+  @override
+  String get sleepWeekOnTarget => 'On target';
+
+  @override
+  String sleepNightsCounted(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nights',
+      one: '1 night',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sleepNightsOf(int count, int total) {
+    return '$count of $total nights';
+  }
+
+  @override
+  String sleepVariability(String amount) {
+    return '±$amount';
+  }
+
+  @override
+  String sleepOnTargetRatio(int count, int total) {
+    return '$count of $total';
+  }
+
+  @override
+  String get sleepNoData => 'No data';
+
+  @override
+  String get sleepInsufficient => 'Not enough nights yet';
+
+  @override
+  String sleepInsufficientFor(int have, int need) {
+    return 'Not enough nights yet — $have of $need';
+  }
+
+  @override
+  String get sleepWeekUnchanged => 'About the same as last week';
+
+  @override
+  String sleepWeekImproved(String amount) {
+    return '$amount more than last week';
+  }
+
+  @override
+  String sleepWeekDeclined(String amount) {
+    return '$amount less than last week';
+  }
+
+  @override
+  String get sleepInsightsTitle => 'What this means';
+
+  @override
+  String get sleepInsightsPending => 'Reading your nights…';
+
+  @override
+  String get sleepInsightsUnavailable =>
+      'No conclusion can be drawn from the nights recorded so far.';
+
+  @override
+  String sleepInsightBasis(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nights',
+      one: '1 night',
+    );
+    return 'Based on $_temp0';
+  }
+
+  @override
+  String get sleepStageLight => 'Light';
+
+  @override
+  String get sleepStageDeep => 'Deep';
+
+  @override
+  String get sleepStageRem => 'REM';
+
+  @override
+  String get sleepStageAwake => 'Awake';
+
+  @override
+  String get sleepStageAsleep => 'Asleep';
+
+  @override
+  String get sleepStageInBed => 'In bed';
+
+  @override
+  String get sleepNoStages => 'Stages aren\'t available from this source.';
+
+  @override
+  String sleepDurationHm(int hours, int minutes) {
+    return '${hours}h ${minutes}m';
+  }
+
+  @override
+  String sleepDurationM(int minutes) {
+    return '${minutes}m';
+  }
+
+  @override
+  String sleepDurationH(int hours) {
+    return '${hours}h';
+  }
+
+  @override
+  String get hubSleep => 'Sleep';
+
+  @override
+  String get hubNoSleepYet => 'No nights yet';
+
+  @override
+  String sleepInsightDuration(String amount) {
+    return 'You\'ve averaged $amount a night.';
+  }
+
+  @override
+  String sleepInsightWeekBetter(String amount) {
+    return 'That\'s $amount more than the week before.';
+  }
+
+  @override
+  String sleepInsightWeekWorse(String amount) {
+    return 'That\'s $amount less than the week before.';
+  }
+
+  @override
+  String get sleepInsightWeekSame =>
+      'That\'s about the same as the week before.';
+
+  @override
+  String sleepInsightConsistent(String amount) {
+    return 'Your sleep timing held steady, varying by $amount.';
+  }
+
+  @override
+  String sleepInsightIrregular(String amount) {
+    return 'Your sleep timing moved around by $amount across the week.';
+  }
+
+  @override
+  String sleepInsightAdherence(int count, int total) {
+    return 'You hit your target bedtime on $count of $total nights.';
+  }
+
+  @override
+  String get sleepInsightTrendUp =>
+      'Over the last few weeks your nights have been getting longer.';
+
+  @override
+  String get sleepInsightTrendDown =>
+      'Over the last few weeks your nights have been getting shorter.';
+
+  @override
+  String get sleepUnitHour => 'h';
+
+  @override
+  String get sleepAboutTitle => 'How Sleep works';
+
+  @override
+  String get sleepAboutIntro =>
+      'Sleep is a recovery input to your training. Here is exactly what ZIVO does with it, and what it will not claim.';
+
+  @override
+  String get sleepAboutSessionTitle => 'What a sleep session is';
+
+  @override
+  String get sleepAboutSessionBody =>
+      'Tapping “I\'m going to sleep” opens a session and nothing else — no timer runs and your phone is not listening. When you tap “I\'m awake”, those two moments become the night, marked as logged by you.';
+
+  @override
+  String get sleepAboutTrackedTitle => 'What ZIVO reads';
+
+  @override
+  String sleepAboutTrackedBody(String provider) {
+    return 'Each time you open this screen ZIVO re-reads $provider and rebuilds the last week: when you fell asleep, when you woke, how long you were actually asleep, and any time awake in between.';
+  }
+
+  @override
+  String get sleepAboutSourcesTitle => 'Every number says where it came from';
+
+  @override
+  String get sleepAboutSourcesBody =>
+      '“Measured” means a watch recorded it. “Logged by you” means you or an app typed it. When two sources disagree ZIVO picks one and keeps the other — it never averages them into a night nobody slept.';
+
+  @override
+  String get sleepAboutWeekTitle => 'Why some figures are blank';
+
+  @override
+  String get sleepAboutWeekBody =>
+      'An average over one night is not an average. Weekly figures stay blank until enough nights exist, and each one shows how many it still needs.';
+
+  @override
+  String get sleepAboutLimitsTitle => 'What it will not do';
+
+  @override
+  String get sleepAboutLimitsBody =>
+      'There is no sleep score and no streak. ZIVO can tell you how long you slept and how steady your schedule is; it cannot tell you whether the night was good.';
+
+  @override
+  String get sleepAboutDone => 'Got it';
+
+  @override
+  String get sleepSessionOpen => 'Sleeping';
+
+  @override
+  String get sleepMarkSoFar => 'So far';
+
+  @override
+  String get sleepMarkJustNow => 'Just now';
+
+  @override
+  String get sleepMarkHint =>
+      'Tap “I\'m awake” when you get up — that is when the night is recorded.';
+
+  @override
+  String get sleepLoadFailedTitle => 'Couldn\'t load your sleep';
+
+  @override
+  String get sleepLoadFailedBody =>
+      'ZIVO couldn\'t read the nights it has already saved. Check your connection and try again.';
+
+  @override
+  String get sleepRetry => 'Try again';
+
+  @override
+  String get sleepLoading => 'Loading your sleep';
+
+  @override
+  String sleepGateNeeds(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Needs $count nights',
+      one: 'Needs 1 night',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sleepVsLastWeek => 'vs last week';
+
+  @override
+  String get sleepMarkFailed =>
+      'Couldn\'t save that just now. Check your connection and try again.';
+
+  @override
+  String get sleepUnitMinute => 'm';
+
+  @override
+  String sleepHistoryStat(String average, String nights) {
+    return 'Average $average · $nights';
+  }
+
+  @override
+  String sleepNightsAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nights ago',
+      two: '2 nights ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sleepStaleNotice =>
+      'Nothing has been recorded since. This is your most recent night, not last night.';
+
+  @override
+  String get sleepStagesTitle => 'Stages';
+
+  @override
+  String sleepStagesUnavailable(String provider) {
+    return '$provider recorded when you slept, but not which stages.';
+  }
+
+  @override
+  String sleepStagesPartial(String amount) {
+    return 'Staged for $amount of the night.';
+  }
+
+  @override
+  String get sleepTimingTitle => 'Timing';
+
+  @override
+  String get sleepDetailTitle => 'Detail';
+
+  @override
+  String get sleepAgainstTargetTitle => 'Against your target';
+
+  @override
+  String sleepContextLonger(String amount, String average) {
+    return '$amount longer than your average of $average.';
+  }
+
+  @override
+  String sleepContextShorter(String amount, String average) {
+    return '$amount shorter than your average of $average.';
+  }
+
+  @override
+  String sleepContextTypical(String average) {
+    return 'About your usual — you average $average.';
+  }
+
+  @override
+  String sleepContextBasis(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nights',
+      one: '1 night',
+    );
+    return 'Over $_temp0';
+  }
+
+  @override
+  String get sleepHistoryTitle => 'Sleep history';
+
+  @override
+  String get sleepHistorySubtitle => 'Your weeks, night by night';
+
+  @override
+  String sleepWeekRange(String start, String end) {
+    return '$start – $end';
+  }
+
+  @override
+  String get sleepWeekCurrent => 'This week';
+
+  @override
+  String get sleepWeekEarlier => 'Earlier week';
+
+  @override
+  String get sleepWeekLater => 'Later week';
+
+  @override
+  String get sleepWeekEmpty => 'No nights were recorded in this week.';
+
+  @override
+  String get sleepWeekNightsTitle => 'Every night';
+
+  @override
+  String get sleepWeekTypicalTitle => 'Typical night';
+
+  @override
+  String get sleepWeekMedian => 'Median';
+
+  @override
+  String get sleepWeekBedtime => 'Bedtime';
+
+  @override
+  String get sleepWeekWake => 'Wake';
+
+  @override
+  String get sleepWeekCompositionTitle => 'Typical composition';
+
+  @override
+  String sleepWeekCompositionBasis(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count staged nights',
+      one: '1 staged night',
+    );
+    return 'Averaged over $_temp0';
+  }
+
+  @override
+  String get sleepWeekNoStages => 'No night this week carried stage detail.';
+
+  @override
+  String get sleepTrendTitle => 'Longer run';
+
+  @override
+  String get sleepTrendRising => 'Your nights have been getting longer.';
+
+  @override
+  String get sleepTrendFalling => 'Your nights have been getting shorter.';
+
+  @override
+  String get sleepTrendFlat => 'Your nights have held steady.';
+
+  @override
+  String sleepTrendBasis(int count, int days) {
+    return '$count nights across $days days';
+  }
+
+  @override
+  String sleepTrendNeedMore(int have, int need, int days) {
+    return 'A trend needs $need nights across $days days. You have $have.';
+  }
+
+  @override
+  String get sleepNightRowNoData => 'Nothing recorded';
+
+  @override
+  String sleepNightRowRange(String start, String end) {
+    return '$start → $end';
+  }
+
+  @override
+  String get liveFinishNow => 'Finish now';
+
+  @override
+  String get liveFinishNowTitle => 'Finish here?';
+
+  @override
+  String liveFinishNowBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count sets are still unlogged. They stay unlogged — nothing is recorded as done.',
+      one:
+          '1 set is still unlogged. It stays unlogged — nothing is recorded as done.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String workoutStreakRule(int days) {
+    return 'Train at least every $days days';
+  }
+
+  @override
+  String get workoutStreakRestDay => 'Rest day';
+
+  @override
+  String get workoutStreakRestored => 'Restored';
+
+  @override
+  String workoutStreakDaysLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days left to train',
+      one: '1 day left to train',
+      zero: 'Train today to keep it',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutStreakBroken => 'No active streak';
+
+  @override
+  String get workoutStreakRestore => 'Restore this day';
+
+  @override
+  String get workoutStreakRestoreTitle => 'Restore this day?';
+
+  @override
+  String get workoutStreakRestoreBody =>
+      'It bridges the gap so your streak survives. It does not add a workout, and it never counts as one.';
+
+  @override
+  String workoutStreakRestoreUnavailable(int days) {
+    return 'One restore every $days days';
+  }
+
+  @override
+  String get workoutStreakWhyMissed => 'Why no training?';
+
+  @override
+  String get workoutStreakReasonSaved =>
+      'Context only — it never changes your streak.';
+
+  @override
+  String get missedDayRest => 'Rest';
+
+  @override
+  String get missedDayRecovery => 'Recovery';
+
+  @override
+  String get missedDayTravel => 'Travel';
+
+  @override
+  String get missedDayIllness => 'Illness';
+
+  @override
+  String get missedDayBusy => 'Too busy';
+
+  @override
+  String get missedDayOther => 'Something else';
+
+  @override
+  String get missedDayNone => 'No reason given';
+
+  @override
+  String get sessionDurationMeasured => 'Timed by ZIVO';
+
+  @override
+  String get sessionDurationAutoClosed => 'Closed at your last set';
+
+  @override
+  String get sessionDurationCorrected => 'You set this';
+
+  @override
+  String get sessionDurationUnknown => 'Duration unknown';
+
+  @override
+  String get sessionNeedsDuration => 'Needs a duration';
+
+  @override
+  String get sessionNeedsDurationBody =>
+      'This session ran longer than a workout plausibly does, so it is left out of your averages until you set its length. Everything you logged is kept.';
+
+  @override
+  String get sessionSetDuration => 'Set duration';
+
+  @override
+  String get sessionDurationMinutes => 'Minutes';
+
+  @override
+  String get sessionDurationUseMeasured => 'Use the measured time';
+
+  @override
+  String get sessionVoid => 'Void this session';
+
+  @override
+  String get sessionVoidTitle => 'Void this session?';
+
+  @override
+  String get sessionVoidBody =>
+      'It stays in your history exactly as logged, and stops counting toward your streak, averages and analysis.';
+
+  @override
+  String get sessionVoided => 'Voided';
+
+  @override
+  String get sessionUnvoid => 'Count this session again';
+
+  @override
+  String get sessionVoidReason => 'Why?';
+
+  @override
+  String get voidReasonBadDuration => 'The time is wrong';
+
+  @override
+  String get voidReasonLoggedByMistake => 'Logged by mistake';
+
+  @override
+  String get voidReasonNotMine => 'Wasn\'t me';
+
+  @override
+  String get voidReasonOther => 'Something else';
+
+  @override
+  String get sessionCannotDelete =>
+      'A session that recorded work is voided, not deleted — so your history stays trustworthy.';
+
+  @override
+  String statDurationOver(int counted, int total) {
+    return 'over $counted of $total';
+  }
+
+  @override
+  String get statDurationAllExcluded => 'no usable session lengths yet';
+
+  @override
+  String get workoutSettings => 'Training settings';
+
+  @override
+  String get workoutMaxSessionTitle => 'Maximum session length';
+
+  @override
+  String get workoutMaxSessionBody =>
+      'A workout still running past this, with nothing logged for a while, is treated as one you forgot to close. It is ended at your last logged set — never padded out, and never filled in with sets you did not do.';
+
+  @override
+  String get trainingDayMarkSaveFailed => 'Couldn\'t save that day.';
+
+  @override
+  String get sessionUpdateFailed => 'Couldn\'t update that session.';
+
+  @override
+  String get workoutSettingsSaveFailed => 'Couldn\'t save that setting.';
 }

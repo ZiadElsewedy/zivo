@@ -103,13 +103,13 @@ class VoiceComposer extends StatelessWidget {
               child: AnimatedSize(
                 duration: const Duration(milliseconds: 240),
                 curve: Curves.easeOutCubic,
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 220),
                   switchInCurve: Curves.easeOut,
                   switchOutCurve: Curves.easeIn,
                   layoutBuilder: (currentChild, previousChildren) => Stack(
-                    alignment: Alignment.centerLeft,
+                    alignment: AlignmentDirectional.centerStart,
                     children: [...previousChildren, ?currentChild],
                   ),
                   transitionBuilder: (child, animation) =>
@@ -176,7 +176,7 @@ class _IdleBar extends StatelessWidget {
         children: [
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.only(left: 18),
+              padding: const EdgeInsetsDirectional.only(start: 18),
               child: TextField(
                 controller: controller,
                 textInputAction: TextInputAction.send,
@@ -433,11 +433,7 @@ class _RecordingBarState extends State<_RecordingBar>
                 child: IconButton(
                   key: const Key('composer-cancel-recording'),
                   onPressed: widget.onCancel,
-                  icon: const Icon(
-                    AppIcons.close,
-                    size: 20,
-                    color: TrainColors.ink3,
-                  ),
+                  icon: Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
                   tooltip: l(context).askDiscardRecording,
                 ),
               ),
@@ -532,11 +528,15 @@ class _RecordDot extends StatelessWidget {
     return Container(
       width: 11,
       height: 11,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.ember,
         shape: BoxShape.circle,
         boxShadow: [
-          BoxShadow(color: Color(0x55FF5C1A), blurRadius: 8, spreadRadius: 1),
+          BoxShadow(
+            color: TrainColors.ember.withValues(alpha: 0.33),
+            blurRadius: 8,
+            spreadRadius: 1,
+          ),
         ],
       ),
     );
@@ -649,11 +649,7 @@ class _TranscribingBarState extends State<_TranscribingBar>
             child: IconButton(
               key: const Key('composer-cancel-transcribing'),
               onPressed: widget.onCancel,
-              icon: const Icon(
-                AppIcons.close,
-                size: 20,
-                color: TrainColors.ink3,
-              ),
+              icon: Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
               tooltip: l(context).askDiscardVoiceNote,
             ),
           ),

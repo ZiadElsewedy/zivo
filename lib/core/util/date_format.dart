@@ -56,7 +56,8 @@ String _format(BuildContext context, String Function(String locale) format) {
 /// tests are written around that, so normalise it — the invisible difference
 /// is not worth an invisible breakage. Arabic is unaffected (no day-period
 /// separator of this kind).
-String _plainSpaces(String s) => s.replaceAll('\u202f', ' ').replaceAll('\u00a0', ' ');
+String _plainSpaces(String s) =>
+    s.replaceAll('\u202f', ' ').replaceAll('\u00a0', ' ');
 
 /// "Mar 1" — an abbreviated month with the day of the month.
 String formatMonthDay(BuildContext context, DateTime date) =>
@@ -80,6 +81,17 @@ String formatWeekdayFull(BuildContext context, DateTime date) =>
 /// "6:30 AM" — a wall-clock time with the locale's own day period.
 String formatClockTime(BuildContext context, DateTime time) =>
     _plainSpaces(_format(context, (l) => DateFormat.jm(l).format(time)));
+
+/// "6 AM" (and "18:00", and "٦ ص") — the hour alone, for a chart axis.
+///
+/// `DateFormat.j` is the locale's *hour* pattern, so a 24-hour locale gets
+/// "18" rather than an English-shaped "6 PM" with the period translated. It
+/// exists because an axis has a width budget a full clock time cannot meet:
+/// the sleep raster has room for four labels across eighteen hours, and
+/// "12:00 AM" at that spacing overlaps its neighbour on every phone the app
+/// ships on.
+String formatClockHour(BuildContext context, DateTime time) =>
+    _plainSpaces(_format(context, (l) => DateFormat.j(l).format(time)));
 
 /// "6:30:45 AM" — [formatClockTime] with seconds, for a capture timestamp.
 String formatClockTimeWithSeconds(BuildContext context, DateTime time) =>

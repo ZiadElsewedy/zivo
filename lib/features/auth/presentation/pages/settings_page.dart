@@ -6,6 +6,8 @@ import '../../../../core/l10n/language_sheet.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/theme_controller.dart';
+import '../../../../core/theme/theme_sheet.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/train_chrome.dart';
@@ -22,6 +24,7 @@ import '../widgets/media_backup_section.dart';
 import '../widgets/delete_account_sheet.dart';
 import '../../../../core/widgets/settings_row.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../../core/util/bidi.dart';
 
 /// Settings — appearance, music, about (with the privacy policy), and sign
 /// out. Split from [ProfilePage] the way most apps separate "who you are"
@@ -112,17 +115,22 @@ class _SettingsPageState extends State<SettingsPage> {
                   // here that changes what every other screen says.
                   SettingsRow(
                     key: const Key('settings-language'),
-                    icon: Icons.translate_rounded,
+                    icon: AppIcons.language,
                     title: l(context).settingsLanguage,
                     value: _languageValue(context),
-                    accent: TrainColors.violetGlyph,
                     onTap: () => showLanguageSheet(context),
                   ),
+                  // Directly under Language, and for the same reason: these
+                  // are the two rows on this page that change every other
+                  // screen. Theme was a dead readout for as long as the app
+                  // was dark-only — it now does something, so it takes an
+                  // accent and a chevron like Language does.
                   SettingsRow(
+                    key: const Key('settings-theme'),
                     icon: AppIcons.theme,
                     title: l(context).settingsTheme,
-                    value: l(context).settingsThemeDark,
-                    accent: TrainColors.violetGlyph,
+                    value: _themeValue(context),
+                    onTap: () => showThemeSheet(context),
                   ),
                   SettingsRow(
                     icon: AppIcons.version,
@@ -147,7 +155,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     // it is, and a restated explanation in the value
                     // column is filler, not information.
                     value: '',
-                    accent: TrainColors.violetGlyph,
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
@@ -172,7 +179,6 @@ class _SettingsPageState extends State<SettingsPage> {
                       icon: AppIcons.key,
                       title: l(context).settingsChangePassword,
                       value: '',
-                      accent: TrainColors.violetGlyph,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -329,7 +335,7 @@ class _MusicSection extends StatelessWidget {
                   child: Material(
                     color: connected
                         ? TrainColors.green.withValues(alpha: 0.05)
-                        : const Color(0x08FFFFFF),
+                        : TrainColors.sectionFill,
                     borderRadius: BorderRadius.circular(20),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(20),
@@ -356,32 +362,32 @@ class _MusicSection extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                Container(
-                                  width: 32,
-                                  height: 32,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: accent.withValues(alpha: 0.14),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: accent.withValues(alpha: 0.24),
+                                // `SettingsRow`'s mark column, hand-built
+                                // because this row carries an image rather
+                                // than an IconData — which is no reason for
+                                // it to sit a pixel off every other row's.
+                                // Bare, like the rest: the tinted plate that
+                                // used to sit behind it went with the others.
+                                SizedBox(
+                                  width: 24,
+                                  child: Center(
+                                    // Spotify's own mark, not a stand-in
+                                    // glyph: this row names a third-party
+                                    // service the user connects their account
+                                    // to, and the thing that makes it
+                                    // recognisable at a glance is the logo
+                                    // they already know. The equalizer bars
+                                    // that used to sit here read as a generic
+                                    // "music" icon — the same asset the
+                                    // now-playing strip and the player screen
+                                    // already use is the one this card should
+                                    // carry too.
+                                    child: Image.asset(
+                                      'assets/spotify/spotify-icon.png',
+                                      width: 20,
+                                      height: 20,
+                                      filterQuality: FilterQuality.medium,
                                     ),
-                                  ),
-                                  // Spotify's own mark, not a stand-in glyph:
-                                  // this row names a third-party service the
-                                  // user connects their account to, and the
-                                  // thing that makes it recognisable at a
-                                  // glance is the logo they already know. The
-                                  // equalizer bars that used to sit here read
-                                  // as a generic "music" icon — the same
-                                  // asset the now-playing strip and the
-                                  // player screen already use is the one this
-                                  // card should carry too.
-                                  child: Image.asset(
-                                    'assets/spotify/spotify-icon.png',
-                                    width: 18,
-                                    height: 18,
-                                    filterQuality: FilterQuality.medium,
                                   ),
                                 ),
                                 const SizedBox(width: 14),
@@ -416,17 +422,17 @@ class _MusicSection extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 10),
-                                const Icon(
-                                  Icons.chevron_right_rounded,
-                                  size: 16,
-                                  color: Color(0x4DF4F4F0),
+                                Icon(
+                                  AppIcons.chevron,
+                                  size: 15,
+                                  color: TrainColors.inkAt(0.25),
                                 ),
                               ],
                             ),
                             // The evidence line. Absent entirely when there
                             // is no track — never an empty slot.
                             if (live) ...[
-                              const Padding(
+                              Padding(
                                 padding: EdgeInsets.only(top: 13, bottom: 11),
                                 child: Divider(
                                   height: 1,
@@ -438,23 +444,23 @@ class _MusicSection extends StatelessWidget {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      playing.title,
+                                      isolate(playing.title),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TrainType.ui(
                                         size: 12,
                                         weight: FontWeight.w600,
-                                        color: const Color(0xB2F4F4F0),
+                                        color: TrainColors.inkAt(0.7),
                                         height: 1.3,
                                       ),
                                     ),
                                   ),
                                   const SizedBox(width: 10),
                                   Text(
-                                    _remaining(playing),
+                                    ltrFor(context, _remaining(playing)),
                                     style: TrainType.mono(
                                       size: 10,
-                                      color: const Color(0x59F4F4F0),
+                                      color: TrainColors.inkAt(0.35),
                                     ),
                                   ),
                                 ],
@@ -467,10 +473,12 @@ class _MusicSection extends StatelessWidget {
                   ),
                 ),
                 // The way OUT. Connecting links this device, and a linked
-                // device reconnects itself at every launch and resume (see
-                // [MusicController.isLinked]) — so there has to be somewhere
-                // to say "stop doing that", and this card is the one surface
-                // that owns the connection rather than the playback.
+                // device re-attaches itself at every launch and resume (see
+                // [MusicController.isLinked]) — silently, and only to a
+                // Spotify that is already running, but still something the
+                // user is entitled to stop. This card is the one surface that
+                // owns the connection rather than the playback, so the switch
+                // lives here.
                 StreamBuilder<bool>(
                   stream: controller.linked,
                   initialData: controller.isLinked,
@@ -507,16 +515,21 @@ String _remaining(NowPlaying playing) {
   return '-${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
 }
 
-/// Sign out — a **ghost pill**, deliberately not a red button.
-///
-/// The handoff's own hierarchy: ember/red is for the single committing (or
-/// irreversible) action on a screen, and on Settings that is "Delete account"
-/// two sections above. Signing out is reversible — you sign back in — so it
-/// takes the quietest shape on the page and stops competing with the one
-/// thing here you genuinely can't undo.
 /// What the Language row shows on its right. "Match my phone" when nothing is
 /// chosen — naming the *resolved* language there would look like a choice the
 /// user made, and would then be wrong the moment they travel.
+/// The Settings row's right-hand value: the skin the user chose, not the one
+/// currently on screen. On "match my phone" those differ, and the row is
+/// reporting the *choice* — the screen behind it is already reporting the
+/// result.
+String _themeValue(BuildContext context) {
+  final controller = AppScope.of(context).theme;
+  return themeModeLabel(
+    context,
+    controller?.mode.value ?? ThemeController.defaultMode,
+  );
+}
+
 String _languageValue(BuildContext context) {
   final chosen = AppScope.of(context).locale?.locale.value;
   final strings = l(context);
@@ -527,6 +540,18 @@ String _languageValue(BuildContext context) {
   };
 }
 
+/// Sign out — a **ghost pill**, deliberately not a red button.
+///
+/// The handoff's own hierarchy: ember/red is for the single committing (or
+/// irreversible) action on a screen, and on Settings that is "Delete account"
+/// two sections above. Signing out is reversible — you sign back in — so it
+/// takes the quietest shape on the page and stops competing with the one
+/// thing here you genuinely can't undo.
+///
+/// It is [TrainGhostButton] rather than a copy of it: this used to be the
+/// whole widget written out again to add a spinner, which is why its border
+/// and label had drifted from the Disconnect pill on the same screen. The
+/// spinner lives in the shared pill now.
 class _SignOutButton extends StatelessWidget {
   const _SignOutButton({required this.loading, required this.onTap});
 
@@ -535,54 +560,17 @@ class _SignOutButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PressableScale(
-      enabled: !loading,
-      scale: 0.985,
-      child: Material(
-        color: TrainColors.glass,
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
-          onTap: loading ? null : onTap,
-          borderRadius: BorderRadius.circular(999),
-          child: Container(
-            height: 54,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0x1FFFFFFF)),
-            ),
-            child: loading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: TrainColors.ink2,
-                    ),
-                  )
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        AppIcons.signOut,
-                        size: 16,
-                        color: Color(0xBFF4F4F0),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        l(context).settingsSignOut,
-                        style: TrainType.ui(
-                          size: 15,
-                          weight: FontWeight.w700,
-                          color: const Color(0xCCF4F4F0),
-                          height: 1,
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
+    return TrainGhostButton(
+      label: l(context).settingsSignOut,
+      mono: false,
+      height: 54,
+      loading: loading,
+      icon: Icon(
+        AppIcons.signOut,
+        size: 16,
+        color: TrainColors.inkAt(0.75),
       ),
+      onTap: onTap,
     );
   }
 }

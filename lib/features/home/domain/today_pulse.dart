@@ -4,8 +4,11 @@ import '../../../core/theme/train_tokens.dart';
 import '../../../l10n/l10n.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../expenses/domain/expense.dart';
+import '../../../core/util/calendar.dart';
 import '../../workout/domain/live_session.dart';
 import '../../workout/domain/session_status.dart';
+import '../../workout/domain/training_day_mark.dart';
+import '../../workout/domain/training_streak.dart';
 
 /// The Today dashboard's brain: pure, testable computations that turn the
 /// app's real signals — logged sessions, meals, spends, weigh-ins, device
@@ -70,48 +73,42 @@ List<DayActivity> weekActivity(
   int days = 7,
 }) {
   final counts = List<int>.filled(days, 0);
-  final start = DateTime(
-    now.year,
-    now.month,
-    now.day,
-  ).subtract(Duration(days: days - 1));
+  final start = addCalendarDays(now, -(days - 1));
   for (final s in sessions) {
     if (s.status != SessionStatus.completed) continue;
-    final done = s.completedAt ?? s.startedAt;
-    final day = DateTime(done.year, done.month, done.day);
-    final i = day.difference(start).inDays;
+    final day = startOfDay(s.completedAt ?? s.startedAt);
+    // `calendarDaysBetween`, not `difference(...).inDays`: on the day a zone
+    // shifts, two midnights are 23 or 25 hours apart and the truncating
+    // version drops a whole column out of the week strip.
+    final i = calendarDaysBetween(start, day);
     if (i >= 0 && i < days) counts[i]++;
   }
   return [
     for (var i = 0; i < days; i++)
       DayActivity(
-        day: start.add(Duration(days: i)),
+        day: addCalendarDays(start, i),
         workouts: counts[i],
       ),
   ];
 }
 
-/// Consecutive days with at least one completed workout, ending today (or
-/// yesterday if today's session hasn't happened yet — a streak never reads
-/// as broken before the day is over).
-int trainingStreakDays(List<LiveSession> sessions, DateTime now) {
-  final active = weekActivity(
-    sessions,
-    now,
-    days: 400,
-  ).reversed.toList(); // newest first
-  var i = 0;
-  if (active.isNotEmpty && active.first.workouts == 0) i = 1;
-  var streak = 0;
-  for (; i < active.length; i++) {
-    if (active[i].workouts > 0) {
-      streak++;
-    } else {
-      break;
-    }
-  }
-  return streak;
-}
+/// The training streak, for Today.
+///
+/// A thin delegation to `workout/domain/training_streak.dart` — deliberately
+/// NOT its own walk any more. This used to be a second, independent
+/// implementation that bucketed by a different instant than the Workout hub's
+/// and stepped the calendar with `Duration`, so the two screens showed
+/// different numbers for the same history and both collapsed at every
+/// daylight-saving change. One engine, one answer.
+int trainingStreakDays(
+  List<LiveSession> sessions,
+  DateTime now, {
+  List<TrainingDayMark> marks = const [],
+}) => computeTrainingStreak(
+  sessions: sessions,
+  now: now,
+  marks: marks,
+).currentDays;
 
 /// Whether any workout COMPLETED today (the Train ring's filled state).
 bool trainedToday(List<LiveSession> sessions, DateTime now) =>

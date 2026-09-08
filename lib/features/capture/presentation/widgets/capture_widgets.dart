@@ -17,11 +17,20 @@ class CaptureTopBar extends StatelessWidget {
     required this.title,
     required this.onClose,
     this.trailing,
-    this.titleColor = TrainColors.ink2,
-    this.iconColor = TrainColors.ink2,
-    this.chipColor = TrainColors.glassStrong,
+    Color? titleColor,
+    Color? iconColor,
+    Color? chipColor,
     super.key,
-  });
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
+  }) : _titleColor = titleColor,
+       // ignore: prefer_initializing_formals
+       _iconColor = iconColor,
+       // ignore: prefer_initializing_formals
+       _chipColor = chipColor;
 
   final String title;
   final VoidCallback onClose;
@@ -30,9 +39,24 @@ class CaptureTopBar extends StatelessWidget {
   final Widget? trailing;
 
   /// Overridable per host; defaults are the app-wide dark theme.
-  final Color titleColor;
-  final Color iconColor;
-  final Color chipColor;
+  final Color? _titleColor;
+
+  /// Defaults to the active skin's `ink2` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get titleColor => _titleColor ?? TrainColors.ink2;
+  final Color? _iconColor;
+
+  /// Defaults to the active skin's `ink2` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get iconColor => _iconColor ?? TrainColors.ink2;
+  final Color? _chipColor;
+
+  /// Defaults to the active skin's `glassStrong` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get chipColor => _chipColor ?? TrainColors.glassStrong;
 
   @override
   Widget build(BuildContext context) {
@@ -86,16 +110,33 @@ class CaptureIconButton extends StatelessWidget {
     required this.icon,
     required this.onTap,
     required this.semanticLabel,
-    this.iconColor = TrainColors.ink2,
-    this.chipColor = TrainColors.glassStrong,
+    Color? iconColor,
+    Color? chipColor,
     super.key,
-  });
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
+  }) : _iconColor = iconColor,
+       // ignore: prefer_initializing_formals
+       _chipColor = chipColor;
 
   final IconData icon;
   final VoidCallback onTap;
   final String semanticLabel;
-  final Color iconColor;
-  final Color chipColor;
+  final Color? _iconColor;
+
+  /// Defaults to the active skin's `ink2` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get iconColor => _iconColor ?? TrainColors.ink2;
+  final Color? _chipColor;
+
+  /// Defaults to the active skin's `glassStrong` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get chipColor => _chipColor ?? TrainColors.glassStrong;
 
   /// The visible chip diameter — the handoff's 36px circular control.
   static const double chipSize = 36;
@@ -148,10 +189,15 @@ class PillButton extends StatelessWidget {
     required this.enabled,
     required this.onTap,
     this.busy = false,
-    this.color = TrainColors.ember,
+    Color? color,
     this.textColor = Colors.white,
     super.key,
-  });
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
+  }) : _color = color;
 
   final String label;
   final IconData icon;
@@ -161,7 +207,12 @@ class PillButton extends StatelessWidget {
   /// Whether this button's action is currently in flight.
   final bool busy;
 
-  final Color color;
+  final Color? _color;
+
+  /// Defaults to the active skin's `ember` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get color => _color ?? TrainColors.ember;
   final Color textColor;
 
   @override

@@ -29,7 +29,7 @@ class ArtworkColors {
   /// own "playing / connected" green as a calm default neon. Returned whenever
   /// there's no artwork, extraction fails, or nothing usable survives, so the
   /// UI is never left unpainted and a no-cover track still looks intentional.
-  static const ArtworkColors fallback = ArtworkColors(
+  static ArtworkColors get fallback => ArtworkColors(
     background: TrainColors.base,
     accent: TrainColors.green,
   );

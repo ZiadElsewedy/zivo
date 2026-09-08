@@ -133,7 +133,7 @@ class GoalBlock extends StatelessWidget {
           // operator wrap away from its operands.
           FittedBox(
             fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -148,7 +148,7 @@ class GoalBlock extends StatelessWidget {
                     weight: FontWeight.w300,
                     tracking: -0.06,
                     height: 0.9,
-                    color: const Color(0xFFF9F9F5),
+                    color: TrainColors.voiceInk,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -158,7 +158,7 @@ class GoalBlock extends StatelessWidget {
                     size: 12,
                     weight: FontWeight.w500,
                     tracking: 0.14,
-                    color: const Color(0x59F4F4F0),
+                    color: TrainColors.inkAt(0.35),
                   ),
                 ),
                 Padding(
@@ -168,7 +168,7 @@ class GoalBlock extends StatelessWidget {
                     style: TrainType.mono(
                       size: 22,
                       weight: FontWeight.w300,
-                      color: const Color(0x4DF4F4F0),
+                      color: TrainColors.inkAt(0.3),
                     ),
                   ),
                 ),
@@ -180,7 +180,7 @@ class GoalBlock extends StatelessWidget {
                     weight: FontWeight.w300,
                     tracking: -0.05,
                     height: 0.9,
-                    color: const Color(0xFFF9F9F5),
+                    color: TrainColors.voiceInk,
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -190,7 +190,7 @@ class GoalBlock extends StatelessWidget {
                     size: 11,
                     weight: FontWeight.w500,
                     tracking: 0.14,
-                    color: const Color(0x59F4F4F0),
+                    color: TrainColors.inkAt(0.35),
                   ),
                 ),
               ],
@@ -200,11 +200,7 @@ class GoalBlock extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                const Icon(
-                  AppIcons.trendUp,
-                  size: 12,
-                  color: TrainColors.green,
-                ),
+                Icon(AppIcons.trendUp, size: 12, color: TrainColors.green),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
@@ -223,7 +219,7 @@ class GoalBlock extends StatelessWidget {
           Container(
             height: 1,
             margin: const EdgeInsets.fromLTRB(0, 18, 0, 14),
-            color: const Color(0x14FFFFFF),
+            color: TrainColors.liftAt(0.078),
           ),
           IntrinsicHeight(
             child: Row(
@@ -236,10 +232,10 @@ class GoalBlock extends StatelessWidget {
                     valueKey: const Key('last-time-label'),
                   ),
                 ),
-                const VerticalDivider(
+                VerticalDivider(
                   width: 1,
                   thickness: 1,
-                  color: Color(0x14FFFFFF),
+                  color: TrainColors.liftAt(0.078),
                 ),
                 Expanded(
                   child: GoalStatCell(
@@ -250,10 +246,10 @@ class GoalBlock extends StatelessWidget {
                     inset: true,
                   ),
                 ),
-                const VerticalDivider(
+                VerticalDivider(
                   width: 1,
                   thickness: 1,
-                  color: Color(0x14FFFFFF),
+                  color: TrainColors.liftAt(0.078),
                 ),
                 Expanded(
                   child: GoalStatCell(
@@ -356,7 +352,7 @@ class GoalStatCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(left: inset ? 16 : 0),
+      padding: EdgeInsetsDirectional.only(start: inset ? 16 : 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -366,7 +362,7 @@ class GoalStatCell extends StatelessWidget {
               size: 8.5,
               weight: FontWeight.w500,
               tracking: 0.16,
-              color: const Color(0x52F4F4F0),
+              color: TrainColors.ink4,
             ),
           ),
           const SizedBox(height: 8),
@@ -441,7 +437,7 @@ class _ProgressVerdictBadgeState extends State<ProgressVerdictBadge>
     final pct = comparison.overallChangePercent.round();
     final label = comparison.verdict == ProgressVerdict.matched
         ? word
-        : '$word ${pct > 0 ? '+' : ''}$pct%';
+        : '$word ${ltrFor(context, '${pct > 0 ? '+' : ''}$pct%')}';
 
     return AnimatedBuilder(
       animation: _scale,

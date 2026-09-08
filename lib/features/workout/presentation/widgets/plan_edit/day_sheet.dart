@@ -3,6 +3,7 @@ import '../../../../../core/theme/train_tokens.dart';
 import '../../../../capture/presentation/widgets/capture_widgets.dart';
 import 'plan_edit_chrome.dart';
 import '../../controllers/plan_edit_controller.dart';
+import '../../../../../l10n/l10n.dart';
 
 /// A sheet to add one day: a slot letter, a label, and optional notes.
 class DaySheet extends StatefulWidget {
@@ -58,22 +59,26 @@ class _DaySheetState extends State<DaySheet> {
   @override
   Widget build(BuildContext context) {
     return SheetShell(
-      title: 'Add day',
+      title: l(context).planAddDay,
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
               width: 76,
-              child: LabeledField(label: 'Slot', controller: _slot, hint: 'A'),
+              child: LabeledField(
+                label: l(context).planDaySlot,
+                controller: _slot,
+                hint: l(context).planDaySlotHint,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: LabeledField(
                 fieldKey: const Key('day-label-field'),
-                label: 'Label',
+                label: l(context).planDayLabel,
                 controller: _label,
-                hint: 'Push / Pull / Legs',
+                hint: l(context).planDayLabelHint,
                 autofocus: true,
                 onSubmitted: (_) => _submit(),
               ),
@@ -81,10 +86,14 @@ class _DaySheetState extends State<DaySheet> {
           ],
         ),
         const SizedBox(height: 14),
-        LabeledField(label: 'Notes (optional)', controller: _notes, hint: '—'),
+        LabeledField(
+          label: l(context).planDayNotesOptional,
+          controller: _notes,
+          hint: '—',
+        ),
         const SizedBox(height: 22),
         PillButton(
-          label: 'Add day',
+          label: l(context).planAddDay,
           icon: Icons.add_rounded,
           color: TrainColors.green,
           enabled: _canAdd,

@@ -209,7 +209,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(22, 6, 22, 0),
                   child: Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: AlignmentDirectional.centerStart,
                     // Not the house BackChip: leaving here isn't "back", it
                     // abandons a half-created session, so the affordance says
                     // what it actually does.
@@ -233,10 +233,11 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                                 TextSpan(text: l(context).authCodeSentTo),
                                 TextSpan(
                                   text: _maskedEmail,
-                                  style: AuthHeader.asideStyle.copyWith(
-                                    color: TrainColors.ink,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  style: AuthHeader.asideStyle(context)
+                                      .copyWith(
+                                        color: TrainColors.ink,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                 ),
                               ],
                             ),
@@ -266,7 +267,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(
+                                  Icon(
                                     Icons.error_outline_rounded,
                                     size: 15,
                                     color: TrainColors.ember,
@@ -364,18 +365,18 @@ class _UseAnotherAccountChip extends StatelessWidget {
           message: l(context).authUseAnotherAccount,
           child: Material(
             color: TrainColors.raisedStrong,
-            shape: const StadiumBorder(
+            shape: StadiumBorder(
               side: BorderSide(color: TrainColors.hairlineStrong),
             ),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: enabled ? onTap : null,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 9, 15, 9),
+                padding: const EdgeInsetsDirectional.fromSTEB(12, 9, 15, 9),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.arrow_back_rounded,
                       size: 16,
                       color: TrainColors.ink2,

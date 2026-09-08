@@ -7,6 +7,7 @@ import 'package:zivo/features/music/domain/music_connection.dart';
 import 'package:zivo/features/music/domain/music_controller.dart';
 import 'package:zivo/features/music/domain/now_playing.dart';
 import 'package:zivo/features/music/presentation/now_playing_lozenge.dart';
+import 'package:zivo/l10n/l10n.dart';
 
 /// The bottom bar's music strip is the app's ONE permanent music surface: it
 /// carries the full transport while a track is live, and — once the device is
@@ -105,9 +106,18 @@ const _fixtureTrack = NowPlaying(
   hasControl: true,
 );
 
-Future<void> _pump(WidgetTester tester, _StubController controller) async {
+Future<void> _pump(
+  WidgetTester tester,
+  _StubController controller, {
+  TextDirection direction = TextDirection.ltr,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
+      locale: direction == TextDirection.rtl
+          ? const Locale('ar')
+          : const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         body: Align(
           alignment: Alignment.bottomCenter,
@@ -118,6 +128,10 @@ Future<void> _pump(WidgetTester tester, _StubController controller) async {
   );
   await tester.pump();
 }
+
+/// The centre x of the transport button carrying [label].
+double _centreOf(WidgetTester tester, String label) =>
+    tester.getCenter(find.bySemanticsLabel(label)).dx;
 
 void main() {
   testWidgets('a live track carries previous, play/pause and next', (
@@ -139,6 +153,36 @@ void main() {
     expect(controller.previousCalls, 1);
     expect(controller.nextCalls, 1);
     expect(controller.pauseCalls, 1);
+  });
+
+  testWidgets('the transport keeps its physical order in Arabic', (
+    tester,
+  ) async {
+    // Media controls are the documented exception to mirroring: they point
+    // along the track's timeline, which runs the same way in every language,
+    // and the glyphs are painted rather than flipped. Mirrored, the
+    // right-pointing "next" arrow ended up LEFT of the left-pointing
+    // "previous" one — a pair aiming away from each other, with the two
+    // actions swapped under a thumb that had already learned where they were.
+    for (final direction in TextDirection.values) {
+      final controller = _StubController(
+        connectionState: MusicConnection.connected,
+        track: _fixtureTrack,
+      );
+      await _pump(tester, controller, direction: direction);
+
+      final rtl = direction == TextDirection.rtl;
+      final previous = _centreOf(
+        tester,
+        rtl ? 'المقطع السابق' : 'Previous track',
+      );
+      final next = _centreOf(tester, rtl ? 'المقطع التالي' : 'Next track');
+      expect(
+        previous,
+        lessThan(next),
+        reason: 'previous sits left of next under $direction',
+      );
+    }
   });
 
   testWidgets(

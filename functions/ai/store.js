@@ -125,6 +125,14 @@ class FirestoreStore {
         startedAt: toDate(d.startedAt),
         completedAt: toDate(d.completedAt),
         pausedAccumMs: typeof d.pausedAccumMs === "number" ? d.pausedAccumMs : 0,
+        // Duration provenance and the user's own correction — the coach must
+        // reason from the same figure the app shows, and must not be handed a
+        // duration the app has already decided it does not believe.
+        durationSource: d.durationSource || "measured",
+        correctedDurationMinutes:
+          typeof d.correctedDurationMinutes === "number" ?
+            d.correctedDurationMinutes :
+            null,
         exercises: (d.exercises || []).map((e) => ({
           id: e.id || "",
           exerciseId: e.exerciseId || "",

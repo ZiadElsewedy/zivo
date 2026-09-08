@@ -25,7 +25,13 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // firebase_auth requires a minimum of API 23. spotify_sdk's own
         // plugin (android/build.gradle) only requires 21, already covered.
-        minSdk = maxOf(flutter.minSdkVersion, 23)
+        // 26 (Android 8.0), raised from 23 by the Sleep feature: the
+        // `health` package's Health Connect client requires it, and the
+        // manifest merger fails outright below it. The cost is Android
+        // 6.0-7.1, which no longer meaningfully exists on devices anyone
+        // trains with; the alternative was no sleep data on Android at all.
+        // See docs/DECISIONS/ADR-010-sleep-provenance.md.
+        minSdk = maxOf(flutter.minSdkVersion, 26)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

@@ -22,28 +22,54 @@
   transport controls follow the current track's colour.
 - `presentation/music_artwork.dart`, `music_scrubber.dart` — pieces.
 
-## Staying connected (the default, not a user chore)
+## Syncing automatically — never *launching* automatically
 
-Connecting **links the device**: `MusicController.connect()` records per-device consent
-(`data/spotify_link_store.dart`, SharedPreferences — consent, never a credential) and
-from then on `isLinked` is true. A linked device reattaches on its own —
+The distinction this section exists to protect: **ZIVO attaches to a Spotify that is
+already playing; it never opens one that isn't.** Opening ZIVO to log a set must not put
+Spotify on screen, and quitting Spotify must not bring it back.
 
-- at launch (`SpotifyMusicController`'s constructor restores the link and connects),
-- on **every app resume** (`ZivoApp` is a `WidgetsBindingObserver` and calls
-  `reconnectIfLinked()`; App Remote routinely dies while ZIVO is backgrounded, so this
-  is the one that matters most in practice), and
-- after a drop, on a bounded backoff (2s → 5s → 12s → 30s, then wait for the next
-  resume).
+`spotify_sdk` hides two very different things behind the word "connect", and mixing them
+up is exactly the bug this replaced:
 
-Two states are deliberately **terminal**: `authFailed` (retrying can throw an
-authorization sheet at the user) and `noSpotifyApp` (retrying cannot succeed). Both
-surface a tappable affordance instead. `disconnect()` means **unlink** — it clears the
-consent so nothing reconnects behind the user's back; the only place that offers it is
-Settings' Music card.
+| Call | Native | Effect |
+|---|---|---|
+| `getAccessToken(...)` | iOS `authorizeAndPlayURI` | **Opens the Spotify app and starts playback.** Returns an access token. |
+| `connectToSpotifyRemote(accessToken: …)` | iOS `SPTAppRemote.connect` | Attaches to a **running** Spotify; fails harmlessly when there isn't one. Never opens anything. |
+
+So `SpotifyMusicController` has two private paths and one rule about them:
+
+- **`_attach()`** — the silent one. Every automatic attempt goes through this and only
+  this: at launch (the constructor restores the link), on **every app resume**
+  (`ZivoApp` is a `WidgetsBindingObserver` and calls `reconnectIfLinked()`; App Remote
+  routinely dies while ZIVO is backgrounded, so this is the one that matters most in
+  practice), and once, 2s after a drop.
+- **`_authorize()`** — the one that can open Spotify. Reachable *only* from `connect()`,
+  i.e. from a user's own tap on Connect / Reconnect. And even `connect()` tries `_attach()`
+  first when it holds a token, so reconnecting to a still-running Spotify costs no trip
+  out to Spotify's UI.
+
+Silent attach needs an access token, which is why `data/spotify_link_store.dart` now keeps
+one (SharedPreferences, alongside the consent flag — read its doc for what that token is
+and why it's low-value). **With no token stored, an automatic attempt does nothing at
+all** — it does not fall back to the launching path. That is the invariant, and
+`test/music/spotify_music_controller_test.dart` watches the platform channel to hold it.
+
+`connect()` links the device: `isLinked` becomes true and stays true until `disconnect()`,
+which now clears the token as well as the consent. Two connection states remain
+deliberately **terminal** (no retry): `authFailed` — a fresh authorization is the user's
+tap to give, since granting one puts Spotify on screen — and `noSpotifyApp`, which can't
+succeed at all.
 
 `linked` is not `connection`: a linked device is routinely disconnected, and that
 distinction is what keeps the strip on screen with a reconnect on it (below) instead of
-vanishing.
+vanishing. After the token lapses (~1h, and the App Remote flow issues no refresh token),
+a linked device simply stops attaching silently and the strip reads *Reconnect Spotify* —
+one tap, and it's silent again for the next hour.
+
+**Android has no such split.** Its `connectToSpotify` ignores the access token and binds
+to the Spotify service without forcing playback or foregrounding the app, so attach and
+authorize are the same call there. `SpotifyMusicController`'s `silentAttachNeedsToken`
+carries that platform fact (and lets a test pin either branch).
 
 ## Controller seam (`AppScope.music`, nullable)
 

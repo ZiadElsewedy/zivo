@@ -145,7 +145,7 @@ class _TrainedRing extends StatelessWidget {
           subColor: done != null || midSession != null
               ? TrainColors.green.withValues(alpha: 0.7)
               : null,
-          glyph: const Icon(
+          glyph: Icon(
             AppIcons.workout,
             size: 24,
             color: TrainColors.green,
@@ -334,7 +334,7 @@ class MomentumSection extends StatelessWidget {
                   ],
                   if (hasWeight) ...[
                     const SizedBox(height: 12),
-                    const Divider(height: 1, color: TrainColors.hairline),
+                    Divider(height: 1, color: TrainColors.hairline),
                     const SizedBox(height: 10),
                     const _WeightRow(),
                   ],
@@ -492,7 +492,7 @@ class _DayBar extends StatelessWidget {
     // marker the identity doc reserves it for), hairline for a rest day so
     // the week still reads as seven days.
     final hue = count == 0
-        ? const Color(0x14FFFFFF)
+        ? TrainColors.liftAt(0.078)
         : (isToday
               ? TrainColors.ember
               : TrainColors.green.withValues(alpha: 0.55));
@@ -770,7 +770,7 @@ class _InsightRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 11, 14, 11),
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 11, 14, 11),
       decoration: BoxDecoration(
         color: TrainColors.glass,
         borderRadius: BorderRadius.circular(AppRadius.chip * 2),

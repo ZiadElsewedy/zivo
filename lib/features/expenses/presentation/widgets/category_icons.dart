@@ -6,7 +6,7 @@ import '../../domain/expense_category.dart';
 /// Maps a category's [CategoryIcon] to its stroked glyph from the app's one
 /// icon vocabulary (`AppIcons`) — the icon counterpart to `hueColor()`.
 ///
-/// Routed through `AppIcons` rather than importing Lucide here on purpose:
+/// Routed through `AppIcons` rather than importing Phosphor here on purpose:
 /// that file is the single place the app names its icon set, and nothing else
 /// in `lib/` imports the icon package directly.
 IconData categoryIcon(CategoryIcon icon) => switch (icon) {

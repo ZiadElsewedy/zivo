@@ -90,13 +90,23 @@ class ImportSelectingState extends StatelessWidget {
   const ImportSelectingState({
     required this.title,
     required this.subtitle,
-    this.accent = TrainColors.green,
+    Color? accent,
     super.key,
-  });
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
+  }) : _accent = accent;
 
   final String title;
   final String subtitle;
-  final Color accent;
+  final Color? _accent;
+
+  /// Defaults to the active skin's `green` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get accent => _accent ?? TrainColors.green;
 
   @override
   Widget build(BuildContext context) {
@@ -131,14 +141,31 @@ class ImportSelectingState extends StatelessWidget {
 class ImportAnalyzingState extends StatelessWidget {
   const ImportAnalyzingState({
     required this.statusLine,
-    this.accent = TrainColors.green,
-    this.chipColor = TrainColors.glassStrong,
+    Color? accent,
+    Color? chipColor,
     super.key,
-  });
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
+  }) : _accent = accent,
+       // ignore: prefer_initializing_formals
+       _chipColor = chipColor;
 
   final String statusLine;
-  final Color accent;
-  final Color chipColor;
+  final Color? _accent;
+
+  /// Defaults to the active skin's `green` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get accent => _accent ?? TrainColors.green;
+  final Color? _chipColor;
+
+  /// Defaults to the active skin's `glassStrong` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get chipColor => _chipColor ?? TrainColors.glassStrong;
 
   @override
   Widget build(BuildContext context) {
@@ -187,16 +214,26 @@ class ImportRejectedState extends StatelessWidget {
     required this.retryLabel,
     required this.onRetry,
     required this.onBuildManually,
-    this.retryColor = TrainColors.ember,
+    Color? retryColor,
     super.key,
-  });
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
+  }) : _retryColor = retryColor;
 
   final String title;
   final String reason;
   final String retryLabel;
   final VoidCallback onRetry;
   final VoidCallback onBuildManually;
-  final Color retryColor;
+  final Color? _retryColor;
+
+  /// Defaults to the active skin's `ember` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get retryColor => _retryColor ?? TrainColors.ember;
 
   @override
   Widget build(BuildContext context) {
@@ -206,7 +243,7 @@ class ImportRejectedState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const ImportPhaseIcon(
+            ImportPhaseIcon(
               icon: Icons.description_outlined,
               color: TrainColors.ember,
             ),
@@ -256,14 +293,24 @@ class ImportErrorState extends StatelessWidget {
     required this.message,
     required this.onRetry,
     this.detail,
-    this.retryColor = TrainColors.ember,
+    Color? retryColor,
     super.key,
-  });
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
+  }) : _retryColor = retryColor;
 
   final String message;
   final VoidCallback onRetry;
   final String? detail;
-  final Color retryColor;
+  final Color? _retryColor;
+
+  /// Defaults to the active skin's `ember` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get retryColor => _retryColor ?? TrainColors.ember;
 
   @override
   Widget build(BuildContext context) {
@@ -273,24 +320,23 @@ class ImportErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const ImportPhaseIcon(
+            ImportPhaseIcon(
               icon: Icons.cloud_off_rounded,
               color: TrainColors.ink3,
             ),
             const SizedBox(height: 18),
             Text(
               message,
-              style: AppText.aside.copyWith(color: TrainColors.ink2),
+              style: AppText.aside(context).copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             if (detail != null) ...[
               const SizedBox(height: 10),
               Text(
                 detail!,
-                style: AppText.aside.copyWith(
-                  color: TrainColors.ink3,
-                  fontSize: 11,
-                ),
+                style: AppText.aside(
+                  context,
+                ).copyWith(color: TrainColors.ink3, fontSize: 11),
                 textAlign: TextAlign.center,
               ),
             ],

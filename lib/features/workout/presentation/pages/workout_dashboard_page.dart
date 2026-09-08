@@ -96,8 +96,16 @@ class WorkoutDashboardPage extends StatelessWidget {
               final stats = computeTrainingDashboardStats(
                 sessions: sessions,
                 now: now,
+                maxSessionDuration: AppScope.of(context).maxSessionDuration,
+                marks:
+                    AppScope.of(context).trainingDayMarks?.current ?? const [],
               );
-              final selection = resolveUpNext(plan, _firstActive(sessions));
+              final selection = resolveUpNext(
+                plan,
+                _firstActive(sessions),
+                now: DateTime.now(),
+                maxSessionDuration: AppScope.of(context).maxSessionDuration,
+              );
 
               final bodyWeight = scope.bodyWeight;
               return StreamBuilder<List<BodyWeightEntry>>(
@@ -180,7 +188,13 @@ class WorkoutDashboardPage extends StatelessWidget {
                               ).workoutThisWeekCount(stats.sessionsThisWeek),
                             ),
                             const SizedBox(height: 11),
-                            _StatsGrid(stats: stats, sessions: sessions),
+                            _StatsGrid(
+                              stats: stats,
+                              sessions: sessions,
+                              maxSessionDuration: AppScope.of(
+                                context,
+                              ).maxSessionDuration,
+                            ),
                           ],
                         ),
                       ),
@@ -416,7 +430,13 @@ class _WeightStepper extends StatelessWidget {
 /// end — each metric opens the per-session history that produced it — and
 /// each carries the shape of its own metric where the old chevron sat.
 class _StatsGrid extends StatelessWidget {
-  const _StatsGrid({required this.stats, required this.sessions});
+  const _StatsGrid({
+    required this.stats,
+    required this.sessions,
+    required this.maxSessionDuration,
+  });
+
+  final Duration maxSessionDuration;
 
   final TrainingDashboardStats stats;
 
@@ -430,7 +450,10 @@ class _StatsGrid extends StatelessWidget {
     final now = DateTime.now();
     final weekly = weeklySessionCounts(sessions: sessions, now: now);
     final daily = dailySessionCounts(sessions: sessions, now: now);
-    final durations = recentSessionDurationMinutes(sessions: sessions);
+    final durations = recentSessionDurationMinutes(
+      sessions: sessions,
+      maxSessionDuration: maxSessionDuration,
+    );
 
     return Column(
       children: [
@@ -601,7 +624,7 @@ class _WeightCard extends StatelessWidget {
                               size: 11,
                               weight: FontWeight.w500,
                               tracking: 0.14,
-                              color: const Color(0x59F4F4F0),
+                              color: TrainColors.inkAt(0.35),
                             ),
                           ),
                         )
@@ -618,7 +641,7 @@ class _WeightCard extends StatelessWidget {
                                   size: 38,
                                   weight: FontWeight.w300,
                                   tracking: -0.05,
-                                  color: const Color(0xFFF9F9F5),
+                                  color: TrainColors.voiceInk,
                                 ),
                               ),
                             ),
@@ -631,7 +654,7 @@ class _WeightCard extends StatelessWidget {
                                 size: 11,
                                 weight: FontWeight.w500,
                                 tracking: 0.14,
-                                color: const Color(0x59F4F4F0),
+                                color: TrainColors.inkAt(0.35),
                               ),
                             ),
                           ],
@@ -659,7 +682,7 @@ class _WeightCard extends StatelessWidget {
                     style: TrainType.caption(
                       size: 8,
                       tracking: 0.14,
-                      color: const Color(0x47F4F4F0),
+                      color: TrainColors.inkAt(0.28),
                     ),
                   ),
                   Text(
@@ -667,7 +690,7 @@ class _WeightCard extends StatelessWidget {
                     style: TrainType.caption(
                       size: 8,
                       tracking: 0.14,
-                      color: const Color(0x47F4F4F0),
+                      color: TrainColors.inkAt(0.28),
                     ),
                   ),
                 ],
@@ -680,7 +703,7 @@ class _WeightCard extends StatelessWidget {
                 latest == null
                     ? l(context).weighInStartTrend
                     : l(context).weighInOneMore(
-                        timeAgo(latest.loggedAt, DateTime.now()),
+                        timeAgo(context, latest.loggedAt, DateTime.now()),
                       ),
                 style: TrainType.ui(
                   size: 12.5,
@@ -731,7 +754,7 @@ class _LogWeighInPill extends StatelessWidget {
                 style: TrainType.ui(
                   size: 11.5,
                   weight: FontWeight.w700,
-                  color: const Color(0xBFF4F4F0),
+                  color: TrainColors.inkAt(0.75),
                   height: 1,
                 ),
               ),
@@ -752,16 +775,13 @@ class _DashboardLoadingState extends StatelessWidget {
       child: Container(
         width: 140,
         height: 140,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: TrainColors.raisedStrong,
           shape: BoxShape.circle,
         ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
-          colorFilter: const ColorFilter.mode(
-            TrainColors.ink2,
-            BlendMode.srcIn,
-          ),
+          colorFilter: ColorFilter.mode(TrainColors.ink2, BlendMode.srcIn),
           child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
         ),
       ),
@@ -780,15 +800,11 @@ class _DashboardErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.cloud_off_rounded,
-              size: 30,
-              color: TrainColors.ink3,
-            ),
+            Icon(Icons.cloud_off_rounded, size: 30, color: TrainColors.ink3),
             const SizedBox(height: 12),
             Text(
               l(context).errorCouldntLoad,
-              style: AppText.aside.copyWith(color: TrainColors.ink2),
+              style: AppText.aside(context).copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
@@ -815,10 +831,7 @@ class _NoPlanState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _PhaseIconLike(
-              icon: AppIcons.workout,
-              color: TrainColors.green,
-            ),
+            _PhaseIconLike(icon: AppIcons.workout, color: TrainColors.green),
             const SizedBox(height: 18),
             Text(
               l(context).workoutNoPlanYet,

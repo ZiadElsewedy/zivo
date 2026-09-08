@@ -7,6 +7,8 @@ import 'package:zivo/core/media/data/in_memory_media_registry.dart';
 import 'package:zivo/core/media/data/local_media_store.dart';
 import 'package:zivo/core/media/media_service.dart';
 import 'package:zivo/core/scope/app_scope.dart';
+import 'package:zivo/core/theme/app_theme.dart';
+import 'package:zivo/core/theme/zivo_palette.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/auth/domain/auth_repository.dart';
 import 'package:zivo/features/auth/domain/auth_state.dart';
@@ -19,7 +21,10 @@ import 'package:zivo/features/moments/domain/moment_repository.dart';
 import 'package:zivo/features/music/domain/music_controller.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_training_day_mark_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
+import 'package:zivo/features/workout/domain/training_day_mark_repository.dart';
+import 'package:zivo/features/workout/domain/workout_session_repository.dart';
 
 import 'fake_auth_repository.dart';
 import 'fake_profile_repository.dart';
@@ -53,6 +58,11 @@ FakeAuthRepository signedInAuth({String uid = 'fake-uid'}) =>
 /// page in that language. Left null (the default), the [MaterialApp] carries no
 /// delegates and `l(context)` falls back to English — which is what the ~120
 /// existing widget tests rely on, so they are unaffected.
+///
+/// [brightness] picks the skin. It defaults to dark — what every existing test
+/// was written against — and it *sets* the process-wide palette rather than
+/// reading it, so a test that forgot to reset cannot leak into the next one
+/// (ADR-011).
 Widget wrapWithScope(
   Widget child, {
   AuthRepository? auth,
@@ -60,8 +70,13 @@ Widget wrapWithScope(
   MediaService? media,
   MusicController? music,
   MomentRepository? moments,
+  WorkoutSessionRepository? workoutSessions,
+  TrainingDayMarkRepository? trainingDayMarks,
   Locale? locale,
+  Brightness brightness = Brightness.dark,
 }) {
+  ZivoTheme.use(brightness);
+  final theme = AppTheme.of(brightness);
   return AppScope(
     media: media ?? testMediaService(),
     auth: auth ?? FakeAuthRepository(),
@@ -70,13 +85,15 @@ Widget wrapWithScope(
     moments: moments ?? InMemoryMomentRepository(),
     workouts: InMemoryWorkoutRepository(),
     workoutPlans: InMemoryWorkoutPlanRepository(),
-    workoutSessions: InMemoryWorkoutSessionRepository(),
+    workoutSessions: workoutSessions ?? InMemoryWorkoutSessionRepository(),
+    trainingDayMarks: trainingDayMarks ?? InMemoryTrainingDayMarkRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
     music: music ?? InertMusicController(),
     child: locale == null
-        ? MaterialApp(home: child)
+        ? MaterialApp(theme: theme, home: child)
         : MaterialApp(
+            theme: theme,
             locale: locale,
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,

@@ -23,11 +23,16 @@ class RestRing extends StatefulWidget {
     required this.total,
     this.animate = true,
     this.accent,
-    this.hue = TrainColors.green,
+    Color? hue,
     this.onTap,
     this.isPaused = false,
     super.key,
-  });
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
+  }) : _hue = hue;
 
   final Duration remaining;
   final int total;
@@ -46,7 +51,12 @@ class RestRing extends StatefulWidget {
   final Color? accent;
 
   /// The phase's colour: green while resting, ember during the warm-up.
-  final Color hue;
+  final Color? _hue;
+
+  /// Defaults to the active skin's `green` — resolved on read
+  /// rather than in the constructor, which is what lets the
+  /// constructor stay `const` (ADR-011).
+  Color get hue => _hue ?? TrainColors.green;
 
   /// Pause/resume. The ring is the biggest, most obvious target on either
   /// countdown screen, so it's the one people reach for first.
@@ -179,12 +189,14 @@ class _RestRingState extends State<RestRing> with TickerProviderStateMixin {
             child: Align(
               alignment: const Alignment(0, 0.44),
               child: Text(
-                l(context).liveRestPlanned(ltrFor(context, formatRest(widget.total))),
+                l(
+                  context,
+                ).liveRestPlanned(ltrFor(context, formatRest(widget.total))),
                 style: TrainType.mono(
                   size: 9,
                   weight: FontWeight.w500,
                   tracking: 0.24,
-                  color: const Color(0x4DF4F4F0),
+                  color: TrainColors.inkAt(0.3),
                 ),
               ),
             ),
@@ -232,17 +244,16 @@ class RestTimeLabel extends StatelessWidget {
   // diameter. 64/17 clears the inner edge by ~17pt at the widest value this
   // can ever show ("9:59.99"), with the numeral still the obvious hero of a
   // 290pt ring.
-  static final _wholeStyle = TrainType.mono(
+  // A getter, not a `static final`: a field is evaluated once and would
+  // pin this style to whichever skin the app first drew (ADR-011).
+  static TextStyle get _wholeStyle => TrainType.mono(
     size: 64,
     weight: FontWeight.w200,
     tracking: -0.06,
-    color: const Color(0xFFFBFBF7),
+    color: TrainColors.voiceInk,
   );
-  static final _centisStyle = TrainType.mono(
-    size: 17,
-    tracking: -0.03,
-    color: const Color(0x59F4F4F0),
-  );
+  static TextStyle get _centisStyle =>
+      TrainType.mono(size: 17, tracking: -0.03, color: TrainColors.inkAt(0.35));
 
   @override
   Widget build(BuildContext context) {

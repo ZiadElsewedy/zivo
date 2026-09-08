@@ -233,16 +233,16 @@ class ProfilePage extends StatelessWidget {
                 // nothing but the single way out to Settings.
                 RiseIn(
                   child: Align(
-                    alignment: Alignment.centerRight,
+                    alignment: AlignmentDirectional.centerEnd,
                     child: TrainCircleButton(
                       semanticLabel: l(context).profileSettings,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const SettingsPage()),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         AppIcons.settings,
                         size: 16,
-                        color: Color(0xB2F4F4F0),
+                        color: TrainColors.inkAt(0.7),
                       ),
                     ),
                   ),
@@ -289,7 +289,6 @@ class ProfilePage extends StatelessWidget {
                         icon: AppIcons.idCard,
                         title: l(context).profileName,
                         value: profile?.name ?? '—',
-                        accent: TrainColors.violetGlyph,
                         onTap: profile == null
                             ? null
                             : () => _editName(context, profile),
@@ -300,7 +299,6 @@ class ProfilePage extends StatelessWidget {
                         value: profile == null
                             ? '—'
                             : _formatDob(context, profile.dateOfBirth),
-                        accent: TrainColors.violetGlyph,
                         last: true,
                         onTap: profile == null
                             ? null
@@ -344,7 +342,6 @@ class ProfilePage extends StatelessWidget {
                           title: l(context).profileEmail,
                           value: '',
                           trailing: _ConnectedBadge(),
-                          accent: TrainColors.violetGlyph,
                           last: true,
                         ),
                     ],
@@ -382,8 +379,8 @@ class ProfilePage extends StatelessWidget {
   static Widget? _providerLogo(String id) => switch (id) {
     'google.com' => Image.asset(
       'assets/google/google-icon.png',
-      width: 18,
-      height: 18,
+      width: 20,
+      height: 20,
       filterQuality: FilterQuality.medium,
     ),
     _ => null,
@@ -524,7 +521,7 @@ class _ConnectedBadge extends StatelessWidget {
         Container(
           width: 5,
           height: 5,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: TrainColors.green,
           ),
@@ -570,8 +567,7 @@ class _LifetimeStats extends StatelessWidget {
         final months = _monthsSince(user.createdAt);
 
         return TrainCard(
-          radius: 20,
-          padding: const EdgeInsets.symmetric(vertical: 17, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 17, horizontal: 4),
           child: TrainStatStrip(
             items: [
               TrainStat('$completed', l(context).profileStatSessions),
@@ -664,7 +660,7 @@ class _Avatar extends StatelessWidget {
       height: _size - _inset * 2,
       alignment: Alignment.center,
       clipBehavior: Clip.antiAlias,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: TrainColors.glassStrong,
       ),
@@ -702,8 +698,8 @@ class _Avatar extends StatelessWidget {
               ),
               disc,
               if (onTap != null)
-                Positioned(
-                  right: 2,
+                PositionedDirectional(
+                  end: 2,
                   bottom: 2,
                   child: Container(
                     width: 26,
@@ -716,7 +712,7 @@ class _Avatar extends StatelessWidget {
                       // floating over it — the border is the page's own
                       // ground colour, not a shadow.
                       border: Border.all(
-                        color: const Color(0xFF0B0A09),
+                        color: TrainColors.base,
                         width: 2.5,
                       ),
                     ),
@@ -903,12 +899,12 @@ class _AboutSectionState extends State<_AboutSection> {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0x24FFFFFF)),
+                      border: Border.all(color: TrainColors.liftAt(0.14)),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       AppIcons.add,
                       size: 12,
-                      color: Color(0x99F4F4F0),
+                      color: TrainColors.inkAt(0.6),
                     ),
                   ),
                 ],
@@ -961,10 +957,10 @@ class _AboutSectionState extends State<_AboutSection> {
                   ),
                   if (editable) ...[
                     const SizedBox(width: 12),
-                    const Icon(
+                    Icon(
                       AppIcons.edit,
                       size: 13,
-                      color: Color(0x66F4F4F0),
+                      color: TrainColors.ink3,
                     ),
                   ],
                 ],
@@ -1072,10 +1068,10 @@ class _AboutButton extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: primary ? 18 : 14, vertical: 9),
       decoration: primary
           ? BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFFFF7038), TrainColors.ember],
+                colors: [TrainColors.emberLift, TrainColors.ember],
               ),
               borderRadius: BorderRadius.circular(999),
               boxShadow: TrainColors.actionGlow(TrainColors.ember),
@@ -1188,7 +1184,7 @@ class _EditTextSheetState extends State<_EditTextSheet> {
               Center(child: const ZivoSheetHandle()),
               const SizedBox(height: 16),
               Padding(
-                padding: const EdgeInsets.only(left: 2, bottom: 12),
+                padding: const EdgeInsetsDirectional.only(start: 2, bottom: 12),
                 child: Text(widget.title, style: AppText.cardTitle),
               ),
               TextField(
@@ -1211,13 +1207,13 @@ class _EditTextSheetState extends State<_EditTextSheet> {
                     color: TrainColors.ink3,
                     fontSize: 11,
                   ),
-                  border: const UnderlineInputBorder(
+                  border: UnderlineInputBorder(
                     borderSide: BorderSide(color: TrainColors.hairline),
                   ),
-                  enabledBorder: const UnderlineInputBorder(
+                  enabledBorder: UnderlineInputBorder(
                     borderSide: BorderSide(color: TrainColors.hairline),
                   ),
-                  focusedBorder: const UnderlineInputBorder(
+                  focusedBorder: UnderlineInputBorder(
                     borderSide: BorderSide(
                       color: TrainColors.ember,
                       width: 1.6,
@@ -1237,7 +1233,7 @@ class _EditTextSheetState extends State<_EditTextSheet> {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [const Color(0xFFFF7038), TrainColors.ember],
+                        colors: [TrainColors.emberLift, TrainColors.ember],
                       ),
                       borderRadius: BorderRadius.circular(999),
                       boxShadow: TrainColors.actionGlow(TrainColors.ember),

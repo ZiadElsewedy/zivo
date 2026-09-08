@@ -587,6 +587,13 @@
   "@todayBuildManually": {
     "description": "Secondary action on Today's empty training card."
   },
+  "todayEmptySplitTitle": "{plan} has no days",
+  "@todayEmptySplitTitle": {
+    "description": "Title of Today's card for a plan that exists but has no training days. {plan} is the plan's own name.",
+    "placeholders": {
+      "plan": { "type": "String" }
+    }
+  },
   "todayEmptySplitBody": "Add training days and exercises to this split and it will show up here, ready to start.",
   "@todayEmptySplitBody": {
     "description": "Shown when a plan exists but has no days yet."
@@ -596,6 +603,10 @@
     "description": "Action that opens the plan editor."
   },
   "todayGetStarted": "Get started",
+  "todayGetStartedBody": "Import a plan or log a spend — ZIVO builds Today from there.",
+  "@todayGetStartedBody": {
+    "description": "Body line under Today's first-run heading, naming the two ways in."
+  },
   "@todayGetStarted": {
     "description": "Heading above Today's first-run shortcuts."
   },
@@ -854,6 +865,10 @@
     "description": "Shown when the rotation has nothing queued."
   },
   "workoutFullCycle": "Full cycle",
+  "workoutMoreSection": "More",
+  "@workoutMoreSection": {
+      "description": "Section label over the Workout plan page's drill-down rows (Splits, Analysis, History)."
+  },
   "@workoutFullCycle": {
     "description": "Heading above the whole rotation."
   },
@@ -1607,6 +1622,34 @@
   "@planNoDays": {
     "description": "Empty state in the plan editor."
   },
+  "planDaySlot": "Slot",
+  "@planDaySlot": {
+      "description": "The short letter or number identifying a training day within a split (A, B, 1, 2)."
+  },
+  "planDaySlotHint": "A",
+  "@planDaySlotHint": {
+      "description": "Example slot value shown in the empty field."
+  },
+  "planDayLabel": "Label",
+  "@planDayLabel": {
+      "description": "The training day's name field."
+  },
+  "planDayLabelHint": "Push / Pull / Legs",
+  "@planDayLabelHint": {
+      "description": "Example day names shown in the empty label field."
+  },
+  "planDayNotesOptional": "Notes (optional)",
+  "@planDayNotesOptional": {
+      "description": "Free-text notes on a training day; may be left blank."
+  },
+  "workoutShortestSession": "shortest",
+  "@workoutShortestSession": {
+      "description": "Caption under the shortest recorded session's duration."
+  },
+  "workoutLongestSession": "longest",
+  "@workoutLongestSession": {
+      "description": "Caption under the longest recorded session's duration."
+  },
   "planAddDay": "Add day",
   "@planAddDay": {
     "description": "Adds a day to the plan."
@@ -1709,9 +1752,49 @@
   "@logSaveFood": {
     "description": "Saves a custom food."
   },
+  "dietBasisLogged": "logged by you",
+  "@dietBasisLogged": {
+    "description": "Caption under a consumed figure: the number came from food the user logged."
+  },
+  "dietBasisTicked": "from ticked meals, not weighed",
+  "@dietBasisTicked": {
+    "description": "Caption under a consumed figure: the number is the plan's expectation for meals ticked off, not a measurement."
+  },
+  "dietBasisNothing": "nothing logged yet",
+  "@dietBasisNothing": {
+    "description": "Caption under a consumed figure when nothing has been logged."
+  },
+  "dietFindingObservation": "Observation",
+  "@dietFindingObservation": {
+    "description": "Register of one coach finding: a plain statement of fact."
+  },
+  "dietFindingAnalysis": "Analysis",
+  "@dietFindingAnalysis": {
+    "description": "Register of one coach finding: a worked-out reading of the numbers."
+  },
+  "dietFindingSuggestion": "Suggestion",
+  "@dietFindingSuggestion": {
+    "description": "Register of one coach finding: something to consider doing."
+  },
+  "dietFindingWarning": "Warning",
+  "@dietFindingWarning": {
+    "description": "Register of one coach finding: something that needs attention."
+  },
+  "dietFindingGoingWell": "Going well",
+  "@dietFindingGoingWell": {
+    "description": "Register of one coach finding: encouragement."
+  },
+  "dietFindingWorthKnowing": "Worth knowing",
+  "@dietFindingWorthKnowing": {
+    "description": "Register of one coach finding: a clarification."
+  },
   "dietEaten": "Eaten",
   "@dietEaten": {
     "description": "Marks a meal as eaten."
+  },
+  "dietNotEaten": "Not eaten",
+  "@dietNotEaten": {
+    "description": "A meal marked back to not eaten, on ZIVO's confirmation card."
   },
   "adoptSaveAsTarget": "Save as my target",
   "@adoptSaveAsTarget": {
@@ -1786,20 +1869,6 @@
       "name": {
         "type": "String",
         "example": "Cutting Plan"
-      }
-    }
-  },
-  "sessionDeleteTitle": "Delete this session?",
-  "@sessionDeleteTitle": {
-    "description": "Title of the delete-logged-session confirmation."
-  },
-  "sessionDeleteBody": "This permanently removes your \"{day}\" session and everything logged in it. This can't be undone.",
-  "@sessionDeleteBody": {
-    "description": "Body of the delete-logged-session confirmation.",
-    "placeholders": {
-      "day": {
-        "type": "String",
-        "example": "Push"
       }
     }
   },
@@ -1954,6 +2023,10 @@
       }
   },
   "workoutBodyweightEmpty": "Log your first weigh-in to start the trend.",
+  "workoutBodyweightAllWeighIns": "All weigh-ins",
+  "@workoutBodyweightAllWeighIns": {
+      "description": "Section label over the full list of logged weigh-ins, newest first."
+  },
   "@workoutBodyweightEmpty": {
       "description": "Empty state on the body-weight history page."
   },
@@ -2567,6 +2640,23 @@
   "@workoutToFailure": {
       "description": "A set with no rep target — taken until no more reps are possible."
   },
+  "planDefaultRest": "Default rest",
+  "@planDefaultRest": {
+      "description": "The bulk control that sets one rest value on every exercise in a plan."
+  },
+  "planDefaultRestValue": "Default rest · {time}",
+  "@planDefaultRestValue": {
+      "description": "The bulk-rest row, showing the value it would apply. {time} is a clock duration like 1:30.",
+      "placeholders": { "time": { "type": "String" } }
+  },
+  "planDefaultRestNote": "Sets every exercise in this plan to this rest. Editing one exercise afterward still overrides it individually.",
+  "@planDefaultRestNote": {
+      "description": "Explains that the bulk rest is a starting point, not a lock."
+  },
+  "planSetAll": "Set all",
+  "@planSetAll": {
+      "description": "Applies the chosen rest to every exercise in the plan."
+  },
   "workoutRestFor": "rest {time}",
   "@workoutRestFor": {
       "description": "The rest window in a planned set's spec line, e.g. \"rest 1:30\". Lower case: it sits mid-line after a separator.",
@@ -2717,6 +2807,37 @@
   "askReplyStyle": "Reply style",
   "@askReplyStyle": {
       "description": "Opens the picker for how long or detailed ZIVO's replies should be."
+  },
+  "timeAgoNow": "now",
+  "@timeAgoNow": {
+      "description": "Compact relative timestamp for something that happened under a minute ago."
+  },
+  "timeAgoMinutes": "{minutes}m",
+  "@timeAgoMinutes": {
+      "description": "Compact relative timestamp in minutes, e.g. 5m.",
+      "placeholders": { "minutes": { "type": "int" } }
+  },
+  "timeAgoHours": "{hours}h",
+  "@timeAgoHours": {
+      "description": "Compact relative timestamp in hours, e.g. 3h.",
+      "placeholders": { "hours": { "type": "int" } }
+  },
+  "timeAgoDays": "{days}d",
+  "@timeAgoDays": {
+      "description": "Compact relative timestamp in days, e.g. 2d.",
+      "placeholders": { "days": { "type": "int" } }
+  },
+  "askReplyStyleConcise": "Concise",
+  "@askReplyStyleConcise": {
+      "description": "Reply-style option: short, to-the-point answers."
+  },
+  "askReplyStyleBalanced": "Balanced",
+  "@askReplyStyleBalanced": {
+      "description": "Reply-style option: the default reply length."
+  },
+  "askReplyStyleDetailed": "Detailed",
+  "@askReplyStyleDetailed": {
+      "description": "Reply-style option: longer, fuller answers."
   },
   "askChats": "Chats",
   "@askChats": {
@@ -3521,6 +3642,21 @@
           }
       }
   },
+  "dietKcalLeftOfTarget": "{kcal} kcal left of target",
+  "@dietKcalLeftOfTarget": {
+      "description": "Today's diet glance: calories remaining, measured against the user's own daily target. {kcal} already carries a leading ~ when the figure rests on estimates.",
+      "placeholders": { "kcal": { "type": "String" } }
+  },
+  "dietKcalLeftOfPlan": "{kcal} kcal left of plan",
+  "@dietKcalLeftOfPlan": {
+      "description": "Today's diet glance: calories remaining, measured against the day's plan total. {kcal} already carries a leading ~ when the figure rests on estimates.",
+      "placeholders": { "kcal": { "type": "String" } }
+  },
+  "dietKcalOverTarget": "{kcal} kcal over target",
+  "@dietKcalOverTarget": {
+      "description": "Today's diet glance: calories past the user's own daily target. {kcal} already carries a leading ~ when the figure rests on estimates.",
+      "placeholders": { "kcal": { "type": "String" } }
+  },
   "dietMealsEaten": "{eaten} of {total} meals eaten",
   "@dietMealsEaten": {
       "description": "How many of today's planned meals have been ticked.",
@@ -4058,6 +4194,10 @@
   "@dietWhatsInIt": {
       "description": "Section label over a meal's items."
   },
+  "dietSupplementMark": "Supplement",
+  "@dietSupplementMark": {
+      "description": "Marks the meal-detail screen as a supplement rather than food. A small caption beside the calorie figure."
+  },
   "dietNoItemsListed": "No items listed for this meal.",
   "@dietNoItemsListed": {
       "description": "Empty state on a meal with no items."
@@ -4426,10 +4566,6 @@
   "@sessionDetailsTitle": {
       "description": "Title of the page showing one logged workout session."
   },
-  "sessionDeleteAction": "Delete session",
-  "@sessionDeleteAction": {
-      "description": "Accessibility label on the delete action in the session details header."
-  },
   "sessionStatusCompleted": "Completed",
   "@sessionStatusCompleted": {
       "description": "Session status: the workout was finished."
@@ -4636,7 +4772,15 @@
   },
   "settingsThemeDark": "Dark",
   "@settingsThemeDark": {
-      "description": "The only theme ZIVO ships, stated as the current value."
+      "description": "Theme picker option: the app's near-black skin."
+  },
+  "settingsThemeLight": "Light",
+  "@settingsThemeLight": {
+      "description": "Theme picker option: the app's paper skin."
+  },
+  "settingsThemeSystem": "Match my phone",
+  "@settingsThemeSystem": {
+      "description": "Theme picker option: follow the device's light/dark setting."
   },
   "settingsVersion": "Version",
   "@settingsVersion": {
@@ -5973,5 +6117,1228 @@
               "type": "String"
           }
       }
+  },
+  "sleepTitle": "Sleep",
+  "@sleepTitle": {
+    "description": "The Sleep feature's title."
+  },
+  "sleepHubSubtitle": "Last night",
+  "@sleepHubSubtitle": {
+    "description": "Hub tile caption above last night's figure."
+  },
+  "sleepLastNight": "Last night",
+  "@sleepLastNight": {
+    "description": "Section label for the most recent night."
+  },
+  "sleepNoDataTitle": "No sleep recorded",
+  "@sleepNoDataTitle": {
+    "description": "Empty state title when we know the store is readable and empty."
+  },
+  "sleepNoDataBody": "Log a night yourself, or connect a device that tracks sleep.",
+  "@sleepNoDataBody": {
+    "description": "Empty state body when the store is readable and genuinely empty."
+  },
+  "sleepNotVisibleTitle": "No sleep data visible to ZIVO",
+  "@sleepNotVisibleTitle": {
+    "description": "Empty state title when we cannot confirm we were allowed to read. Must never claim the user has no sleep data."
+  },
+  "sleepNotVisibleBody": "{provider} doesn't say whether an app was refused access, so this may mean permission is off rather than that there's nothing there.",
+  "@sleepNotVisibleBody": {
+    "description": "Explains that an empty read can mean a refused permission. Named because Apple deliberately hides read denial.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepPermissionDeniedTitle": "ZIVO can't read your sleep",
+  "@sleepPermissionDeniedTitle": {
+    "description": "Empty state title when the platform confirmed a refusal."
+  },
+  "sleepPermissionDeniedBody": "Allow Sleep access in {provider} to see nights measured by your watch or another app.",
+  "@sleepPermissionDeniedBody": {
+    "description": "Body when the platform confirmed a refusal.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepUnavailableTitle": "No health app on this device",
+  "@sleepUnavailableTitle": {
+    "description": "Shown when the host has no health provider at all."
+  },
+  "sleepUnavailableBody": "You can still log nights yourself.",
+  "@sleepUnavailableBody": {
+    "description": "Reassures that manual logging still works with no health provider."
+  },
+  "sleepHistoryUnavailable": "Older nights need history access in {provider}.",
+  "@sleepHistoryUnavailable": {
+    "description": "Android refused reads beyond 30 days.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepSyncFailed": "Couldn't read sleep just now.",
+  "@sleepSyncFailed": {
+    "description": "A sync failed for an unclassified reason."
+  },
+  "sleepConnect": "Connect {provider}",
+  "@sleepConnect": {
+    "description": "Button that opens the health permission prompt.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepProviderApple": "Apple Health",
+  "@sleepProviderApple": {
+    "description": "Apple's health store, as Apple names it."
+  },
+  "sleepProviderHealthConnect": "Health Connect",
+  "@sleepProviderHealthConnect": {
+    "description": "Google's health store. Not translated — it is a product name."
+  },
+  "sleepProviderYou": "You",
+  "@sleepProviderYou": {
+    "description": "The provider name on a night the user logged themselves."
+  },
+  "sleepGoingToSleep": "I'm going to sleep",
+  "@sleepGoingToSleep": {
+    "description": "Opens a user-reported sleep mark."
+  },
+  "sleepImAwake": "I'm awake",
+  "@sleepImAwake": {
+    "description": "Closes an open sleep mark into a night."
+  },
+  "sleepMarkOpenSince": "Sleeping since {time}",
+  "@sleepMarkOpenSince": {
+    "description": "Shown while a sleep mark is open and not yet closed.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepMarkCancel": "Not sleeping after all",
+  "@sleepMarkCancel": {
+    "description": "Discards an open sleep mark without creating a night."
+  },
+  "sleepEditNight": "Edit this night",
+  "@sleepEditNight": {
+    "description": "Opens the manual correction sheet."
+  },
+  "sleepEditHint": "Your correction is saved as your own, and the measured times are kept.",
+  "@sleepEditHint": {
+    "description": "Explains that an edit overrides rather than erases the measurement."
+  },
+  "sleepOnsetMeasured": "Asleep {time}",
+  "@sleepOnsetMeasured": {
+    "description": "Sleep onset from a sensor measurement. States it plainly.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepOnsetPlatform": "Sleep recorded {time}",
+  "@sleepOnsetPlatform": {
+    "description": "Sleep onset from a platform record we cannot attribute to a sensor. Deliberately weaker than 'Asleep'.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepOnsetReported": "You logged {time}",
+  "@sleepOnsetReported": {
+    "description": "Sleep onset the user reported. Never phrased as a detection.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepOnsetEstimated": "Likely asleep around {time}",
+  "@sleepOnsetEstimated": {
+    "description": "Sleep onset inferred from device behaviour. Hedged, and rounded to the quarter hour.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepWakeMeasured": "Awake {time}",
+  "@sleepWakeMeasured": {
+    "description": "Wake time from a sensor measurement.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepWakePlatform": "Wake recorded {time}",
+  "@sleepWakePlatform": {
+    "description": "Wake time from an unattributed platform record.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepWakeReported": "You logged {time}",
+  "@sleepWakeReported": {
+    "description": "Wake time the user reported.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepWakeEstimated": "Likely awake around {time}",
+  "@sleepWakeEstimated": {
+    "description": "Wake time inferred from device behaviour.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepLastPhoneUse": "Last phone use {time}",
+  "@sleepLastPhoneUse": {
+    "description": "A device-activity timestamp. Never re-worded into a sleep claim.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepMethodMeasured": "Measured",
+  "@sleepMethodMeasured": {
+    "description": "Badge for a sensor measurement."
+  },
+  "sleepMethodRecorded": "Recorded",
+  "@sleepMethodRecorded": {
+    "description": "Badge for a platform record of unknown sensor origin."
+  },
+  "sleepMethodLogged": "Logged by you",
+  "@sleepMethodLogged": {
+    "description": "Badge for a user-reported night."
+  },
+  "sleepMethodEstimated": "Estimate",
+  "@sleepMethodEstimated": {
+    "description": "Badge for an inferred night."
+  },
+  "sleepConfidenceHigh": "High confidence",
+  "@sleepConfidenceHigh": {
+    "description": "Confidence badge."
+  },
+  "sleepConfidenceMedium": "Medium confidence",
+  "@sleepConfidenceMedium": {
+    "description": "Confidence badge."
+  },
+  "sleepConfidenceLow": "Low confidence",
+  "@sleepConfidenceLow": {
+    "description": "Confidence badge."
+  },
+  "sleepSourceChip": "{provider} · {method}",
+  "@sleepSourceChip": {
+    "description": "The source chip under every sleep figure. Provider first, then how it was produced.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      },
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepDurationLabel": "Asleep",
+  "@sleepDurationLabel": {
+    "description": "Label for time actually asleep."
+  },
+  "sleepTimeInBedLabel": "In bed",
+  "@sleepTimeInBedLabel": {
+    "description": "Label for time in bed."
+  },
+  "sleepEfficiencyLabel": "Efficiency",
+  "@sleepEfficiencyLabel": {
+    "description": "Label for asleep divided by time in bed."
+  },
+  "sleepEfficiencyUnknown": "Not tracked",
+  "@sleepEfficiencyUnknown": {
+    "description": "Shown where efficiency cannot be computed. Never a percentage."
+  },
+  "sleepInterruptionCount": "{count, plural, =0{No interruptions} =1{1 interruption} other{{count} interruptions}}",
+  "@sleepInterruptionCount": {
+    "description": "Awake bouts inside a night.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepNapCount": "{count, plural, =1{1 nap} other{{count} naps}}",
+  "@sleepNapCount": {
+    "description": "Short episodes outside the main sleep.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepSpansDstNote": "This night crossed a clock change, so its length differs from the times shown.",
+  "@sleepSpansDstNote": {
+    "description": "Annotates a night spanning a DST transition."
+  },
+  "sleepTargetsTitle": "Your targets",
+  "@sleepTargetsTitle": {
+    "description": "Title of the targets sheet."
+  },
+  "sleepTargetBedtime": "Bedtime",
+  "@sleepTargetBedtime": {
+    "description": "Target bedtime field."
+  },
+  "sleepTargetWake": "Wake",
+  "@sleepTargetWake": {
+    "description": "Target wake time field."
+  },
+  "sleepTargetDuration": "Sleep length",
+  "@sleepTargetDuration": {
+    "description": "Target sleep duration field."
+  },
+  "sleepTargetsHint": "Used for the target line and nothing else — ZIVO never scores a night.",
+  "@sleepTargetsHint": {
+    "description": "States that targets are a reference, not a grade."
+  },
+  "sleepNoTargets": "Set a target to see how your nights compare.",
+  "@sleepNoTargets": {
+    "description": "Shown where a target delta would go before targets are set."
+  },
+  "sleepDeltaLonger": "{amount} more than your {target} target",
+  "@sleepDeltaLonger": {
+    "description": "Slept longer than the target.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepDeltaShorter": "{amount} less than your {target} target",
+  "@sleepDeltaShorter": {
+    "description": "Slept less than the target.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepDeltaOnTarget": "On your {target} target",
+  "@sleepDeltaOnTarget": {
+    "description": "Slept within rounding of the target.",
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepBedtimeLater": "{amount} later than your target bedtime",
+  "@sleepBedtimeLater": {
+    "description": "Went to bed later than target.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepBedtimeEarlier": "{amount} earlier than your target bedtime",
+  "@sleepBedtimeEarlier": {
+    "description": "Went to bed earlier than target.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepBedtimeOnTarget": "On your target bedtime",
+  "@sleepBedtimeOnTarget": {
+    "description": "Bedtime landed within tolerance."
+  },
+  "sleepWhyTitle": "Why this number?",
+  "@sleepWhyTitle": {
+    "description": "Opens the provenance sheet."
+  },
+  "sleepWhySole": "Only one source had this night.",
+  "@sleepWhySole": {
+    "description": "Resolution explanation: no contest."
+  },
+  "sleepWhyMethod": "Chosen because it was measured rather than entered or estimated.",
+  "@sleepWhyMethod": {
+    "description": "Resolution explanation: better method tier."
+  },
+  "sleepWhyCoverage": "Chosen because more of the night was actually recorded.",
+  "@sleepWhyCoverage": {
+    "description": "Resolution explanation: better coverage."
+  },
+  "sleepWhyDetail": "Chosen because it included sleep stages.",
+  "@sleepWhyDetail": {
+    "description": "Resolution explanation: richer stage data."
+  },
+  "sleepWhyOverride": "You set this night yourself.",
+  "@sleepWhyOverride": {
+    "description": "Resolution explanation: user override."
+  },
+  "sleepDisagreement": "{provider} recorded a different time — {amount} apart.",
+  "@sleepDisagreement": {
+    "description": "Shows how far an alternate source disagrees. Never averaged away.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepCoverageLabel": "Recorded coverage",
+  "@sleepCoverageLabel": {
+    "description": "Share of the night backed by real samples."
+  },
+  "sleepRecordedBy": "Recorded by {provider}",
+  "@sleepRecordedBy": {
+    "description": "Names the writing app.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepUseThisInstead": "Use this one instead",
+  "@sleepUseThisInstead": {
+    "description": "Switches the night to an alternate source."
+  },
+  "sleepWeekTitle": "This week",
+  "@sleepWeekTitle": {
+    "description": "Weekly view title."
+  },
+  "sleepWeekAverage": "Average",
+  "@sleepWeekAverage": {
+    "description": "Weekly average duration label."
+  },
+  "sleepWeekConsistency": "Consistency",
+  "@sleepWeekConsistency": {
+    "description": "Weekly midpoint variability label."
+  },
+  "sleepWeekOnTarget": "On target",
+  "@sleepWeekOnTarget": {
+    "description": "Weekly bedtime adherence label."
+  },
+  "sleepNightsCounted": "{count, plural, =1{1 night} other{{count} nights}}",
+  "@sleepNightsCounted": {
+    "description": "How many nights a figure rests on. Always shown beside it.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepNightsOf": "{count} of {total} nights",
+  "@sleepNightsOf": {
+    "description": "Nights with data out of the window's length.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepVariability": "±{amount}",
+  "@sleepVariability": {
+    "description": "Variability figure, e.g. ±48 min.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepOnTargetRatio": "{count} of {total}",
+  "@sleepOnTargetRatio": {
+    "description": "Nights on target out of nights with data.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepNoData": "No data",
+  "@sleepNoData": {
+    "description": "Label on a night with nothing recorded. Never a zero."
+  },
+  "sleepInsufficient": "Not enough nights yet",
+  "@sleepInsufficient": {
+    "description": "Shown where a gated figure would go."
+  },
+  "sleepInsufficientFor": "Not enough nights yet — {have} of {need}",
+  "@sleepInsufficientFor": {
+    "description": "Shown where a gated figure would go, with how far off it is.",
+    "placeholders": {
+      "have": {
+        "type": "int"
+      },
+      "need": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepWeekUnchanged": "About the same as last week",
+  "@sleepWeekUnchanged": {
+    "description": "Week-over-week difference inside the noise floor. A real finding, not a failure."
+  },
+  "sleepWeekImproved": "{amount} more than last week",
+  "@sleepWeekImproved": {
+    "description": "Week-over-week improvement past the noise floor.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepWeekDeclined": "{amount} less than last week",
+  "@sleepWeekDeclined": {
+    "description": "Week-over-week decline past the noise floor.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepInsightsTitle": "What this means",
+  "@sleepInsightsTitle": {
+    "description": "Section label above generated insights."
+  },
+  "sleepInsightsPending": "Reading your nights…",
+  "@sleepInsightsPending": {
+    "description": "While insights are being generated."
+  },
+  "sleepInsightsUnavailable": "No conclusion can be drawn from the nights recorded so far.",
+  "@sleepInsightsUnavailable": {
+    "description": "Shown when the fact sheet is too thin for any claim."
+  },
+  "sleepInsightBasis": "Based on {count, plural, =1{1 night} other{{count} nights}}",
+  "@sleepInsightBasis": {
+    "description": "Provenance footnote under a generated insight.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepStageLight": "Light",
+  "@sleepStageLight": {
+    "description": "Sleep stage."
+  },
+  "sleepStageDeep": "Deep",
+  "@sleepStageDeep": {
+    "description": "Sleep stage."
+  },
+  "sleepStageRem": "REM",
+  "@sleepStageRem": {
+    "description": "Sleep stage."
+  },
+  "sleepStageAwake": "Awake",
+  "@sleepStageAwake": {
+    "description": "Sleep stage."
+  },
+  "sleepStageAsleep": "Asleep",
+  "@sleepStageAsleep": {
+    "description": "Sleep stage with no grading available."
+  },
+  "sleepStageInBed": "In bed",
+  "@sleepStageInBed": {
+    "description": "Bed-occupancy state, not a sleep stage."
+  },
+  "sleepNoStages": "Stages aren't available from this source.",
+  "@sleepNoStages": {
+    "description": "Shown in place of a stage breakdown when the source has none."
+  },
+  "sleepDurationHm": "{hours}h {minutes}m",
+  "@sleepDurationHm": {
+    "description": "A duration in hours and minutes.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepDurationM": "{minutes}m",
+  "@sleepDurationM": {
+    "description": "A duration under an hour.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepDurationH": "{hours}h",
+  "@sleepDurationH": {
+    "description": "A whole number of hours.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "hubSleep": "Sleep",
+  "@hubSleep": {
+    "description": "Hub module card label for Sleep."
+  },
+  "hubNoSleepYet": "No nights yet",
+  "@hubNoSleepYet": {
+    "description": "Hub Sleep card stat before any night is recorded."
+  },
+  "sleepInsightDuration": "You've averaged {amount} a night.",
+  "@sleepInsightDuration": {
+    "description": "Deterministic insight: the window's average sleep length.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepInsightWeekBetter": "That's {amount} more than the week before.",
+  "@sleepInsightWeekBetter": {
+    "description": "Deterministic insight: week-over-week improvement past the noise floor.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepInsightWeekWorse": "That's {amount} less than the week before.",
+  "@sleepInsightWeekWorse": {
+    "description": "Deterministic insight: week-over-week decline past the noise floor.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepInsightWeekSame": "That's about the same as the week before.",
+  "@sleepInsightWeekSame": {
+    "description": "Deterministic insight: the difference is inside the noise floor, which is a finding rather than a failure to find one."
+  },
+  "sleepInsightConsistent": "Your sleep timing held steady, varying by {amount}.",
+  "@sleepInsightConsistent": {
+    "description": "Deterministic insight: low midpoint variability.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepInsightIrregular": "Your sleep timing moved around by {amount} across the week.",
+  "@sleepInsightIrregular": {
+    "description": "Deterministic insight: high midpoint variability.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepInsightAdherence": "You hit your target bedtime on {count} of {total} nights.",
+  "@sleepInsightAdherence": {
+    "description": "Deterministic insight: bedtime adherence.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepInsightTrendUp": "Over the last few weeks your nights have been getting longer.",
+  "@sleepInsightTrendUp": {
+    "description": "Deterministic insight: a rising Theil-Sen slope. Direction only, because a slope in minutes per night is not a figure a reader can use."
+  },
+  "sleepInsightTrendDown": "Over the last few weeks your nights have been getting shorter.",
+  "@sleepInsightTrendDown": {
+    "description": "Deterministic insight: a falling Theil-Sen slope."
+  },
+  "sleepUnitHour": "h",
+  "@sleepUnitHour": {
+    "description": "The hours unit in a sleep duration. Rendered as its own smaller span beside the number, never inside the mono run — Azeret Mono has no Arabic, so an interpolated Arabic letter falls back to a system face with different metrics."
+  },
+  "sleepAboutTitle": "How Sleep works",
+  "@sleepAboutTitle": {
+    "description": "Title of the sheet behind the header's info button — what the feature does and what it refuses to claim."
+  },
+  "sleepAboutIntro": "Sleep is a recovery input to your training. Here is exactly what ZIVO does with it, and what it will not claim.",
+  "@sleepAboutIntro": {
+    "description": "Opening line of the how-it-works sheet."
+  },
+  "sleepAboutSessionTitle": "What a sleep session is",
+  "@sleepAboutSessionTitle": {
+    "description": "How-it-works heading: the manual log."
+  },
+  "sleepAboutSessionBody": "Tapping “I'm going to sleep” opens a session and nothing else — no timer runs and your phone is not listening. When you tap “I'm awake”, those two moments become the night, marked as logged by you.",
+  "@sleepAboutSessionBody": {
+    "description": "How-it-works body: what opening and closing a manual sleep mark actually does. Names both buttons so the sentence matches the screen."
+  },
+  "sleepAboutTrackedTitle": "What ZIVO reads",
+  "@sleepAboutTrackedTitle": {
+    "description": "How-it-works heading: the automatic half."
+  },
+  "sleepAboutTrackedBody": "Each time you open this screen ZIVO re-reads {provider} and rebuilds the last week: when you fell asleep, when you woke, how long you were actually asleep, and any time awake in between.",
+  "@sleepAboutTrackedBody": {
+    "description": "How-it-works body: the health-store read. The provider is the platform's own store name.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepAboutSourcesTitle": "Every number says where it came from",
+  "@sleepAboutSourcesTitle": {
+    "description": "How-it-works heading: provenance."
+  },
+  "sleepAboutSourcesBody": "“Measured” means a watch recorded it. “Logged by you” means you or an app typed it. When two sources disagree ZIVO picks one and keeps the other — it never averages them into a night nobody slept.",
+  "@sleepAboutSourcesBody": {
+    "description": "How-it-works body: what the source chip means, and why sources are chosen rather than merged."
+  },
+  "sleepAboutWeekTitle": "Why some figures are blank",
+  "@sleepAboutWeekTitle": {
+    "description": "How-it-works heading: the gates on weekly figures."
+  },
+  "sleepAboutWeekBody": "An average over one night is not an average. Weekly figures stay blank until enough nights exist, and each one shows how many it still needs.",
+  "@sleepAboutWeekBody": {
+    "description": "How-it-works body: why a weekly figure can be empty."
+  },
+  "sleepAboutLimitsTitle": "What it will not do",
+  "@sleepAboutLimitsTitle": {
+    "description": "How-it-works heading: the deliberate limits."
+  },
+  "sleepAboutLimitsBody": "There is no sleep score and no streak. ZIVO can tell you how long you slept and how steady your schedule is; it cannot tell you whether the night was good.",
+  "@sleepAboutLimitsBody": {
+    "description": "How-it-works body: no score, no grade."
+  },
+  "sleepAboutDone": "Got it",
+  "@sleepAboutDone": {
+    "description": "Dismisses the how-it-works sheet."
+  },
+  "sleepSessionOpen": "Sleeping",
+  "@sleepSessionOpen": {
+    "description": "Label on the card shown while a sleep session is open."
+  },
+  "sleepMarkSoFar": "So far",
+  "@sleepMarkSoFar": {
+    "description": "Caption under the elapsed time of an open sleep session."
+  },
+  "sleepMarkJustNow": "Just now",
+  "@sleepMarkJustNow": {
+    "description": "Elapsed time of a sleep session opened less than a minute ago, where a duration would read as zero."
+  },
+  "sleepMarkHint": "Tap “I'm awake” when you get up — that is when the night is recorded.",
+  "@sleepMarkHint": {
+    "description": "Explains that an open session becomes a night only when it is closed."
+  },
+  "sleepLoadFailedTitle": "Couldn't load your sleep",
+  "@sleepLoadFailedTitle": {
+    "description": "Shown when the saved-nights stream failed, as opposed to the health store being unreadable."
+  },
+  "sleepLoadFailedBody": "ZIVO couldn't read the nights it has already saved. Check your connection and try again.",
+  "@sleepLoadFailedBody": {
+    "description": "Body for a failed read of stored nights."
+  },
+  "sleepRetry": "Try again",
+  "@sleepRetry": {
+    "description": "Re-opens the storage streams after a failed read."
+  },
+  "sleepLoading": "Loading your sleep",
+  "@sleepLoading": {
+    "description": "Accessibility label for the placeholder shown while last night is still loading."
+  },
+  "sleepGateNeeds": "{count, plural, =1{Needs 1 night} other{Needs {count} nights}}",
+  "@sleepGateNeeds": {
+    "description": "Compact caption under a weekly figure that has not passed its gate: how many nights it needs before it can be shown. States the requirement, not the coverage: the section header above already says how many nights the week has, and two near-identical N-of-M-nights strings on one card read as the same fact twice.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepVsLastWeek": "vs last week",
+  "@sleepVsLastWeek": {
+    "description": "Label above the week-over-week comparison sentence."
+  },
+  "sleepMarkFailed": "Couldn't save that just now. Check your connection and try again.",
+  "@sleepMarkFailed": {
+    "description": "A manual sleep action (opening or closing a session) failed to persist."
+  },
+  "sleepUnitMinute": "m",
+  "@sleepUnitMinute": {
+    "description": "The minutes unit in a sleep duration. See sleepUnitHour."
+  },
+  "sleepHistoryStat": "Average {average} · {nights}",
+  "@sleepHistoryStat": {
+    "description": "Second line of the row that opens the history page: the week's mean sleep and the nights it rests on.",
+    "placeholders": {
+      "average": {
+        "type": "String"
+      },
+      "nights": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepNightsAgo": "{count, plural, =2{2 nights ago} other{{count} nights ago}}",
+  "@sleepNightsAgo": {
+    "description": "Headline label when the most recent recorded night is not last night. Never used for 0 or 1, which say 'Last night' instead.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepStaleNotice": "Nothing has been recorded since. This is your most recent night, not last night.",
+  "@sleepStaleNotice": {
+    "description": "Shown under the headline when the most recent night is more than a day old, so a real figure is not mistaken for this morning's."
+  },
+  "sleepStagesTitle": "Stages",
+  "@sleepStagesTitle": {
+    "description": "Section label above the sleep-stage breakdown of a single night."
+  },
+  "sleepStagesUnavailable": "{provider} recorded when you slept, but not which stages.",
+  "@sleepStagesUnavailable": {
+    "description": "Shown in place of the stage breakdown when the source measured the night without grading it. Names the source so the absence is attributable.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepStagesPartial": "Staged for {amount} of the night.",
+  "@sleepStagesPartial": {
+    "description": "Caption under a stage breakdown that covers less than the whole session, so the shares are not read as covering all of it.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepTimingTitle": "Timing",
+  "@sleepTimingTitle": {
+    "description": "Section label above the bed-to-wake chart for a single night."
+  },
+  "sleepDetailTitle": "Detail",
+  "@sleepDetailTitle": {
+    "description": "Section label above the measured detail rows of a night (time in bed, efficiency, interruptions)."
+  },
+  "sleepAgainstTargetTitle": "Against your target",
+  "@sleepAgainstTargetTitle": {
+    "description": "Section label above the actual-versus-target lines for a night."
+  },
+  "sleepContextLonger": "{amount} longer than your average of {average}.",
+  "@sleepContextLonger": {
+    "description": "One line of context putting last night against the recent average. Only shown when the average passed its gate.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "average": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepContextShorter": "{amount} shorter than your average of {average}.",
+  "@sleepContextShorter": {
+    "description": "See sleepContextLonger.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "average": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepContextTypical": "About your usual — you average {average}.",
+  "@sleepContextTypical": {
+    "description": "Context line when last night is within the noise floor of the recent average.",
+    "placeholders": {
+      "average": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepContextBasis": "Over {count, plural, =1{1 night} other{{count} nights}}",
+  "@sleepContextBasis": {
+    "description": "The n behind the comparison-to-average line.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepHistoryTitle": "Sleep history",
+  "@sleepHistoryTitle": {
+    "description": "Title of the weekly/history page, and the label of the row that opens it."
+  },
+  "sleepHistorySubtitle": "Your weeks, night by night",
+  "@sleepHistorySubtitle": {
+    "description": "Second line of the row on the Sleep page that opens the history view."
+  },
+  "sleepWeekRange": "{start} – {end}",
+  "@sleepWeekRange": {
+    "description": "The date span of the week being shown on the history page.",
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepWeekCurrent": "This week",
+  "@sleepWeekCurrent": {
+    "description": "Label for the seven days ending today on the history page."
+  },
+  "sleepWeekEarlier": "Earlier week",
+  "@sleepWeekEarlier": {
+    "description": "Accessibility label for the control that pages back one week on the history page."
+  },
+  "sleepWeekLater": "Later week",
+  "@sleepWeekLater": {
+    "description": "Accessibility label for the control that pages forward one week on the history page."
+  },
+  "sleepWeekEmpty": "No nights were recorded in this week.",
+  "@sleepWeekEmpty": {
+    "description": "Empty state for a week on the history page that contains no data at all."
+  },
+  "sleepWeekNightsTitle": "Every night",
+  "@sleepWeekNightsTitle": {
+    "description": "Section label above the day-by-day list on the history page."
+  },
+  "sleepWeekTypicalTitle": "Typical night",
+  "@sleepWeekTypicalTitle": {
+    "description": "Section label above the week's average duration, bedtime and wake time."
+  },
+  "sleepWeekMedian": "Median",
+  "@sleepWeekMedian": {
+    "description": "Label for the week's median sleep duration, shown beside the mean."
+  },
+  "sleepWeekBedtime": "Bedtime",
+  "@sleepWeekBedtime": {
+    "description": "Label for the week's typical (circular mean) bedtime."
+  },
+  "sleepWeekWake": "Wake",
+  "@sleepWeekWake": {
+    "description": "Label for the week's typical (circular mean) wake time."
+  },
+  "sleepWeekCompositionTitle": "Typical composition",
+  "@sleepWeekCompositionTitle": {
+    "description": "Section label above the week's average sleep-stage split."
+  },
+  "sleepWeekCompositionBasis": "Averaged over {count, plural, =1{1 staged night} other{{count} staged nights}}",
+  "@sleepWeekCompositionBasis": {
+    "description": "The n behind the weekly stage averages — counted over nights that carried stage detail, not all nights.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepWeekNoStages": "No night this week carried stage detail.",
+  "@sleepWeekNoStages": {
+    "description": "Shown in place of the weekly stage split when too few nights were staged."
+  },
+  "sleepTrendTitle": "Longer run",
+  "@sleepTrendTitle": {
+    "description": "Section label above the multi-week trend on the history page."
+  },
+  "sleepTrendRising": "Your nights have been getting longer.",
+  "@sleepTrendRising": {
+    "description": "Trend direction over the last four weeks."
+  },
+  "sleepTrendFalling": "Your nights have been getting shorter.",
+  "@sleepTrendFalling": {
+    "description": "Trend direction over the last four weeks."
+  },
+  "sleepTrendFlat": "Your nights have held steady.",
+  "@sleepTrendFlat": {
+    "description": "Trend direction when the slope is inside the flat band — a finding, not a failure to find one."
+  },
+  "sleepTrendBasis": "{count} nights across {days} days",
+  "@sleepTrendBasis": {
+    "description": "The evidence behind the trend statement.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepTrendNeedMore": "A trend needs {need} nights across {days} days. You have {have}.",
+  "@sleepTrendNeedMore": {
+    "description": "Shown instead of a trend when the gate has not passed, naming exactly what would open it.",
+    "placeholders": {
+      "have": {
+        "type": "int"
+      },
+      "need": {
+        "type": "int"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepNightRowNoData": "Nothing recorded",
+  "@sleepNightRowNoData": {
+    "description": "The value of a day row on the history page for a day with no sleep record."
+  },
+  "sleepNightRowRange": "{start} → {end}",
+  "@sleepNightRowRange": {
+    "description": "Bed and wake clock times on one day row of the history page.",
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "liveFinishNow": "Finish now",
+  "@liveFinishNow": {
+    "description": "Ends a workout that still has sets left, keeping what was logged."
+  },
+  "liveFinishNowTitle": "Finish here?",
+  "@liveFinishNowTitle": {
+    "description": "Title of the finish-early dialog."
+  },
+  "liveFinishNowBody": "{count, plural, =1{1 set is still unlogged. It stays unlogged — nothing is recorded as done.} other{{count} sets are still unlogged. They stay unlogged — nothing is recorded as done.}}",
+  "@liveFinishNowBody": {
+    "description": "Body of the finish-early dialog. Promises that nothing is invented.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "workoutStreakRule": "Train at least every {days} days",
+  "@workoutStreakRule": {
+    "description": "The streak rule, stated on the drill-down.",
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "workoutStreakRestDay": "Rest day",
+  "@workoutStreakRestDay": {
+    "description": "A day inside the streak with no training."
+  },
+  "workoutStreakRestored": "Restored",
+  "@workoutStreakRestored": {
+    "description": "A gap day kept alive by a spent streak restore."
+  },
+  "workoutStreakDaysLeft": "{count, plural, =0{Train today to keep it} =1{1 day left to train} other{{count} days left to train}}",
+  "@workoutStreakDaysLeft": {
+    "description": "How long is left before the current streak breaks.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "workoutStreakBroken": "No active streak",
+  "@workoutStreakBroken": {
+    "description": "Shown when the allowance has run out."
+  },
+  "workoutStreakRestore": "Restore this day",
+  "@workoutStreakRestore": {
+    "description": "Action that spends a streak restore on a missed day."
+  },
+  "workoutStreakRestoreTitle": "Restore this day?",
+  "@workoutStreakRestoreTitle": {
+    "description": "Title of the restore confirmation."
+  },
+  "workoutStreakRestoreBody": "It bridges the gap so your streak survives. It does not add a workout, and it never counts as one.",
+  "@workoutStreakRestoreBody": {
+    "description": "Body of the restore confirmation — states exactly what a restore does and does not do."
+  },
+  "workoutStreakRestoreUnavailable": "One restore every {days} days",
+  "@workoutStreakRestoreUnavailable": {
+    "description": "Why the restore action is unavailable.",
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "workoutStreakWhyMissed": "Why no training?",
+  "@workoutStreakWhyMissed": {
+    "description": "Opens the missed-day reason picker."
+  },
+  "workoutStreakReasonSaved": "Context only — it never changes your streak.",
+  "@workoutStreakReasonSaved": {
+    "description": "Footnote on the missed-day reason sheet."
+  },
+  "missedDayRest": "Rest",
+  "@missedDayRest": {
+    "description": "Missed-day reason."
+  },
+  "missedDayRecovery": "Recovery",
+  "@missedDayRecovery": {
+    "description": "Missed-day reason."
+  },
+  "missedDayTravel": "Travel",
+  "@missedDayTravel": {
+    "description": "Missed-day reason."
+  },
+  "missedDayIllness": "Illness",
+  "@missedDayIllness": {
+    "description": "Missed-day reason."
+  },
+  "missedDayBusy": "Too busy",
+  "@missedDayBusy": {
+    "description": "Missed-day reason."
+  },
+  "missedDayOther": "Something else",
+  "@missedDayOther": {
+    "description": "Missed-day reason."
+  },
+  "missedDayNone": "No reason given",
+  "@missedDayNone": {
+    "description": "Shown on a rest day with no recorded reason."
+  },
+  "sessionDurationMeasured": "Timed by ZIVO",
+  "@sessionDurationMeasured": {
+    "description": "How a session duration was produced."
+  },
+  "sessionDurationAutoClosed": "Closed at your last set",
+  "@sessionDurationAutoClosed": {
+    "description": "How a session duration was produced."
+  },
+  "sessionDurationCorrected": "You set this",
+  "@sessionDurationCorrected": {
+    "description": "How a session duration was produced."
+  },
+  "sessionDurationUnknown": "Duration unknown",
+  "@sessionDurationUnknown": {
+    "description": "How a session duration was produced."
+  },
+  "sessionNeedsDuration": "Needs a duration",
+  "@sessionNeedsDuration": {
+    "description": "Chip on a session held out of the averages."
+  },
+  "sessionNeedsDurationBody": "This session ran longer than a workout plausibly does, so it is left out of your averages until you set its length. Everything you logged is kept.",
+  "@sessionNeedsDurationBody": {
+    "description": "Explains why a session is excluded from averages."
+  },
+  "sessionSetDuration": "Set duration",
+  "@sessionSetDuration": {
+    "description": "Opens the duration-correction sheet."
+  },
+  "sessionDurationMinutes": "Minutes",
+  "@sessionDurationMinutes": {
+    "description": "Field label on the duration-correction sheet."
+  },
+  "sessionDurationUseMeasured": "Use the measured time",
+  "@sessionDurationUseMeasured": {
+    "description": "Clears a duration correction."
+  },
+  "sessionVoid": "Void this session",
+  "@sessionVoid": {
+    "description": "Withdraws a session from the statistics."
+  },
+  "sessionVoidTitle": "Void this session?",
+  "@sessionVoidTitle": {
+    "description": "Title of the void dialog."
+  },
+  "sessionVoidBody": "It stays in your history exactly as logged, and stops counting toward your streak, averages and analysis.",
+  "@sessionVoidBody": {
+    "description": "Body of the void dialog."
+  },
+  "sessionVoided": "Voided",
+  "@sessionVoided": {
+    "description": "Status label on a voided session."
+  },
+  "sessionUnvoid": "Count this session again",
+  "@sessionUnvoid": {
+    "description": "Undoes a void."
+  },
+  "sessionVoidReason": "Why?",
+  "@sessionVoidReason": {
+    "description": "Prompt for the void reason."
+  },
+  "voidReasonBadDuration": "The time is wrong",
+  "@voidReasonBadDuration": {
+    "description": "Void reason."
+  },
+  "voidReasonLoggedByMistake": "Logged by mistake",
+  "@voidReasonLoggedByMistake": {
+    "description": "Void reason."
+  },
+  "voidReasonNotMine": "Wasn't me",
+  "@voidReasonNotMine": {
+    "description": "Void reason."
+  },
+  "voidReasonOther": "Something else",
+  "@voidReasonOther": {
+    "description": "Void reason."
+  },
+  "sessionCannotDelete": "A session that recorded work is voided, not deleted — so your history stays trustworthy.",
+  "@sessionCannotDelete": {
+    "description": "Explains why delete is no longer offered on a logged session."
+  },
+  "statDurationOver": "over {counted} of {total}",
+  "@statDurationOver": {
+    "description": "Says how many sessions an average duration covers.",
+    "placeholders": {
+      "counted": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "statDurationAllExcluded": "no usable session lengths yet",
+  "@statDurationAllExcluded": {
+    "description": "Shown when every session duration was held out of the average."
+  },
+  "workoutSettings": "Training settings",
+  "@workoutSettings": {
+    "description": "Title of the workout settings page."
+  },
+  "workoutMaxSessionTitle": "Maximum session length",
+  "@workoutMaxSessionTitle": {
+    "description": "Setting label."
+  },
+  "workoutMaxSessionBody": "A workout still running past this, with nothing logged for a while, is treated as one you forgot to close. It is ended at your last logged set — never padded out, and never filled in with sets you did not do.",
+  "@workoutMaxSessionBody": {
+    "description": "Explains the maximum-session-length setting."
+  },
+  "trainingDayMarkSaveFailed": "Couldn't save that day.",
+  "@trainingDayMarkSaveFailed": {
+    "description": "Toast when a missed-day reason or restore fails to save."
+  },
+  "sessionUpdateFailed": "Couldn't update that session.",
+  "@sessionUpdateFailed": {
+    "description": "Toast when a duration correction or void fails to save."
+  },
+  "workoutSettingsSaveFailed": "Couldn't save that setting.",
+  "@workoutSettingsSaveFailed": {
+    "description": "Toast when a workout setting fails to save."
   }
 }

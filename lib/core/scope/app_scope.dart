@@ -1,12 +1,15 @@
 import 'package:flutter/widgets.dart';
 
 import '../l10n/locale_controller.dart';
+import '../theme/theme_controller.dart';
 import '../media/media_service.dart';
 import '../../features/ai/data/audio_recorder.dart';
 import '../../features/ai/domain/ai_repository.dart';
 import '../../features/auth/domain/auth_activity_repository.dart';
 import '../../features/auth/domain/auth_repository.dart';
 import '../../features/profile/domain/profile_repository.dart';
+import '../../features/sleep/domain/sleep_repository.dart';
+import '../../features/sleep/domain/sleep_service.dart';
 import '../../features/diet/domain/diet_repository.dart';
 import '../../features/diet/domain/nutrition/food_resolver.dart';
 import '../../features/device/steps/step_counter.dart';
@@ -17,9 +20,13 @@ import '../../features/expenses/domain/wallet_repository.dart';
 import '../../features/moments/domain/moment_repository.dart';
 import '../../features/music/domain/music_controller.dart';
 import '../../features/workout/domain/body_weight_repository.dart';
+import '../../features/workout/domain/session_maintenance.dart';
+import '../../features/workout/domain/training_day_mark_repository.dart';
 import '../../features/workout/domain/workout_plan_repository.dart';
 import '../../features/workout/domain/workout_repository.dart';
 import '../../features/workout/domain/workout_session_repository.dart';
+import '../../features/workout/domain/workout_settings.dart';
+import '../../features/workout/domain/workout_settings_repository.dart';
 
 /// Provides shared repositories to the widget tree. A deliberately tiny
 /// seam for now; it will be replaced by a proper DI container (get_it) when
@@ -37,15 +44,21 @@ class AppScope extends InheritedWidget {
     required this.workouts,
     required this.workoutPlans,
     required this.workoutSessions,
+    this.workoutSettings,
+    this.trainingDayMarks,
+    this.sessionMaintenance,
     this.bodyWeight,
     required this.diet,
     this.foods,
     required this.ai,
     this.recorder,
     this.stepCounter,
+    this.sleep,
+    this.sleepService,
     this.media,
     this.music,
     this.locale,
+    this.theme,
     required super.child,
     super.key,
   });
@@ -75,6 +88,24 @@ class AppScope extends InheritedWidget {
   final WorkoutRepository workouts;
   final WorkoutPlanRepository workoutPlans;
   final WorkoutSessionRepository workoutSessions;
+
+  /// The account's training preferences — currently the maximum session
+  /// length that decides when a still-running session is one the user forgot
+  /// to close.
+  ///
+  /// Optional for the same reason [bodyWeight] is: the many widget tests that
+  /// never reach a duration keep constructing a scope without it. Read it
+  /// through [requireWorkoutSettings], or fall back to the defaults.
+  final WorkoutSettingsRepository? workoutSettings;
+
+  /// Per-calendar-day training marks: missed-day reasons and spent streak
+  /// restores. Optional, same rationale.
+  final TrainingDayMarkRepository? trainingDayMarks;
+
+  /// Closes sessions that were left open. Exposed so the live session screen
+  /// can register itself as the owner of the session it has open — see
+  /// [SessionMaintenance.openSessionId].
+  final SessionMaintenance? sessionMaintenance;
 
   /// Logged bodyweight entries — the Workout Dashboard's weight-over-time
   /// track, independent of any single training session.
@@ -111,6 +142,31 @@ class AppScope extends InheritedWidget {
   /// a step sensor. Optional for the same reason [recorder] is: tests that
   /// don't exercise the dashboard shouldn't need one.
   final StepCounterService? stepCounter;
+
+  /// Sleep nights + targets. Optional for the same reason [bodyWeight] is:
+  /// most widget tests never open Sleep. Read it through [requireSleep].
+  final SleepRepository? sleep;
+
+  /// The sleep ingest pipeline (platform read → sessionize → resolve → store)
+  /// and manual logging. Paired with [sleep] — production wires both or
+  /// neither. Read it through [requireSleepService].
+  final SleepService? sleepService;
+
+  /// The sleep repository, asserting it was provided. Use from the Sleep page
+  /// and Today's sleep glance — production always wires it.
+  SleepRepository get requireSleep {
+    assert(sleep != null, 'AppScope.sleep was not provided to this scope');
+    return sleep!;
+  }
+
+  /// The sleep service, asserting it was provided.
+  SleepService get requireSleepService {
+    assert(
+      sleepService != null,
+      'AppScope.sleepService was not provided to this scope',
+    );
+    return sleepService!;
+  }
 
   /// The composer's voice-note recorder, asserting it was provided. Use from
   /// the Ask page's mic button — production always wires it.
@@ -173,6 +229,19 @@ class AppScope extends InheritedWidget {
     return locale!;
   }
 
+  /// The app skin (dark · light · match the phone). Optional for the same
+  /// reason [locale] is: a widget test pumping one page renders on whatever
+  /// palette is active and never needs a controller. Production always wires
+  /// one. Read it through [requireTheme] from the theme picker.
+  final ThemeController? theme;
+
+  /// The theme controller, asserting it was provided. Use from Settings'
+  /// theme picker — production always wires it.
+  ThemeController get requireTheme {
+    assert(theme != null, 'AppScope.theme was not provided to this scope');
+    return theme!;
+  }
+
   WalletRepository get requireWallet {
     assert(wallet != null, 'AppScope.wallet was not provided to this scope');
     return wallet!;
@@ -196,6 +265,16 @@ class AppScope extends InheritedWidget {
 
   /// The bodyweight repository, asserting it was provided. Use from the
   /// Workout Dashboard — production always wires it.
+  /// The maximum session length to reason with — the account's own setting
+  /// where there is one, the default otherwise.
+  ///
+  /// Unlike the `require*` getters this never asserts: a screen asking "is
+  /// this duration plausible" must always get an answer, and a scope without
+  /// the repository (a widget test) should behave like a fresh account rather
+  /// than crash.
+  Duration get maxSessionDuration =>
+      (workoutSettings?.current ?? WorkoutSettings.defaults).maxSessionDuration;
+
   BodyWeightRepository get requireBodyWeight {
     assert(
       bodyWeight != null,
@@ -217,6 +296,20 @@ class AppScope extends InheritedWidget {
     return scope!;
   }
 
+  /// The scope if there is one, null otherwise — for a screen that is meant to
+  /// render standalone from data it was handed, and reaches for the scope only
+  /// to sharpen what it shows (a user threshold, a preference). Such a screen
+  /// must degrade to a sensible default rather than assert, or it stops being
+  /// standalone. Anything that genuinely needs a repository uses [of].
+  static AppScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppScope>();
+
+  /// [maxSessionDuration] read through [maybeOf] — the account's own setting
+  /// where there is a scope with one, the default otherwise.
+  static Duration maxSessionDurationOf(BuildContext context) =>
+      maybeOf(context)?.maxSessionDuration ??
+      WorkoutSettings.defaults.maxSessionDuration;
+
   @override
   bool updateShouldNotify(AppScope oldWidget) =>
       auth != oldWidget.auth ||
@@ -229,13 +322,19 @@ class AppScope extends InheritedWidget {
       workouts != oldWidget.workouts ||
       workoutPlans != oldWidget.workoutPlans ||
       workoutSessions != oldWidget.workoutSessions ||
+      workoutSettings != oldWidget.workoutSettings ||
+      trainingDayMarks != oldWidget.trainingDayMarks ||
+      sessionMaintenance != oldWidget.sessionMaintenance ||
       bodyWeight != oldWidget.bodyWeight ||
       diet != oldWidget.diet ||
       foods != oldWidget.foods ||
       ai != oldWidget.ai ||
       recorder != oldWidget.recorder ||
       stepCounter != oldWidget.stepCounter ||
+      sleep != oldWidget.sleep ||
+      sleepService != oldWidget.sleepService ||
       media != oldWidget.media ||
       music != oldWidget.music ||
-      locale != oldWidget.locale;
+      locale != oldWidget.locale ||
+      theme != oldWidget.theme;
 }

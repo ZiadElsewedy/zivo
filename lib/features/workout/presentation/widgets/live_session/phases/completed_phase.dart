@@ -65,7 +65,7 @@ class CompletedPhase extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
-        const Center(
+        Center(
           child: PopIn(
             child: Icon(
               Icons.check_circle_rounded,
@@ -160,7 +160,7 @@ class _PrCelebration extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(AppIcons.trophy, size: 18, color: TrainColors.amber),
+                Icon(AppIcons.trophy, size: 18, color: TrainColors.amber),
                 const SizedBox(width: 8),
                 Text(
                   l(context).livePrsTitle,

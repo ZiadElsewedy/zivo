@@ -153,14 +153,18 @@ class _SetChipState extends State<SetChip> with SingleTickerProviderStateMixin {
         SetChipStatus.current => (
           fill: TrainColors.ember.withValues(alpha: 0.12),
           border: TrainColors.ember.withValues(alpha: 0.35),
-          label: const Color(0xE6FFA87C),
-          value: Colors.white,
+          label: TrainColors.emberPale.withValues(alpha: 0.9),
+          // `inkPlain`, not `Colors.white`: this chip's fill is a 12% ember
+          // wash, which is near-black on one skin and near-*white* on the
+          // other — so its value has to be the page's ink, exactly like the
+          // done chip beside it. (On dark the two differ by 11/255.)
+          value: TrainColors.inkPlain,
         ),
         SetChipStatus.upcoming => (
           fill: TrainColors.glassSoft,
           border: TrainColors.hairline,
-          label: const Color(0x59F4F4F0),
-          value: const Color(0x66F4F4F0),
+          label: TrainColors.inkAt(0.35),
+          value: TrainColors.ink3,
         ),
       };
 
@@ -197,7 +201,7 @@ class _SetChipState extends State<SetChip> with SingleTickerProviderStateMixin {
               ),
               if (widget.state == SetChipStatus.done) ...[
                 const SizedBox(width: 5),
-                const Icon(AppIcons.check, size: 10, color: TrainColors.green),
+                Icon(AppIcons.check, size: 10, color: TrainColors.green),
               ],
             ],
           ),

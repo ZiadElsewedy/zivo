@@ -328,7 +328,7 @@ class _OverviewTile extends StatelessWidget {
                   style: TrainType.mono(
                     size: 21,
                     tracking: -0.03,
-                    color: const Color(0xFFF9F9F5),
+                    color: TrainColors.voiceInk,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -381,7 +381,7 @@ class ProgressSummaryCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0x08FFFFFF),
+              color: TrainColors.sectionFill,
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -454,7 +454,7 @@ class ProgressSummaryCard extends StatelessWidget {
                         tracking: 0.1,
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       AppIcons.chevron,
                       size: 16,
                       color: TrainColors.green,
@@ -486,7 +486,7 @@ class _PrCountBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(AppIcons.trophy, size: 13, color: TrainColors.amber),
+          Icon(AppIcons.trophy, size: 13, color: TrainColors.amber),
           const SizedBox(width: 4),
           AnimatedStatValue(
             value: l(context).workoutPrCount(count),
@@ -536,7 +536,7 @@ class SplitBreakdownCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0x08FFFFFF),
+              color: TrainColors.sectionFill,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: TrainColors.hairline),
             ),
@@ -563,7 +563,7 @@ class SplitBreakdownCard extends StatelessWidget {
                           color: TrainColors.green.withValues(alpha: 0.18),
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         AppIcons.splits,
                         size: 19,
                         color: TrainColors.green,
@@ -612,7 +612,7 @@ class SplitBreakdownCard extends StatelessWidget {
                       },
                     ),
                     const SizedBox(width: 4),
-                    const Icon(
+                    Icon(
                       AppIcons.chevron,
                       color: TrainColors.ink4,
                       size: 20,
@@ -679,13 +679,13 @@ class _DayDistributionRow extends StatelessWidget {
               children: [
                 Container(height: 7, color: TrainColors.hairline),
                 FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
+                  alignment: AlignmentDirectional.centerStart,
                   widthFactor: fraction.clamp(0.06, 1.0),
                   child: Container(
                     height: 7,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Color(0xFF2BD99B), TrainColors.green],
+                        colors: [TrainColors.greenLift, TrainColors.green],
                       ),
                     ),
                   ),
@@ -774,7 +774,7 @@ class _SeeAllLink extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                const Icon(AppIcons.chevron, size: 12, color: TrainColors.ink4),
+                Icon(AppIcons.chevron, size: 12, color: TrainColors.ink4),
               ],
             ),
           ),
@@ -810,6 +810,12 @@ class _RecentSessionRow extends StatelessWidget {
         l(context).workoutSessionNotCompleted,
         TrainColors.ink4,
       ),
+      // Voided reads as its own state, not as "abandoned": the session
+      // happened and its numbers are intact, it simply no longer counts.
+      SessionStatus.voided => (
+        l(context).sessionVoided,
+        TrainColors.ink4,
+      ),
     };
     return PressableScale(
       child: Material(
@@ -820,7 +826,7 @@ class _RecentSessionRow extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: const Color(0x08FFFFFF),
+              color: TrainColors.sectionFill,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: TrainColors.hairline),
             ),
@@ -846,6 +852,7 @@ class _RecentSessionRow extends StatelessWidget {
                       SessionStatus.completed => AppIcons.trendUp,
                       SessionStatus.active => AppIcons.bolt,
                       SessionStatus.abandoned => AppIcons.minus,
+                    SessionStatus.voided => AppIcons.minus,
                     },
                     size: 16,
                     color: color == TrainColors.ink4 ? TrainColors.ink2 : color,
@@ -869,11 +876,11 @@ class _RecentSessionRow extends StatelessWidget {
                       Text(
                         session.status == SessionStatus.completed
                             ? l(context).workoutAgoWithDuration(
-                                timeAgo(session.startedAt, now),
+                                timeAgo(context, session.startedAt, now),
                                 formatDurationShort(context, session.elapsed),
                               )
                             : l(context).workoutAgo(
-                                timeAgo(session.startedAt, now),
+                                timeAgo(context, session.startedAt, now),
                               ),
                         style: TrainType.mono(
                           size: 10.5,
@@ -907,7 +914,7 @@ class _RecentSessionRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Icon(AppIcons.chevron, color: TrainColors.ink4, size: 18),
+                Icon(AppIcons.chevron, color: TrainColors.ink4, size: 18),
               ],
             ),
           ),
@@ -928,7 +935,7 @@ class _EmptyCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -973,7 +980,7 @@ class _DestinationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -1020,7 +1027,7 @@ class _DestinationRow extends StatelessWidget {
               border: Border(
                 top: first
                     ? BorderSide.none
-                    : const BorderSide(color: TrainColors.hairline),
+                    : BorderSide(color: TrainColors.hairline),
               ),
             ),
             child: Row(
@@ -1078,7 +1085,7 @@ class _DestinationRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(AppIcons.chevron, color: TrainColors.ink4, size: 20),
+                Icon(AppIcons.chevron, color: TrainColors.ink4, size: 20),
               ],
             ),
           ),

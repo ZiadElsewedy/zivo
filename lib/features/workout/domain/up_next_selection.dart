@@ -1,6 +1,7 @@
 import 'live_session.dart';
 import 'workout_day.dart';
 import 'workout_plan.dart';
+import 'workout_settings.dart';
 
 /// The day a plan's "up next" card should show, and the session (if any) to
 /// resume into it.
@@ -27,9 +28,35 @@ class UpNextSelection {
   final LiveSession? resumable;
 }
 
-UpNextSelection resolveUpNext(WorkoutPlan plan, LiveSession? activeSession) {
+/// [now] and [maxSessionDuration] are what stop a session that was left open
+/// from hijacking the card forever.
+///
+/// A running session outranks the rotation because it mirrors what is actually
+/// under way — but a session abandoned on Tuesday is not under way on
+/// Thursday, and until this check existed it went on offering "Resume Push" in
+/// place of the day that was genuinely due, indefinitely. A stale session is
+/// passed over here and closed by `SessionMaintenance` shortly after; the card
+/// falls back to [WorkoutPlan.nextDay], which is the truth.
+///
+/// Both default to "never stale" so a caller with no clock (a pure test, a
+/// screen that genuinely wants the raw preference) keeps the old behaviour
+/// explicitly rather than by omission.
+UpNextSelection resolveUpNext(
+  WorkoutPlan plan,
+  LiveSession? activeSession, {
+  DateTime? now,
+  Duration maxSessionDuration = const Duration(
+    minutes: kDefaultMaxSessionDurationMinutes,
+  ),
+}) {
+  final stale =
+      activeSession != null &&
+      now != null &&
+      activeSession.isStale(now: now, maxSessionDuration: maxSessionDuration);
   final activeForPlan =
-      activeSession != null && activeSession.planId == plan.id ? activeSession : null;
+      activeSession != null && !stale && activeSession.planId == plan.id
+      ? activeSession
+      : null;
   final sessionDay = activeForPlan == null ? null : _dayById(plan, activeForPlan.dayId);
   return UpNextSelection(
     day: sessionDay ?? plan.nextDay,

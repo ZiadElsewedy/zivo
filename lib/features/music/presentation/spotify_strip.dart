@@ -146,20 +146,18 @@ class SpotifyStrip extends StatelessWidget {
                 duration: const Duration(milliseconds: 420),
                 curve: Curves.easeOut,
                 padding: _isFull
-                    ? const EdgeInsets.fromLTRB(13, 12, 15, 12)
-                    : const EdgeInsets.fromLTRB(11, 10, 14, 10),
+                    ? const EdgeInsetsDirectional.fromSTEB(13, 12, 15, 12)
+                    : const EdgeInsetsDirectional.fromSTEB(11, 10, 14, 10),
                 decoration: BoxDecoration(
                   color: Color.lerp(
-                    _isFull ? TrainColors.glass : const Color(0x08FFFFFF),
+                    _isFull ? TrainColors.glass : TrainColors.sectionFill,
                     _tint.withValues(alpha: 0.10),
                     bloom,
                   ),
                   borderRadius: BorderRadius.circular(radius),
                   border: Border.all(
                     color: Color.lerp(
-                      _isFull
-                          ? TrainColors.hairline
-                          : const Color(0x0FFFFFFF),
+                      _isFull ? TrainColors.hairline : TrainColors.glassStrong,
                       _tint.withValues(alpha: 0.45),
                       bloom,
                     )!,
@@ -251,24 +249,39 @@ class SpotifyStrip extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 6),
-            _TransportButton(
-              enabled: playing.hasControl,
-              semanticLabel: playing.isPaused ? l(context).musicPlay : l(context).musicPause,
-              onTap: () =>
-                  playing.isPaused ? controller.play() : controller.pause(),
-              child: playing.isPaused
-                  ? TrainPlayGlyph(color: _tint, size: 15)
-                  : TrainPauseGlyph(color: _tint, size: 15),
-            ),
-            const SizedBox(width: 8),
-            _TransportButton(
-              enabled: playing.hasControl,
-              semanticLabel: l(context).musicNextTrack,
-              onTap: controller.next,
-              child: const TrainPlayGlyph(
-                color: TrainColors.inkPlain,
-                size: 13,
-                bar: true,
+            // Transport controls do not mirror: they point along the track's
+            // timeline, which runs the same way in every language, and the glyphs
+            // are painted rather than flipped. Same rule as the nav lozenge's
+            // cluster. The labels inside stay translated.
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _TransportButton(
+                    enabled: playing.hasControl,
+                    semanticLabel: playing.isPaused
+                        ? l(context).musicPlay
+                        : l(context).musicPause,
+                    onTap: () => playing.isPaused
+                        ? controller.play()
+                        : controller.pause(),
+                    child: playing.isPaused
+                        ? TrainPlayGlyph(color: _tint, size: 15)
+                        : TrainPauseGlyph(color: _tint, size: 15),
+                  ),
+                  const SizedBox(width: 8),
+                  _TransportButton(
+                    enabled: playing.hasControl,
+                    semanticLabel: l(context).musicNextTrack,
+                    onTap: controller.next,
+                    child: TrainPlayGlyph(
+                      color: TrainColors.inkPlain,
+                      size: 13,
+                      bar: true,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -281,11 +294,16 @@ class SpotifyStrip extends StatelessWidget {
             Expanded(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(2),
-                child: LinearProgressIndicator(
-                  value: fraction,
-                  minHeight: 2,
-                  backgroundColor: const Color(0x1FFFFFFF),
-                  valueColor: AlwaysStoppedAnimation(_tint),
+                // Fills left-to-right in every language: this is elapsed
+                // track time, and a song does not play backwards in Arabic.
+                child: Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: LinearProgressIndicator(
+                    value: fraction,
+                    minHeight: 2,
+                    backgroundColor: TrainColors.hairlineStrong,
+                    valueColor: AlwaysStoppedAnimation(_tint),
+                  ),
                 ),
               ),
             ),
@@ -335,28 +353,42 @@ class SpotifyStrip extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           ltrFor(context, '-${_mmss(playing.duration - position)}'),
-          style: TrainType.mono(size: 9, color: const Color(0x59F4F4F0)),
+          style: TrainType.mono(size: 9, color: TrainColors.inkAt(0.35)),
         ),
         const SizedBox(width: 6),
-        _TransportButton(
-          enabled: playing.hasControl,
-          semanticLabel: playing.isPaused ? l(context).musicPlay : l(context).musicPause,
-          size: 36,
-          onTap: () =>
-              playing.isPaused ? controller.play() : controller.pause(),
-          child: playing.isPaused
-              ? TrainPlayGlyph(color: _tint, size: 12)
-              : TrainPauseGlyph(color: _tint, size: 12),
-        ),
-        _TransportButton(
-          enabled: playing.hasControl,
-          semanticLabel: l(context).musicNextTrack,
-          size: 36,
-          onTap: controller.next,
-          child: const TrainPlayGlyph(
-            color: Color(0xBFF4F4F0),
-            size: 11,
-            bar: true,
+        // Transport controls do not mirror: they point along the track's
+        // timeline, which runs the same way in every language, and the glyphs
+        // are painted rather than flipped. Same rule as the nav lozenge's
+        // cluster. The labels inside stay translated.
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _TransportButton(
+                enabled: playing.hasControl,
+                semanticLabel: playing.isPaused
+                    ? l(context).musicPlay
+                    : l(context).musicPause,
+                size: 36,
+                onTap: () =>
+                    playing.isPaused ? controller.play() : controller.pause(),
+                child: playing.isPaused
+                    ? TrainPlayGlyph(color: _tint, size: 12)
+                    : TrainPauseGlyph(color: _tint, size: 12),
+              ),
+              _TransportButton(
+                enabled: playing.hasControl,
+                semanticLabel: l(context).musicNextTrack,
+                size: 36,
+                onTap: controller.next,
+                child: TrainPlayGlyph(
+                  color: TrainColors.inkAt(0.75),
+                  size: 11,
+                  bar: true,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -384,10 +416,7 @@ class SpotifyStrip extends StatelessWidget {
                   l(context).musicStripMeta(
                     playing.artist,
                     l(context).musicTimeLeft(
-                      ltrFor(
-                        context,
-                        _mmss(playing.duration - position),
-                      ),
+                      ltrFor(context, _mmss(playing.duration - position)),
                     ),
                   ),
                   size: 9.5,
@@ -397,39 +426,53 @@ class SpotifyStrip extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 6),
-        _TransportButton(
-          enabled: playing.hasControl,
-          semanticLabel: l(context).musicPreviousTrack,
-          size: 38,
-          onTap: controller.previous,
-          child: Transform.rotate(
-            angle: 3.14159,
-            child: const TrainPlayGlyph(
-              color: Color(0xBFF4F4F0),
-              size: 11,
-              bar: true,
-            ),
-          ),
-        ),
-        _TransportButton(
-          enabled: playing.hasControl,
-          semanticLabel: playing.isPaused ? l(context).musicPlay : l(context).musicPause,
-          size: 38,
-          onTap: () =>
-              playing.isPaused ? controller.play() : controller.pause(),
-          child: playing.isPaused
-              ? TrainPlayGlyph(color: _tint, size: 13)
-              : TrainPauseGlyph(color: _tint, size: 13),
-        ),
-        _TransportButton(
-          enabled: playing.hasControl,
-          semanticLabel: l(context).musicNextTrack,
-          size: 38,
-          onTap: controller.next,
-          child: const TrainPlayGlyph(
-            color: Color(0xBFF4F4F0),
-            size: 11,
-            bar: true,
+        // Transport controls do not mirror: they point along the track's
+        // timeline, which runs the same way in every language, and the glyphs
+        // are painted rather than flipped. Same rule as the nav lozenge's
+        // cluster. The labels inside stay translated.
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _TransportButton(
+                enabled: playing.hasControl,
+                semanticLabel: l(context).musicPreviousTrack,
+                size: 38,
+                onTap: controller.previous,
+                child: Transform.rotate(
+                  angle: 3.14159,
+                  child: TrainPlayGlyph(
+                    color: TrainColors.inkAt(0.75),
+                    size: 11,
+                    bar: true,
+                  ),
+                ),
+              ),
+              _TransportButton(
+                enabled: playing.hasControl,
+                semanticLabel: playing.isPaused
+                    ? l(context).musicPlay
+                    : l(context).musicPause,
+                size: 38,
+                onTap: () =>
+                    playing.isPaused ? controller.play() : controller.pause(),
+                child: playing.isPaused
+                    ? TrainPlayGlyph(color: _tint, size: 13)
+                    : TrainPauseGlyph(color: _tint, size: 13),
+              ),
+              _TransportButton(
+                enabled: playing.hasControl,
+                semanticLabel: l(context).musicNextTrack,
+                size: 38,
+                onTap: controller.next,
+                child: TrainPlayGlyph(
+                  color: TrainColors.inkAt(0.75),
+                  size: 11,
+                  bar: true,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -467,49 +510,63 @@ class SpotifyStrip extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 4),
-        _TransportButton(
-          enabled: playing.hasControl,
-          semanticLabel: l(context).musicPreviousTrack,
-          size: 36,
-          onTap: controller.previous,
-          child: Transform.rotate(
-            angle: 3.14159,
-            child: const TrainPlayGlyph(
-              color: Color(0xBFF4F4F0),
-              size: 11,
-              bar: true,
-            ),
-          ),
-        ),
-        _TransportButton(
-          enabled: playing.hasControl,
-          semanticLabel: playing.isPaused ? l(context).musicPlay : l(context).musicPause,
-          size: 36,
-          onTap: () =>
-              playing.isPaused ? controller.play() : controller.pause(),
-          child: playing.isPaused
-              ? TrainPlayGlyph(color: _tint, size: 12)
-              : TrainPauseGlyph(color: _tint, size: 12),
-        ),
-        _TransportButton(
-          enabled: playing.hasControl,
-          semanticLabel: l(context).musicNextTrack,
-          size: 36,
-          onTap: controller.next,
-          child: const TrainPlayGlyph(
-            color: Color(0xBFF4F4F0),
-            size: 11,
-            bar: true,
+        // Transport controls do not mirror: they point along the track's
+        // timeline, which runs the same way in every language, and the glyphs
+        // are painted rather than flipped. Same rule as the nav lozenge's
+        // cluster. The labels inside stay translated.
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _TransportButton(
+                enabled: playing.hasControl,
+                semanticLabel: l(context).musicPreviousTrack,
+                size: 36,
+                onTap: controller.previous,
+                child: Transform.rotate(
+                  angle: 3.14159,
+                  child: TrainPlayGlyph(
+                    color: TrainColors.inkAt(0.75),
+                    size: 11,
+                    bar: true,
+                  ),
+                ),
+              ),
+              _TransportButton(
+                enabled: playing.hasControl,
+                semanticLabel: playing.isPaused
+                    ? l(context).musicPlay
+                    : l(context).musicPause,
+                size: 36,
+                onTap: () =>
+                    playing.isPaused ? controller.play() : controller.pause(),
+                child: playing.isPaused
+                    ? TrainPlayGlyph(color: _tint, size: 12)
+                    : TrainPauseGlyph(color: _tint, size: 12),
+              ),
+              _TransportButton(
+                enabled: playing.hasControl,
+                semanticLabel: l(context).musicNextTrack,
+                size: 36,
+                onTap: controller.next,
+                child: TrainPlayGlyph(
+                  color: TrainColors.inkAt(0.75),
+                  size: 11,
+                  bar: true,
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  static final _timecode = TrainType.mono(
-    size: 9,
-    color: const Color(0x66F4F4F0),
-  );
+  // A getter, not a `static final`: a field is evaluated once and would
+  // pin this style to whichever skin the app first drew (ADR-011).
+  static TextStyle get _timecode =>
+      TrainType.mono(size: 9, color: TrainColors.ink3);
 }
 
 /// The album-art tile with the Spotify mark on its corner.
@@ -547,7 +604,7 @@ class _StripArtwork extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: radius,
                 color: tint.withValues(alpha: 0.12),
-                border: Border.all(color: const Color(0x14FFFFFF)),
+                border: Border.all(color: TrainColors.liftAt(0.078)),
               ),
               child: ClipRRect(
                 borderRadius: radius,
@@ -603,13 +660,15 @@ class _StripArtwork extends StatelessWidget {
             ),
           // The brand mark, breaking the tile's top-left corner so it reads as
           // a source badge rather than as part of the cover.
-          Positioned(
-            left: -3,
+          // The source badge breaks the tile's LEADING corner, which mirrors
+          // with the layout — the mark itself is never redrawn or recoloured.
+          PositionedDirectional(
+            start: -3,
             top: -3,
             child: Container(
               padding: const EdgeInsets.all(2),
-              decoration: const BoxDecoration(
-                color: Color(0xF2080908),
+              decoration: BoxDecoration(
+                color: TrainColors.base.withValues(alpha: 0.95),
                 shape: BoxShape.circle,
               ),
               child: Image.asset(
@@ -645,11 +704,14 @@ class _SwapOnTrack extends StatelessWidget {
       // Both tracks share the row for one beat mid-swap; without this the
       // outgoing one drags the row's height/width around as it leaves.
       layoutBuilder: (current, previous) => Stack(
-        alignment: Alignment.centerLeft,
+        alignment: AlignmentDirectional.centerStart,
         children: [
           ...previous.map(
             (c) => Positioned.fill(
-              child: Align(alignment: Alignment.centerLeft, child: c),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: c,
+              ),
             ),
           ),
           ?current,
@@ -701,15 +763,17 @@ class _TrackBloomState extends State<_TrackBloom>
   // symmetrical pulse that reads as a loading blink.
   late final Animation<double> _bloom = TweenSequence<double>([
     TweenSequenceItem(
-      tween: Tween(begin: 0.0, end: 1.0).chain(
-        CurveTween(curve: Curves.easeOutCubic),
-      ),
+      tween: Tween(
+        begin: 0.0,
+        end: 1.0,
+      ).chain(CurveTween(curve: Curves.easeOutCubic)),
       weight: 22,
     ),
     TweenSequenceItem(
-      tween: Tween(begin: 1.0, end: 0.0).chain(
-        CurveTween(curve: Curves.easeOutCubic),
-      ),
+      tween: Tween(
+        begin: 1.0,
+        end: 0.0,
+      ).chain(CurveTween(curve: Curves.easeOutCubic)),
       weight: 78,
     ),
   ]).animate(_controller);
@@ -744,11 +808,16 @@ class _Title extends StatelessWidget {
   final String text;
   final double size;
 
+  // A track title is text ZIVO did not write and is its own paragraph here,
+  // so it picks its own direction — otherwise a Latin title in an Arabic
+  // build truncates from the wrong end ("…Fixture Track Th").
   @override
   Widget build(BuildContext context) => Text(
     text,
     maxLines: 1,
     overflow: TextOverflow.ellipsis,
+    textDirection: directionOfFor(context, text),
+    textAlign: TextAlign.start,
     style: TrainType.ui(
       size: size,
       weight: FontWeight.w700,
@@ -768,11 +837,13 @@ class _Artist extends StatelessWidget {
     text,
     maxLines: 1,
     overflow: TextOverflow.ellipsis,
+    textDirection: directionOfFor(context, text),
+    textAlign: TextAlign.start,
     style: TrainType.mono(
       size: size,
       tracking: 0.02,
       height: 1.2,
-      color: const Color(0x61F4F4F0),
+      color: TrainColors.inkAt(0.38),
     ),
   );
 }

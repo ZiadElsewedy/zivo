@@ -48,10 +48,10 @@ void main() {
   group('toWorkoutLog', () {
     test('maps a fully completed session, done-set counts, reps, and last weight', () {
       var s = _fresh();
-      s = s.markSetDone('ex1', 'ex1-s0', actualReps: 5, actualWeightKg: 60);
-      s = s.markSetDone('ex1', 'ex1-s1', actualReps: 5, actualWeightKg: 62.5);
-      s = s.markSetDone('ex2', 'ex2-s0', actualReps: 9, actualWeightKg: 40);
-      s = s.markSetDone('ex3', 'ex3-s0', actualReps: 12, actualWeightKg: 15);
+      s = s.markSetDone('ex1', 'ex1-s0', actualReps: 5, actualWeightKg: 60, now: _t0);
+      s = s.markSetDone('ex1', 'ex1-s1', actualReps: 5, actualWeightKg: 62.5, now: _t0);
+      s = s.markSetDone('ex2', 'ex2-s0', actualReps: 9, actualWeightKg: 40, now: _t0);
+      s = s.markSetDone('ex3', 'ex3-s0', actualReps: 12, actualWeightKg: 15, now: _t0);
       s = s.complete(now: _t1);
 
       final log = s.toWorkoutLog();
@@ -80,7 +80,7 @@ void main() {
     });
 
     test('skips exercises with no done sets', () {
-      final s = _fresh().markSetDone('ex1', 'ex1-s0', actualReps: 5, actualWeightKg: 60);
+      final s = _fresh().markSetDone('ex1', 'ex1-s0', actualReps: 5, actualWeightKg: 60, now: _t0);
 
       final log = s.toWorkoutLog();
       expect(log.exercises, hasLength(1));
@@ -90,9 +90,9 @@ void main() {
 
     test('a skipped set logs no volume — excluded from sets/reps/weight entirely', () {
       var s = _fresh();
-      s = s.markSetDone('ex1', 'ex1-s0', actualReps: 5, actualWeightKg: 60);
-      s = s.markSetSkipped('ex1', 'ex1-s1'); // second Bench set skipped
-      s = s.markSetSkipped('ex2', 'ex2-s0'); // Row's only set skipped
+      s = s.markSetDone('ex1', 'ex1-s0', actualReps: 5, actualWeightKg: 60, now: _t0);
+      s = s.markSetSkipped('ex1', 'ex1-s1', now: _t0); // second Bench set skipped
+      s = s.markSetSkipped('ex2', 'ex2-s0', now: _t0); // Row's only set skipped
 
       final log = s.toWorkoutLog();
       // Row has zero done sets (its one set was skipped) — excluded entirely,
@@ -104,13 +104,13 @@ void main() {
     });
 
     test('performedAt falls back to startedAt when completedAt is null', () {
-      final s = _fresh().markSetDone('ex1', 'ex1-s0', actualReps: 5, actualWeightKg: 60);
+      final s = _fresh().markSetDone('ex1', 'ex1-s0', actualReps: 5, actualWeightKg: 60, now: _t0);
       expect(s.completedAt, isNull);
       expect(s.toWorkoutLog().performedAt, _t0);
     });
 
     test('a set with no actual reps recorded falls back to its target minimum', () {
-      final s = _fresh().markSetDone('ex2', 'ex2-s0', actualWeightKg: 40);
+      final s = _fresh().markSetDone('ex2', 'ex2-s0', actualWeightKg: 40, now: _t0);
       // A range target's markSetDone leaves actualReps null unless supplied.
       expect(s.exercises[1].sets.single.actualReps, isNull);
 

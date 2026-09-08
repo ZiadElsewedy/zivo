@@ -8,6 +8,7 @@ import '../../domain/coaching/evidence.dart';
 import '../../domain/coaching/finding.dart';
 import '../../domain/coaching/rules.dart';
 import '../../domain/diet_state.dart';
+import '../diet_labels.dart';
 import '../../../../l10n/l10n.dart';
 
 /// **The coach's read on today, on the screen, without a model call.**
@@ -101,14 +102,14 @@ class _FindingTileState extends State<_FindingTile> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (widget.showDivider)
-          const Divider(height: 1, thickness: 1, color: Color(0x0FF4F4F0)),
+          Divider(height: 1, thickness: 1, color: TrainColors.inkAt(0.06)),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 13),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                findingKindLabel(finding.kind).toUpperCase(),
+                findingKindText(context, finding.kind).toUpperCase(),
                 style: TrainType.caption(size: 9, tracking: 0.18, color: color),
               ),
               const SizedBox(height: 6),

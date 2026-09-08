@@ -16,3 +16,12 @@ Finder findTextIgnoringBidi(String text) => find.byWidgetPredicate(
   (w) => w is Text && w.data != null && stripBidi(w.data!) == text,
   description: 'Text "$text" (ignoring directional isolates)',
 );
+
+/// `find.textContaining`, blind to the directional isolates `bidi.dart` adds.
+Finder findTextContainingIgnoringBidi(String text) => find.byWidgetPredicate(
+  (w) =>
+      w is Text &&
+      (stripBidi(w.data ?? '').contains(text) ||
+          stripBidi(w.textSpan?.toPlainText() ?? '').contains(text)),
+  description: 'Text containing "$text" (ignoring directional isolates)',
+);

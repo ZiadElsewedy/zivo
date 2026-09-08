@@ -6,7 +6,6 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/train_surfaces.dart';
-import '../../../../core/widgets/zivo_confirm.dart';
 import '../../domain/live_session.dart';
 import '../../domain/logged_set.dart';
 import '../../domain/progression.dart';
@@ -14,7 +13,9 @@ import '../../domain/rep_target.dart';
 import '../../domain/session_exercise.dart';
 import '../../domain/session_status.dart';
 import '../../domain/set_outcome.dart';
+import '../widgets/session_correction_sheet.dart';
 import '../widgets/staggered_reveal.dart';
+import '../workout_labels.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../../core/util/bidi.dart';
 import '../../../../core/util/date_format.dart';
@@ -26,7 +27,9 @@ import '../workout_format.dart';
 /// its own row with actual reps/weight, RPE, and a clear completed/skipped
 /// marker. Reads only the [LiveSession] handed to it — no streams, no
 /// repository access; the session is already resolved by whoever pushed
-/// this page.
+/// this page. The one thing it reaches out for is the account's maximum
+/// session length, read through `AppScope.maxSessionDurationOf` so a scope-less
+/// host still renders — and the repository, only inside an action's callback.
 class SessionDetailsPage extends StatelessWidget {
   const SessionDetailsPage({required this.session, super.key});
 
@@ -40,24 +43,35 @@ class SessionDetailsPage extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(22, 12, 22, TrainBottomInset.of(context)),
         children: [
           _DetailsHeader(
-            onDelete: () async {
-              final repo = AppScope.of(context).workoutSessions;
-              final confirmed = await confirmDeleteSession(
-                context,
-                session.dayLabel,
-              );
-              if (!confirmed || !context.mounted) return;
-              await repo.deleteSession(session.id);
-              if (context.mounted) Navigator.of(context).pop();
-            },
+            // Void, not delete. A session that recorded work is withdrawn
+            // from the statistics with a reason and keeps its place in
+            // history — see `session_status.dart`. Only a session with
+            // nothing logged in it is still erased, and that one is erased
+            // automatically on the way out of the live screen, so there is
+            // nothing left here for a delete button to do.
+            onVoid: session.isVoided || !session.hasCompletedWorkingSet
+                ? null
+                : () async {
+                    final voided = await showVoidSessionSheet(
+                      context,
+                      session: session,
+                      repository: AppScope.of(context).workoutSessions,
+                      now: DateTime.now(),
+                    );
+                    if (voided && context.mounted) Navigator.of(context).pop();
+                  },
           ),
           const SizedBox(height: 22),
           _SessionHeroHeader(session: session),
+          if (session.status != SessionStatus.active) ...[
+            const SizedBox(height: 12),
+            _DurationProvenanceCard(session: session),
+          ],
           const SizedBox(height: 26),
           if (session.exercises.isEmpty)
             Text(
               l(context).sessionNoExercises,
-              style: AppText.aside.copyWith(color: TrainColors.ink2),
+              style: AppText.aside(context).copyWith(color: TrainColors.ink2),
             )
           else
             for (final (i, exercise) in session.exercises.indexed)
@@ -78,36 +92,75 @@ class SessionDetailsPage extends StatelessWidget {
 /// The pushed-page header: the shared back circle and title, with this
 /// page's one action — deleting the session — as the trailing chip.
 class _DetailsHeader extends StatelessWidget {
-  const _DetailsHeader({required this.onDelete});
+  const _DetailsHeader({required this.onVoid});
 
-  final VoidCallback onDelete;
+  /// Null on a session with nothing to withdraw (already voided, or nothing
+  /// logged in it) — the header then carries no action at all rather than a
+  /// dead one.
+  final VoidCallback? onVoid;
 
   @override
   Widget build(BuildContext context) {
+    final action = onVoid;
     return TrainPageHeader(
       title: l(context).sessionDetailsTitle,
-      action: TrainHeaderAction(
-        icon: AppIcons.trash,
-        semanticLabel: l(context).sessionDeleteAction,
-        // Neutral, not ember: destructive, but already gated behind its own
-        // confirm — it doesn't get to be the loudest thing in the bar.
-        accent: const Color(0xFFF4F4F0),
-        onTap: onDelete,
-      ),
+      action: action == null
+          ? null
+          : TrainHeaderAction(
+              icon: AppIcons.minus,
+              semanticLabel: l(context).sessionVoid,
+              // Neutral, not ember: it is already gated behind its own sheet
+              // and confirm, and it doesn't get to be the loudest thing here.
+              accent: TrainColors.inkPlain,
+              onTap: action,
+            ),
     );
   }
 }
 
-/// Confirms deleting a logged session — destructive and irreversible, so it
-/// always asks first. Returns true only on an explicit Delete tap. Shared by
-/// [SessionDetailsPage]'s delete action and History's swipe-to-delete so both
-/// use the exact same wording and guard.
-Future<bool> confirmDeleteSession(BuildContext context, String dayLabel) async {
-  return confirmDestructive(
-    context,
-    title: l(context).sessionDeleteTitle,
-    body: l(context).sessionDeleteBody(dayLabel),
-  );
+/// Where this session's duration came from, and — when it is one the averages
+/// won't use — the way to fix it.
+///
+/// Provenance on the record itself, in the spirit of ADR-010: "Timed by ZIVO"
+/// and "Closed at your last set" are different claims about the same figure,
+/// and the screen showing the figure is the screen that should say which.
+class _DurationProvenanceCard extends StatelessWidget {
+  const _DurationProvenanceCard({required this.session});
+
+  final LiveSession session;
+
+  @override
+  Widget build(BuildContext context) {
+    // `maybeOf`: this page is documented as renderable from the session it
+    // was handed, and a threshold it can default is not a reason to start
+    // requiring a scope.
+    final max = AppScope.maxSessionDurationOf(context);
+    final usable = session.hasUsableDuration(max);
+    return TrainListCard(
+      rows: [
+        TrainListRow(
+          icon: usable ? AppIcons.timer : AppIcons.warning,
+          accent: usable ? TrainColors.green : TrainColors.amber,
+          label: usable
+              ? durationSourceLabel(context, session.durationSource)
+              : l(context).sessionNeedsDuration,
+          value: l(context).sessionSetDuration,
+          onTap: () => showDurationCorrectionSheet(
+            context,
+            session: session,
+            repository: AppScope.of(context).workoutSessions,
+          ),
+        ),
+        if (session.isVoided && session.voidReason != null)
+          TrainListRow(
+            icon: AppIcons.minus,
+            accent: TrainColors.ink4,
+            label: l(context).sessionVoided,
+            value: voidReasonLabel(context, session.voidReason!),
+          ),
+      ],
+    );
+  }
 }
 
 class _SessionHeroHeader extends StatelessWidget {
@@ -130,6 +183,12 @@ class _SessionHeroHeader extends StatelessWidget {
         l(context).sessionStatusAbandoned,
         TrainColors.ink4,
       ),
+      // Voided reads as its own state, not as "abandoned": the session
+      // happened and its numbers are intact, it simply no longer counts.
+      SessionStatus.voided => (
+        l(context).sessionVoided,
+        TrainColors.ink4,
+      ),
     };
     final duration = session.status == SessionStatus.active
         ? session.activeElapsed(now: DateTime.now())
@@ -138,7 +197,7 @@ class _SessionHeroHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -176,6 +235,7 @@ class _SessionHeroHeader extends StatelessWidget {
                     SessionStatus.completed => AppIcons.trendUp,
                     SessionStatus.active => AppIcons.bolt,
                     SessionStatus.abandoned => AppIcons.minus,
+                    SessionStatus.voided => AppIcons.minus,
                   },
                   size: 18,
                   color: color == TrainColors.ink4 ? TrainColors.ink2 : color,
@@ -315,7 +375,7 @@ class _ExerciseDetailCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -362,7 +422,7 @@ class _ExerciseDetailCard extends StatelessWidget {
           for (final (i, set) in exercise.sets.indexed) ...[
             if (i > 0)
               Container(
-                margin: const EdgeInsets.only(left: 26, bottom: 10),
+                margin: const EdgeInsetsDirectional.only(start: 26, bottom: 10),
                 height: 1,
                 color: TrainColors.hairline,
               ),

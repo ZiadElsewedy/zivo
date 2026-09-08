@@ -429,7 +429,7 @@ class _TopBar extends StatelessWidget {
         TrainCircleButton(
           semanticLabel: l(context).musicClosePlayer,
           onTap: onClose,
-          child: const Icon(
+          child: Icon(
             AppIcons.chevronDown,
             size: 20,
             color: TrainColors.ink2,
@@ -612,7 +612,14 @@ class _Controls extends StatelessWidget {
   Widget build(BuildContext context) {
     final enabled = playing.hasControl;
     final repeat = playing.repeatMode;
-    return Row(
+    // Pinned LTR, like the lozenge's transport and the scrubber below it:
+    // these controls point along the track's timeline, which runs the same
+    // way in every language, and the glyphs are painted rather than flipped.
+    // Mirroring the row alone put the right-pointing "next" arrow to the left
+    // of the left-pointing "previous" one. Labels inside stay translated.
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _IconControl(
@@ -627,7 +634,7 @@ class _Controls extends StatelessWidget {
           },
         ),
         _IconControl(
-          glyph: const TrainPlayGlyph(
+          glyph: TrainPlayGlyph(
             color: TrainColors.ink,
             size: 18,
             bar: true,
@@ -642,7 +649,7 @@ class _Controls extends StatelessWidget {
         ),
         _BigPlayButton(controller: controller, playing: playing),
         _IconControl(
-          glyph: const TrainPlayGlyph(
+          glyph: TrainPlayGlyph(
             color: TrainColors.ink,
             size: 18,
             bar: true,
@@ -672,11 +679,12 @@ class _Controls extends StatelessWidget {
           },
         ),
       ],
+      ),
     );
   }
 }
 
-/// A 52px tap target holding either a Lucide [icon] (shuffle/repeat) or a
+/// A 52px tap target holding either a stroked [icon] (shuffle/repeat) or a
 /// filled [glyph] (prev/next). [active] tints it with the track accent;
 /// [enabled] false dims and inerts it (another device owns playback).
 class _IconControl extends StatelessWidget {
@@ -688,8 +696,13 @@ class _IconControl extends StatelessWidget {
     this.active = false,
     this.enabled = true,
     this.flip = false,
-    this.activeColor = TrainColors.green,
-  });
+    Color? activeColor,
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _activeColor = activeColor;
 
   final IconData? icon;
   final Widget? glyph;
@@ -700,7 +713,12 @@ class _IconControl extends StatelessWidget {
 
   /// Mirrors the glyph horizontally — turns the "next" triangle into "prev".
   final bool flip;
-  final Color activeColor;
+  final Color? _activeColor;
+
+  /// Defaults to the active skin's `green` — resolved on read
+  /// rather than in the constructor, which is what lets the
+  /// constructor stay `const` (ADR-011).
+  Color get activeColor => _activeColor ?? TrainColors.green;
 
   @override
   Widget build(BuildContext context) {
@@ -775,13 +793,13 @@ class _BigPlayButton extends StatelessWidget {
                 child: paused
                     ? TrainPlayGlyph(
                         color: enabled
-                            ? const Color(0xFF04140D)
+                            ? TrainColors.onGreen
                             : TrainColors.ink3,
                         size: 28,
                       )
                     : TrainPauseGlyph(
                         color: enabled
-                            ? const Color(0xFF04140D)
+                            ? TrainColors.onGreen
                             : TrainColors.ink3,
                         size: 26,
                       ),
@@ -898,13 +916,13 @@ class _ConnectionState extends StatelessWidget {
     return Column(
       children: [
         Align(
-          alignment: Alignment.topLeft,
+          alignment: AlignmentDirectional.topStart,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 0, 0),
+            padding: const EdgeInsetsDirectional.fromSTEB(10, 8, 0, 0),
             child: TrainCircleButton(
               semanticLabel: l(context).musicClosePlayer,
               onTap: () => Navigator.of(context).pop(),
-              child: const Icon(
+              child: Icon(
                 AppIcons.chevronDown,
                 size: 20,
                 color: TrainColors.ink2,
@@ -938,7 +956,7 @@ class _ConnectionState extends StatelessWidget {
                       child: TrainPrimaryButton(
                         label: connectLabel,
                         color: TrainColors.green,
-                        labelColor: const Color(0xFF04140D),
+                        labelColor: TrainColors.onGreen,
                         onTap: onConnect,
                       ),
                     ),

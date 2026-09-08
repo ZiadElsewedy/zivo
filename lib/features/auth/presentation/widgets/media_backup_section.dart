@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../l10n/l10n.dart';
 
-import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/media/presentation/storage_sync_page.dart';
 import '../../../../core/widgets/settings_row.dart';
@@ -21,7 +20,9 @@ class MediaBackupSection extends StatelessWidget {
           icon: AppIcons.backupNow,
           title: l(context).settingsStorageSync,
           value: l(context).settingsStorageSyncValue,
-          accent: TrainColors.green,
+          // Violet like every other row on this page — Settings rows are
+          // system/meta, and green means training. This was the one green
+          // tile in a violet column.
           last: true,
           onTap: () => Navigator.of(
             context,

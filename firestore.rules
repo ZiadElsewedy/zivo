@@ -306,10 +306,52 @@ service cloud.firestore {
       allow read: if isOwner(userId);
       allow create, update: if canWrite(userId)
         && request.resource.data.dayLabel is string
-        && request.resource.data.status in ['active', 'completed', 'abandoned']
+        && request.resource.data.status in ['active', 'completed', 'abandoned', 'voided']
         && request.resource.data.startedAt is timestamp
         && request.resource.data.exercises is list
-        && request.resource.data.schemaVersion == 1;
+        && request.resource.data.schemaVersion == 1
+        // A duration the user corrected is an amendment on top of the record,
+        // so it is bounded like any other client-supplied number: a negative
+        // one is not a duration, and a week-long one is not a workout.
+        && (!('correctedDurationMinutes' in request.resource.data)
+            || request.resource.data.correctedDurationMinutes == null
+            || (request.resource.data.correctedDurationMinutes is int
+                && request.resource.data.correctedDurationMinutes >= 0
+                && request.resource.data.correctedDurationMinutes <= 1440))
+        && (!('durationSource' in request.resource.data)
+            || request.resource.data.durationSource == null
+            || request.resource.data.durationSource in
+                 ['measured', 'autoClosed', 'userCorrected', 'unknown']);
+      // A session that logged real work is withdrawn (status 'voided'), never
+      // erased — see `session_status.dart`. Delete stays open because the app
+      // still hard-deletes the one case that is genuinely nothing: a session
+      // with no completed set in it. The rules cannot tell those apart without
+      // walking the exercises array, so this is stated on the client half;
+      // the boundary here is the field validation above.
+      allow delete: if canWrite(userId);
+    }
+
+    // Training day marks: one document per calendar day, keyed `yyyy-MM-dd`
+    // (the same shape sleep nights use), carrying why a day had no training
+    // and/or whether a streak restore was spent on it.
+    //
+    // Deliberately a collection of its own rather than a synthetic session:
+    // "a restore is not a workout" is then a fact about where the data lives
+    // instead of a filter every future reader has to remember to apply.
+    match /users/{userId}/trainingDayMarks/{dayKey} {
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
+        && request.resource.data.restored is bool
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.schemaVersion == 1
+        && (!('reason' in request.resource.data)
+            || request.resource.data.reason == null
+            || request.resource.data.reason in
+                 ['rest', 'recovery', 'travel', 'illness', 'busy', 'other'])
+        && (!('note' in request.resource.data)
+            || request.resource.data.note == null
+            || (request.resource.data.note is string
+                && request.resource.data.note.size() <= 500));
       allow delete: if canWrite(userId);
     }
 
@@ -340,6 +382,51 @@ service cloud.firestore {
         && request.resource.data.takenAt is timestamp
         && request.resource.data.schemaVersion is int;
       allow delete: if canWrite(userId);
+    }
+
+    // Sleep nights: one document per sleep-day, keyed `yyyy-MM-dd`.
+    //
+    // The key being derived rather than random is what makes syncing
+    // idempotent across the user's devices (docs/SLEEP_SYSTEM.md §9), so the
+    // id shape is validated here too — a random id would mean two documents
+    // for one night and a duplicate the client never reconciles.
+    //
+    // `main` is deliberately allowed to be null: a night with no data is a
+    // real, stored state ("nothing was recorded"), and the week view needs it
+    // to draw a gap rather than closing up and hiding the absence.
+    //
+    // `allow delete` is split out from create/update for the reason recorded
+    // on the expenses block above: on a delete `request.resource.data` is
+    // null, so a combined `allow write` carrying field checks silently denies
+    // every delete. Sleep needs deletes to work — that is how a night removed
+    // in Apple Health or Health Connect is withdrawn here.
+    match /users/{userId}/sleepNights/{sleepDay} {
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
+        && sleepDay.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && request.resource.data.schemaVersion is int
+        && request.resource.data.sleepDay is timestamp
+        && request.resource.data.resolution is string
+        && request.resource.data.naps is list
+        && request.resource.data.alternates is list
+        && (request.resource.data.main == null
+            || request.resource.data.main is map);
+      allow delete: if canWrite(userId);
+    }
+
+    // Sleep settings: one document per user (users/{userId}/sleepSettings/main)
+    // holding the bedtime/wake/duration targets and the open manual sleep mark
+    // — the half-logged "I'm going to sleep" that has no wake time yet, and so
+    // is deliberately not a night.
+    match /users/{userId}/sleepSettings/{docId} {
+      allow read: if isOwner(userId);
+      allow write: if canWrite(userId)
+        && (!('targets' in request.resource.data.keys())
+            || request.resource.data.targets == null
+            || request.resource.data.targets is map)
+        && (!('openMark' in request.resource.data.keys())
+            || request.resource.data.openMark == null
+            || request.resource.data.openMark is map);
     }
 
     // Media registry: metadata for each app-captured media file (never the

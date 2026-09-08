@@ -28,6 +28,7 @@ import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dar
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 
+import '../support/bidi_finders.dart';
 import '../support/diet_repository_stub.dart';
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -203,8 +204,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // The detail page shows exactly what's in Lunch — items included.
-    expect(find.text('Rice'), findsOneWidget);
-    expect(find.text('Chicken breast'), findsOneWidget);
+    // The item names are plan content, so they render inside directional
+    // isolates — see `bidi.dart`.
+    expect(findTextIgnoringBidi('Rice'), findsOneWidget);
+    expect(findTextIgnoringBidi('Chicken breast'), findsOneWidget);
     expect(find.byType(MealDetailPage), findsOneWidget);
 
     // And it can mark the meal done from here.

@@ -302,11 +302,11 @@ class _QuickLogSheetState extends State<QuickLogSheet>
     final dot = Container(
       width: 11,
       height: 11,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.ember,
         shape: BoxShape.circle,
         boxShadow: [
-          BoxShadow(color: Color(0x55FF5C1A), blurRadius: 8, spreadRadius: 1),
+          BoxShadow(color: TrainColors.ember.withValues(alpha: 0.33), blurRadius: 8, spreadRadius: 1),
         ],
       ),
     );
@@ -328,7 +328,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
           child: IconButton(
             key: const Key('quicklog-cancel'),
             onPressed: _cancelRecording,
-            icon: const Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
+            icon: Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
             tooltip: l(context).askDiscardRecording,
           ),
         ),
@@ -370,7 +370,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
               _token++;
               _setPhase(_Phase.idle);
             },
-            icon: const Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
+            icon: Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
             tooltip: l(context).askDiscardVoiceNote,
           ),
         ),
@@ -424,7 +424,7 @@ class _LevelBar extends StatelessWidget {
     return SizedBox(
       height: 30,
       child: Align(
-        alignment: Alignment.centerLeft,
+        alignment: AlignmentDirectional.centerStart,
         child: AnimatedContainer(
           duration: still ? Duration.zero : const Duration(milliseconds: 90),
           curve: Curves.easeOut,

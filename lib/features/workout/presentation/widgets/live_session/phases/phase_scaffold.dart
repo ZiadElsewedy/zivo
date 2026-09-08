@@ -270,10 +270,10 @@ class KeyboardDoneBar extends StatelessWidget {
                   label: l(context).actionDone,
                   mono: false,
                   height: 34,
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.keyboard_hide_rounded,
                     size: 14,
-                    color: Color(0x99F4F4F0),
+                    color: TrainColors.inkAt(0.6),
                   ),
                   onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
                 ),
@@ -296,7 +296,10 @@ class ExerciseHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TrainCaption(l(context).liveNow, color: const Color(0xCCFF5C1A)),
+        TrainCaption(
+          l(context).liveNow,
+          color: TrainColors.ember.withValues(alpha: 0.8),
+        ),
         const SizedBox(height: 11),
         // Capped at two lines. Real movement names run long ("Seated
         // Dumbbell Incline Rear Delt Fly"), and at 34pt with no cap a third
@@ -321,7 +324,7 @@ class ExerciseHeader extends StatelessWidget {
             style: TrainType.mono(
               size: 11.5,
               tracking: 0.04,
-              color: const Color(0x66F4F4F0),
+              color: TrainColors.ink3,
             ),
           ),
         ],

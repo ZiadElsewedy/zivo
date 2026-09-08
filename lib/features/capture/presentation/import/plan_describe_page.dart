@@ -41,10 +41,15 @@ class PlanDescribePage extends StatefulWidget {
     required this.tint,
     required this.buildImportPage,
     this.startRecording = true,
-    this.accent = TrainColors.green,
+    Color? accent,
     this.minChars = _kMinDescriptionChars,
     this.keyPrefix = 'describe',
-  });
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
+  }) : _accent = accent;
 
   /// Prefix for the widget keys tests tap (`<prefix>-text`, `-extract`, …), so
   /// each host's tests can keep their own stable names.
@@ -73,7 +78,12 @@ class PlanDescribePage extends StatefulWidget {
   final Gradient tint;
 
   /// The feature's accent — the record affordance and cursor.
-  final Color accent;
+  final Color? _accent;
+
+  /// Defaults to the active skin's `green` — resolved on read
+  /// rather than in the constructor, which is what lets the
+  /// constructor stay `const` (ADR-011).
+  Color get accent => _accent ?? TrainColors.green;
 
   /// The shortest description worth sending; below it the commit button stays
   /// disabled rather than paying for a round-trip that can only be rejected.
@@ -315,7 +325,7 @@ class _PlanDescribePageState extends State<PlanDescribePage> {
                   if (_recorderAvailable) ...[
                     const SizedBox(height: 12),
                     Align(
-                      alignment: Alignment.centerLeft,
+                      alignment: AlignmentDirectional.centerStart,
                       child: TextButton.icon(
                         key: Key('${widget.keyPrefix}-record-again'),
                         onPressed: _startRecording,
@@ -402,7 +412,7 @@ class _RecordingCard extends StatelessWidget {
             Container(
               width: 9,
               height: 9,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: TrainColors.ember,
                 shape: BoxShape.circle,
               ),

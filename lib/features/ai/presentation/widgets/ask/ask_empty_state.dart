@@ -21,7 +21,7 @@ class ZivoIdentity extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(AppIcons.ask, size: 13, color: TrainColors.violetGlyph),
+          Icon(AppIcons.ask, size: 13, color: TrainColors.violetGlyph),
           const SizedBox(width: 7),
           Text(
             'ZIVO',
@@ -105,7 +105,7 @@ class EmptyAsk extends StatelessWidget {
                         color: TrainColors.violetGlyph.withValues(alpha: 0.25),
                       ),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       AppIcons.ask,
                       size: 24,
                       color: TrainColors.violetGlyph,
@@ -121,7 +121,7 @@ class EmptyAsk extends StatelessWidget {
                     child: Text(
                       l(context).askGreeting,
                       textAlign: TextAlign.center,
-                      style: TrainType.serif(size: 36, height: 1),
+                      style: TrainType.serifVoice(context, size: 36, height: 1),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -150,7 +150,9 @@ class EmptyAsk extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (final (index, prompt) in _suggestions(context).indexed)
+                        for (final (index, prompt) in _suggestions(
+                          context,
+                        ).indexed)
                           Padding(
                             padding: EdgeInsets.only(top: index == 0 ? 0 : 9),
                             child: RiseIn(
@@ -188,7 +190,7 @@ class SuggestionChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return PressableScale(
       child: Material(
-        color: const Color(0x0BFFFFFF),
+        color: TrainColors.glass,
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
           onTap: () {
@@ -200,7 +202,7 @@ class SuggestionChip extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0x17FFFFFF)),
+              border: Border.all(color: TrainColors.liftAt(0.09)),
             ),
             child: Text(
               label,

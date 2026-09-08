@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 
+import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
+import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/back_chip.dart';
-import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/theme/train_tokens.dart';
-import '../../../capture/presentation/widgets/capture_widgets.dart';
+import '../../../../core/util/bidi.dart';
+import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/widgets/reactive_state_views.dart';
+import '../../../../core/widgets/train_chrome.dart';
 import '../../domain/live_session.dart';
 import '../../domain/planned_exercise.dart';
 import '../../domain/session_status.dart';
@@ -21,17 +25,25 @@ import 'live_session_page.dart';
 import 'split_management_page.dart';
 import 'workout_analysis_page.dart';
 import 'workout_history_page.dart';
+import 'workout_settings_page.dart';
 import 'workout_plan_edit_page.dart';
 import '../../../../l10n/l10n.dart';
 
 /// The Workout Plan page — the rotating-cycle template ("what I SHOULD do").
 /// Shows the day that's up next (the cycle cursor) prominently, then the whole
 /// cycle browsable below. Read-only in this phase: guided execution, rest
-/// timers, and actual-set logging arrive with the session engine (P3). History
-/// ("what I did") stays one tap away via the AppBar.
+/// timers, and actual-set logging arrive with the session engine (P3).
 ///
-/// Dark, immersive body — matching the live session screens on the
-/// app-wide [TrainColors] theme.
+/// ## Why the chrome changed
+///
+/// This was the last workout screen on a Material `AppBar`, and it carried
+/// **three** trailing icon actions where [TrainPageHeader] carries one. That
+/// toolbar was also duplicate navigation: Splits, Analysis and History are all
+/// offered by [WorkoutProgressPage], the only page that pushes this one. They
+/// keep their place here — as labelled rows at the foot of the scroll, which
+/// is the house drill-down pattern and the only version of them that says what
+/// the icons meant — and the header's single action is the plan editor the
+/// floating action button used to hold.
 class WorkoutPlanPage extends StatelessWidget {
   const WorkoutPlanPage({super.key});
 
@@ -45,119 +57,51 @@ class WorkoutPlanPage extends StatelessWidget {
         final plan = snapshot.data;
         final loading =
             plan == null && snapshot.connectionState == ConnectionState.waiting;
-        return Scaffold(
-          backgroundColor: TrainColors.base,
-          appBar: AppBar(
-            backgroundColor: TrainColors.base,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            // Pushed from the Hub — the house back chip, not Material's
-            // default arrow, so every drill-down reads as one system.
-            automaticallyImplyLeading: false,
-            leadingWidth: 56,
-            leading: const BackChip(),
-            title: Text(
-              l(context).workoutTitle,
-              style: AppText.cardTitle.copyWith(color: TrainColors.ink),
-            ),
-            actions: [
-              PressableScale(
-                child: IconButton(
-                  tooltip: l(context).workoutSplits,
-                  icon: const Icon(
-                    Icons.layers_rounded,
-                    color: TrainColors.ink2,
-                  ),
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const SplitManagementPage(),
-                      ),
-                    );
-                  },
+        return TrainScreen(
+          tint: TrainColors.hubTint,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screen,
+                  12,
+                  AppSpacing.screen,
+                  0,
+                ),
+                child: TrainPageHeader(
+                  title: l(context).workoutTitle,
+                  action: loading || snapshot.hasError
+                      ? null
+                      : TrainHeaderAction(
+                          icon: plan == null ? AppIcons.add : AppIcons.edit,
+                          semanticLabel: plan == null
+                              ? l(context).workoutCreatePlan
+                              : l(context).workoutEditPlan,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  WorkoutPlanEditPage(initialPlan: plan),
+                            ),
+                          ),
+                        ),
                 ),
               ),
-              PressableScale(
-                child: IconButton(
-                  tooltip: l(context).workoutAnalysis,
-                  icon: const Icon(
-                    Icons.trending_up_rounded,
-                    color: TrainColors.ink2,
-                  ),
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const WorkoutAnalysisPage(),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              PressableScale(
-                child: IconButton(
-                  tooltip: l(context).workoutHistory,
-                  icon: const Icon(
-                    Icons.history_rounded,
-                    color: TrainColors.ink2,
-                  ),
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const WorkoutHistoryPage(),
-                      ),
-                    );
-                  },
-                ),
+              Expanded(
+                child: snapshot.hasError
+                    ? const _PlanErrorState()
+                    : loading
+                    ? const _PlanLoadingState()
+                    : plan == null
+                    ? const _WorkoutPlanEmptyState()
+                    : _PlanBody(plan: plan),
               ),
             ],
           ),
-          floatingActionButton: loading || snapshot.hasError
-              ? null
-              : FloatingActionButton(
-                  backgroundColor: TrainColors.green,
-                  elevation: 2,
-                  tooltip: plan == null
-                      ? l(context).workoutCreatePlan
-                      : l(context).workoutEditPlan,
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => WorkoutPlanEditPage(initialPlan: plan),
-                    ),
-                  ),
-                  child: Icon(
-                    plan == null ? Icons.add_rounded : Icons.edit_rounded,
-                    color: Colors.white,
-                  ),
-                ),
-          body: snapshot.hasError
-              ? const _PlanErrorState()
-              : loading
-              ? const _PlanLoadingState()
-              : plan == null
-              ? const _WorkoutPlanEmptyState()
-              : _PlanBody(plan: plan),
         );
       },
     );
   }
 }
-
-/// A restrained, low-opacity lift for the plan's dark cards — a plain
-/// neutral hairline border does the structural work; this is just enough
-/// colored glow to read as "elevated," not a neon halo. Matches the live
-/// session screens' `_cardGlow` treatment (Phase 5A) so the two dark
-/// surfaces feel like one system.
-List<BoxShadow> _cardGlow(Color color) => [
-  BoxShadow(
-    color: color.withValues(alpha: 0.08),
-    blurRadius: 24,
-    spreadRadius: -6,
-    offset: const Offset(0, 8),
-  ),
-];
 
 /// The Lottie loading mark renders in a dark ink tone of its own — nearly
 /// invisible directly on [TrainColors.base] — so it's recolored to the
@@ -172,13 +116,13 @@ class _PlanLoadingState extends StatelessWidget {
       child: Container(
         width: 140,
         height: 140,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: TrainColors.glassStrong,
           shape: BoxShape.circle,
         ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
-          colorFilter: const ColorFilter.mode(
+          colorFilter: ColorFilter.mode(
             TrainColors.ink2,
             BlendMode.srcIn,
           ),
@@ -189,63 +133,72 @@ class _PlanLoadingState extends StatelessWidget {
   }
 }
 
+/// The plan page's read failed.
+///
+/// This used to be a hand-written copy of [ErrorStateView] — same icon, same
+/// two lines, same layout, two ink steps darker — written when the shared one
+/// was still dressed for the deleted light theme. It isn't any more, so the
+/// copy is gone and a failed read reads the same here as everywhere else.
 class _PlanErrorState extends StatelessWidget {
   const _PlanErrorState();
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.cloud_off_rounded,
-              size: 30,
-              color: TrainColors.ink4,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              "Couldn't load this.",
-              style: AppText.aside.copyWith(color: TrainColors.ink2),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              l(context).errorCheckConnection,
-              style: AppText.meta.copyWith(color: TrainColors.ink4),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const ErrorStateView();
 }
 
-/// The empty state — no active plan yet. Building one is via the FAB (blank
-/// editor) or the AI PDF import, both reachable from elsewhere in the app.
+/// The empty state — no active plan yet.
+///
+/// It used to be an icon and one italic line, with the only way forward a
+/// bare `+` floating in the corner: an empty screen that named the problem and
+/// pointed at nothing. An empty screen is an invitation to act, so the action
+/// is on it.
 class _WorkoutPlanEmptyState extends StatelessWidget {
   const _WorkoutPlanEmptyState();
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.fitness_center_rounded,
-            size: 30,
-            color: TrainColors.ink4,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            l(context).workoutNoPlanYet,
-            style: AppText.aside.copyWith(color: TrainColors.ink2),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.l * 2,
+          0,
+          AppSpacing.l * 2,
+          AppSpacing.l * 2,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TrainIconTile(
+              icon: AppIcons.planDoc,
+              accent: TrainColors.green,
+              size: 46,
+              iconSize: 26,
+            ),
+            const SizedBox(height: AppSpacing.base),
+            Text(
+              l(context).workoutNoPlanYet,
+              textAlign: TextAlign.center,
+              style: AppText.aside(context).copyWith(color: TrainColors.ink2),
+            ),
+            const SizedBox(height: AppSpacing.l),
+            TrainPrimaryButton(
+              label: l(context).workoutCreatePlan,
+              icon: Icon(
+                AppIcons.add,
+                size: 18,
+                color: TrainColors.onGreen,
+              ),
+              color: TrainColors.green,
+              labelColor: TrainColors.onGreen,
+              height: 54,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const WorkoutPlanEditPage(initialPlan: null),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -269,25 +222,42 @@ class _PlanBody extends StatelessWidget {
         // `up_next_selection.dart`) so the two surfaces can't drift apart —
         // a session running on a different day than the rotation's `nextDay`
         // (e.g. the plan changed mid-session) shows its own day here too.
-        final selection = resolveUpNext(plan, sessionSnapshot.data);
+        final selection = resolveUpNext(
+              plan,
+              sessionSnapshot.data,
+              // A session left open on Tuesday must not still be offering
+              // itself as "resume" on Thursday, in place of the day due.
+              now: DateTime.now(),
+              maxSessionDuration: AppScope.of(context).maxSessionDuration,
+            );
         final today = selection.day;
         return ListView(
           padding: EdgeInsets.fromLTRB(
-            22,
-            8,
-            22,
-            TrainBottomInset.forScaffold(context, hasFab: true),
+            AppSpacing.screen,
+            14,
+            AppSpacing.screen,
+            TrainBottomInset.of(context),
           ),
           children: [
+            // The plan's own name — a mono caption, because it qualifies the
+            // title above it rather than competing with it. It used to be a
+            // 16.5px Manrope line directly under a 24px one, which read as a
+            // second, dimmer heading.
             Text(
-              plan.name,
-              style: AppText.rowTitle.copyWith(color: TrainColors.ink2),
+              isolate(plan.name).toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TrainType.caption(
+                size: 10,
+                tracking: 0.18,
+                color: TrainColors.ink3,
+              ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: AppSpacing.base),
             if (today == null)
               Text(
                 l(context).workoutNoDayUpNext,
-                style: AppText.aside.copyWith(color: TrainColors.ink2),
+                style: AppText.aside(context).copyWith(color: TrainColors.ink2),
               )
             else
               _TodaySection(
@@ -295,15 +265,12 @@ class _PlanBody extends StatelessWidget {
                 plan: plan,
                 resumable: selection.resumable,
               ),
-            const SizedBox(height: 30),
-            Text(
+            const SizedBox(height: AppSpacing.section),
+            TrainSectionLabel(
               l(context).workoutFullCycle,
-              style: AppText.meta.copyWith(
-                color: TrainColors.green,
-                fontWeight: FontWeight.w600,
-              ),
+              trailing: ltrFor(context, '${days.length}'),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               l(context).workoutAnyDayNote,
               style: AppText.meta.copyWith(
@@ -311,24 +278,81 @@ class _PlanBody extends StatelessWidget {
                 fontSize: 12,
               ),
             ),
-            const SizedBox(height: 10),
-            for (final (i, day) in days.indexed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: StaggeredReveal(
-                  index: i,
-                  child: _BrowseDayCard(
-                    day: day,
-                    isNext: day.id == nextInRotation?.id,
-                    plan: plan,
-                    resumable:
-                        sessionSnapshot.data?.dayId == day.id &&
-                            sessionSnapshot.data?.status == SessionStatus.active
-                        ? sessionSnapshot.data
-                        : null,
+            const SizedBox(height: AppSpacing.m),
+            // One card, one row per day — not one card per day. Five stacked
+            // bordered boxes said "five separate things"; the cycle is a
+            // single list, and it reads as one now.
+            _CycleCard(
+              children: [
+                for (final (i, day) in days.indexed)
+                  StaggeredReveal(
+                    index: i,
+                    child: _BrowseDayRow(
+                      day: day,
+                      isNext: day.id == nextInRotation?.id,
+                      plan: plan,
+                      resumable:
+                          sessionSnapshot.data?.dayId == day.id &&
+                              sessionSnapshot.data?.status ==
+                                  SessionStatus.active
+                          ? sessionSnapshot.data
+                          : null,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.section),
+            // Splits, Analysis and History used to be three bare icons in an
+            // app bar — a toolbar the design system has no room for (the page
+            // header carries exactly one action). They are labelled rows now,
+            // which is both the house drill-down pattern and the only version
+            // of this that says what the icons meant.
+            TrainSectionLabel(l(context).workoutMoreSection),
+            const SizedBox(height: AppSpacing.m),
+            TrainListCard(
+              rows: [
+                TrainListRow(
+                  icon: AppIcons.splits,
+                  accent: TrainColors.green,
+                  label: l(context).workoutSplits,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const SplitManagementPage(),
+                    ),
                   ),
                 ),
-              ),
+                TrainListRow(
+                  icon: AppIcons.analysis,
+                  accent: TrainColors.green,
+                  label: l(context).workoutAnalysis,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WorkoutAnalysisPage(),
+                    ),
+                  ),
+                ),
+                TrainListRow(
+                  icon: AppIcons.settings,
+                  accent: TrainColors.green,
+                  label: l(context).workoutSettings,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WorkoutSettingsPage(),
+                    ),
+                  ),
+                ),
+                TrainListRow(
+                  icon: AppIcons.history,
+                  accent: TrainColors.green,
+                  label: l(context).workoutHistory,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WorkoutHistoryPage(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         );
       },
@@ -336,8 +360,14 @@ class _PlanBody extends StatelessWidget {
   }
 }
 
-/// The prominent "up next" block: an eyebrow, the day title, its meta, and each
-/// planned exercise with its sets.
+/// The "up next" block — the one card on this page that earns being a card:
+/// the eyebrow, the day, what it holds, and the single action that starts it.
+///
+/// It used to be a card **containing** one bordered, rounded, tinted box per
+/// exercise — cards inside a card, each repeating the same frame around
+/// different words. The exercises are rows now, separated by the hairline the
+/// rest of the app separates rows with, and the card keeps its border for
+/// itself.
 class _TodaySection extends StatelessWidget {
   const _TodaySection({
     required this.day,
@@ -357,7 +387,9 @@ class _TodaySection extends StatelessWidget {
       ..sort((a, b) => a.order.compareTo(b.order));
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 420),
+      duration: reducedMotion(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 420),
       curve: Curves.easeOutCubic,
       builder: (context, value, child) => Opacity(
         opacity: value,
@@ -366,60 +398,68 @@ class _TodaySection extends StatelessWidget {
           child: child,
         ),
       ),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-        decoration: BoxDecoration(
-          color: const Color(0x08FFFFFF),
-          borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: TrainColors.hairline),
-          boxShadow: _cardGlow(TrainColors.green),
-        ),
+      child: TrainCard(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
                     color: TrainColors.green,
                     shape: BoxShape.circle,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 7),
                 Text(
-                  l(context).workoutUpNext,
-                  style: AppText.meta.copyWith(
+                  l(context).workoutUpNext.toUpperCase(),
+                  style: TrainType.caption(
+                    size: 9.5,
+                    tracking: 0.2,
+                    weight: FontWeight.w600,
                     color: TrainColors.green,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 11),
+            // Manrope, not `AppText.heroNumber` — a day's name is prose, and
+            // the mono face is for numbers (ADR-009).
             Text(
-              _dayTitle(context, day),
-              style: AppText.heroNumber.copyWith(
-                fontSize: 30,
+              isolate(_dayTitle(context, day)),
+              style: TrainType.ui(
+                size: 26,
+                weight: FontWeight.w800,
+                tracking: -0.025,
                 color: TrainColors.ink,
-                fontWeight: FontWeight.w700,
+                height: 1.1,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 5),
             Text(
-              workoutDayMetaText(context, day),
-              style: AppText.meta.copyWith(color: TrainColors.ink4),
+              ltrFor(context, workoutDayMetaText(context, day)),
+              style: TrainType.mono(
+                size: 11.5,
+                tracking: 0.04,
+                color: TrainColors.ink4,
+              ),
             ),
-            const SizedBox(height: 18),
-            PillButton(
+            const SizedBox(height: 16),
+            TrainPrimaryButton(
               label: resumable == null
                   ? l(context).workoutStart
                   : l(context).workoutResume,
-              icon: Icons.play_arrow_rounded,
+              icon: Icon(
+                Icons.play_arrow_rounded,
+                size: 20,
+                color: TrainColors.onGreen,
+              ),
               color: TrainColors.green,
-              enabled: true,
+              labelColor: TrainColors.onGreen,
+              height: 54,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) =>
@@ -427,15 +467,14 @@ class _TodaySection extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 18),
-            for (final (i, exercise) in exercises.indexed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: StaggeredReveal(
+            if (exercises.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              for (final (i, exercise) in exercises.indexed)
+                StaggeredReveal(
                   index: i,
-                  child: _ExerciseCard(exercise: exercise),
+                  child: _ExerciseRow(exercise: exercise, first: i == 0),
                 ),
-              ),
+            ],
           ],
         ),
       ),
@@ -443,105 +482,158 @@ class _TodaySection extends StatelessWidget {
   }
 }
 
-class _ExerciseCard extends StatelessWidget {
-  const _ExerciseCard({required this.exercise});
+/// One planned exercise inside the up-next card: name, its set spec on the
+/// right, then one line per distinct set below.
+class _ExerciseRow extends StatelessWidget {
+  const _ExerciseRow({required this.exercise, required this.first});
 
   final PlannedExercise exercise;
+
+  /// The first row carries no rule above it — the button already separates it
+  /// from the card's head.
+  final bool first;
 
   @override
   Widget build(BuildContext context) {
     final sets = [...exercise.sets]..sort((a, b) => a.order.compareTo(b.order));
     final setLines = collapsedSetSummaryTexts(context, sets);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TrainColors.glassStrong,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: TrainColors.hairline),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!first)
+          Divider(height: 1, thickness: 1, color: TrainColors.hairline),
+        Padding(
+          padding: const EdgeInsets.only(top: 14, bottom: 2),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  exercise.name,
-                  style: AppText.rowTitle.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: TrainColors.ink,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                plannedExerciseMetaText(context, exercise),
-                style: AppText.meta.copyWith(color: TrainColors.green),
-              ),
-            ],
-          ),
-          if (exercise.notes != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              exercise.notes!,
-              style: AppText.body.copyWith(
-                fontSize: 13,
-                color: TrainColors.ink2,
-              ),
-            ),
-          ],
-          const SizedBox(height: 10),
-          // Collapsed to one line per distinct set spec — a 3-set exercise
-          // with identical sets reads as "3 × 8–10 · rest 1:30", not three
-          // repeated lines; only genuinely different sets get their own line.
-          for (final line in setLines)
-            Padding(
-              padding: const EdgeInsets.only(top: 3),
-              child: Row(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
                 children: [
-                  _SetDot(),
-                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      line,
-                      style: AppText.meta.copyWith(
-                        color: TrainColors.ink2,
-                        fontSize: 13,
+                      isolate(exercise.name),
+                      style: TrainType.ui(
+                        size: 15,
+                        weight: FontWeight.w600,
+                        color: TrainColors.inkPlain,
+                        height: 1.2,
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    ltrFor(context, plannedExerciseMetaText(context, exercise)),
+                    style: TrainType.mono(
+                      size: 11.5,
+                      tracking: 0.03,
+                      color: TrainColors.green,
                     ),
                   ),
                 ],
               ),
-            ),
-        ],
-      ),
+              if (exercise.notes != null) ...[
+                const SizedBox(height: 5),
+                Text(
+                  isolate(exercise.notes!),
+                  style: AppText.body.copyWith(
+                    fontSize: 13,
+                    color: TrainColors.ink3,
+                  ),
+                ),
+              ],
+              // Collapsed to one line per distinct set spec — a 3-set
+              // exercise with identical sets reads as "3 × 8–10 · rest 1:30",
+              // not three repeated lines; only genuinely different sets get
+              // their own line.
+              for (final line in setLines)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const _SetDot(),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          ltrFor(context, line),
+                          style: TrainType.mono(
+                            size: 11.5,
+                            tracking: 0.02,
+                            color: TrainColors.ink3,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
 
 class _SetDot extends StatelessWidget {
+  const _SetDot();
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 5,
-      height: 5,
-      margin: const EdgeInsets.only(top: 2),
-      decoration: const BoxDecoration(
-        color: TrainColors.green,
+      width: 4,
+      height: 4,
+      margin: const EdgeInsets.only(top: 6),
+      decoration: BoxDecoration(
+        color: TrainColors.green.withValues(alpha: 0.55),
         shape: BoxShape.circle,
       ),
     );
   }
 }
 
-/// A read-only-browse, tap-to-expand card for one day in the cycle. Collapsed
-/// it shows the day title, its exercise count, and a "Next up" marker when
-/// it's the day the cursor points at; expanded it lists the day's exercises
-/// AND offers Start — the recommendation leads (the cursor's day is marked
-/// "Next up" everywhere), but the user is never locked out of choosing a
-/// different day when life doesn't follow the rotation.
-class _BrowseDayCard extends StatefulWidget {
-  const _BrowseDayCard({
+/// The cycle: one hairline card holding every day as a row.
+class _CycleCard extends StatelessWidget {
+  const _CycleCard({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: TrainColors.sectionFill,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: TrainColors.hairline),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0)
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: TrainColors.hairline,
+              ),
+            children[i],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// A read-only-browse, tap-to-expand row for one day in the cycle. Collapsed
+/// it shows the day title, its exercise count, and a "next" marker when it's
+/// the day the cursor points at; expanded it lists the day's exercises AND
+/// offers Start — the recommendation leads (the cursor's day is marked
+/// everywhere), but the user is never locked out of choosing a different day
+/// when life doesn't follow the rotation.
+class _BrowseDayRow extends StatefulWidget {
+  const _BrowseDayRow({
     required this.day,
     required this.isNext,
     required this.plan,
@@ -556,10 +648,10 @@ class _BrowseDayCard extends StatefulWidget {
   final LiveSession? resumable;
 
   @override
-  State<_BrowseDayCard> createState() => _BrowseDayCardState();
+  State<_BrowseDayRow> createState() => _BrowseDayRowState();
 }
 
-class _BrowseDayCardState extends State<_BrowseDayCard> {
+class _BrowseDayRowState extends State<_BrowseDayRow> {
   bool _expanded = false;
 
   void _start() {
@@ -580,121 +672,143 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
     final day = widget.day;
     final exercises = [...day.exercises]
       ..sort((a, b) => a.order.compareTo(b.order));
-    return PressableScale(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            setState(() => _expanded = !_expanded);
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0x08FFFFFF),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: widget.isNext
-                    ? TrainColors.green.withValues(alpha: 0.28)
-                    : TrainColors.hairline,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _dayTitle(context, day),
-                        style: AppText.rowTitle.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: TrainColors.ink,
-                        ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _expanded = !_expanded);
+        },
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(17, 14, 13, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      isolate(_dayTitle(context, day)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TrainType.ui(
+                        size: 15,
+                        weight: FontWeight.w600,
+                        color: widget.isNext
+                            ? TrainColors.ink
+                            : TrainColors.inkPlain,
+                        height: 1.1,
                       ),
                     ),
-                    if (widget.isNext) ...[
-                      const _NextUpBadge(),
-                      const SizedBox(width: 10),
-                    ],
+                  ),
+                  // The cursor's day is marked by the house caption, not by a
+                  // filled chip. A tinted, rounded badge on every list is the
+                  // most generic thing a dark UI can do, and this list only
+                  // ever has one thing to say — which day is next.
+                  if (widget.isNext) ...[
+                    const SizedBox(width: 9),
                     Text(
-                      workoutDayMetaText(context, day),
-                      style: AppText.meta.copyWith(color: TrainColors.ink4),
-                    ),
-                    const SizedBox(width: 6),
-                    AnimatedRotation(
-                      turns: _expanded ? 0.5 : 0,
-                      duration: const Duration(milliseconds: 240),
-                      curve: Curves.easeOutCubic,
-                      child: const Icon(
-                        Icons.expand_more_rounded,
-                        size: 20,
-                        color: TrainColors.ink4,
+                      l(context).workoutNextUp.toUpperCase(),
+                      style: TrainType.caption(
+                        size: 8.5,
+                        tracking: 0.18,
+                        weight: FontWeight.w600,
+                        color: TrainColors.green,
                       ),
                     ),
                   ],
-                ),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 240),
-                  curve: Curves.easeOutCubic,
-                  alignment: Alignment.topCenter,
-                  child: !_expanded
-                      ? const SizedBox(width: double.infinity)
-                      : Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              for (final exercise in exercises)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          exercise.name,
-                                          style: AppText.body.copyWith(
-                                            fontSize: 14,
-                                            color: TrainColors.ink2,
-                                          ),
+                  const Spacer(),
+                  const SizedBox(width: 10),
+                  Text(
+                    ltrFor(context, workoutDayMetaText(context, day)),
+                    style: TrainType.mono(
+                      size: 11,
+                      tracking: 0.04,
+                      color: TrainColors.ink4,
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _expanded ? 0.5 : 0,
+                    duration: reducedMotion(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 240),
+                    curve: Curves.easeOutCubic,
+                    child: Icon(
+                      Icons.expand_more_rounded,
+                      size: 18,
+                      color: TrainColors.inkAt(0.3),
+                    ),
+                  ),
+                ],
+              ),
+              AnimatedSize(
+                duration: reducedMotion(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: !_expanded
+                    ? const SizedBox(width: double.infinity)
+                    : Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (final exercise in exercises)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        isolate(exercise.name),
+                                        style: TrainType.ui(
+                                          size: 13.5,
+                                          weight: FontWeight.w500,
+                                          color: TrainColors.ink2,
+                                          height: 1.3,
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        plannedExerciseMetaText(context, exercise),
-                                        style: AppText.meta.copyWith(
-                                          color: TrainColors.ink4,
-                                          fontSize: 12,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      ltrFor(
+                                        context,
+                                        plannedExerciseMetaText(
+                                          context,
+                                          exercise,
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                      style: TrainType.mono(
+                                        size: 11,
+                                        tracking: 0.03,
+                                        color: TrainColors.ink4,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              if (exercises.isNotEmpty) ...[
-                                const SizedBox(height: 14),
-                                // The choice affordance — any day can run.
-                                // Resuming an in-progress session for THIS
-                                // day reads "Resume", mirroring the Today
-                                // card's language.
-                                PillButton(
-                                  label: widget.resumable == null
-                                      ? l(context).workoutStartThisDay
-                                      : l(context).workoutResume,
-                                  icon: Icons.play_arrow_rounded,
-                                  color: TrainColors.green,
-                                  enabled: true,
-                                  onTap: _start,
-                                ),
-                              ],
+                              ),
+                            if (exercises.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              // The choice affordance — any day can run.
+                              // Resuming an in-progress session for THIS day
+                              // reads "Resume", mirroring the up-next card's
+                              // language.
+                              _StartDayButton(
+                                label: widget.resumable == null
+                                    ? l(context).workoutStartThisDay
+                                    : l(context).workoutResume,
+                                onTap: _start,
+                              ),
                             ],
-                          ),
+                          ],
                         ),
-                ),
-              ],
-            ),
+                      ),
+              ),
+            ],
           ),
         ),
       ),
@@ -702,23 +816,54 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
   }
 }
 
-class _NextUpBadge extends StatelessWidget {
-  const _NextUpBadge();
+/// The secondary "start this day instead" control. A ghost pill, because the
+/// screen's one green filled action belongs to the day the rotation actually
+/// recommends — two identical green pills on one screen said the two choices
+/// were equally the plan, which is the opposite of what the cycle means.
+class _StartDayButton extends StatelessWidget {
+  const _StartDayButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: TrainColors.green.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        l(context).workoutNextUp,
-        style: AppText.meta.copyWith(
-          color: TrainColors.green,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: PressableScale(
+        child: Material(
+          color: TrainColors.greenWash,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 15,
+                vertical: 11,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.play_arrow_rounded,
+                    size: 16,
+                    color: TrainColors.green,
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    label,
+                    style: TrainType.ui(
+                      size: 13.5,
+                      weight: FontWeight.w700,
+                      color: TrainColors.green,
+                      height: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

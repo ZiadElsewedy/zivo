@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../../../core/theme/train_tokens.dart';
+import '../../../../../core/util/bidi.dart';
 import '../../../domain/ai_message.dart';
 import '../../../domain/ai_role.dart';
 
@@ -29,6 +30,18 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == AiRole.user;
+    // A message is written in whatever language its author used, which is not
+    // necessarily the language the app is set to: ZIVO answers an English
+    // question in English while the UI is Arabic, and the user types Arabic
+    // into an English build. Direction here is a property of the CONTENT, so
+    // the paragraph asks the text (first strong character) rather than
+    // inheriting the app's. Left inherited, an English reply under an Arabic
+    // UI came out right-aligned with its closing full stop dumped at the far
+    // end of the last line — ".answer using your real ZIVO data".
+    //
+    // Only the paragraph flips. The bubble's SIDE stays with the UI, because
+    // that says who is speaking, not what language they said it in.
+    final direction = directionOfFor(context, message.content);
     // ZIVO's replies read a touch larger than the user's own lines — it's the
     // long-form text the user actually reads, so a bump to 16 (from body's
     // 14.5) with generous leading makes it easier on the eyes without
@@ -71,13 +84,18 @@ class MessageBubble extends StatelessWidget {
                   // chrome here, and painting the USER's own words in it
                   // spends the hue on the wrong speaker. The softened
                   // bottom-right tail still points the pill at its author.
-                  ? const BoxDecoration(
-                      color: Color(0x12FFFFFF),
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                        bottomLeft: Radius.circular(20),
-                        bottomRight: Radius.circular(6),
+                  ? BoxDecoration(
+                      color: TrainColors.hairline,
+                      // Directional: the softened corner is a TAIL, and a
+                      // tail points at the side the pill is docked to. Under
+                      // RTL the pill moves to the left edge, so a physical
+                      // `bottomRight` left it pointing into the middle of the
+                      // screen, away from its author.
+                      borderRadius: BorderRadiusDirectional.only(
+                        topStart: Radius.circular(20),
+                        topEnd: Radius.circular(20),
+                        bottomStart: Radius.circular(20),
+                        bottomEnd: Radius.circular(6),
                       ),
                     )
                   : null,
@@ -85,6 +103,7 @@ class MessageBubble extends StatelessWidget {
                   ? TypewriterText(
                       message.content,
                       style: style,
+                      textDirection: direction,
                       onDone: onRevealDone,
                     )
                   : streaming && !MediaQuery.of(context).disableAnimations
@@ -99,8 +118,15 @@ class MessageBubble extends StatelessWidget {
                         ],
                       ),
                       style: style,
+                      textDirection: direction,
+                      textAlign: TextAlign.start,
                     )
-                  : Text(message.content, style: style),
+                  : Text(
+                      message.content,
+                      style: style,
+                      textDirection: direction,
+                      textAlign: TextAlign.start,
+                    ),
             ),
           ),
         ],
@@ -140,7 +166,7 @@ class _StreamCaretState extends State<StreamCaret>
       child: Container(
         width: 2.5,
         height: 14,
-        margin: const EdgeInsets.only(left: 2),
+        margin: const EdgeInsetsDirectional.only(start: 2),
         decoration: BoxDecoration(
           color: TrainColors.violetGlyph,
           borderRadius: BorderRadius.circular(2),
@@ -150,8 +176,8 @@ class _StreamCaretState extends State<StreamCaret>
   }
 }
 
-/// Reveals [text] left-to-right on mount, like the assistant is composing it.
-/// One-shot (never repeats), so `pumpAndSettle` completes it; honors the
+/// Reveals [text] from its own start on mount, like the assistant is composing
+/// it. One-shot (never repeats), so `pumpAndSettle` completes it; honors the
 /// platform "reduce motion" setting by showing the full text immediately.
 /// [onDone] fires when the reveal completes (including instantly under
 /// reduce-motion) — the caller uses it to retire its "revealing" flag.
@@ -159,12 +185,20 @@ class TypewriterText extends StatefulWidget {
   const TypewriterText(
     this.text, {
     required this.style,
+    this.textDirection,
     this.onDone,
     super.key,
   });
 
   final String text;
   final TextStyle style;
+
+  /// The finished message's direction, resolved once by the caller from the
+  /// WHOLE text. It has to be passed rather than re-derived per frame: a
+  /// half-typed prefix can start with a different strong character than the
+  /// message does ("ZIVO يقول…" leads with Latin for its first four frames),
+  /// and a paragraph that flips direction mid-reveal is a jump-cut.
+  final TextDirection? textDirection;
   final VoidCallback? onDone;
 
   @override
@@ -202,14 +236,24 @@ class _TypewriterTextState extends State<TypewriterText>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) widget.onDone?.call();
       });
-      return Text(widget.text, style: widget.style);
+      return Text(
+        widget.text,
+        style: widget.style,
+        textDirection: widget.textDirection,
+        textAlign: TextAlign.start,
+      );
     }
     final chars = widget.text.characters;
     return AnimatedBuilder(
       animation: _c,
       builder: (context, _) {
         final shown = (chars.length * _c.value).round();
-        return Text(chars.take(shown).toString(), style: widget.style);
+        return Text(
+          chars.take(shown).toString(),
+          style: widget.style,
+          textDirection: widget.textDirection,
+          textAlign: TextAlign.start,
+        );
       },
     );
   }

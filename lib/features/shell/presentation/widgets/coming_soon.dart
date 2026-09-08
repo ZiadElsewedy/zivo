@@ -17,7 +17,7 @@ class ComingSoon extends StatelessWidget {
         children: [
           Text(title, style: AppText.cardTitle),
           const SizedBox(height: 8),
-          Text(l(context).comingNext, style: AppText.aside),
+          Text(l(context).comingNext, style: AppText.aside(context)),
         ],
       ),
     );

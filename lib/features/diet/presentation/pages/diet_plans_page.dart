@@ -101,7 +101,7 @@ class _NoPlans extends StatelessWidget {
       child: Text(
         l(context).dietNoPlansYet,
         key: const Key('plans-empty'),
-        style: AppText.aside,
+        style: AppText.aside(context),
         textAlign: TextAlign.center,
       ),
     ),
@@ -154,7 +154,6 @@ class _PlanCard extends StatelessWidget {
 
     return TrainCard(
       key: Key('plan-card-${plan.id}'),
-      radius: 20,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

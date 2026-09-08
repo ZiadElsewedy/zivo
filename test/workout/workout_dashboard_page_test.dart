@@ -14,7 +14,6 @@ import 'package:zivo/features/workout/domain/body_weight_entry.dart';
 import 'package:zivo/features/workout/domain/live_session.dart';
 import 'package:zivo/features/workout/domain/planned_exercise.dart';
 import 'package:zivo/features/workout/domain/rep_target.dart';
-import 'package:zivo/features/workout/domain/session_status.dart';
 import 'package:zivo/features/workout/domain/set_type.dart';
 import 'package:zivo/features/workout/domain/workout_day.dart';
 import 'package:zivo/features/workout/domain/workout_plan.dart';
@@ -24,6 +23,8 @@ import 'package:zivo/features/workout/domain/workout_set.dart';
 import 'package:zivo/features/workout/presentation/pages/workout_dashboard_page.dart';
 import 'package:zivo/features/workout/presentation/pages/bodyweight_history_page.dart';
 import 'package:zivo/features/workout/presentation/pages/workout_stats_pages.dart';
+
+import '../support/workout_fixtures.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -76,16 +77,17 @@ WorkoutPlan _plan() => WorkoutPlan(
   ],
 );
 
-LiveSession _completedSession({required String id, required DateTime startedAt}) => LiveSession(
-  id: id,
-  planId: 'p1',
-  dayId: 'a',
-  dayLabel: 'Push',
-  startedAt: startedAt,
-  completedAt: startedAt.add(const Duration(minutes: 45)),
-  status: SessionStatus.completed,
-  exercises: const [],
-);
+/// A completed session with a real working set on it. `exercises: const []`
+/// used to do here, but the streak's bar is a **completed working set** — a
+/// session with no sets at all is not a day trained, however completed its
+/// status says it is.
+LiveSession _completedSession({required String id, required DateTime startedAt}) =>
+    session(
+      id: id,
+      startedAt: startedAt,
+      duration: const Duration(minutes: 45),
+      dayLabel: 'Push',
+    );
 
 /// The dashboard is a tall multi-section ListView (Today card, stats, weight,
 /// split breakdown, recent activity) — same trick `today_page_test.dart` uses

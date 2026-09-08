@@ -7,11 +7,12 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../domain/ai_response_style.dart';
+import '../ai_labels.dart';
 import '../../../../l10n/l10n.dart';
 
 /// The Ask screen's header: the screen title beside three uniform glass
 /// circle actions — reply style, chat history, new chat — all drawn from the
-/// app's single Lucide vocabulary so they sit consistently with every other
+/// app's single icon vocabulary so they sit consistently with every other
 /// surface.
 ///
 /// Built to the design handoff's Ask header: Manrope 800/27 title, three
@@ -44,7 +45,11 @@ class ChatHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      // Directional: the wide inset belongs to the TITLE's edge and the
+      // narrow one to the buttons', whichever side of the screen each lands
+      // on. Pinned to left/right, Arabic got them swapped — the title crowded
+      // against the screen edge while the button cluster sat inset from it.
+      padding: const EdgeInsetsDirectional.fromSTEB(
         AppSpacing.screen,
         AppSpacing.base,
         AppSpacing.s + 4,
@@ -91,7 +96,7 @@ class ChatHeader extends StatelessWidget {
 
 /// One uniform glass squircle in the header row. The premium treatment:
 /// a lit-from-above gradient fill (warm charcoal catching light at the top
-/// edge), hairline outline, soft contact shadow for real lift, a Lucide
+/// edge), hairline outline, soft contact shadow for real lift, an `AppIcons`
 /// glyph, instant press-down scale, and a light haptic on commit. Disabled
 /// while a turn is in flight.
 class _HeaderAction extends StatelessWidget {
@@ -133,7 +138,7 @@ class _HeaderAction extends StatelessWidget {
                 child: Icon(
                   icon,
                   size: 16,
-                  color: disabled ? TrainColors.ink4 : const Color(0xB2F4F4F0),
+                  color: disabled ? TrainColors.ink4 : TrainColors.inkAt(0.7),
                 ),
               ),
             ),
@@ -151,10 +156,10 @@ class _HeaderAction extends StatelessWidget {
 /// The shared skin for header controls: a flat glass circle inside a
 /// hairline. No gradient, no shadow — the screen's single radial glow is
 /// what gives this surface its depth.
-BoxDecoration _glassDecoration() => const BoxDecoration(
+BoxDecoration _glassDecoration() => BoxDecoration(
   shape: BoxShape.circle,
-  color: Color(0x0AFFFFFF),
-  border: Border.fromBorderSide(BorderSide(color: Color(0x17FFFFFF))),
+  color: TrainColors.glassSoft,
+  border: Border.fromBorderSide(BorderSide(color: TrainColors.liftAt(0.09))),
 );
 
 /// The reply-length picker: a glass squircle opening a small ZIVO-styled
@@ -181,7 +186,7 @@ class _ReplyStyleMenu extends StatelessWidget {
       elevation: 12,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: TrainColors.hairline),
+        side: BorderSide(color: TrainColors.hairline),
       ),
       position: PopupMenuPosition.under,
       onSelected: onSelect,
@@ -192,10 +197,10 @@ class _ReplyStyleMenu extends StatelessWidget {
           width: 38,
           height: 38,
           decoration: _glassDecoration(),
-          child: const Icon(
+          child: Icon(
             AppIcons.replyStyle,
             size: 16,
-            color: Color(0xB2F4F4F0),
+            color: TrainColors.inkAt(0.7),
           ),
         ),
       ),
@@ -208,7 +213,7 @@ class _ReplyStyleMenu extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    responseStyleLabel(style),
+                    responseStyleText(context, style),
                     style: AppText.rowTitle.copyWith(
                       fontSize: 15,
                       fontWeight: style == responseStyle
@@ -221,11 +226,7 @@ class _ReplyStyleMenu extends StatelessWidget {
                   ),
                 ),
                 if (style == responseStyle)
-                  const Icon(
-                    AppIcons.check,
-                    size: 15,
-                    color: TrainColors.violet,
-                  ),
+                  Icon(AppIcons.check, size: 15, color: TrainColors.violet),
               ],
             ),
           ),

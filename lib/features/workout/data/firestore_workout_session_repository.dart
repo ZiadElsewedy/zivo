@@ -81,6 +81,12 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
           : Timestamp.fromDate(session.completedAt!),
       'pausedAt': session.pausedAt == null ? null : Timestamp.fromDate(session.pausedAt!),
       'pausedAccumMs': session.pausedAccumMs,
+      'durationSource': session.durationSource.name,
+      'correctedDurationMinutes': session.correctedDurationMinutes,
+      'voidReason': session.voidReason?.name,
+      'voidedAt': session.voidedAt == null
+          ? null
+          : Timestamp.fromDate(session.voidedAt!),
       'exercises': session.exercises.map(_exerciseToMap).toList(),
       'schemaVersion': 1,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -116,6 +122,9 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
     'rpe': set.rpe,
     'type': set.type.name,
     'outcome': set.outcome.name,
+    'resolvedAt': set.resolvedAt == null
+        ? null
+        : Timestamp.fromDate(set.resolvedAt!),
   };
 
   LiveSession _sessionFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
@@ -123,6 +132,7 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
     final startedAt = data['startedAt'];
     final completedAt = data['completedAt'];
     final pausedAt = data['pausedAt'];
+    final voidedAt = data['voidedAt'];
     final rawExercises = (data['exercises'] as List<dynamic>?) ?? const [];
     return LiveSession(
       id: doc.id,
@@ -134,6 +144,14 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
       completedAt: completedAt is Timestamp ? completedAt.toDate() : null,
       pausedAt: pausedAt is Timestamp ? pausedAt.toDate() : null,
       pausedAccumMs: (data['pausedAccumMs'] as num?)?.toInt() ?? 0,
+      // Absent on every doc written before durations carried provenance —
+      // and `measured` is exactly what those were.
+      durationSource: durationSourceFromName(data['durationSource'] as String?),
+      correctedDurationMinutes: (data['correctedDurationMinutes'] as num?)?.toInt(),
+      voidReason: data['voidReason'] == null
+          ? null
+          : voidReasonFromName(data['voidReason'] as String?),
+      voidedAt: voidedAt is Timestamp ? voidedAt.toDate() : null,
       exercises: rawExercises.map(_exerciseFromMap).toList(growable: false),
     );
   }
@@ -153,6 +171,7 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
 
   LoggedSet _setFromMap(dynamic raw) {
     final map = (raw as Map).cast<String, dynamic>();
+    final resolvedAt = map['resolvedAt'];
     return LoggedSet(
       id: map['id'] as String? ?? '',
       target: _repTargetFromMap(map),
@@ -162,6 +181,11 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
       rpe: (map['rpe'] as num?)?.toDouble(),
       type: setTypeFromName(map['type'] as String?),
       outcome: _outcomeFromMap(map),
+      // Null on every set logged before per-set timestamps existed. That is a
+      // fact about the record, not a value to invent: a session made only of
+      // such sets closes as `DurationSource.unknown` rather than claiming a
+      // duration nobody measured.
+      resolvedAt: resolvedAt is Timestamp ? resolvedAt.toDate() : null,
     );
   }
 

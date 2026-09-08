@@ -15,18 +15,22 @@ import '../../domain/moment.dart';
 import 'moment_capture_page.dart';
 import 'photo_viewer_page.dart';
 import '../../../../core/media/presentation/storage_sync_page.dart';
+import '../../../../core/util/bidi.dart';
 
 /// How the gallery grid is filtered. Camera/Library read the media record's
 /// capture source; Photos filters to moments that actually have an image.
 enum MomentFilter { all, photos, notes, camera, library }
 
 extension on MomentFilter {
-  String get label => switch (this) {
-    MomentFilter.all => 'All',
-    MomentFilter.photos => 'Photos',
-    MomentFilter.notes => 'Notes',
-    MomentFilter.camera => 'Camera',
-    MomentFilter.library => 'Library',
+  /// The filter's word on screen. Takes a context because it is copy — the
+  /// five ARB keys already existed and this extension simply never read them,
+  /// so the filter bar stayed English on an otherwise Arabic gallery.
+  String label(BuildContext context) => switch (this) {
+    MomentFilter.all => l(context).momentsFilterAll,
+    MomentFilter.photos => l(context).momentsFilterPhotos,
+    MomentFilter.notes => l(context).momentsFilterNotes,
+    MomentFilter.camera => l(context).momentsFilterCamera,
+    MomentFilter.library => l(context).momentsFilterLibrary,
   };
 }
 
@@ -140,13 +144,10 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
     final scope = AppScope.of(context);
     final media = scope.requireMedia;
     final moments = scope.moments;
-    deferWrite(
-      () async {
-        await moments.remove(moment.id);
-        await media.deleteMedia(id: moment.id, ref: moment.imagePath);
-      }(),
-      failureMessage: l(context).momentDeleteFailed,
-    );
+    deferWrite(() async {
+      await moments.remove(moment.id);
+      await media.deleteMedia(id: moment.id, ref: moment.imagePath);
+    }(), failureMessage: l(context).momentDeleteFailed);
     await _loadMedia();
   }
 
@@ -191,7 +192,9 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
                   return const LoadingStateView();
                 }
                 if (all.isEmpty) {
-                  return _MomentsEmptyState(title: l(context).momentsEmptyTitle);
+                  return _MomentsEmptyState(
+                    title: l(context).momentsEmptyTitle,
+                  );
                 }
                 final filtered = all.where(_matches).toList(growable: false);
                 final photos = filtered
@@ -289,9 +292,9 @@ class _FilterBar extends StatelessWidget {
         children: [
           for (final filter in MomentFilter.values)
             Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsetsDirectional.only(end: 8),
               child: _FilterChip(
-                label: filter.label,
+                label: filter.label(context),
                 active: filter == selected,
                 onTap: () => onSelect(filter),
               ),
@@ -337,13 +340,13 @@ class _MomentsEmptyState extends StatelessWidget {
             TrainDashedCard(
               radius: 18,
               padding: EdgeInsets.zero,
-              child: const SizedBox(
+              child: SizedBox(
                 width: 52,
                 height: 52,
                 child: Icon(
                   AppIcons.camera,
                   size: 22,
-                  color: Color(0x59F4F4F0),
+                  color: TrainColors.inkAt(0.35),
                 ),
               ),
             ),
@@ -354,7 +357,7 @@ class _MomentsEmptyState extends StatelessWidget {
               style: TrainType.ui(
                 size: 16,
                 weight: FontWeight.w700,
-                color: const Color(0x99F4F4F0),
+                color: TrainColors.inkAt(0.6),
                 height: 1.3,
               ),
             ),
@@ -365,7 +368,7 @@ class _MomentsEmptyState extends StatelessWidget {
               style: TrainType.ui(
                 size: 12.5,
                 weight: FontWeight.w400,
-                color: const Color(0x61F4F4F0),
+                color: TrainColors.inkAt(0.38),
                 height: 1.55,
               ),
             ),
@@ -398,7 +401,7 @@ class _GalleryTile extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            color: const Color(0x0BFFFFFF),
+            color: TrainColors.glass,
             child: hasPhoto ? _photo(context) : _captionTile(context),
           ),
         ),
@@ -448,7 +451,7 @@ class _GalleryTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Icon(AppIcons.caption, size: 17, color: Color(0x59F4F4F0)),
+          Icon(AppIcons.caption, size: 17, color: TrainColors.inkAt(0.35)),
           // Flexible so the caption YIELDS when the square tile is tight
           // (narrow widths / larger text scale) instead of forcing its full
           // 3-line height and overflowing the cell by a few px — the
@@ -456,21 +459,33 @@ class _GalleryTile extends StatelessWidget {
           Flexible(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Text(
-                moment.caption.isEmpty ? l(context).momentUntitled : moment.caption,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: TrainType.ui(
-                  size: 12.5,
-                  weight: FontWeight.w400,
-                  color: TrainColors.ink2,
-                  height: 1.4,
-                ),
+              child: Builder(
+                builder: (context) {
+                  final caption = moment.caption.isEmpty
+                      ? l(context).momentUntitled
+                      : moment.caption;
+                  return Text(
+                    caption,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    // The user's own words pick their own direction — an
+                    // English note in an Arabic gallery otherwise
+                    // right-aligned with its full stop flung to the far end.
+                    textDirection: directionOfFor(context, caption),
+                    textAlign: TextAlign.start,
+                    style: TrainType.ui(
+                      size: 12.5,
+                      weight: FontWeight.w400,
+                      color: TrainColors.ink2,
+                      height: 1.4,
+                    ),
+                  );
+                },
               ),
             ),
           ),
           Text(
-            timeAgo(moment.takenAt, now).toUpperCase(),
+            timeAgo(context, moment.takenAt, now).toUpperCase(),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TrainType.caption(
@@ -516,7 +531,7 @@ class _AddMomentTile extends StatelessWidget {
       radius: 14,
       padding: EdgeInsets.zero,
       onTap: onTap,
-      child: const Center(
+      child: Center(
         child: Icon(AppIcons.add, size: 20, color: TrainColors.ink4),
       ),
     );

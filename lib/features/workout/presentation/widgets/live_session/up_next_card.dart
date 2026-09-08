@@ -47,8 +47,7 @@ class UpNextCard extends StatelessWidget {
       // Everything's resolved — rest is the last thing between here and the
       // summary.
       return TrainCard(
-        radius: 20,
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
         gradient: TrainColors.cardGradient,
         child: Row(
           children: [
@@ -71,8 +70,7 @@ class UpNextCard extends StatelessWidget {
     final reps = repTargetText(context, set.target);
     final weight = set.targetWeightKg;
     return TrainCard(
-      radius: 20,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       gradient: TrainColors.cardGradient,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -118,7 +116,7 @@ class UpNextCard extends StatelessWidget {
                   size: 8.5,
                   weight: FontWeight.w500,
                   tracking: 0.14,
-                  color: const Color(0x52F4F4F0),
+                  color: TrainColors.ink4,
                 ),
               ),
             ],
@@ -254,11 +252,11 @@ class _SessionMusicStatus extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           onTap: actionable ? () => controller.connect() : null,
           child: Container(
-            padding: const EdgeInsets.fromLTRB(11, 10, 14, 10),
+            padding: const EdgeInsetsDirectional.fromSTEB(11, 10, 14, 10),
             decoration: BoxDecoration(
-              color: const Color(0x08FFFFFF),
+              color: TrainColors.sectionFill,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0x0FFFFFFF)),
+              border: Border.all(color: TrainColors.glassStrong),
             ),
             child: Row(
               children: [
@@ -266,7 +264,7 @@ class _SessionMusicStatus extends StatelessWidget {
                   width: 18,
                   height: 18,
                   child: connecting
-                      ? const CircularProgressIndicator(
+                      ? CircularProgressIndicator(
                           strokeWidth: 1.8,
                           color: TrainColors.green,
                         )
@@ -285,7 +283,7 @@ class _SessionMusicStatus extends StatelessWidget {
                     style: TrainType.ui(
                       size: 12,
                       weight: FontWeight.w700,
-                      color: const Color(0xB3F4F4F0),
+                      color: TrainColors.inkAt(0.7),
                     ),
                   ),
                 ),

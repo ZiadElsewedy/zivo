@@ -143,7 +143,7 @@ class _CustomEntrySheetState extends State<_CustomEntrySheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
@@ -167,7 +167,7 @@ class _CustomEntrySheetState extends State<_CustomEntrySheet> {
             onSubmitted: (_) => _submit(),
             style: AppText.body,
             decoration: zivoFieldDecoration(
-              fill: const Color(0x08FFFFFF),
+              fill: TrainColors.sectionFill,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 14,
                 vertical: 14,

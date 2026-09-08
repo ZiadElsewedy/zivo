@@ -85,14 +85,14 @@ class _Chip extends StatelessWidget {
             Icon(
               categoryIcon(category.icon),
               size: 14,
-              color: selected ? const Color(0xFF2A2205) : TrainColors.amber,
+              color: selected ? TrainColors.onAmber : TrainColors.amber,
             ),
             const SizedBox(width: 6),
             Text(
               categoryLabel(context, category),
               style: AppText.button.copyWith(
                 fontSize: 13.5,
-                color: selected ? const Color(0xFF2A2205) : TrainColors.ink2,
+                color: selected ? TrainColors.onAmber : TrainColors.ink2,
               ),
             ),
           ],
@@ -126,7 +126,7 @@ class _AddChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(AppIcons.add, size: 15, color: TrainColors.ink3),
+            Icon(AppIcons.add, size: 15, color: TrainColors.ink3),
             const SizedBox(width: 5),
             Text(
               l(context).actionAdd,

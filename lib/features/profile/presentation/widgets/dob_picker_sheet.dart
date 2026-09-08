@@ -79,7 +79,7 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
@@ -96,7 +96,7 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
           Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 12),
+            padding: const EdgeInsetsDirectional.only(start: 2, bottom: 12),
             child: Text(
               l(context).profileDateOfBirth,
               style: AppText.cardTitle,
@@ -243,7 +243,7 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
   /// (rightmost) column so it doesn't visually bleed past the sheet's edge.
   Widget _selectionBand({required bool edge}) {
     return Container(
-      margin: EdgeInsets.only(left: 2, right: edge ? 6 : 2),
+      margin: EdgeInsetsDirectional.only(start: 2, end: edge ? 6 : 2),
       decoration: BoxDecoration(
         color: TrainColors.hairlineStrong,
         borderRadius: BorderRadius.circular(10),

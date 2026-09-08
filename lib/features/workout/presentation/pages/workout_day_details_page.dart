@@ -168,7 +168,7 @@ class _PlannedExerciseCard extends StatelessWidget {
                       style: TrainType.mono(
                         size: 12,
                         tracking: 0.02,
-                        color: const Color(0xA6F4F4F0),
+                        color: TrainColors.inkAt(0.65),
                       ),
                     ),
                   ),
@@ -190,7 +190,7 @@ class _SetDot extends StatelessWidget {
       width: 5,
       height: 5,
       margin: const EdgeInsets.only(top: 2),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.green,
         shape: BoxShape.circle,
       ),

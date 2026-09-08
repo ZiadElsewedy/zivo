@@ -49,6 +49,8 @@ const valid = {
   expenseCategories: { label: 'Subs', iconId: 'bills' },
   media: { relativePath: 'media/moments/m1.jpg', driveFileId: 'f1', driveAccountKey: 'acc-1', schemaVersion: 2 },
   mediaTombstones: { driveFileId: 'f1', driveAccountKey: 'acc-1', deletedAt: ts(), schemaVersion: 1 },
+  sleepSettings: { schemaVersion: 1, targets: { bedtimeMinutes: 1380, wakeMinutes: 420, durationMinutes: 480 } },
+  trainingDayMarks: { dayKey: '2026-01-01', restored: true, reason: 'travel', createdAt: ts(), schemaVersion: 1 },
 };
 
 // Each violates exactly one validation clause of its collection's write rule.
@@ -68,6 +70,8 @@ const invalid = {
   expenseCategories: { label: 'Subs', emoji: '🧾', hue: 'iris' }, // no iconId
   media: { relativePath: 'media/moments/m1.jpg' }, // missing schemaVersion
   mediaTombstones: { driveFileId: 123, schemaVersion: 1 }, // driveFileId not a string
+  sleepSettings: { schemaVersion: 1, targets: 'nope' }, // targets not a map
+  trainingDayMarks: { dayKey: '2026-01-01', restored: 'yes', createdAt: ts(), schemaVersion: 1 }, // restored not bool
 };
 
 const collections = Object.keys(valid);
@@ -181,6 +185,101 @@ describe('workoutMeta active-split pointer allows a null id', () => {
   it('owner can write { activeSplitId: null } to clear the pointer', async () => {
     await assertSucceeds(
       setDoc(doc(ownerDb(), collPath(OWNER, 'workoutMeta')), { activeSplitId: null }),
+    );
+  });
+});
+
+// Sleep nights are keyed by SLEEP-DAY (`yyyy-MM-dd`), not by a generated id —
+// that is the cross-device dedup mechanism (docs/SLEEP_SYSTEM.md §9), so the
+// id shape is part of the contract and is enforced in rules. The generic loop
+// above writes to `doc1`, which this collection must reject, hence its own
+// block.
+describe('users/{uid}/sleepNights ownership + validation', () => {
+  const night = () => ({
+    schemaVersion: 1,
+    sleepDay: ts(),
+    main: { id: 's1', startAt: ts(), endAt: ts() },
+    naps: [],
+    alternates: [],
+    resolution: 'soleSource',
+  });
+  const path = (uid, id = '2026-01-01') => `users/${uid}/sleepNights/${id}`;
+
+  it('owner can create a night keyed by its sleep-day and read it back', async () => {
+    const db = ownerDb();
+    await assertSucceeds(setDoc(doc(db, path(OWNER)), night()));
+    await assertSucceeds(getDoc(doc(db, path(OWNER))));
+  });
+
+  it('a random document id is rejected', async () => {
+    // A random id would mean two documents for one night and a duplicate the
+    // client never reconciles.
+    await assertFails(setDoc(doc(ownerDb(), path(OWNER, 'doc1')), night()));
+    await assertFails(
+      setDoc(doc(ownerDb(), path(OWNER, '2026-1-1')), night()),
+    );
+  });
+
+  it('a night with no main sleep is allowed', async () => {
+    // "Nothing was recorded" is a real, stored state — the week view needs it
+    // to draw a gap rather than closing up and hiding the absence.
+    await assertSucceeds(
+      setDoc(doc(ownerDb(), path(OWNER)), { ...night(), main: null }),
+    );
+  });
+
+  it('owner cannot write a malformed night', async () => {
+    await assertFails(
+      setDoc(doc(ownerDb(), path(OWNER)), { ...night(), naps: 'nope' }),
+    );
+    await assertFails(
+      setDoc(doc(ownerDb(), path(OWNER)), { ...night(), main: 'nope' }),
+    );
+  });
+
+  it('a different signed-in user cannot read or write it', async () => {
+    await seed(path(OWNER), night());
+    await assertFails(getDoc(doc(otherDb(), path(OWNER))));
+    await assertFails(setDoc(doc(otherDb(), path(OWNER)), night()));
+  });
+
+  it('unauthenticated cannot write it', async () => {
+    await assertFails(setDoc(doc(anonDb(), path(OWNER)), night()));
+  });
+
+  it('owner can delete a night', async () => {
+    // Load-bearing: this is how a night deleted in Apple Health or Health
+    // Connect is withdrawn here. A combined `allow write` carrying the field
+    // checks above would silently deny it.
+    await seed(path(OWNER), night());
+    await assertSucceeds(deleteDoc(doc(ownerDb(), path(OWNER))));
+  });
+});
+
+describe('users/{uid}/sleepSettings holds targets and the open mark', () => {
+  const path = `users/${OWNER}/sleepSettings/main`;
+
+  it('owner can write an open manual sleep mark', async () => {
+    await assertSucceeds(
+      setDoc(doc(ownerDb(), path), {
+        schemaVersion: 1,
+        openMark: { id: 'open', atUtc: ts(), offsetMinutes: 180 },
+      }),
+    );
+  });
+
+  it('owner can clear the open mark with a null', async () => {
+    // Clearing is a null write, not a delete — the same document also holds
+    // the targets, which must survive.
+    await seed(path, { schemaVersion: 1, openMark: { id: 'open', atUtc: ts() } });
+    await assertSucceeds(
+      updateDoc(doc(ownerDb(), path), { openMark: null }),
+    );
+  });
+
+  it('a malformed mark is rejected', async () => {
+    await assertFails(
+      setDoc(doc(ownerDb(), path), { schemaVersion: 1, openMark: 'nope' }),
     );
   });
 });
@@ -311,6 +410,86 @@ describe('workoutPlans delete path', () => {
     await seed(collPath(OWNER, 'workoutPlans'), valid.workoutPlans);
     await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'workoutPlans'))));
     await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'workoutPlans'))));
+  });
+});
+
+describe('workoutSessions: voided status and corrected durations', () => {
+  const path = collPath(OWNER, 'workoutSessions');
+  const base = () => ({ ...valid.workoutSessions });
+
+  it("accepts 'voided' — a real session is withdrawn, never erased", async () => {
+    await assertSucceeds(setDoc(doc(ownerDb(), path), { ...base(), status: 'voided' }));
+  });
+
+  it('accepts every durationSource the app writes', async () => {
+    for (const source of ['measured', 'autoClosed', 'userCorrected', 'unknown']) {
+      await assertSucceeds(
+        setDoc(doc(ownerDb(), path), { ...base(), durationSource: source }));
+    }
+  });
+
+  it('rejects a durationSource outside the vocabulary', async () => {
+    await assertFails(
+      setDoc(doc(ownerDb(), path), { ...base(), durationSource: 'guessed' }));
+  });
+
+  it('accepts a plausible corrected duration, and null to clear it', async () => {
+    await assertSucceeds(
+      setDoc(doc(ownerDb(), path), { ...base(), correctedDurationMinutes: 65 }));
+    await assertSucceeds(
+      setDoc(doc(ownerDb(), path), { ...base(), correctedDurationMinutes: null }));
+  });
+
+  it('rejects a negative or absurd corrected duration', async () => {
+    await assertFails(
+      setDoc(doc(ownerDb(), path), { ...base(), correctedDurationMinutes: -30 }));
+    await assertFails(
+      setDoc(doc(ownerDb(), path), { ...base(), correctedDurationMinutes: 100000 }));
+    await assertFails(
+      setDoc(doc(ownerDb(), path), { ...base(), correctedDurationMinutes: 'an hour' }));
+  });
+});
+
+describe('trainingDayMarks', () => {
+  const path = collPath(OWNER, 'trainingDayMarks');
+  const base = () => ({ ...valid.trainingDayMarks });
+
+  it('owner can write and read their own day mark', async () => {
+    await assertSucceeds(setDoc(doc(ownerDb(), path), base()));
+    await assertSucceeds(getDoc(doc(ownerDb(), path)));
+  });
+
+  it('a non-owner can neither read nor write it', async () => {
+    await seed(path, base());
+    await assertFails(getDoc(doc(otherDb(), path)));
+    await assertFails(setDoc(doc(otherDb(), path), base()));
+  });
+
+  it('accepts every missed-day reason the app writes, and none at all', async () => {
+    for (const reason of ['rest', 'recovery', 'travel', 'illness', 'busy', 'other']) {
+      await assertSucceeds(setDoc(doc(ownerDb(), path), { ...base(), reason }));
+    }
+    await assertSucceeds(setDoc(doc(ownerDb(), path), { ...base(), reason: null }));
+  });
+
+  it('rejects a reason outside the vocabulary', async () => {
+    await assertFails(setDoc(doc(ownerDb(), path), { ...base(), reason: 'hungover' }));
+  });
+
+  it('rejects an unbounded note', async () => {
+    await assertSucceeds(setDoc(doc(ownerDb(), path), { ...base(), note: 'flew home' }));
+    await assertFails(setDoc(doc(ownerDb(), path), { ...base(), note: 'x'.repeat(501) }));
+  });
+
+  it('requires restored to be a bool and createdAt a timestamp', async () => {
+    await assertFails(setDoc(doc(ownerDb(), path), { ...base(), restored: 'yes' }));
+    await assertFails(setDoc(doc(ownerDb(), path), { ...base(), createdAt: '2026-01-01' }));
+  });
+
+  it('owner can delete their own day mark; non-owner cannot', async () => {
+    await seed(path, base());
+    await assertFails(deleteDoc(doc(otherDb(), path)));
+    await assertSucceeds(deleteDoc(doc(ownerDb(), path)));
   });
 });
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../theme/app_icons.dart';
 import '../theme/train_tokens.dart';
 import 'pressable_scale.dart';
 import 'train_surfaces.dart';
@@ -35,7 +36,7 @@ class SettingsSectionCard extends StatelessWidget {
         Container(
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: const Color(0x08FFFFFF),
+            color: TrainColors.sectionFill,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: TrainColors.hairline),
           ),
@@ -50,15 +51,28 @@ class SettingsSectionCard extends StatelessWidget {
 /// a right-aligned mono value, and either a custom [trailing] widget or (when
 /// [onTap] is set) a chevron.
 ///
-/// [accent] colours the leading tile — a **13% tint of that one hue behind a
-/// 22% border, with the glyph itself in the hue**. Deliberately not the
-/// saturated gradient chip this row used to carry: the handoff's identity doc
-/// rules out multi-hue saturated icon tiles outright (§8), because a column
-/// of them reads as decoration competing with the values beside it. Without
-/// an accent the tile falls back to neutral ink.
+/// **There is no icon tile.** The mark is a bare glyph in a fixed-width
+/// column. This row carried a 32px tinted plate for several revisions — first
+/// a saturated gradient chip, then a flat single-hue tint — and the plate was
+/// always the weakest thing on the page: nine rounded rectangles down the left
+/// edge that carry no information the glyph beside them doesn't already carry.
+/// The identity doc rules out multi-hue saturated icon tiles outright (§8);
+/// dropping the plate finishes that thought rather than softening it. It is
+/// also what the restrained end of this category actually does — iOS 18
+/// Settings, Linear, Things all set a bare glyph against the row.
 ///
-/// Dividers are inset past the icon column (63px, the handoff's figure), so
-/// each row's mark reads as the start of its own line.
+/// A bare glyph needs more ink than a plated one did, because it no longer has
+/// a tint behind it doing half the work of separating it from the ground —
+/// hence [_markInk] at ~76% rather than the old `ink2` at 45%.
+///
+/// [accent] recolours the glyph, and is now reserved for the two hues that
+/// mean something: **ember on a destructive row**, amber on the one sign-in
+/// mark that owns a hue. The decorative violet every second row used to carry
+/// is gone — a column that alternates violet and neutral with no rule behind
+/// it reads arbitrary, which is the opposite of considered.
+///
+/// Dividers are inset past the icon column ([_iconColumn]), so each row's mark
+/// reads as the start of its own line.
 class SettingsRow extends StatelessWidget {
   const SettingsRow({
     required this.icon,
@@ -96,24 +110,35 @@ class SettingsRow extends StatelessWidget {
   final bool monospace;
   final bool last;
 
+  /// The glyph's own ink when the row has no [accent]. Brighter than `ink2`,
+  /// which was tuned for a glyph sitting on a tinted plate; with the plate
+  /// gone the mark has to hold the column on its own, and at 45% it read as a
+  /// smudge rather than a drawn thing.
+  static Color get _markInk => TrainColors.inkAt(0.76);
+
+  /// Width of the leading mark's column. Fixed, so glyphs of different natural
+  /// widths still line the titles up with each other.
+  static const _markWidth = 24.0;
+
+  /// Where the inset hairline starts: the row's left padding plus the mark
+  /// column plus the gap — i.e. exactly under the title. Local rather than
+  /// `TrainListRow.dividerInset`, because that row still leads with a 32px
+  /// tile and the two geometries are no longer the same.
+  static const _iconColumn = 17.0 + _markWidth + 14.0;
+
   @override
   Widget build(BuildContext context) {
     final editable = onTap != null;
-    final hue = accent ?? const Color(0xFFF4F4F0);
 
-    final tile = Container(
-      width: 32,
-      height: 32,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: hue.withValues(alpha: accent == null ? 0.06 : 0.13),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: hue.withValues(alpha: accent == null ? 0.10 : 0.22),
-        ),
+    // 20px bare, where the plated glyph was 17. Nothing is boxing it in any
+    // more, and a thin Regular stroke needs the extra size to read as drawn
+    // (see `AppIcons` on why the set is Regular and not Bold).
+    final mark = SizedBox(
+      width: _markWidth,
+      child: Center(
+        child:
+            iconWidget ?? Icon(icon, size: 20, color: accent ?? _markInk),
       ),
-      child:
-          iconWidget ?? Icon(icon, size: 15, color: accent ?? TrainColors.ink2),
     );
 
     final content = Column(
@@ -122,7 +147,7 @@ class SettingsRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 17),
           child: Row(
             children: [
-              tile,
+              mark,
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
@@ -156,19 +181,20 @@ class SettingsRow extends StatelessWidget {
                 trailing!,
               ] else if (editable) ...[
                 const SizedBox(width: 8),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 16,
-                  color: Color(0x4DF4F4F0),
+                Icon(
+                  AppIcons.chevron,
+                  size: 15,
+                  color: TrainColors.inkAt(0.25),
                 ),
               ],
             ],
           ),
         ),
-        // Inset hairline — starts at the title, not the card edge.
+        // Inset hairline — starts at the title, not the card edge. Directional,
+        // because "the title" is on the right under RTL.
         if (!last)
-          const Padding(
-            padding: EdgeInsets.only(left: TrainListRow.dividerInset),
+          Padding(
+            padding: EdgeInsetsDirectional.only(start: _iconColumn),
             child: Divider(
               height: 1,
               thickness: 1,

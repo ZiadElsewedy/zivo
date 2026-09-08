@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
+import 'package:zivo/core/theme/zivo_palette.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -32,6 +33,7 @@ import 'package:zivo/features/music/domain/music_controller.dart';
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 import '../support/inert_music_controller.dart';
+import '../support/skin_contrast.dart';
 
 /// Records what the player writes, so tests can assert the completion path
 /// persists and the discard path writes nothing. [add] resolves after a
@@ -244,7 +246,9 @@ Widget _wrap({
   LiveSession? resume,
   DateTime Function()? now,
   MusicController? music,
+  Brightness brightness = Brightness.dark,
 }) {
+  ZivoTheme.use(brightness);
   return AppScope(
     auth: FakeAuthRepository(),
     profiles: FakeProfileRepository(),
@@ -2280,5 +2284,43 @@ void main() {
     expect(find.text('PRE-WORKOUT'), findsNothing);
     expect(find.text('Skip warm-up'), findsNothing);
     expect(find.byKey(const Key('set-chip-1-current')), findsOneWidget);
+  });
+
+  testWidgets('the whole session reads on paper after a mid-session skin '
+      'change', (tester) async {
+    // The live session is the screen ZIVO is *for*, and it is where the first
+    // light build broke worst: a near-white countdown on a white ring, and a
+    // set chip whose value was `Colors.white` on a 12% ember wash — fine on
+    // near-black, invisible on paper. This drives the real page and then
+    // flips the skin the way Settings does, which is the only order in which
+    // a cached style or a skipped element shows up at all.
+    addTearDown(ZivoTheme.resetForTesting);
+    ZivoTheme.resetForTesting();
+
+    final sessions = InMemoryWorkoutSessionRepository();
+    await sessions.saveSession(_previousSessionLight());
+    final plan = _plan();
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: _RecordingWorkoutRepository(),
+        workoutPlans: _RecordingWorkoutPlanRepository(),
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+      ),
+    );
+    await _start(tester);
+
+    // Built in dark, like the app is. Now do what Settings does.
+    ZivoTheme.use(Brightness.light);
+    await _settle(tester);
+    await _settle(tester);
+
+    expectNothingVanishes(
+      tester,
+      ground: ZivoPalette.light.base,
+      screen: 'Live session',
+    );
   });
 }

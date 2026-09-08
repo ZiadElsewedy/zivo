@@ -44,7 +44,7 @@ class SplitManagementPage extends StatelessWidget {
         onTap: () => _openNewSplitSheet(context),
       ),
       body: DecoratedBox(
-        decoration: const BoxDecoration(gradient: TrainColors.hubTint),
+        decoration: BoxDecoration(gradient: TrainColors.hubTint),
         child: Stack(
           children: [
             SafeArea(
@@ -160,7 +160,7 @@ class _SplitTile extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0x08FFFFFF),
+              color: TrainColors.sectionFill,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: isActive
@@ -245,7 +245,7 @@ class _SplitTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(
+                Icon(
                   Icons.more_vert_rounded,
                   color: TrainColors.ink4,
                   size: 20,
@@ -362,16 +362,13 @@ class _SplitsLoadingState extends StatelessWidget {
       child: Container(
         width: 140,
         height: 140,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: TrainColors.glassStrong,
           shape: BoxShape.circle,
         ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
-          colorFilter: const ColorFilter.mode(
-            TrainColors.ink2,
-            BlendMode.srcIn,
-          ),
+          colorFilter: ColorFilter.mode(TrainColors.ink2, BlendMode.srcIn),
           child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
         ),
       ),
@@ -390,15 +387,11 @@ class _SplitsErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.cloud_off_rounded,
-              size: 30,
-              color: TrainColors.ink4,
-            ),
+            Icon(Icons.cloud_off_rounded, size: 30, color: TrainColors.ink4),
             const SizedBox(height: 12),
             Text(
               l(context).errorCouldntLoad,
-              style: AppText.aside.copyWith(color: TrainColors.ink2),
+              style: AppText.aside(context).copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
@@ -440,16 +433,12 @@ class _SplitsEmptyState extends StatelessWidget {
                 ),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(
-                AppIcons.splits,
-                size: 28,
-                color: TrainColors.green,
-              ),
+              child: Icon(AppIcons.splits, size: 28, color: TrainColors.green),
             ),
             const SizedBox(height: 16),
             Text(
               l(context).splitsEmptyTitle,
-              style: AppText.aside.copyWith(color: TrainColors.ink2),
+              style: AppText.aside(context).copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),

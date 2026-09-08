@@ -133,27 +133,34 @@ class _WalletBalanceSheetState extends State<WalletBalanceSheet> {
             style: AppText.body.copyWith(fontSize: 13.5),
           ),
           const SizedBox(height: 18),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                _digits.isEmpty ? '0' : _digits,
-                style: AppText.heroNumber.copyWith(
-                  fontSize: 52,
-                  color: _digits.isEmpty ? TrainColors.ink3 : TrainColors.ink,
+          // Pinned LTR: this is a number being typed, and the caret belongs
+          // after the last digit entered. Mirrored, the row put the caret
+          // on the far side of the figure, reading as though the typing ran
+          // backwards.
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  _digits.isEmpty ? '0' : _digits,
+                  style: AppText.heroNumber.copyWith(
+                    fontSize: 52,
+                    color: _digits.isEmpty ? TrainColors.ink3 : TrainColors.ink,
+                  ),
                 ),
-              ),
-              Container(
-                width: 3,
-                height: 42,
-                margin: const EdgeInsets.only(left: 5),
-                decoration: BoxDecoration(
-                  color: TrainColors.amber,
-                  borderRadius: BorderRadius.circular(2),
+                Container(
+                  width: 3,
+                  height: 42,
+                  margin: const EdgeInsets.only(left: 5),
+                  decoration: BoxDecoration(
+                    color: TrainColors.amber,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 4),
           Text(widget.currency, style: AppText.sectionLabel),
@@ -206,7 +213,7 @@ class _SaveButton extends StatelessWidget {
               label,
               style: AppText.button.copyWith(
                 fontSize: 16,
-                color: const Color(0xFF2A2205),
+                color: TrainColors.onAmber,
               ),
             ),
           ),

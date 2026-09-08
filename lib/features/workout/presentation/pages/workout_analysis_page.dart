@@ -265,7 +265,7 @@ class _OverallCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             analysis.summaryDetail,
-            style: AppText.aside.copyWith(fontSize: 16, color: TrainColors.ink2),
+            style: AppText.aside(context).copyWith(fontSize: 16, color: TrainColors.ink2),
           ),
         ],
       ),
@@ -318,7 +318,7 @@ class _PrRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            const Icon(AppIcons.trophy, size: 18, color: TrainColors.amber),
+            Icon(AppIcons.trophy, size: 18, color: TrainColors.amber),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -341,7 +341,7 @@ class _PrRow extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(AppIcons.chevron, size: 16, color: TrainColors.ink4),
+            Icon(AppIcons.chevron, size: 16, color: TrainColors.ink4),
           ],
         ),
       ),
@@ -441,7 +441,7 @@ class _ExerciseRow extends StatelessWidget {
               ),
             ],
             const SizedBox(width: 8),
-            const Icon(AppIcons.chevron, size: 16, color: TrainColors.ink4),
+            Icon(AppIcons.chevron, size: 16, color: TrainColors.ink4),
           ],
         ),
       ),
@@ -519,7 +519,7 @@ class _SkippedRow extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(AppIcons.chevron, size: 16, color: TrainColors.ink4),
+            Icon(AppIcons.chevron, size: 16, color: TrainColors.ink4),
           ],
         ),
       ),
@@ -568,7 +568,7 @@ class _VolumeCard extends StatelessWidget {
                 ),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(AppIcons.workout, size: 17, color: TrainColors.green),
+              child: Icon(AppIcons.workout, size: 17, color: TrainColors.green),
             ),
             const SizedBox(width: 13),
             Expanded(
@@ -645,7 +645,7 @@ class _NextStepCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(AppIcons.bolt, size: 18, color: TrainColors.green),
+                Icon(AppIcons.bolt, size: 18, color: TrainColors.green),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -657,7 +657,7 @@ class _NextStepCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Icon(AppIcons.chevron, size: 16, color: TrainColors.green),
+                Icon(AppIcons.chevron, size: 16, color: TrainColors.green),
               ],
             ),
           ),
@@ -678,7 +678,7 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: const Color(0x08FFFFFF),
+          color: TrainColors.sectionFill,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: TrainColors.hairline),
         ),
@@ -690,7 +690,7 @@ class _RowDivider extends StatelessWidget {
   const _RowDivider();
 
   @override
-  Widget build(BuildContext context) => const Divider(
+  Widget build(BuildContext context) => Divider(
         height: 1,
         thickness: 1,
         indent: 16,
@@ -707,14 +707,14 @@ class _EmptyHint extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: const Color(0x08FFFFFF),
+          color: TrainColors.sectionFill,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: TrainColors.hairline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(AppIcons.analysis, size: 22, color: TrainColors.green),
+            Icon(AppIcons.analysis, size: 22, color: TrainColors.green),
             const SizedBox(height: 12),
             Text(
               l(context).workoutAnalysisEmptyTitle,
@@ -756,11 +756,11 @@ class _ErrorState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off_rounded, size: 30, color: TrainColors.ink4),
+              Icon(Icons.cloud_off_rounded, size: 30, color: TrainColors.ink4),
               const SizedBox(height: 12),
               Text(
                 l(context).errorCouldntLoad,
-                style: AppText.aside.copyWith(color: TrainColors.ink2),
+                style: AppText.aside(context).copyWith(color: TrainColors.ink2),
                 textAlign: TextAlign.center,
               ),
             ],

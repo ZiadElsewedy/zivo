@@ -9,7 +9,7 @@ import '../theme/train_tokens.dart';
 /// Eleven call sites across diet, workout, auth and ai had each written this
 /// out by hand, and they had drifted apart in ways nobody chose: the corner
 /// radius was 12 in six and 14 in five, the fill was `base` in some and
-/// `raisedStrong` or a raw `Color(0x08FFFFFF)` in others, and only four drew a
+/// `raisedStrong` or a raw `TrainColors.sectionFill` in others, and only four drew a
 /// focus ring at all — so on most screens a tapped field looked exactly like
 /// an untapped one.
 ///
@@ -31,8 +31,8 @@ InputDecoration zivoFieldDecoration({
   String? suffixText,
   TextStyle? suffixStyle,
   TextStyle? counterStyle,
-  Color fill = TrainColors.base,
-  Color accent = TrainColors.green,
+  Color? fill,
+  Color? accent,
   double radius = AppRadius.field,
   EdgeInsets contentPadding = const EdgeInsets.symmetric(
     vertical: 10,
@@ -41,6 +41,11 @@ InputDecoration zivoFieldDecoration({
   bool isDense = false,
   bool focusRing = true,
 }) {
+  // The two hues this decoration is built from, resolved here rather than
+  // as parameter defaults: a default has to be `const`, and a token that
+  // answers to the active skin cannot be (ADR-011).
+  final fillColor = fill ?? TrainColors.base;
+  final accentColor = accent ?? TrainColors.green;
   final shape = OutlineInputBorder(
     borderRadius: BorderRadius.circular(radius),
     borderSide: BorderSide.none,
@@ -56,7 +61,7 @@ InputDecoration zivoFieldDecoration({
     isDense: isDense,
     contentPadding: contentPadding,
     filled: true,
-    fillColor: fill,
+    fillColor: fillColor,
     border: shape,
     // The focused state is the one piece of this that isn't decoration: a
     // field the keyboard is pointed at should say so. Callers that sit inside
@@ -64,7 +69,7 @@ InputDecoration zivoFieldDecoration({
     focusedBorder: focusRing
         ? OutlineInputBorder(
             borderRadius: BorderRadius.circular(radius),
-            borderSide: BorderSide(color: accent, width: 1.4),
+            borderSide: BorderSide(color: accentColor, width: 1.4),
           )
         : shape,
   );

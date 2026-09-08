@@ -310,22 +310,36 @@ class FirebaseAiRepository implements AiRepository {
   /// The result must come from the stream's own `Result`, not from a second
   /// buffered call — an import is an expensive whole-document model call, and
   /// calling twice would pay for it twice.
+  ///
+  /// The terminating variant is `Result`, whose payload sits one level down
+  /// (`.result.data`, an `HttpsCallableResult`) — never `.data` on the
+  /// response itself. Both branches are statically typed on purpose: reading
+  /// that payload through `dynamic` is exactly how the getter silently went
+  /// missing and turned every successful extraction into "couldn't read that
+  /// plan" on screen.
   static Future<T> _streamImport<T>(
     Stream<StreamResponse> stream,
     void Function(ImportProgress) onProgress,
     T Function(Object?) parse,
   ) async {
     Object? data;
+    var resolved = false;
     await for (final response in stream) {
-      // `is Chunk` rather than a switch on the sealed type: the terminating
-      // variant's name collides with other `Result` types in scope, and the
-      // chat stream above already reads the stream this way.
-      if (response is Chunk) {
-        final progress = ImportProgress.fromChunk(response.partialData);
-        if (progress != null && !progress.isEmpty) onProgress(progress);
-      } else {
-        data = (response as dynamic).data;
+      switch (response) {
+        case Chunk(:final partialData):
+          final progress = ImportProgress.fromChunk(partialData);
+          if (progress != null && !progress.isEmpty) onProgress(progress);
+        case Result(:final result):
+          data = result.data;
+          resolved = true;
       }
+    }
+    if (!resolved) {
+      // The stream ended without its terminating result — a truncated
+      // response, not a verdict on the document. Throwing keeps that an
+      // error the caller can report as one, instead of parsing `null` into
+      // a fake "this isn't a valid plan" rejection.
+      throw StateError('Import stream ended without a result.');
     }
     return parse(data);
   }

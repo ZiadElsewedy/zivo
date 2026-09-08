@@ -146,9 +146,9 @@ class _AuthTextFieldState extends State<AuthTextField> {
           border: Border.all(color: edge, width: edgeWidth),
           // The focus glow — the field catching the same light as the CTA.
           boxShadow: focused && !widget.hasError
-              ? const [
+              ? [
                   BoxShadow(
-                    color: Color(0x2EFF5A1F),
+                    color: TrainColors.ember.withValues(alpha: 0.18),
                     blurRadius: 22,
                     spreadRadius: -6,
                     offset: Offset(0, 4),

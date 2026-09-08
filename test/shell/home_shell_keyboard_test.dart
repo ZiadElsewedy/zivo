@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:zivo/app/app.dart';
+import 'package:zivo/features/sleep/data/health_sleep_source.dart';
+import 'package:zivo/features/sleep/data/in_memory_sleep_repository.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/ai/presentation/widgets/voice_composer.dart';
 import 'package:zivo/features/auth/domain/auth_state.dart';
@@ -14,7 +16,9 @@ import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_body_weight_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_training_day_mark_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_workout_settings_repository.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -42,6 +46,13 @@ void main() {
 
     await tester.pumpWidget(
       ZivoApp(
+        // Sleep, like every other repository here, is injected rather than
+        // left to ZivoApp's default — which is Firestore-backed and resolves
+        // the signed-in uid through FirebaseAuth at construction, so booting
+        // the real app root without it reaches Firebase in a test that has
+        // none.
+        sleep: InMemorySleepRepository(),
+        sleepSource: const UnsupportedSleepSource(),
         auth: FakeAuthRepository(
           initial: const Authenticated(AuthUser(uid: 'test-uid')),
         ),
@@ -53,6 +64,8 @@ void main() {
         workouts: InMemoryWorkoutRepository(),
         workoutPlans: InMemoryWorkoutPlanRepository(),
         workoutSessions: InMemoryWorkoutSessionRepository(),
+          workoutSettings: InMemoryWorkoutSettingsRepository(),
+          trainingDayMarks: InMemoryTrainingDayMarkRepository(),
         bodyWeight: InMemoryBodyWeightRepository(),
         diet: InMemoryDietRepository(),
         ai: FakeAiRepository(),

@@ -317,13 +317,9 @@ class _EmptyDays extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.restaurant_rounded,
-            size: 30,
-            color: TrainColors.ink3,
-          ),
+          Icon(Icons.restaurant_rounded, size: 30, color: TrainColors.ink3),
           const SizedBox(height: 12),
-          Text(l(context).planNoDays, style: AppText.aside),
+          Text(l(context).planNoDays, style: AppText.aside(context)),
           const SizedBox(height: 14),
           _AddButton(label: l(context).planAddDay, onTap: onAdd),
         ],
@@ -419,7 +415,7 @@ class _DayCard extends StatelessWidget {
               ),
               IconButton(
                 onPressed: onRemoveDay,
-                icon: const Icon(
+                icon: Icon(
                   Icons.close_rounded,
                   size: 18,
                   color: TrainColors.ink3,
@@ -493,7 +489,7 @@ class _MealBlock extends StatelessWidget {
               ),
               IconButton(
                 onPressed: onRemoveMeal,
-                icon: const Icon(
+                icon: Icon(
                   Icons.close_rounded,
                   size: 16,
                   color: TrainColors.ink3,
@@ -543,7 +539,7 @@ class _MealBlock extends StatelessWidget {
                   ),
                   IconButton(
                     onPressed: () => onRemoveItem(ii),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.close_rounded,
                       size: 14,
                       color: TrainColors.ink3,
@@ -594,7 +590,7 @@ class _DaySheetState extends State<_DaySheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
@@ -611,7 +607,7 @@ class _DaySheetState extends State<_DaySheet> {
           Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 12),
+            padding: const EdgeInsetsDirectional.only(start: 2, bottom: 12),
             child: Text(l(context).planAddDay, style: AppText.cardTitle),
           ),
           Wrap(
@@ -641,13 +637,13 @@ class _DaySheetState extends State<_DaySheet> {
             decoration: InputDecoration(
               isCollapsed: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              border: const UnderlineInputBorder(
+              border: UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.hairline),
               ),
-              enabledBorder: const UnderlineInputBorder(
+              enabledBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.hairline),
               ),
-              focusedBorder: const UnderlineInputBorder(
+              focusedBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.green, width: 1.6),
               ),
               hintText: l(context).planDayLabelHint,
@@ -703,7 +699,7 @@ class _MealSheetState extends State<_MealSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
@@ -720,7 +716,7 @@ class _MealSheetState extends State<_MealSheet> {
           Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 12),
+            padding: const EdgeInsetsDirectional.only(start: 2, bottom: 12),
             child: Text(l(context).planAddMeal, style: AppText.cardTitle),
           ),
           TextField(
@@ -733,13 +729,13 @@ class _MealSheetState extends State<_MealSheet> {
             decoration: InputDecoration(
               isCollapsed: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              border: const UnderlineInputBorder(
+              border: UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.hairline),
               ),
-              enabledBorder: const UnderlineInputBorder(
+              enabledBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.hairline),
               ),
-              focusedBorder: const UnderlineInputBorder(
+              focusedBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.green, width: 1.6),
               ),
               hintText: l(context).planMealNameHint,
@@ -822,7 +818,7 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
@@ -839,7 +835,7 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
           Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 12),
+            padding: const EdgeInsetsDirectional.only(start: 2, bottom: 12),
             child: Text(l(context).planAddFoodItem, style: AppText.cardTitle),
           ),
           TextField(
@@ -851,13 +847,13 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
             decoration: InputDecoration(
               isCollapsed: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              border: const UnderlineInputBorder(
+              border: UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.hairline),
               ),
-              enabledBorder: const UnderlineInputBorder(
+              enabledBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.hairline),
               ),
-              focusedBorder: const UnderlineInputBorder(
+              focusedBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.green, width: 1.6),
               ),
               hintText: l(context).planFoodNameHint,

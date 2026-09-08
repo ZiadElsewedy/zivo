@@ -3,13 +3,17 @@ import 'package:flutter/material.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/rise_in.dart';
-import '../../../auth/domain/auth_user.dart';
-import '../../../auth/presentation/widgets/auth_action_button.dart';
-import '../widgets/dob_picker_sheet.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/util/date_format.dart';
+import '../../../../core/widgets/back_chip.dart';
+import '../../../../core/widgets/rise_in.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../auth/domain/auth_user.dart';
+import '../../../auth/presentation/widgets/auth_action_button.dart';
+import '../../../auth/presentation/widgets/auth_backdrop.dart';
+import '../../../auth/presentation/widgets/auth_header.dart';
+import '../../../auth/presentation/widgets/auth_text_field.dart';
+import '../widgets/dob_picker_sheet.dart';
 
 /// Collects the missing Name / Date of birth for a signed-in user with an
 /// incomplete profile.
@@ -18,6 +22,15 @@ import '../../../../l10n/l10n.dart';
 /// stream to a complete `UserProfile`, which swaps this page out for the app
 /// shell — so this page only owns loading and error presentation and never
 /// navigates itself.
+///
+/// ## Why it is dressed like the auth screens
+///
+/// This is the **last step of signing up**, and it used to be the one step
+/// that looked like a different product: a bare Material `AppBar` over flat
+/// black instead of the ember [AuthBackdrop], a hand-rolled title instead of
+/// [AuthHeader], and two fields it wrote itself — 20px corners and a 1.4px
+/// stroke — instead of the [AuthTextField] the user had just finished typing
+/// into on the previous screen. Same flow, same chrome now.
 class ProfileCompletionPage extends StatefulWidget {
   const ProfileCompletionPage({
     required this.user,
@@ -119,44 +132,60 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TrainColors.base,
-      appBar: AppBar(
-        backgroundColor: TrainColors.base,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: TrainColors.ink),
-          tooltip: l(context).profileUseAnotherAccount,
-          onPressed: _saving ? null : _useAnotherAccount,
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 8, 22, 28),
+      body: AuthBackdrop(
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screen,
+                  6,
+                  AppSpacing.screen,
+                  0,
+                ),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  // Leaving here means signing out, not going back a page — so
+                  // the chip keeps the account wording it always had.
+                  child: SizedBox(
+                    width: 38,
+                    height: 38,
+                    child: BackChip(
+                      enabled: !_saving,
+                      onTap: _useAnotherAccount,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screen,
+            AppSpacing.screen,
+            AppSpacing.screen,
+            AppSpacing.l,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 12),
               RiseIn(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l(context).profileCompleteTitle,
-                      style: AppText.greeting.copyWith(fontSize: 28),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      l(context).profileCompleteSubtitle,
-                      style: AppText.aside,
-                    ),
-                  ],
+                child: AuthHeader(
+                  title: l(context).profileCompleteTitle,
+                  aside: l(context).profileCompleteSubtitle,
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: AppSpacing.section),
               RiseIn(
                 delay: const Duration(milliseconds: 70),
                 child: Column(
                   children: [
-                    _NameField(controller: _name, enabled: !_saving),
+                    AuthTextField(
+                      controller: _name,
+                      hint: l(context).profileName,
+                      icon: Icons.person_outline_rounded,
+                      enabled: !_saving,
+                      textInputAction: TextInputAction.done,
+                    ),
                     const SizedBox(height: 10),
                     _DobField(date: _dob, enabled: !_saving, onTap: _pickDob),
                   ],
@@ -189,67 +218,26 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
               ),
             ],
           ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// A ZIVO-styled Name text field, matching `email_auth_form.dart`'s `_Field`
-/// (white card, hairline border, ember focus).
-class _NameField extends StatelessWidget {
-  const _NameField({required this.controller, required this.enabled});
-
-  final TextEditingController controller;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      enabled: enabled,
-      autocorrect: false,
-      textCapitalization: TextCapitalization.words,
-      textInputAction: TextInputAction.done,
-      style: AppText.rowTitle,
-      cursorColor: TrainColors.ember,
-      decoration: InputDecoration(
-        hintText: l(context).profileName,
-        hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
-        prefixIcon: const Icon(
-          Icons.person_outline_rounded,
-          size: 20,
-          color: TrainColors.ink3,
-        ),
-        filled: true,
-        fillColor: TrainColors.raised,
-        contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          borderSide: const BorderSide(
-            color: TrainColors.hairlineStrong,
-            width: 1.4,
-          ),
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          borderSide: const BorderSide(
-            color: TrainColors.hairlineStrong,
-            width: 1.4,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          borderSide: const BorderSide(color: TrainColors.ember, width: 1.6),
-        ),
-      ),
-    );
-  }
-}
-
-/// A tappable, `_NameField`-matching row that opens [showDatePicker] and
-/// displays the selected date (or a placeholder) — no `intl` dependency, so
-/// the date is formatted with a tiny local month-name lookup.
+/// The date-of-birth row, built to match [AuthTextField] exactly: same 54px
+/// height, same border weights, same ember focus edge, same label behaviour —
+/// the label rises to a tracked caption once a date is chosen, so a filled row
+/// still says what it holds.
+///
+/// It cannot *be* an [AuthTextField] (it opens a picker and holds no editable
+/// text), which is precisely why it has to be built to the same numbers rather
+/// than to its own: the two sit one above the other, and a 20px-cornered box
+/// beside a 20px-cornered box with different padding is the kind of mismatch
+/// you feel before you can name it.
 class _DobField extends StatelessWidget {
   const _DobField({
     required this.date,
@@ -261,39 +249,79 @@ class _DobField extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
-
   @override
   Widget build(BuildContext context) {
     final hasDate = date != null;
-    return Material(
-      color: TrainColors.raised,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      child: InkWell(
-        onTap: enabled ? onTap : null,
+    return Opacity(
+      opacity: enabled ? 1 : 0.55,
+      child: Material(
+        color: TrainColors.raised,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: TrainColors.hairlineStrong, width: 1.4),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.cake_outlined,
-                size: 20,
-                color: TrainColors.ink3,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          child: Container(
+            height: 54,
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              border: Border.all(
+                color: TrainColors.hairlineStrong,
+                width: 1.4,
               ),
-              const SizedBox(width: 12),
-              Text(
-                hasDate
-                    ? formatDayMonthYear(context, date!)
-                    : l(context).profileDateOfBirth,
-                style: AppText.rowTitle.copyWith(
-                  color: hasDate ? TrainColors.ink : TrainColors.ink3,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.cake_outlined,
+                  size: 18,
+                  color: TrainColors.ink3,
                 ),
-              ),
-            ],
+                const SizedBox(width: 11),
+                Expanded(
+                  child: hasDate
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l(context).profileDateOfBirth,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.sectionLabel.copyWith(
+                                fontSize: 10.5,
+                                letterSpacing: 0.9,
+                                color: TrainColors.ink3,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              formatDayMonthYear(context, date!),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.rowTitle.copyWith(fontSize: 15),
+                            ),
+                          ],
+                        )
+                      : Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: Text(
+                            l(context).profileDateOfBirth,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.rowTitle.copyWith(
+                              color: TrainColors.ink3,
+                            ),
+                          ),
+                        ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: TrainColors.inkAt(0.3),
+                ),
+              ],
+            ),
           ),
         ),
       ),

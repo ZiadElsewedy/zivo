@@ -32,16 +32,26 @@ class MusicScrubber extends StatefulWidget {
     required this.duration,
     required this.position,
     required this.isPaused,
-    this.accentColor = TrainColors.green,
+    Color? accentColor,
     super.key,
-  });
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
+  }) : _accentColor = accentColor;
 
   final MusicController controller;
 
   /// The colour of the played track, its thumb and glow. Defaults to ember;
   /// the immersive player passes the current track's neon accent so the scrub
   /// line reacts to the artwork alongside the rest of the screen.
-  final Color accentColor;
+  final Color? _accentColor;
+
+  /// Defaults to the active skin's `green` — resolved on read
+  /// rather than in the constructor, which is what lets the
+  /// constructor stay `const` (ADR-011).
+  Color get accentColor => _accentColor ?? TrainColors.green;
 
   /// Identifies the current track — a change resets the bar to zero instantly
   /// instead of animating from the previous song's last position.
@@ -153,11 +163,10 @@ class _MusicScrubberState extends State<MusicScrubber>
     _commitSeek(_progress.value);
   }
 
-  static final _timecode = TrainType.mono(
-    size: 11,
-    tracking: 0.02,
-    color: const Color(0x73F4F4F0),
-  );
+  // A getter, not a `static final`: a field is evaluated once and would
+  // pin this style to whichever skin the app first drew (ADR-011).
+  static TextStyle get _timecode =>
+      TrainType.mono(size: 11, tracking: 0.02, color: TrainColors.ink2);
 
   String _format(double fraction) {
     final d = Duration(
@@ -292,12 +301,24 @@ class _MusicScrubberState extends State<MusicScrubber>
               },
             ),
             const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(_format(fraction), style: _timecode),
-                Text(ltrFor(context, '-${_format(remainingFraction)}'), style: _timecode),
-              ],
+            // The track above is positioned physically (Alignment.centerLeft,
+            // Positioned.left, and a fraction taken from a raw dx), so it fills
+            // left-to-right in every language — correct for a timeline. These
+            // two labels are what it fills BETWEEN, so they have to stay on the
+            // same ends: mirrored, elapsed sat under the full end of the bar
+            // and remaining under the empty one.
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(_format(fraction), style: _timecode),
+                  Text(
+                    ltrFor(context, '-${_format(remainingFraction)}'),
+                    style: _timecode,
+                  ),
+                ],
+              ),
             ),
           ],
         );

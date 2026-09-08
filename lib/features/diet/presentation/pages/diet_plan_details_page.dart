@@ -152,8 +152,7 @@ class _DietPlanDetailsPageState extends State<DietPlanDetailsPage> {
         TrainSectionLabel(l(context).dietTodaySoFar),
         const SizedBox(height: 11),
         TrainCard(
-          radius: 20,
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -170,7 +169,7 @@ class _DietPlanDetailsPageState extends State<DietPlanDetailsPage> {
               ),
               const SizedBox(height: 6),
               Text(
-                consumedBasisShortLabel(state.consumed.basis).toUpperCase(),
+                consumedBasisShortText(context, state.consumed.basis).toUpperCase(),
                 key: const Key('consumed-basis'),
                 style: TrainType.caption(
                   size: 8.5,
@@ -196,8 +195,7 @@ class _DietPlanDetailsPageState extends State<DietPlanDetailsPage> {
           TrainSectionLabel(l(context).dietMacrosToday),
           const SizedBox(height: 11),
           TrainCard(
-            radius: 20,
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
+                        padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
             child: Column(
               children: [
                 for (final macro in macroBars)
@@ -278,7 +276,7 @@ class _NoTargetCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.flag_outlined,
                 size: 18,
                 color: TrainColors.ink2,
@@ -297,7 +295,7 @@ class _NoTargetCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 size: 18,
                 color: TrainColors.ink3,
@@ -307,7 +305,7 @@ class _NoTargetCard extends StatelessWidget {
           if (planKcal != null) ...[
             const SizedBox(height: 10),
             Align(
-              alignment: Alignment.centerLeft,
+              alignment: AlignmentDirectional.centerStart,
               child: TextButton(
                 key: const Key('adopt-plan-target'),
                 onPressed: () async {
@@ -398,7 +396,7 @@ class _TargetSummaryRow extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 size: 18,
                 color: TrainColors.ink3,
@@ -475,7 +473,7 @@ class _BodyDataPrompt extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.straighten_rounded,
             size: 18,
             color: TrainColors.ink2,
@@ -502,7 +500,7 @@ class _BodyDataPrompt extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(
+          Icon(
             Icons.chevron_right_rounded,
             size: 18,
             color: TrainColors.ink3,
@@ -741,12 +739,15 @@ class _CalibrationLine extends StatelessWidget {
   }
 }
 
-/// The hue that owns each macro, so a target-driven bar and a plan-driven one
-/// never disagree about which colour protein is.
+/// The tone that owns each macro, so a target-driven bar and a plan-driven one
+/// never disagree about which one protein is.
+///
+/// One hue, three luminances — see the macro ramp in `train_tokens.dart` for
+/// why these are not three separate colours.
 Color _macroColor(MacroKind kind) => switch (kind) {
-  MacroKind.protein => TrainColors.green,
-  MacroKind.carbs => TrainColors.violetGlyph,
-  MacroKind.fat => TrainColors.amber,
+  MacroKind.protein => TrainColors.macroProtein,
+  MacroKind.carbs => TrainColors.macroCarbs,
+  MacroKind.fat => TrainColors.macroFat,
 };
 
 /// One macro: a mono caption and its `eaten/target` figure on one line, with
@@ -794,7 +795,7 @@ class _MacroBar extends StatelessWidget {
                   style: TrainType.caption(
                     size: 8.5,
                     tracking: 0.14,
-                    color: const Color(0x59F4F4F0),
+                    color: TrainColors.inkAt(0.35),
                   ),
                 ),
               ),
@@ -805,7 +806,7 @@ class _MacroBar extends StatelessWidget {
                 ),
                 style: TrainType.mono(
                   size: 9.5,
-                  color: const Color(0x99F4F4F0),
+                  color: TrainColors.inkAt(0.6),
                 ),
               ),
             ],
@@ -837,7 +838,7 @@ class _DaySummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -869,7 +870,7 @@ class _DaySummaryCard extends StatelessWidget {
             ],
           ),
           if (meals.isNotEmpty) ...[
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 13, bottom: 12),
               child: Divider(
                 height: 1,
@@ -905,7 +906,7 @@ class _DaySummaryCard extends StatelessWidget {
                         style: TrainType.ui(
                           size: 12,
                           weight: FontWeight.w400,
-                          color: const Color(0xA6F4F4F0),
+                          color: TrainColors.inkAt(0.65),
                           height: 1.3,
                         ),
                       ),

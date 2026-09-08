@@ -93,7 +93,7 @@ class _DayCardState extends State<DayCard> with SingleTickerProviderStateMixin {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -139,7 +139,7 @@ class _DayCardState extends State<DayCard> with SingleTickerProviderStateMixin {
                         angle: _controller.value * math.pi,
                         child: child,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.expand_more_rounded,
                         size: 22,
                         color: TrainColors.ink4,
@@ -148,7 +148,7 @@ class _DayCardState extends State<DayCard> with SingleTickerProviderStateMixin {
                     PressableScale(
                       child: IconButton(
                         onPressed: widget.onRemoveDay,
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.close_rounded,
                           size: 18,
                           color: TrainColors.ink4,
@@ -257,7 +257,7 @@ class _DayCardState extends State<DayCard> with SingleTickerProviderStateMixin {
                   ),
                 const SizedBox(height: 10),
                 PlanAddButton(
-                  label: 'Add exercise',
+                  label: l(context).exerciseAddTitle,
                   onTap: widget.onAddExercise,
                   compact: true,
                 ),
@@ -294,7 +294,7 @@ class ExerciseRow extends StatelessWidget {
           onTap: onEdit,
           borderRadius: BorderRadius.circular(14),
           child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+            padding: const EdgeInsetsDirectional.fromSTEB(12, 10, 4, 10),
             decoration: BoxDecoration(
               color: TrainColors.glassStrong,
               borderRadius: BorderRadius.circular(14),
@@ -333,7 +333,7 @@ class ExerciseRow extends StatelessWidget {
                 PressableScale(
                   child: IconButton(
                     onPressed: onRemove,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.close_rounded,
                       size: 16,
                       color: TrainColors.ink4,

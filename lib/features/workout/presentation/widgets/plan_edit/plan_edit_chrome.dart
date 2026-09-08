@@ -55,11 +55,7 @@ class PlanEmptyDays extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.fitness_center_rounded,
-            size: 30,
-            color: TrainColors.ink4,
-          ),
+          Icon(Icons.fitness_center_rounded, size: 30, color: TrainColors.ink4),
           const SizedBox(height: 12),
           Text(
             'No days yet.',
@@ -114,7 +110,7 @@ class PlanAddButton extends StatelessWidget {
               Icon(
                 Icons.add_rounded,
                 size: compact ? 14 : 17,
-                color: const Color(0x99F4F4F0),
+                color: TrainColors.inkAt(0.6),
               ),
               const SizedBox(width: 6),
               Text(
@@ -123,7 +119,7 @@ class PlanAddButton extends StatelessWidget {
                   size: compact ? 12.5 : 14,
                   weight: FontWeight.w700,
                   height: 1,
-                  color: const Color(0xCCF4F4F0),
+                  color: TrainColors.inkAt(0.8),
                 ),
               ),
             ],
@@ -148,8 +144,8 @@ class SheetShell extends StatelessWidget {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.9,
       ),
-      decoration: const BoxDecoration(
-        color: Color(0x08FFFFFF),
+      decoration: BoxDecoration(
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       child: SingleChildScrollView(
@@ -175,7 +171,7 @@ class SheetShell extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Padding(
-              padding: const EdgeInsets.only(left: 2, bottom: 12),
+              padding: const EdgeInsetsDirectional.only(start: 2, bottom: 12),
               child: Text(
                 title,
                 style: TrainType.ui(
@@ -244,13 +240,13 @@ class LabeledField extends StatelessWidget {
           decoration: InputDecoration(
             isCollapsed: true,
             contentPadding: const EdgeInsets.symmetric(vertical: 12),
-            border: const UnderlineInputBorder(
+            border: UnderlineInputBorder(
               borderSide: BorderSide(color: TrainColors.hairline),
             ),
-            enabledBorder: const UnderlineInputBorder(
+            enabledBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: TrainColors.hairline),
             ),
-            focusedBorder: const UnderlineInputBorder(
+            focusedBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: TrainColors.green, width: 1.6),
             ),
             hintText: hint,

@@ -854,6 +854,12 @@ abstract class AppLocalizations {
   /// **'Build manually instead'**
   String get todayBuildManually;
 
+  /// Title of Today's card for a plan that exists but has no training days. {plan} is the plan's own name.
+  ///
+  /// In en, this message translates to:
+  /// **'{plan} has no days'**
+  String todayEmptySplitTitle(String plan);
+
   /// Shown when a plan exists but has no days yet.
   ///
   /// In en, this message translates to:
@@ -871,6 +877,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Get started'**
   String get todayGetStarted;
+
+  /// Body line under Today's first-run heading, naming the two ways in.
+  ///
+  /// In en, this message translates to:
+  /// **'Import a plan or log a spend — ZIVO builds Today from there.'**
+  String get todayGetStartedBody;
 
   /// First-run shortcut. The line break is deliberate — it sits in a narrow tile.
   ///
@@ -1141,6 +1153,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Full cycle'**
   String get workoutFullCycle;
+
+  /// Section label over the Workout plan page's drill-down rows (Splits, Analysis, History).
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get workoutMoreSection;
 
   /// Note under the rotation, telling the user they aren't locked to the suggested day.
   ///
@@ -2066,6 +2084,48 @@ abstract class AppLocalizations {
   /// **'No days yet.'**
   String get planNoDays;
 
+  /// The short letter or number identifying a training day within a split (A, B, 1, 2).
+  ///
+  /// In en, this message translates to:
+  /// **'Slot'**
+  String get planDaySlot;
+
+  /// Example slot value shown in the empty field.
+  ///
+  /// In en, this message translates to:
+  /// **'A'**
+  String get planDaySlotHint;
+
+  /// The training day's name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Label'**
+  String get planDayLabel;
+
+  /// Placeholder for a day's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Day label (optional)'**
+  String get planDayLabelHint;
+
+  /// Free-text notes on a training day; may be left blank.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes (optional)'**
+  String get planDayNotesOptional;
+
+  /// Caption under the shortest recorded session's duration.
+  ///
+  /// In en, this message translates to:
+  /// **'shortest'**
+  String get workoutShortestSession;
+
+  /// Caption under the longest recorded session's duration.
+  ///
+  /// In en, this message translates to:
+  /// **'longest'**
+  String get workoutLongestSession;
+
   /// Adds a day to the plan.
   ///
   /// In en, this message translates to:
@@ -2095,12 +2155,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Every day'**
   String get planEveryDay;
-
-  /// Placeholder for a day's name.
-  ///
-  /// In en, this message translates to:
-  /// **'Day label (optional)'**
-  String get planDayLabelHint;
 
   /// Placeholder for a meal's name.
   ///
@@ -2210,11 +2264,71 @@ abstract class AppLocalizations {
   /// **'Save food'**
   String get logSaveFood;
 
+  /// Caption under a consumed figure: the number came from food the user logged.
+  ///
+  /// In en, this message translates to:
+  /// **'logged by you'**
+  String get dietBasisLogged;
+
+  /// Caption under a consumed figure: the number is the plan's expectation for meals ticked off, not a measurement.
+  ///
+  /// In en, this message translates to:
+  /// **'from ticked meals, not weighed'**
+  String get dietBasisTicked;
+
+  /// Caption under a consumed figure when nothing has been logged.
+  ///
+  /// In en, this message translates to:
+  /// **'nothing logged yet'**
+  String get dietBasisNothing;
+
+  /// Register of one coach finding: a plain statement of fact.
+  ///
+  /// In en, this message translates to:
+  /// **'Observation'**
+  String get dietFindingObservation;
+
+  /// Register of one coach finding: a worked-out reading of the numbers.
+  ///
+  /// In en, this message translates to:
+  /// **'Analysis'**
+  String get dietFindingAnalysis;
+
+  /// Register of one coach finding: something to consider doing.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestion'**
+  String get dietFindingSuggestion;
+
+  /// Register of one coach finding: something that needs attention.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning'**
+  String get dietFindingWarning;
+
+  /// Register of one coach finding: encouragement.
+  ///
+  /// In en, this message translates to:
+  /// **'Going well'**
+  String get dietFindingGoingWell;
+
+  /// Register of one coach finding: a clarification.
+  ///
+  /// In en, this message translates to:
+  /// **'Worth knowing'**
+  String get dietFindingWorthKnowing;
+
   /// Marks a meal as eaten.
   ///
   /// In en, this message translates to:
   /// **'Eaten'**
   String get dietEaten;
+
+  /// A meal marked back to not eaten, on ZIVO's confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Not eaten'**
+  String get dietNotEaten;
 
   /// Accepts the plan's own daily figure as the target.
   ///
@@ -2311,18 +2425,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This removes {name} for good. Archiving keeps it and takes it off the Diet screen just the same.'**
   String dietPlanArchiveHint(String name);
-
-  /// Title of the delete-logged-session confirmation.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete this session?'**
-  String get sessionDeleteTitle;
-
-  /// Body of the delete-logged-session confirmation.
-  ///
-  /// In en, this message translates to:
-  /// **'This permanently removes your \"{day}\" session and everything logged in it. This can\'t be undone.'**
-  String sessionDeleteBody(String day);
 
   /// Title of the delete-split confirmation.
   ///
@@ -2521,6 +2623,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Log your first weigh-in to start the trend.'**
   String get workoutBodyweightEmpty;
+
+  /// Section label over the full list of logged weigh-ins, newest first.
+  ///
+  /// In en, this message translates to:
+  /// **'All weigh-ins'**
+  String get workoutBodyweightAllWeighIns;
 
   /// Group header over the current week in the session history. Set in caps in English.
   ///
@@ -3206,6 +3314,30 @@ abstract class AppLocalizations {
   /// **'To failure'**
   String get workoutToFailure;
 
+  /// The bulk control that sets one rest value on every exercise in a plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Default rest'**
+  String get planDefaultRest;
+
+  /// The bulk-rest row, showing the value it would apply. {time} is a clock duration like 1:30.
+  ///
+  /// In en, this message translates to:
+  /// **'Default rest · {time}'**
+  String planDefaultRestValue(String time);
+
+  /// Explains that the bulk rest is a starting point, not a lock.
+  ///
+  /// In en, this message translates to:
+  /// **'Sets every exercise in this plan to this rest. Editing one exercise afterward still overrides it individually.'**
+  String get planDefaultRestNote;
+
+  /// Applies the chosen rest to every exercise in the plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Set all'**
+  String get planSetAll;
+
   /// The rest window in a planned set's spec line, e.g. "rest 1:30". Lower case: it sits mid-line after a separator.
   ///
   /// In en, this message translates to:
@@ -3331,6 +3463,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reply style'**
   String get askReplyStyle;
+
+  /// Compact relative timestamp for something that happened under a minute ago.
+  ///
+  /// In en, this message translates to:
+  /// **'now'**
+  String get timeAgoNow;
+
+  /// Compact relative timestamp in minutes, e.g. 5m.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes}m'**
+  String timeAgoMinutes(int minutes);
+
+  /// Compact relative timestamp in hours, e.g. 3h.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h'**
+  String timeAgoHours(int hours);
+
+  /// Compact relative timestamp in days, e.g. 2d.
+  ///
+  /// In en, this message translates to:
+  /// **'{days}d'**
+  String timeAgoDays(int days);
+
+  /// Reply-style option: short, to-the-point answers.
+  ///
+  /// In en, this message translates to:
+  /// **'Concise'**
+  String get askReplyStyleConcise;
+
+  /// Reply-style option: the default reply length.
+  ///
+  /// In en, this message translates to:
+  /// **'Balanced'**
+  String get askReplyStyleBalanced;
+
+  /// Reply-style option: longer, fuller answers.
+  ///
+  /// In en, this message translates to:
+  /// **'Detailed'**
+  String get askReplyStyleDetailed;
 
   /// Header of the conversation list sheet.
   ///
@@ -4268,6 +4442,24 @@ abstract class AppLocalizations {
   /// **'{quantity} {unit}'**
   String dietQuantityUnit(String quantity, String unit);
 
+  /// Today's diet glance: calories remaining, measured against the user's own daily target. {kcal} already carries a leading ~ when the figure rests on estimates.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal left of target'**
+  String dietKcalLeftOfTarget(String kcal);
+
+  /// Today's diet glance: calories remaining, measured against the day's plan total. {kcal} already carries a leading ~ when the figure rests on estimates.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal left of plan'**
+  String dietKcalLeftOfPlan(String kcal);
+
+  /// Today's diet glance: calories past the user's own daily target. {kcal} already carries a leading ~ when the figure rests on estimates.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal over target'**
+  String dietKcalOverTarget(String kcal);
+
   /// How many of today's planned meals have been ticked.
   ///
   /// In en, this message translates to:
@@ -4842,6 +5034,12 @@ abstract class AppLocalizations {
   /// **'What’s in it'**
   String get dietWhatsInIt;
 
+  /// Marks the meal-detail screen as a supplement rather than food. A small caption beside the calorie figure.
+  ///
+  /// In en, this message translates to:
+  /// **'Supplement'**
+  String get dietSupplementMark;
+
   /// Empty state on a meal with no items.
   ///
   /// In en, this message translates to:
@@ -5274,12 +5472,6 @@ abstract class AppLocalizations {
   /// **'Session details'**
   String get sessionDetailsTitle;
 
-  /// Accessibility label on the delete action in the session details header.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete session'**
-  String get sessionDeleteAction;
-
   /// Session status: the workout was finished.
   ///
   /// In en, this message translates to:
@@ -5490,11 +5682,23 @@ abstract class AppLocalizations {
   /// **'Theme'**
   String get settingsTheme;
 
-  /// The only theme ZIVO ships, stated as the current value.
+  /// Theme picker option: the app's near-black skin.
   ///
   /// In en, this message translates to:
   /// **'Dark'**
   String get settingsThemeDark;
+
+  /// Theme picker option: the app's paper skin.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get settingsThemeLight;
+
+  /// Theme picker option: follow the device's light/dark setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Match my phone'**
+  String get settingsThemeSystem;
 
   /// Settings row: the app version.
   ///
@@ -7181,6 +7385,1320 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Questions about privacy or your data can be sent to {email}.'**
   String privacyContactBody(String email);
+
+  /// The Sleep feature's title.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep'**
+  String get sleepTitle;
+
+  /// Hub tile caption above last night's figure.
+  ///
+  /// In en, this message translates to:
+  /// **'Last night'**
+  String get sleepHubSubtitle;
+
+  /// Section label for the most recent night.
+  ///
+  /// In en, this message translates to:
+  /// **'Last night'**
+  String get sleepLastNight;
+
+  /// Empty state title when we know the store is readable and empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No sleep recorded'**
+  String get sleepNoDataTitle;
+
+  /// Empty state body when the store is readable and genuinely empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Log a night yourself, or connect a device that tracks sleep.'**
+  String get sleepNoDataBody;
+
+  /// Empty state title when we cannot confirm we were allowed to read. Must never claim the user has no sleep data.
+  ///
+  /// In en, this message translates to:
+  /// **'No sleep data visible to ZIVO'**
+  String get sleepNotVisibleTitle;
+
+  /// Explains that an empty read can mean a refused permission. Named because Apple deliberately hides read denial.
+  ///
+  /// In en, this message translates to:
+  /// **'{provider} doesn\'t say whether an app was refused access, so this may mean permission is off rather than that there\'s nothing there.'**
+  String sleepNotVisibleBody(String provider);
+
+  /// Empty state title when the platform confirmed a refusal.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO can\'t read your sleep'**
+  String get sleepPermissionDeniedTitle;
+
+  /// Body when the platform confirmed a refusal.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Sleep access in {provider} to see nights measured by your watch or another app.'**
+  String sleepPermissionDeniedBody(String provider);
+
+  /// Shown when the host has no health provider at all.
+  ///
+  /// In en, this message translates to:
+  /// **'No health app on this device'**
+  String get sleepUnavailableTitle;
+
+  /// Reassures that manual logging still works with no health provider.
+  ///
+  /// In en, this message translates to:
+  /// **'You can still log nights yourself.'**
+  String get sleepUnavailableBody;
+
+  /// Android refused reads beyond 30 days.
+  ///
+  /// In en, this message translates to:
+  /// **'Older nights need history access in {provider}.'**
+  String sleepHistoryUnavailable(String provider);
+
+  /// A sync failed for an unclassified reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read sleep just now.'**
+  String get sleepSyncFailed;
+
+  /// Button that opens the health permission prompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect {provider}'**
+  String sleepConnect(String provider);
+
+  /// Apple's health store, as Apple names it.
+  ///
+  /// In en, this message translates to:
+  /// **'Apple Health'**
+  String get sleepProviderApple;
+
+  /// Google's health store. Not translated — it is a product name.
+  ///
+  /// In en, this message translates to:
+  /// **'Health Connect'**
+  String get sleepProviderHealthConnect;
+
+  /// The provider name on a night the user logged themselves.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get sleepProviderYou;
+
+  /// Opens a user-reported sleep mark.
+  ///
+  /// In en, this message translates to:
+  /// **'I\'m going to sleep'**
+  String get sleepGoingToSleep;
+
+  /// Closes an open sleep mark into a night.
+  ///
+  /// In en, this message translates to:
+  /// **'I\'m awake'**
+  String get sleepImAwake;
+
+  /// Shown while a sleep mark is open and not yet closed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleeping since {time}'**
+  String sleepMarkOpenSince(String time);
+
+  /// Discards an open sleep mark without creating a night.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sleeping after all'**
+  String get sleepMarkCancel;
+
+  /// Opens the manual correction sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit this night'**
+  String get sleepEditNight;
+
+  /// Explains that an edit overrides rather than erases the measurement.
+  ///
+  /// In en, this message translates to:
+  /// **'Your correction is saved as your own, and the measured times are kept.'**
+  String get sleepEditHint;
+
+  /// Sleep onset from a sensor measurement. States it plainly.
+  ///
+  /// In en, this message translates to:
+  /// **'Asleep {time}'**
+  String sleepOnsetMeasured(String time);
+
+  /// Sleep onset from a platform record we cannot attribute to a sensor. Deliberately weaker than 'Asleep'.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep recorded {time}'**
+  String sleepOnsetPlatform(String time);
+
+  /// Sleep onset the user reported. Never phrased as a detection.
+  ///
+  /// In en, this message translates to:
+  /// **'You logged {time}'**
+  String sleepOnsetReported(String time);
+
+  /// Sleep onset inferred from device behaviour. Hedged, and rounded to the quarter hour.
+  ///
+  /// In en, this message translates to:
+  /// **'Likely asleep around {time}'**
+  String sleepOnsetEstimated(String time);
+
+  /// Wake time from a sensor measurement.
+  ///
+  /// In en, this message translates to:
+  /// **'Awake {time}'**
+  String sleepWakeMeasured(String time);
+
+  /// Wake time from an unattributed platform record.
+  ///
+  /// In en, this message translates to:
+  /// **'Wake recorded {time}'**
+  String sleepWakePlatform(String time);
+
+  /// Wake time the user reported.
+  ///
+  /// In en, this message translates to:
+  /// **'You logged {time}'**
+  String sleepWakeReported(String time);
+
+  /// Wake time inferred from device behaviour.
+  ///
+  /// In en, this message translates to:
+  /// **'Likely awake around {time}'**
+  String sleepWakeEstimated(String time);
+
+  /// A device-activity timestamp. Never re-worded into a sleep claim.
+  ///
+  /// In en, this message translates to:
+  /// **'Last phone use {time}'**
+  String sleepLastPhoneUse(String time);
+
+  /// Badge for a sensor measurement.
+  ///
+  /// In en, this message translates to:
+  /// **'Measured'**
+  String get sleepMethodMeasured;
+
+  /// Badge for a platform record of unknown sensor origin.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded'**
+  String get sleepMethodRecorded;
+
+  /// Badge for a user-reported night.
+  ///
+  /// In en, this message translates to:
+  /// **'Logged by you'**
+  String get sleepMethodLogged;
+
+  /// Badge for an inferred night.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimate'**
+  String get sleepMethodEstimated;
+
+  /// Confidence badge.
+  ///
+  /// In en, this message translates to:
+  /// **'High confidence'**
+  String get sleepConfidenceHigh;
+
+  /// Confidence badge.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium confidence'**
+  String get sleepConfidenceMedium;
+
+  /// Confidence badge.
+  ///
+  /// In en, this message translates to:
+  /// **'Low confidence'**
+  String get sleepConfidenceLow;
+
+  /// The source chip under every sleep figure. Provider first, then how it was produced.
+  ///
+  /// In en, this message translates to:
+  /// **'{provider} · {method}'**
+  String sleepSourceChip(String provider, String method);
+
+  /// Label for time actually asleep.
+  ///
+  /// In en, this message translates to:
+  /// **'Asleep'**
+  String get sleepDurationLabel;
+
+  /// Label for time in bed.
+  ///
+  /// In en, this message translates to:
+  /// **'In bed'**
+  String get sleepTimeInBedLabel;
+
+  /// Label for asleep divided by time in bed.
+  ///
+  /// In en, this message translates to:
+  /// **'Efficiency'**
+  String get sleepEfficiencyLabel;
+
+  /// Shown where efficiency cannot be computed. Never a percentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Not tracked'**
+  String get sleepEfficiencyUnknown;
+
+  /// Awake bouts inside a night.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No interruptions} =1{1 interruption} other{{count} interruptions}}'**
+  String sleepInterruptionCount(int count);
+
+  /// Short episodes outside the main sleep.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 nap} other{{count} naps}}'**
+  String sleepNapCount(int count);
+
+  /// Annotates a night spanning a DST transition.
+  ///
+  /// In en, this message translates to:
+  /// **'This night crossed a clock change, so its length differs from the times shown.'**
+  String get sleepSpansDstNote;
+
+  /// Title of the targets sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Your targets'**
+  String get sleepTargetsTitle;
+
+  /// Target bedtime field.
+  ///
+  /// In en, this message translates to:
+  /// **'Bedtime'**
+  String get sleepTargetBedtime;
+
+  /// Target wake time field.
+  ///
+  /// In en, this message translates to:
+  /// **'Wake'**
+  String get sleepTargetWake;
+
+  /// Target sleep duration field.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep length'**
+  String get sleepTargetDuration;
+
+  /// States that targets are a reference, not a grade.
+  ///
+  /// In en, this message translates to:
+  /// **'Used for the target line and nothing else — ZIVO never scores a night.'**
+  String get sleepTargetsHint;
+
+  /// Shown where a target delta would go before targets are set.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a target to see how your nights compare.'**
+  String get sleepNoTargets;
+
+  /// Slept longer than the target.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} more than your {target} target'**
+  String sleepDeltaLonger(String amount, String target);
+
+  /// Slept less than the target.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} less than your {target} target'**
+  String sleepDeltaShorter(String amount, String target);
+
+  /// Slept within rounding of the target.
+  ///
+  /// In en, this message translates to:
+  /// **'On your {target} target'**
+  String sleepDeltaOnTarget(String target);
+
+  /// Went to bed later than target.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} later than your target bedtime'**
+  String sleepBedtimeLater(String amount);
+
+  /// Went to bed earlier than target.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} earlier than your target bedtime'**
+  String sleepBedtimeEarlier(String amount);
+
+  /// Bedtime landed within tolerance.
+  ///
+  /// In en, this message translates to:
+  /// **'On your target bedtime'**
+  String get sleepBedtimeOnTarget;
+
+  /// Opens the provenance sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Why this number?'**
+  String get sleepWhyTitle;
+
+  /// Resolution explanation: no contest.
+  ///
+  /// In en, this message translates to:
+  /// **'Only one source had this night.'**
+  String get sleepWhySole;
+
+  /// Resolution explanation: better method tier.
+  ///
+  /// In en, this message translates to:
+  /// **'Chosen because it was measured rather than entered or estimated.'**
+  String get sleepWhyMethod;
+
+  /// Resolution explanation: better coverage.
+  ///
+  /// In en, this message translates to:
+  /// **'Chosen because more of the night was actually recorded.'**
+  String get sleepWhyCoverage;
+
+  /// Resolution explanation: richer stage data.
+  ///
+  /// In en, this message translates to:
+  /// **'Chosen because it included sleep stages.'**
+  String get sleepWhyDetail;
+
+  /// Resolution explanation: user override.
+  ///
+  /// In en, this message translates to:
+  /// **'You set this night yourself.'**
+  String get sleepWhyOverride;
+
+  /// Shows how far an alternate source disagrees. Never averaged away.
+  ///
+  /// In en, this message translates to:
+  /// **'{provider} recorded a different time — {amount} apart.'**
+  String sleepDisagreement(String provider, String amount);
+
+  /// Share of the night backed by real samples.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded coverage'**
+  String get sleepCoverageLabel;
+
+  /// Names the writing app.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded by {provider}'**
+  String sleepRecordedBy(String provider);
+
+  /// Switches the night to an alternate source.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this one instead'**
+  String get sleepUseThisInstead;
+
+  /// Weekly view title.
+  ///
+  /// In en, this message translates to:
+  /// **'This week'**
+  String get sleepWeekTitle;
+
+  /// Weekly average duration label.
+  ///
+  /// In en, this message translates to:
+  /// **'Average'**
+  String get sleepWeekAverage;
+
+  /// Weekly midpoint variability label.
+  ///
+  /// In en, this message translates to:
+  /// **'Consistency'**
+  String get sleepWeekConsistency;
+
+  /// Weekly bedtime adherence label.
+  ///
+  /// In en, this message translates to:
+  /// **'On target'**
+  String get sleepWeekOnTarget;
+
+  /// How many nights a figure rests on. Always shown beside it.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 night} other{{count} nights}}'**
+  String sleepNightsCounted(int count);
+
+  /// Nights with data out of the window's length.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {total} nights'**
+  String sleepNightsOf(int count, int total);
+
+  /// Variability figure, e.g. ±48 min.
+  ///
+  /// In en, this message translates to:
+  /// **'±{amount}'**
+  String sleepVariability(String amount);
+
+  /// Nights on target out of nights with data.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {total}'**
+  String sleepOnTargetRatio(int count, int total);
+
+  /// Label on a night with nothing recorded. Never a zero.
+  ///
+  /// In en, this message translates to:
+  /// **'No data'**
+  String get sleepNoData;
+
+  /// Shown where a gated figure would go.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough nights yet'**
+  String get sleepInsufficient;
+
+  /// Shown where a gated figure would go, with how far off it is.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough nights yet — {have} of {need}'**
+  String sleepInsufficientFor(int have, int need);
+
+  /// Week-over-week difference inside the noise floor. A real finding, not a failure.
+  ///
+  /// In en, this message translates to:
+  /// **'About the same as last week'**
+  String get sleepWeekUnchanged;
+
+  /// Week-over-week improvement past the noise floor.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} more than last week'**
+  String sleepWeekImproved(String amount);
+
+  /// Week-over-week decline past the noise floor.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} less than last week'**
+  String sleepWeekDeclined(String amount);
+
+  /// Section label above generated insights.
+  ///
+  /// In en, this message translates to:
+  /// **'What this means'**
+  String get sleepInsightsTitle;
+
+  /// While insights are being generated.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your nights…'**
+  String get sleepInsightsPending;
+
+  /// Shown when the fact sheet is too thin for any claim.
+  ///
+  /// In en, this message translates to:
+  /// **'No conclusion can be drawn from the nights recorded so far.'**
+  String get sleepInsightsUnavailable;
+
+  /// Provenance footnote under a generated insight.
+  ///
+  /// In en, this message translates to:
+  /// **'Based on {count, plural, =1{1 night} other{{count} nights}}'**
+  String sleepInsightBasis(int count);
+
+  /// Sleep stage.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get sleepStageLight;
+
+  /// Sleep stage.
+  ///
+  /// In en, this message translates to:
+  /// **'Deep'**
+  String get sleepStageDeep;
+
+  /// Sleep stage.
+  ///
+  /// In en, this message translates to:
+  /// **'REM'**
+  String get sleepStageRem;
+
+  /// Sleep stage.
+  ///
+  /// In en, this message translates to:
+  /// **'Awake'**
+  String get sleepStageAwake;
+
+  /// Sleep stage with no grading available.
+  ///
+  /// In en, this message translates to:
+  /// **'Asleep'**
+  String get sleepStageAsleep;
+
+  /// Bed-occupancy state, not a sleep stage.
+  ///
+  /// In en, this message translates to:
+  /// **'In bed'**
+  String get sleepStageInBed;
+
+  /// Shown in place of a stage breakdown when the source has none.
+  ///
+  /// In en, this message translates to:
+  /// **'Stages aren\'t available from this source.'**
+  String get sleepNoStages;
+
+  /// A duration in hours and minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h {minutes}m'**
+  String sleepDurationHm(int hours, int minutes);
+
+  /// A duration under an hour.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes}m'**
+  String sleepDurationM(int minutes);
+
+  /// A whole number of hours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h'**
+  String sleepDurationH(int hours);
+
+  /// Hub module card label for Sleep.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep'**
+  String get hubSleep;
+
+  /// Hub Sleep card stat before any night is recorded.
+  ///
+  /// In en, this message translates to:
+  /// **'No nights yet'**
+  String get hubNoSleepYet;
+
+  /// Deterministic insight: the window's average sleep length.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve averaged {amount} a night.'**
+  String sleepInsightDuration(String amount);
+
+  /// Deterministic insight: week-over-week improvement past the noise floor.
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s {amount} more than the week before.'**
+  String sleepInsightWeekBetter(String amount);
+
+  /// Deterministic insight: week-over-week decline past the noise floor.
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s {amount} less than the week before.'**
+  String sleepInsightWeekWorse(String amount);
+
+  /// Deterministic insight: the difference is inside the noise floor, which is a finding rather than a failure to find one.
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s about the same as the week before.'**
+  String get sleepInsightWeekSame;
+
+  /// Deterministic insight: low midpoint variability.
+  ///
+  /// In en, this message translates to:
+  /// **'Your sleep timing held steady, varying by {amount}.'**
+  String sleepInsightConsistent(String amount);
+
+  /// Deterministic insight: high midpoint variability.
+  ///
+  /// In en, this message translates to:
+  /// **'Your sleep timing moved around by {amount} across the week.'**
+  String sleepInsightIrregular(String amount);
+
+  /// Deterministic insight: bedtime adherence.
+  ///
+  /// In en, this message translates to:
+  /// **'You hit your target bedtime on {count} of {total} nights.'**
+  String sleepInsightAdherence(int count, int total);
+
+  /// Deterministic insight: a rising Theil-Sen slope. Direction only, because a slope in minutes per night is not a figure a reader can use.
+  ///
+  /// In en, this message translates to:
+  /// **'Over the last few weeks your nights have been getting longer.'**
+  String get sleepInsightTrendUp;
+
+  /// Deterministic insight: a falling Theil-Sen slope.
+  ///
+  /// In en, this message translates to:
+  /// **'Over the last few weeks your nights have been getting shorter.'**
+  String get sleepInsightTrendDown;
+
+  /// The hours unit in a sleep duration. Rendered as its own smaller span beside the number, never inside the mono run — Azeret Mono has no Arabic, so an interpolated Arabic letter falls back to a system face with different metrics.
+  ///
+  /// In en, this message translates to:
+  /// **'h'**
+  String get sleepUnitHour;
+
+  /// Title of the sheet behind the header's info button — what the feature does and what it refuses to claim.
+  ///
+  /// In en, this message translates to:
+  /// **'How Sleep works'**
+  String get sleepAboutTitle;
+
+  /// Opening line of the how-it-works sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep is a recovery input to your training. Here is exactly what ZIVO does with it, and what it will not claim.'**
+  String get sleepAboutIntro;
+
+  /// How-it-works heading: the manual log.
+  ///
+  /// In en, this message translates to:
+  /// **'What a sleep session is'**
+  String get sleepAboutSessionTitle;
+
+  /// How-it-works body: what opening and closing a manual sleep mark actually does. Names both buttons so the sentence matches the screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Tapping “I\'m going to sleep” opens a session and nothing else — no timer runs and your phone is not listening. When you tap “I\'m awake”, those two moments become the night, marked as logged by you.'**
+  String get sleepAboutSessionBody;
+
+  /// How-it-works heading: the automatic half.
+  ///
+  /// In en, this message translates to:
+  /// **'What ZIVO reads'**
+  String get sleepAboutTrackedTitle;
+
+  /// How-it-works body: the health-store read. The provider is the platform's own store name.
+  ///
+  /// In en, this message translates to:
+  /// **'Each time you open this screen ZIVO re-reads {provider} and rebuilds the last week: when you fell asleep, when you woke, how long you were actually asleep, and any time awake in between.'**
+  String sleepAboutTrackedBody(String provider);
+
+  /// How-it-works heading: provenance.
+  ///
+  /// In en, this message translates to:
+  /// **'Every number says where it came from'**
+  String get sleepAboutSourcesTitle;
+
+  /// How-it-works body: what the source chip means, and why sources are chosen rather than merged.
+  ///
+  /// In en, this message translates to:
+  /// **'“Measured” means a watch recorded it. “Logged by you” means you or an app typed it. When two sources disagree ZIVO picks one and keeps the other — it never averages them into a night nobody slept.'**
+  String get sleepAboutSourcesBody;
+
+  /// How-it-works heading: the gates on weekly figures.
+  ///
+  /// In en, this message translates to:
+  /// **'Why some figures are blank'**
+  String get sleepAboutWeekTitle;
+
+  /// How-it-works body: why a weekly figure can be empty.
+  ///
+  /// In en, this message translates to:
+  /// **'An average over one night is not an average. Weekly figures stay blank until enough nights exist, and each one shows how many it still needs.'**
+  String get sleepAboutWeekBody;
+
+  /// How-it-works heading: the deliberate limits.
+  ///
+  /// In en, this message translates to:
+  /// **'What it will not do'**
+  String get sleepAboutLimitsTitle;
+
+  /// How-it-works body: no score, no grade.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no sleep score and no streak. ZIVO can tell you how long you slept and how steady your schedule is; it cannot tell you whether the night was good.'**
+  String get sleepAboutLimitsBody;
+
+  /// Dismisses the how-it-works sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get sleepAboutDone;
+
+  /// Label on the card shown while a sleep session is open.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleeping'**
+  String get sleepSessionOpen;
+
+  /// Caption under the elapsed time of an open sleep session.
+  ///
+  /// In en, this message translates to:
+  /// **'So far'**
+  String get sleepMarkSoFar;
+
+  /// Elapsed time of a sleep session opened less than a minute ago, where a duration would read as zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Just now'**
+  String get sleepMarkJustNow;
+
+  /// Explains that an open session becomes a night only when it is closed.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap “I\'m awake” when you get up — that is when the night is recorded.'**
+  String get sleepMarkHint;
+
+  /// Shown when the saved-nights stream failed, as opposed to the health store being unreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load your sleep'**
+  String get sleepLoadFailedTitle;
+
+  /// Body for a failed read of stored nights.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO couldn\'t read the nights it has already saved. Check your connection and try again.'**
+  String get sleepLoadFailedBody;
+
+  /// Re-opens the storage streams after a failed read.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get sleepRetry;
+
+  /// Accessibility label for the placeholder shown while last night is still loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading your sleep'**
+  String get sleepLoading;
+
+  /// Compact caption under a weekly figure that has not passed its gate: how many nights it needs before it can be shown. States the requirement, not the coverage: the section header above already says how many nights the week has, and two near-identical N-of-M-nights strings on one card read as the same fact twice.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Needs 1 night} other{Needs {count} nights}}'**
+  String sleepGateNeeds(int count);
+
+  /// Label above the week-over-week comparison sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'vs last week'**
+  String get sleepVsLastWeek;
+
+  /// A manual sleep action (opening or closing a session) failed to persist.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save that just now. Check your connection and try again.'**
+  String get sleepMarkFailed;
+
+  /// The minutes unit in a sleep duration. See sleepUnitHour.
+  ///
+  /// In en, this message translates to:
+  /// **'m'**
+  String get sleepUnitMinute;
+
+  /// Second line of the row that opens the history page: the week's mean sleep and the nights it rests on.
+  ///
+  /// In en, this message translates to:
+  /// **'Average {average} · {nights}'**
+  String sleepHistoryStat(String average, String nights);
+
+  /// Headline label when the most recent recorded night is not last night. Never used for 0 or 1, which say 'Last night' instead.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =2{2 nights ago} other{{count} nights ago}}'**
+  String sleepNightsAgo(int count);
+
+  /// Shown under the headline when the most recent night is more than a day old, so a real figure is not mistaken for this morning's.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing has been recorded since. This is your most recent night, not last night.'**
+  String get sleepStaleNotice;
+
+  /// Section label above the sleep-stage breakdown of a single night.
+  ///
+  /// In en, this message translates to:
+  /// **'Stages'**
+  String get sleepStagesTitle;
+
+  /// Shown in place of the stage breakdown when the source measured the night without grading it. Names the source so the absence is attributable.
+  ///
+  /// In en, this message translates to:
+  /// **'{provider} recorded when you slept, but not which stages.'**
+  String sleepStagesUnavailable(String provider);
+
+  /// Caption under a stage breakdown that covers less than the whole session, so the shares are not read as covering all of it.
+  ///
+  /// In en, this message translates to:
+  /// **'Staged for {amount} of the night.'**
+  String sleepStagesPartial(String amount);
+
+  /// Section label above the bed-to-wake chart for a single night.
+  ///
+  /// In en, this message translates to:
+  /// **'Timing'**
+  String get sleepTimingTitle;
+
+  /// Section label above the measured detail rows of a night (time in bed, efficiency, interruptions).
+  ///
+  /// In en, this message translates to:
+  /// **'Detail'**
+  String get sleepDetailTitle;
+
+  /// Section label above the actual-versus-target lines for a night.
+  ///
+  /// In en, this message translates to:
+  /// **'Against your target'**
+  String get sleepAgainstTargetTitle;
+
+  /// One line of context putting last night against the recent average. Only shown when the average passed its gate.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} longer than your average of {average}.'**
+  String sleepContextLonger(String amount, String average);
+
+  /// See sleepContextLonger.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} shorter than your average of {average}.'**
+  String sleepContextShorter(String amount, String average);
+
+  /// Context line when last night is within the noise floor of the recent average.
+  ///
+  /// In en, this message translates to:
+  /// **'About your usual — you average {average}.'**
+  String sleepContextTypical(String average);
+
+  /// The n behind the comparison-to-average line.
+  ///
+  /// In en, this message translates to:
+  /// **'Over {count, plural, =1{1 night} other{{count} nights}}'**
+  String sleepContextBasis(int count);
+
+  /// Title of the weekly/history page, and the label of the row that opens it.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep history'**
+  String get sleepHistoryTitle;
+
+  /// Second line of the row on the Sleep page that opens the history view.
+  ///
+  /// In en, this message translates to:
+  /// **'Your weeks, night by night'**
+  String get sleepHistorySubtitle;
+
+  /// The date span of the week being shown on the history page.
+  ///
+  /// In en, this message translates to:
+  /// **'{start} – {end}'**
+  String sleepWeekRange(String start, String end);
+
+  /// Label for the seven days ending today on the history page.
+  ///
+  /// In en, this message translates to:
+  /// **'This week'**
+  String get sleepWeekCurrent;
+
+  /// Accessibility label for the control that pages back one week on the history page.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier week'**
+  String get sleepWeekEarlier;
+
+  /// Accessibility label for the control that pages forward one week on the history page.
+  ///
+  /// In en, this message translates to:
+  /// **'Later week'**
+  String get sleepWeekLater;
+
+  /// Empty state for a week on the history page that contains no data at all.
+  ///
+  /// In en, this message translates to:
+  /// **'No nights were recorded in this week.'**
+  String get sleepWeekEmpty;
+
+  /// Section label above the day-by-day list on the history page.
+  ///
+  /// In en, this message translates to:
+  /// **'Every night'**
+  String get sleepWeekNightsTitle;
+
+  /// Section label above the week's average duration, bedtime and wake time.
+  ///
+  /// In en, this message translates to:
+  /// **'Typical night'**
+  String get sleepWeekTypicalTitle;
+
+  /// Label for the week's median sleep duration, shown beside the mean.
+  ///
+  /// In en, this message translates to:
+  /// **'Median'**
+  String get sleepWeekMedian;
+
+  /// Label for the week's typical (circular mean) bedtime.
+  ///
+  /// In en, this message translates to:
+  /// **'Bedtime'**
+  String get sleepWeekBedtime;
+
+  /// Label for the week's typical (circular mean) wake time.
+  ///
+  /// In en, this message translates to:
+  /// **'Wake'**
+  String get sleepWeekWake;
+
+  /// Section label above the week's average sleep-stage split.
+  ///
+  /// In en, this message translates to:
+  /// **'Typical composition'**
+  String get sleepWeekCompositionTitle;
+
+  /// The n behind the weekly stage averages — counted over nights that carried stage detail, not all nights.
+  ///
+  /// In en, this message translates to:
+  /// **'Averaged over {count, plural, =1{1 staged night} other{{count} staged nights}}'**
+  String sleepWeekCompositionBasis(int count);
+
+  /// Shown in place of the weekly stage split when too few nights were staged.
+  ///
+  /// In en, this message translates to:
+  /// **'No night this week carried stage detail.'**
+  String get sleepWeekNoStages;
+
+  /// Section label above the multi-week trend on the history page.
+  ///
+  /// In en, this message translates to:
+  /// **'Longer run'**
+  String get sleepTrendTitle;
+
+  /// Trend direction over the last four weeks.
+  ///
+  /// In en, this message translates to:
+  /// **'Your nights have been getting longer.'**
+  String get sleepTrendRising;
+
+  /// Trend direction over the last four weeks.
+  ///
+  /// In en, this message translates to:
+  /// **'Your nights have been getting shorter.'**
+  String get sleepTrendFalling;
+
+  /// Trend direction when the slope is inside the flat band — a finding, not a failure to find one.
+  ///
+  /// In en, this message translates to:
+  /// **'Your nights have held steady.'**
+  String get sleepTrendFlat;
+
+  /// The evidence behind the trend statement.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} nights across {days} days'**
+  String sleepTrendBasis(int count, int days);
+
+  /// Shown instead of a trend when the gate has not passed, naming exactly what would open it.
+  ///
+  /// In en, this message translates to:
+  /// **'A trend needs {need} nights across {days} days. You have {have}.'**
+  String sleepTrendNeedMore(int have, int need, int days);
+
+  /// The value of a day row on the history page for a day with no sleep record.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing recorded'**
+  String get sleepNightRowNoData;
+
+  /// Bed and wake clock times on one day row of the history page.
+  ///
+  /// In en, this message translates to:
+  /// **'{start} → {end}'**
+  String sleepNightRowRange(String start, String end);
+
+  /// Ends a workout that still has sets left, keeping what was logged.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish now'**
+  String get liveFinishNow;
+
+  /// Title of the finish-early dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish here?'**
+  String get liveFinishNowTitle;
+
+  /// Body of the finish-early dialog. Promises that nothing is invented.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 set is still unlogged. It stays unlogged — nothing is recorded as done.} other{{count} sets are still unlogged. They stay unlogged — nothing is recorded as done.}}'**
+  String liveFinishNowBody(int count);
+
+  /// The streak rule, stated on the drill-down.
+  ///
+  /// In en, this message translates to:
+  /// **'Train at least every {days} days'**
+  String workoutStreakRule(int days);
+
+  /// A day inside the streak with no training.
+  ///
+  /// In en, this message translates to:
+  /// **'Rest day'**
+  String get workoutStreakRestDay;
+
+  /// A gap day kept alive by a spent streak restore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored'**
+  String get workoutStreakRestored;
+
+  /// How long is left before the current streak breaks.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Train today to keep it} =1{1 day left to train} other{{count} days left to train}}'**
+  String workoutStreakDaysLeft(int count);
+
+  /// Shown when the allowance has run out.
+  ///
+  /// In en, this message translates to:
+  /// **'No active streak'**
+  String get workoutStreakBroken;
+
+  /// Action that spends a streak restore on a missed day.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore this day'**
+  String get workoutStreakRestore;
+
+  /// Title of the restore confirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore this day?'**
+  String get workoutStreakRestoreTitle;
+
+  /// Body of the restore confirmation — states exactly what a restore does and does not do.
+  ///
+  /// In en, this message translates to:
+  /// **'It bridges the gap so your streak survives. It does not add a workout, and it never counts as one.'**
+  String get workoutStreakRestoreBody;
+
+  /// Why the restore action is unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'One restore every {days} days'**
+  String workoutStreakRestoreUnavailable(int days);
+
+  /// Opens the missed-day reason picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Why no training?'**
+  String get workoutStreakWhyMissed;
+
+  /// Footnote on the missed-day reason sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Context only — it never changes your streak.'**
+  String get workoutStreakReasonSaved;
+
+  /// Missed-day reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Rest'**
+  String get missedDayRest;
+
+  /// Missed-day reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery'**
+  String get missedDayRecovery;
+
+  /// Missed-day reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Travel'**
+  String get missedDayTravel;
+
+  /// Missed-day reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Illness'**
+  String get missedDayIllness;
+
+  /// Missed-day reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Too busy'**
+  String get missedDayBusy;
+
+  /// Missed-day reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Something else'**
+  String get missedDayOther;
+
+  /// Shown on a rest day with no recorded reason.
+  ///
+  /// In en, this message translates to:
+  /// **'No reason given'**
+  String get missedDayNone;
+
+  /// How a session duration was produced.
+  ///
+  /// In en, this message translates to:
+  /// **'Timed by ZIVO'**
+  String get sessionDurationMeasured;
+
+  /// How a session duration was produced.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed at your last set'**
+  String get sessionDurationAutoClosed;
+
+  /// How a session duration was produced.
+  ///
+  /// In en, this message translates to:
+  /// **'You set this'**
+  String get sessionDurationCorrected;
+
+  /// How a session duration was produced.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration unknown'**
+  String get sessionDurationUnknown;
+
+  /// Chip on a session held out of the averages.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs a duration'**
+  String get sessionNeedsDuration;
+
+  /// Explains why a session is excluded from averages.
+  ///
+  /// In en, this message translates to:
+  /// **'This session ran longer than a workout plausibly does, so it is left out of your averages until you set its length. Everything you logged is kept.'**
+  String get sessionNeedsDurationBody;
+
+  /// Opens the duration-correction sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Set duration'**
+  String get sessionSetDuration;
+
+  /// Field label on the duration-correction sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Minutes'**
+  String get sessionDurationMinutes;
+
+  /// Clears a duration correction.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the measured time'**
+  String get sessionDurationUseMeasured;
+
+  /// Withdraws a session from the statistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Void this session'**
+  String get sessionVoid;
+
+  /// Title of the void dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Void this session?'**
+  String get sessionVoidTitle;
+
+  /// Body of the void dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'It stays in your history exactly as logged, and stops counting toward your streak, averages and analysis.'**
+  String get sessionVoidBody;
+
+  /// Status label on a voided session.
+  ///
+  /// In en, this message translates to:
+  /// **'Voided'**
+  String get sessionVoided;
+
+  /// Undoes a void.
+  ///
+  /// In en, this message translates to:
+  /// **'Count this session again'**
+  String get sessionUnvoid;
+
+  /// Prompt for the void reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Why?'**
+  String get sessionVoidReason;
+
+  /// Void reason.
+  ///
+  /// In en, this message translates to:
+  /// **'The time is wrong'**
+  String get voidReasonBadDuration;
+
+  /// Void reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Logged by mistake'**
+  String get voidReasonLoggedByMistake;
+
+  /// Void reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Wasn\'t me'**
+  String get voidReasonNotMine;
+
+  /// Void reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Something else'**
+  String get voidReasonOther;
+
+  /// Explains why delete is no longer offered on a logged session.
+  ///
+  /// In en, this message translates to:
+  /// **'A session that recorded work is voided, not deleted — so your history stays trustworthy.'**
+  String get sessionCannotDelete;
+
+  /// Says how many sessions an average duration covers.
+  ///
+  /// In en, this message translates to:
+  /// **'over {counted} of {total}'**
+  String statDurationOver(int counted, int total);
+
+  /// Shown when every session duration was held out of the average.
+  ///
+  /// In en, this message translates to:
+  /// **'no usable session lengths yet'**
+  String get statDurationAllExcluded;
+
+  /// Title of the workout settings page.
+  ///
+  /// In en, this message translates to:
+  /// **'Training settings'**
+  String get workoutSettings;
+
+  /// Setting label.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum session length'**
+  String get workoutMaxSessionTitle;
+
+  /// Explains the maximum-session-length setting.
+  ///
+  /// In en, this message translates to:
+  /// **'A workout still running past this, with nothing logged for a while, is treated as one you forgot to close. It is ended at your last logged set — never padded out, and never filled in with sets you did not do.'**
+  String get workoutMaxSessionBody;
+
+  /// Toast when a missed-day reason or restore fails to save.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save that day.'**
+  String get trainingDayMarkSaveFailed;
+
+  /// Toast when a duration correction or void fails to save.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update that session.'**
+  String get sessionUpdateFailed;
+
+  /// Toast when a workout setting fails to save.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save that setting.'**
+  String get workoutSettingsSaveFailed;
 }
 
 class _AppLocalizationsDelegate

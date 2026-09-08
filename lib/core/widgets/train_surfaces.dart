@@ -171,10 +171,10 @@ class TrainPageHeader extends StatelessWidget {
         TrainCircleButton(
           semanticLabel: 'Back',
           onTap: onBack ?? () => Navigator.of(context).maybePop(),
-          child: const Icon(
+          child: Icon(
             Icons.arrow_back_rounded,
             size: 17,
-            color: Color(0xBFF4F4F0),
+            color: TrainColors.inkAt(0.75),
           ),
         ),
         const SizedBox(width: 6),
@@ -205,14 +205,24 @@ class TrainHeaderAction extends StatelessWidget {
     required this.icon,
     required this.onTap,
     required this.semanticLabel,
-    this.accent = TrainColors.green,
+    Color? accent,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _accent = accent;
 
   final IconData icon;
   final VoidCallback onTap;
   final String semanticLabel;
-  final Color accent;
+  final Color? _accent;
+
+  /// Defaults to the active skin's `green` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get accent => _accent ?? TrainColors.green;
 
   @override
   Widget build(BuildContext context) {
@@ -252,7 +262,7 @@ class TrainSectionLabel extends StatelessWidget {
           style: TrainType.caption(
             size: 9.5,
             tracking: 0.2,
-            color: const Color(0x4DF4F4F0),
+            color: TrainColors.inkAt(0.3),
           ),
         ),
         const Spacer(),
@@ -263,7 +273,7 @@ class TrainSectionLabel extends StatelessWidget {
               size: 9.5,
               tracking: 0.08,
               weight: trailingColor == null ? FontWeight.w400 : FontWeight.w600,
-              color: trailingColor ?? const Color(0x4DF4F4F0),
+              color: trailingColor ?? TrainColors.inkAt(0.3),
             ),
           ),
       ],
@@ -275,48 +285,52 @@ class TrainSectionLabel extends StatelessWidget {
 // Rows and tiles
 // ---------------------------------------------------------------------------
 
-/// The 32px single-hue icon tile every list row and stat tile leads with —
-/// a 13% tint of one colour behind a 22% border, radius 10. Never a
-/// multi-hue gradient chip (identity §8).
+/// The single-hue mark every list row and stat tile leads with — **a bare
+/// glyph in one colour, centred in a [size]-wide box**. Never a multi-hue
+/// gradient chip (identity §8), and as of this revision never a plate either.
+///
+/// This drew a 13% tint behind a 22% border for several revisions. The plate
+/// was the weakest thing on every page that used it: it carried no information
+/// the glyph beside it didn't already carry, and a column of tinted rectangles
+/// is the generic-app tell that the restrained sets this product is measured
+/// against — Linear, Things, Apple's own — all avoid. `SettingsRow` dropped
+/// its plate first; this is the same decision applied to the other thirteen
+/// marks so the app doesn't read plated on Hub and bare on Settings.
+///
+/// The hue stays, because here it means something: each area owns one colour
+/// (green = training, sleep's own violet, ember = the committing action), so
+/// the glyph's colour is identity, not decoration. That is exactly why the
+/// *decorative* violet came off the settings rows while these keep theirs.
 class TrainIconTile extends StatelessWidget {
   const TrainIconTile({
     required this.icon,
     required this.accent,
     this.size = 32,
-    this.iconSize = 15,
-    this.radius = 10,
-    this.fillAlpha = 0.13,
-    this.borderAlpha = 0.22,
+    this.iconSize = 19,
     super.key,
   });
 
   final IconData icon;
   final Color accent;
-  final double size;
-  final double iconSize;
-  final double radius;
 
-  /// Weight of the tinted plate behind the glyph, and of its edge.
-  ///
-  /// Exposed because the defaults are tuned for a *saturated* accent. A
-  /// near-white neutral at the same alphas reads as a flat grey block that
-  /// competes with the glyph sitting on it, so a neutral tile generally wants
-  /// a lighter plate and a larger glyph — see the Hub's module grid.
-  final double fillAlpha;
-  final double borderAlpha;
+  /// The box the glyph is centred in. Layout, not decoration — nothing is
+  /// painted at this size any more. It is kept because every page that uses
+  /// this mark was laid out around the old plate's footprint, including
+  /// [TrainListRow.dividerInset]; holding the box means the plate came off
+  /// without reflowing a single screen.
+  final double size;
+
+  /// The glyph itself. Larger than the plated era's, at every call site: a
+  /// mark with no tint behind it has to hold its column alone, the same
+  /// reason `SettingsRow` went 17 → 20 when it lost its own plate.
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: size,
       height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: fillAlpha),
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: accent.withValues(alpha: borderAlpha)),
-      ),
-      child: Icon(icon, size: iconSize, color: accent),
+      child: Center(child: Icon(icon, size: iconSize, color: accent)),
     );
   }
 }
@@ -385,10 +399,10 @@ class TrainListRow extends StatelessWidget {
               ),
             if (onTap != null) ...[
               const SizedBox(width: 10),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 size: 16,
-                color: Color(0x4DF4F4F0),
+                color: TrainColors.inkAt(0.3),
               ),
             ],
           ],
@@ -423,7 +437,7 @@ class TrainListCard extends StatelessWidget {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -431,8 +445,14 @@ class TrainListCard extends StatelessWidget {
         children: [
           for (var i = 0; i < rows.length; i++) ...[
             if (i > 0)
-              const Padding(
-                padding: EdgeInsets.only(left: TrainListRow.dividerInset),
+              Padding(
+                // Directional: the inset clears the row's LEADING icon
+                // column, and that column is on the right in Arabic — a
+                // physical `left` ran the hairline under the icons and
+                // stopped it short of the text it is meant to start at.
+                padding: EdgeInsetsDirectional.only(
+                  start: TrainListRow.dividerInset,
+                ),
                 child: Divider(
                   height: 1,
                   thickness: 1,
@@ -506,7 +526,7 @@ class TrainStatTile extends StatelessWidget {
                         size: 30,
                         weight: FontWeight.w400,
                         tracking: -0.04,
-                        color: const Color(0xFFF9F9F5),
+                        color: TrainColors.voiceInk,
                       ),
                     ),
                   ),
@@ -518,7 +538,7 @@ class TrainStatTile extends StatelessWidget {
                         size: 10,
                         weight: FontWeight.w500,
                         tracking: 0.1,
-                        color: const Color(0x4DF4F4F0),
+                        color: TrainColors.inkAt(0.3),
                       ),
                     ),
                   ],
@@ -532,15 +552,15 @@ class TrainStatTile extends StatelessWidget {
                 style: TrainType.ui(
                   size: 11.5,
                   weight: FontWeight.w600,
-                  color: const Color(0x80F4F4F0),
+                  color: TrainColors.inkAt(0.5),
                   height: 1,
                 ),
               ),
             ],
           ),
           if (chart != null)
-            Positioned(
-              right: 0,
+            PositionedDirectional(
+              end: 0,
               bottom: 2,
               child: IgnorePointer(child: chart!),
             ),
@@ -571,14 +591,24 @@ class TrainStatStrip extends StatelessWidget {
     required this.items,
     this.valueSize = 22,
     this.centered = true,
-    this.dividerColor = const Color(0x14FFFFFF),
+    Color? dividerColor,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _dividerColor = dividerColor;
 
   final List<TrainStat> items;
   final double valueSize;
   final bool centered;
-  final Color dividerColor;
+  final Color? _dividerColor;
+
+  /// Defaults to the active skin's faintest rule — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get dividerColor => _dividerColor ?? TrainColors.liftAt(0.078);
 
   @override
   Widget build(BuildContext context) {
@@ -602,7 +632,7 @@ class TrainStatStrip extends StatelessWidget {
                     style: TrainType.mono(
                       size: valueSize,
                       tracking: -0.03,
-                      color: items[i].color ?? const Color(0xFFF9F9F5),
+                      color: items[i].color ?? TrainColors.voiceInk,
                     ),
                   ),
                   const SizedBox(height: 9),
@@ -878,9 +908,12 @@ class TrainBar extends StatelessWidget {
       borderRadius: BorderRadius.circular(height),
       child: Container(
         height: height,
-        color: const Color(0x14FFFFFF),
+        color: TrainColors.liftAt(0.078),
         child: Align(
-          alignment: Alignment.centerLeft,
+          // A generic progress fill grows from the START edge (unlike a media
+          // playhead, which is pinned to a timeline) — so it fills rightward
+          // in English and leftward in Arabic.
+          alignment: AlignmentDirectional.centerStart,
           child: animate
               ? TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0, end: target),
@@ -976,15 +1009,25 @@ class TrainFab extends StatelessWidget {
     required this.icon,
     required this.onTap,
     required this.semanticLabel,
-    this.color = TrainColors.ember,
+    Color? color,
     this.iconColor = Colors.white,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _color = color;
 
   final IconData icon;
   final VoidCallback onTap;
   final String semanticLabel;
-  final Color color;
+  final Color? _color;
+
+  /// Defaults to the active skin's `ember` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get color => _color ?? TrainColors.ember;
   final Color iconColor;
 
   @override
@@ -1066,7 +1109,7 @@ class TrainFilterPill extends StatelessWidget {
             style: TrainType.ui(
               size: 12.5,
               weight: FontWeight.w700,
-              color: selected ? TrainColors.ember : const Color(0x8CF4F4F0),
+              color: selected ? TrainColors.ember : TrainColors.inkAt(0.55),
               height: 1,
             ),
           ),
@@ -1128,7 +1171,7 @@ class _DashedBorderPainter extends CustomPainter {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = const Color(0x1CFFFFFF);
+      ..color = TrainColors.liftAt(0.11);
     // 5-on / 4-off, walked around the rounded rect by path metrics — Flutter
     // has no dashed stroke of its own.
     for (final metric in (Path()..addRRect(rrect)).computeMetrics()) {

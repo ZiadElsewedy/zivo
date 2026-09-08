@@ -3,9 +3,15 @@ import 'package:zivo/features/workout/domain/live_session.dart';
 import 'package:zivo/features/workout/domain/session_status.dart';
 import 'package:zivo/features/workout/domain/training_dashboard_stats.dart';
 
+import '../support/workout_fixtures.dart';
+
 // A Wednesday, so "this week" (Mon-start) and "last week" are unambiguous.
 final _now = DateTime(2026, 8, 19, 18, 0);
 
+/// The shared fixture, which gives every session a real completed working set
+/// — the bar the streak actually measures. The old local builder produced
+/// sessions with no exercises at all, which read like trained days and were
+/// not.
 LiveSession _session({
   required String id,
   required DateTime startedAt,
@@ -13,15 +19,17 @@ LiveSession _session({
   String dayLabel = 'Push',
   SessionStatus status = SessionStatus.completed,
   String planId = 'p1',
-}) => LiveSession(
+  int workingSets = 1,
+  DurationSource durationSource = DurationSource.measured,
+}) => session(
   id: id,
-  planId: planId,
-  dayId: 'day-a',
-  dayLabel: dayLabel,
   startedAt: startedAt,
-  completedAt: status == SessionStatus.active ? null : startedAt.add(duration),
+  duration: duration,
+  dayLabel: dayLabel,
   status: status,
-  exercises: const [],
+  planId: planId,
+  workingSets: workingSets,
+  durationSource: durationSource,
 );
 
 void main() {
@@ -92,33 +100,30 @@ void main() {
       expect(stats.currentStreakWeeks, 0);
     });
 
-    test('currentStreakDays counts consecutive trained calendar days back from today', () {
+    // The rule itself lives in `training_streak_test.dart`. What matters HERE
+    // is that the dashboard reads that one engine rather than walking the
+    // calendar again — two implementations of this is the bug that was fixed.
+    test('currentStreakDays comes from the shared streak engine', () {
       final sessions = [
         _session(id: 'd0', startedAt: DateTime(2026, 8, 19, 6)), // today
-        _session(id: 'd1', startedAt: DateTime(2026, 8, 18, 6)), // yesterday
-        _session(id: 'd2', startedAt: DateTime(2026, 8, 17, 6)), // day before
-        // A gap, then an isolated older day that must NOT extend the streak.
-        _session(id: 'd4', startedAt: DateTime(2026, 8, 10, 6)),
+        _session(id: 'd1', startedAt: DateTime(2026, 8, 18, 6)),
+        _session(id: 'd2', startedAt: DateTime(2026, 8, 17, 6)),
+        // Four calendar days after the one above — past the allowance.
+        _session(id: 'd4', startedAt: DateTime(2026, 8, 13, 6)),
       ];
       final stats = computeTrainingDashboardStats(sessions: sessions, now: _now);
       expect(stats.currentStreakDays, 3);
+      expect(stats.streak.currentDays, stats.currentStreakDays);
+      expect(stats.streak.days, hasLength(3));
     });
 
-    test('currentStreakDays does not break when today has nothing logged yet', () {
+    test('currentStreakDays survives two rest days, per the every-3-days rule', () {
       final sessions = [
-        _session(id: 'd1', startedAt: DateTime(2026, 8, 18, 6)), // yesterday
-        _session(id: 'd2', startedAt: DateTime(2026, 8, 17, 6)), // day before
+        _session(id: 'd1', startedAt: DateTime(2026, 8, 17, 6)),
+        _session(id: 'd2', startedAt: DateTime(2026, 8, 14, 6)),
       ];
       final stats = computeTrainingDashboardStats(sessions: sessions, now: _now);
       expect(stats.currentStreakDays, 2);
-    });
-
-    test('currentStreakDays is 0 once a day is missed (today and yesterday both empty)', () {
-      final sessions = [
-        _session(id: 'd2', startedAt: DateTime(2026, 8, 17, 6)), // two days ago
-      ];
-      final stats = computeTrainingDashboardStats(sessions: sessions, now: _now);
-      expect(stats.currentStreakDays, 0);
     });
 
     test('currentStreakDays is 0 when nothing has ever been logged', () {
@@ -126,10 +131,18 @@ void main() {
       expect(stats.currentStreakDays, 0);
     });
 
-    test('currentStreakDays only counts completed sessions, not active/abandoned ones', () {
+    test('currentStreakDays does not count an abandoned or voided session', () {
       final sessions = [
-        _session(id: 'd0', startedAt: DateTime(2026, 8, 19, 6), status: SessionStatus.active),
-        _session(id: 'd1', startedAt: DateTime(2026, 8, 18, 6), status: SessionStatus.abandoned),
+        _session(
+          id: 'd0',
+          startedAt: DateTime(2026, 8, 19, 6),
+          status: SessionStatus.abandoned,
+        ),
+        _session(
+          id: 'd1',
+          startedAt: DateTime(2026, 8, 18, 6),
+          status: SessionStatus.voided,
+        ),
       ];
       final stats = computeTrainingDashboardStats(sessions: sessions, now: _now);
       expect(stats.currentStreakDays, 0);
@@ -142,6 +155,71 @@ void main() {
       ];
       final stats = computeTrainingDashboardStats(sessions: sessions, now: _now);
       expect(stats.currentStreakDays, 1);
+    });
+
+    test('an implausible duration is held out of the average, not folded in', () {
+      final sessions = [
+        _session(
+          id: 'ok1',
+          startedAt: DateTime(2026, 8, 19, 6),
+          duration: const Duration(minutes: 60),
+        ),
+        _session(
+          id: 'ok2',
+          startedAt: DateTime(2026, 8, 18, 6),
+          duration: const Duration(minutes: 80),
+        ),
+        _session(
+          id: 'left-open',
+          startedAt: DateTime(2026, 8, 17, 18),
+          duration: const Duration(hours: 19),
+        ),
+      ];
+      final stats = computeTrainingDashboardStats(
+        sessions: sessions,
+        now: _now,
+        maxSessionDuration: const Duration(hours: 3),
+      );
+      expect(stats.averageSessionDuration, const Duration(minutes: 70));
+      expect(stats.durationsCounted, 2);
+      expect(stats.durationsExcluded, 1);
+      expect(
+        stats.totalCompletedSessions,
+        3,
+        reason: 'excluded from the AVERAGE, not from history',
+      );
+    });
+
+    test('an unknowable duration is excluded even though it is short', () {
+      final stats = computeTrainingDashboardStats(
+        sessions: [
+          _session(
+            id: 'a',
+            startedAt: DateTime(2026, 8, 19, 6),
+            duration: const Duration(minutes: 40),
+            durationSource: DurationSource.unknown,
+          ),
+        ],
+        now: _now,
+      );
+      expect(stats.averageSessionDuration, isNull);
+      expect(stats.durationsExcluded, 1);
+    });
+
+    test('a corrected session rejoins the average with its corrected length', () {
+      final bad = _session(
+        id: 'left-open',
+        startedAt: DateTime(2026, 8, 19, 6),
+        duration: const Duration(hours: 19),
+      );
+      final fixed = bad.correctDuration(64);
+      final stats = computeTrainingDashboardStats(
+        sessions: [fixed],
+        now: _now,
+        maxSessionDuration: const Duration(hours: 3),
+      );
+      expect(stats.averageSessionDuration, const Duration(minutes: 64));
+      expect(stats.durationsExcluded, 0);
     });
 
     test('sessionCountByDayLabel tallies completed sessions per split day', () {

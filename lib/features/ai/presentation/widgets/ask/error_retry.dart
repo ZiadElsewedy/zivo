@@ -19,7 +19,7 @@ class ErrorRetry extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
       child: Container(
         key: const Key('error-retry'),
-        padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+        padding: const EdgeInsetsDirectional.fromSTEB(14, 12, 10, 12),
         decoration: BoxDecoration(
           color: TrainColors.ember.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(16),
@@ -27,7 +27,7 @@ class ErrorRetry extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(AppIcons.warning, size: 17, color: TrainColors.ember),
+            Icon(AppIcons.warning, size: 17, color: TrainColors.ember),
             const SizedBox(width: 11),
             Expanded(
               child: Column(

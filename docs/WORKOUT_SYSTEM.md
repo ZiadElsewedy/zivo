@@ -364,8 +364,17 @@ is done.
 
 ### 3.2 History & edit invariants (the part that must be right)
 
-1. **Completed sessions are immutable.** A `LiveSession` once completed is
-   never rewritten by later plan edits.
+1. **Completed sessions are immutable — and "immutable" means what was
+   performed.** A `LiveSession` once completed is never rewritten by later plan
+   edits, and its sets, loads, reps and outcomes are never rewritten at all.
+   Two **amendments** are allowed, and neither can reach a set
+   ([ADR-012](DECISIONS/ADR-012-streaks-and-session-duration.md)):
+   `correctedDurationMinutes` (+ `DurationSource`), which sits *beside*
+   `startedAt`/`completedAt` rather than replacing them; and
+   `SessionStatus.voided` (+ `VoidReason`), which withdraws a session from the
+   statistics while leaving its record whole. **A session that recorded work is
+   never deleted** — hard delete survives only for one with no completed set,
+   which is indistinguishable from a session never started.
 2. **Sessions are stamped with context:** `splitId` (= `planId`) + `dayId` +
    per-exercise `exerciseId`, **plus a snapshot of the exercise name/prescription
    at log time**, so renaming or reordering later never corrupts past records.
@@ -422,6 +431,13 @@ users/{uid}/
     (WorkoutPlan fields incl. days[], source, cycleCursor)
   workoutMeta/active               # { activeSplitId }
   workoutSessions/{sessionId}      # LiveSession; stamped splitId+dayId+exerciseId
+                                   # + per-set resolvedAt, durationSource,
+                                   #   correctedDurationMinutes, voidReason
+  trainingDayMarks/{yyyy-MM-dd}    # one per calendar day: a missed-day reason
+                                   # (context only) and/or a spent streak
+                                   # restore. NOT sessions, on purpose.
+  settings/workout                 # { maxSessionMinutes } — when a running
+                                   # session counts as one left open
   workouts/{workoutId}             # flat Workout log (display projection)
   aiConversations/{id}/messages    # existing AI (server-write-only)
 ```

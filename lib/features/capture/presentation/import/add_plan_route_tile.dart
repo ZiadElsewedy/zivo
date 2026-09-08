@@ -41,7 +41,7 @@ class AddPlanRouteTile extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(18),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 14, 14),
             child: Row(
               children: [
                 Icon(icon, size: 19, color: TrainColors.ink2),
@@ -59,7 +59,7 @@ class AddPlanRouteTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
                   size: 18,
                   color: TrainColors.ink3,

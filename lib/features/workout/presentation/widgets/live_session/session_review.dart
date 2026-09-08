@@ -115,7 +115,7 @@ class ReviewSetRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 size: 16,
                 color: TrainColors.ink3,
@@ -181,7 +181,7 @@ class _SetReviewSheetState extends State<SetReviewSheet> {
         22,
         MediaQuery.of(context).viewInsets.bottom + 24,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),

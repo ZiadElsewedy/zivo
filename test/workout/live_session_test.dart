@@ -76,7 +76,7 @@ void main() {
       final firstId = s0.exercises.first.sets.first.id;
 
       // No reps given, fixed target → defaults to 5; weight given.
-      final s1 = s0.markSetDone('ex1', firstId, actualWeightKg: 62.5);
+      final s1 = s0.markSetDone('ex1', firstId, actualWeightKg: 62.5, now: _t0);
       final done = s1.exercises.first.sets.first;
       expect(done.done, isTrue);
       expect(done.actualReps, 5);
@@ -89,7 +89,7 @@ void main() {
     test('range target leaves reps null unless supplied; purity holds', () {
       final s0 = _fresh();
       final secondId = s0.exercises.first.sets[1].id;
-      final s1 = s0.markSetDone('ex1', secondId, actualWeightKg: 40);
+      final s1 = s0.markSetDone('ex1', secondId, actualWeightKg: 40, now: _t0);
       expect(s1.exercises.first.sets[1].actualReps, isNull);
       // Original untouched.
       expect(identical(s0, s1), isFalse);
@@ -102,7 +102,7 @@ void main() {
       final s0 = _fresh();
       final firstId = s0.exercises.first.sets.first.id;
 
-      final s1 = s0.markSetSkipped('ex1', firstId);
+      final s1 = s0.markSetSkipped('ex1', firstId, now: _t0);
       final skipped = s1.exercises.first.sets.first;
       expect(skipped.done, isFalse);
       expect(skipped.skipped, isTrue);
@@ -115,7 +115,7 @@ void main() {
       final firstId = s0.exercises.first.sets.first.id;
       final withDraft = s0.updateSet('ex1', firstId, actualReps: 3, actualWeightKg: 25);
 
-      final skipped = withDraft.markSetSkipped('ex1', firstId);
+      final skipped = withDraft.markSetSkipped('ex1', firstId, now: _t0);
       final set = skipped.exercises.first.sets.first;
       expect(set.actualReps, 3);
       expect(set.actualWeightKg, 25);
@@ -128,7 +128,7 @@ void main() {
       final withDraft = s0.updateSet('ex1', firstId, actualReps: 3, actualWeightKg: 25);
       expect(withDraft.hasDraftActuals, isTrue);
 
-      final skipped = withDraft.markSetSkipped('ex1', firstId);
+      final skipped = withDraft.markSetSkipped('ex1', firstId, now: _t0);
       expect(skipped.hasDraftActuals, isFalse);
     });
   });
@@ -137,7 +137,7 @@ void main() {
     test('un-does a skip back to pending, making the set current again (Undo)', () {
       final s0 = _fresh();
       final firstId = s0.exercises.first.sets.first.id;
-      final skipped = s0.markSetSkipped('ex1', firstId);
+      final skipped = s0.markSetSkipped('ex1', firstId, now: _t0);
       expect(skipped.currentSet?.id, s0.exercises.first.sets[1].id);
 
       final undone = skipped.clearOutcome('ex1', firstId);
@@ -148,7 +148,7 @@ void main() {
     test('un-does a completion back to pending (Back), actuals untouched', () {
       final s0 = _fresh();
       final firstId = s0.exercises.first.sets.first.id;
-      final done = s0.markSetDone('ex1', firstId, actualWeightKg: 62.5);
+      final done = s0.markSetDone('ex1', firstId, actualWeightKg: 62.5, now: _t0);
       expect(done.completedSetCount, 1);
 
       final undone = done.clearOutcome('ex1', firstId);
@@ -166,7 +166,7 @@ void main() {
     test('the set immediately before the current pointer', () {
       final s0 = _fresh();
       final firstId = s0.exercises.first.sets.first.id;
-      final s1 = s0.markSetDone('ex1', firstId, actualWeightKg: 62.5);
+      final s1 = s0.markSetDone('ex1', firstId, actualWeightKg: 62.5, now: _t0);
 
       final prev = s1.previousResolvedSet;
       expect(prev, isNotNull);
@@ -177,8 +177,8 @@ void main() {
     test('crosses an exercise boundary', () {
       var s = _fresh();
       final secondId = s.exercises.first.sets[1].id;
-      s = s.markSetDone('ex1', s.exercises.first.sets.first.id, actualWeightKg: 40);
-      s = s.markSetDone('ex1', secondId, actualWeightKg: 40);
+      s = s.markSetDone('ex1', s.exercises.first.sets.first.id, actualWeightKg: 40, now: _t0);
+      s = s.markSetDone('ex1', secondId, actualWeightKg: 40, now: _t0);
       // Current is now ex2's only set — previous is ex1's LAST set.
       expect(s.currentExercise?.exerciseId, 'ex2');
       final prev = s.previousResolvedSet;
@@ -190,7 +190,7 @@ void main() {
       var s = _fresh();
       for (final e in [...s.exercises]) {
         for (final set in [...e.sets]) {
-          s = s.markSetDone(e.id, set.id);
+          s = s.markSetDone(e.id, set.id, now: _t0);
         }
       }
       expect(s.currentSet, isNull);
@@ -206,7 +206,7 @@ void main() {
       var s = _fresh();
       for (final e in [...s.exercises]) {
         for (final set in [...e.sets]) {
-          s = s.markSetDone(e.id, set.id);
+          s = s.markSetDone(e.id, set.id, now: _t0);
         }
       }
       s = s.complete(now: _t1);
@@ -302,7 +302,7 @@ void main() {
       expect(s.allSetsDone, isFalse);
       for (final e in s.exercises) {
         for (final set in e.sets) {
-          s = s.markSetDone(e.id, set.id);
+          s = s.markSetDone(e.id, set.id, now: _t0);
         }
       }
       expect(s.allSetsDone, isTrue);
@@ -387,7 +387,7 @@ void main() {
       required int reps,
     }) {
       var s = LiveSession.start(_day, id: id, planId: 'p1', now: at);
-      s = s.markSetDone('ex1', s.exercises.first.sets.first.id, actualWeightKg: weight, actualReps: reps);
+      s = s.markSetDone('ex1', s.exercises.first.sets.first.id, actualWeightKg: weight, actualReps: reps, now: _t0);
       return s.complete(now: at);
     }
 

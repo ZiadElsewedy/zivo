@@ -12,7 +12,7 @@ import '../theme/train_tokens.dart';
 /// they had drifted in both look and language.
 ///
 /// **The look:** the background was `TrainColors.raised` in some and a nearly
-/// invisible `Color(0x08FFFFFF)` in others, across four different title styles
+/// invisible `TrainColors.sectionFill` in others, across four different title styles
 /// and two different Cancel tints. The same question wore a different face
 /// depending on which screen asked it.
 ///

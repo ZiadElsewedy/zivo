@@ -71,4 +71,66 @@ void main() {
       expect(stripBidi(out), '1:30');
     });
   });
+
+  group('directionOf — a paragraph asks its own text', () {
+    test('an English string is left-to-right whatever the app is set to', () {
+      expect(
+        directionOf('Ask me anything.', fallback: TextDirection.rtl),
+        TextDirection.ltr,
+      );
+    });
+
+    test('an Arabic string is right-to-left whatever the app is set to', () {
+      expect(
+        directionOf('اسألني أي شيء.', fallback: TextDirection.ltr),
+        TextDirection.rtl,
+      );
+    });
+
+    test('the FIRST strong character decides, not the majority', () {
+      // A reply that opens in English and continues in Arabic reads as an
+      // English paragraph with an Arabic run in it — which is what bidi does
+      // with it anyway. What matters is that the two agree.
+      expect(
+        directionOf('ZIVO يقول', fallback: TextDirection.rtl),
+        TextDirection.ltr,
+      );
+      expect(
+        directionOf('يقول ZIVO', fallback: TextDirection.ltr),
+        TextDirection.rtl,
+      );
+    });
+
+    test('a string with no strong character keeps the surrounding direction', () {
+      for (final text in const ['1270', '· 12/15 ·', '', '???']) {
+        expect(
+          directionOf(text, fallback: TextDirection.rtl),
+          TextDirection.rtl,
+          reason: '"$text" has no direction of its own to offer',
+        );
+        expect(directionOf(text, fallback: TextDirection.ltr), TextDirection.ltr);
+      }
+    });
+
+    testWidgets('directionOfFor falls back to the ambient Directionality', (
+      tester,
+    ) async {
+      late TextDirection english;
+      late TextDirection digits;
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.rtl,
+          child: Builder(
+            builder: (context) {
+              english = directionOfFor(context, 'Balanced');
+              digits = directionOfFor(context, '500');
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      expect(english, TextDirection.ltr);
+      expect(digits, TextDirection.rtl);
+    });
+  });
 }

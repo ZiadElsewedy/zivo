@@ -7,7 +7,8 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-06 · **Active branch:** `core-edits`
+**Last updated:** 2026-09-08 · **Active branch:** `feature/theme-modes`
+(cut from `feature/sleep`, which is 60 commits ahead of `version-1`)
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -20,7 +21,9 @@ not a log with a chatbot bolted on. Full positioning + differentiation: [`PRODUC
 ## The app in one paragraph (current)
 
 Firebase-backed Flutter app (`USE_FIRESTORE` defaults **true**; in-memory repos are the
-offline/test fallback). **Dark theme only** (`AppTheme.dark`). Shell is a 4-tab
+offline/test fallback). **Dark and light** (`ThemeMode` — dark · light · match the
+phone; defaults to dark, device-local, [ADR-011](DECISIONS/ADR-011-light-mode.md)).
+Shell is a 4-tab
 `IndexedStack`: **Today · Hub · Ask · You** with a floating "island" bottom bar and a
 center capture FAB. Sign-in gate is [`AuthGate`](../lib/features/auth/presentation/auth_gate.dart).
 Live feature set: **workout, diet, expenses, moments, ai (Ask), music (Spotify companion),
@@ -32,6 +35,22 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   music companion. See [ADR-004](DECISIONS/ADR-004-scope-specialization.md).
 - **Removed for good (do not resurrect without the owner asking):** Schedule, Tasks,
   University, Notes (removed 2026-08-24).
+- **One design system, two skins** (dark 2026-08-29, light 2026-09-08). ADR-006's
+  *one system* stands; its *dark-only* half is superseded by
+  [ADR-011](DECISIONS/ADR-011-light-mode.md). The values live in `ZivoPalette.dark` /
+  `.light`; `TrainColors` keeps its exact API as getters over whichever is active, and
+  `ZivoTheme.use()` swaps it at the root *and repaints the whole tree* — nothing is
+  subscribed to the palette, so a `const` screen would otherwise keep the skin it was
+  first built in (that shipped broken once; see the ADR).
+  Light also forced two fixes the dark skin was hiding: the sleep axis labelled
+  seven clock times into a chart with room for four hours, and the weekly card
+  captioned six gated figures "1 of 3 nights" under a header reading
+  "1 of 7 nights".
+  **The rule this adds: never cache a token** —
+  not in a field, not in a `static final`, not in `initState`. A `static` field is
+  evaluated once and pins the app to whichever skin drew first. A new colour must be
+  added to *both* palettes (the constructor requires every field, so this is a compile
+  error, not a review catch).
 - **One dark system, app-wide** (done 2026-08-29, audit C1 + the v2-flow redress). Recorded
   as [ADR-006](DECISIONS/ADR-006-one-design-system.md) — read that for the rationale and the
   rules future work must follow.
@@ -51,7 +70,8 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   systems, meeting on 14 files (`today_page.dart` included). Now **three families, named in
   exactly one file** (`train_tokens.dart`): Manrope = text/prose/titles/chrome, Azeret Mono =
   numbers/timers/micro-labels (tabular, never prose), Instrument Serif italic = ZIVO
-  speaking. `AppText` survives as the **named ladder** built on those builders — its ~500
+  speaking — **italic in Latin only**; see the Arabic pass below for why RTL gets the
+  same face upright. `AppText` survives as the **named ladder** built on those builders — its ~500
   call sites are untouched — because `AppText.rowTitle` (what a thing *is*) and
   `TrainType.mono(size: 54)` (a size) answer different questions. `GoogleFonts` is called in
   one file. Deliberate visual changes: display steps up one weight, `body` w400→w500 (45%
@@ -72,6 +92,397 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Sleep split into a dashboard and a history view, and its freshness fixed**
+  (2026-09-08, on `feature/sleep`). Owner review: the dashboard was confusing,
+  the numbers did not obviously relate to each other, and the data looked
+  stale. The audit found the engine sound — the sessionizer, resolver, metrics
+  and codec all do what `SLEEP_SYSTEM.md` says — and the defects concentrated
+  in the last two layers.
+  - **The screen carried five time bases at once.** Last night's hero sat
+    directly above a seven-row raster, three weekly averages and a comparison
+    to a *different* week. `sleep_page.dart` is now the dashboard — one night,
+    in five bands: the figure, its stages, its measured detail, its target,
+    what it means. Every window figure moved to the new
+    `sleep_week_page.dart`, reached from a row at the foot. **Not** added to
+    app Settings: that page is app behaviour, and this is content.
+  - **"Last night" was said about nights that were not last night.** The
+    headline showed the most recent night with data, undated, however old.
+    `SleepController.latestNight` / `isLatestNightStale` now date it ("3 nights
+    ago") and say so under the figure; the Today glance carries the same
+    qualifier.
+  - **The trend gate could never open.** Every automatic sync read
+    `refreshDays` (7) while the trend wants 14 nights across 21 days;
+    `backfillDays` (90) was reachable only from `requestAccess`. The first sync
+    of a process now backfills when stored history is shallower than that.
+  - **Nothing outside the Sleep page ever read the health store.** Today's
+    glance and the Hub card render the Firestore mirror, so a user who did not
+    open Sleep saw whatever was written the last time they did. `app.dart`
+    syncs on sign-in and on resume, throttled in the service so all callers
+    share one budget; the page re-syncs on resume too.
+  - **Stages were ingested, ranked on, persisted — and never drawn.** New
+    `sleep_stage_breakdown.dart` (pure, and null far more readily than a sum:
+    no graded stages, under 60% coverage, or overlapping samples) plus
+    `sleep_stage_split.dart`. Weekly averages count staged nights only and
+    print that denominator.
+  - **Window arithmetic was re-derived per caller.** `sleep_window.dart` is now
+    the single definition; the controller, the history pager and the
+    comparison all read it.
+  - **Coverage:** 106 sleep tests (up from 76) across three new files
+    (`sleep_stage_breakdown_test`, `sleep_freshness_test`,
+    `sleep_week_page_test`); whole suite green (1338).
+  - **Not verified on device** — owner is testing it.
+
+- **The streak became one engine with a rule, and a session's duration became a
+  measurement** (2026-09-08, on `feature/theme-modes`).
+  [ADR-012](DECISIONS/ADR-012-streaks-and-session-duration.md) has the full
+  reasoning; the short version:
+  - **Two streak engines disagreed, and both broke on DST.**
+    `training_dashboard_stats.dart` bucketed by `startedAt`,
+    `today_pulse.dart` by `completedAt ?? startedAt`, and both walked the
+    calendar with `Duration(days: 1)`. Verified in `Africa/Cairo`: stepping
+    back from `2026-04-25 00:00` lands on `2026-04-23 23:00`, skipping 24 April
+    entirely — **the day streak zeroed itself twice a year**. Now one engine
+    (`workout/domain/training_streak.dart`, Today delegates) over
+    `core/util/calendar.dart`, which is DST-proof by construction.
+  - **The rule changed from "every day" to "at least every 3 days"**
+    (`kStreakMaxGapDays`). A day counts on one **completed working set**, so a
+    partly-logged session counts in full — and counts whether or not Finish was
+    ever tapped. Two sessions in a day are one day.
+  - **Missed-day reasons and streak restores** land in a new
+    `trainingDayMarks/{yyyy-MM-dd}` collection. A reason is context and never
+    moves the number; a restore bridges a gap, is rationed (1 per 30 days,
+    reaching back 7), adds no trained day, and is excluded from the all-time
+    best. Kept out of the sessions store on purpose.
+  - **`LoggedSet.resolvedAt`** makes duration a measurement. A session left
+    open is closed at its last logged set (real 62 minutes, not 19 hours),
+    never capped, and records `DurationSource.unknown` rather than guessing when
+    there is nothing to close at. Staleness needs past-the-maximum AND 30 min of
+    silence, so a genuinely long workout is never closed mid-set.
+  - **The maximum is a user setting** (`settings/workout`, default 3h, clamped
+    30 min–12 h), with a Training settings page under Workout → More.
+  - **Implausible durations are excluded and flagged, not averaged.** The
+    drill-down says "over 23 of 24"; correcting one is an amendment
+    (`correctedDurationMinutes` + `DurationSource`) that never rewrites the
+    timestamps and structurally cannot touch a set.
+  - **Finish now** ends a session with sets outstanding — pending sets stay
+    pending, nothing is invented. Background time past the grace window is
+    folded into `pausedAccumMs` instead of counting as training.
+  - **A stale session no longer hijacks Up Next**, and `SessionMaintenance`
+    (wired at app root on sign-in + resume, like `SleepService`) closes it —
+    deferring to whatever session a live screen has open.
+  - **A session that recorded work is voided, not deleted** (`SessionStatus.voided`
+    + `VoidReason`). Swipe-to-delete in History and Delete on Session details are
+    gone; hard delete survives only for a session with nothing logged.
+  - **Backend mirrors the gate**: `functions/ai/tools.js` honours a correction
+    and withholds an implausible/unknown duration from the coach.
+  - Cover: Flutter **1499** green, analyze clean. New suites:
+    `test/core/calendar_test.dart` (19 — incl. a DST group that *discovers* the
+    ambient zone's real transitions, so it is meaningful in any DST zone and
+    skips cleanly in none), `test/workout/training_streak_test.dart` (39, with
+    its own DST group), `session_duration_test.dart` (37),
+    `session_maintenance_test.dart` (13), `workout_streak_page_test.dart` (3),
+    plus Finish-now and background-clock groups in
+    `live_session_controller_test.dart` and a stale-session regression in
+    `workout_plan_page_test.dart`. Fixtures moved to the shared
+    `test/support/workout_fixtures.dart`, which gives every session a real
+    completed working set — the old `exercises: const []` sessions read like
+    trained days and are not. Rules suite **167** green (new `trainingDayMarks`
+    block + `voided`/corrected-duration validation). Functions **442** green.
+  - The three tests that boot the real `ZivoApp` now inject the two new
+    repositories, for the reason already commented there: an un-injected
+    default is Firestore-backed and reaches Firebase at construction.
+  - **Owner action:** `firestore.rules` changed — needs a deploy
+    (`trainingDayMarks` is denied by the catch-all until then, so restores and
+    missed-day reasons will fail to save on device).
+
+- **The Sleep page redesigned, and two of its silences fixed** (2026-09-07, on
+  `claude/sleep-page-redesign`). Owner review of the shipped screen: "the
+  overall visual quality feels poor", the one control appeared to do nothing,
+  and the feature was not self-explanatory. Four of the five findings turned
+  out to have a mechanism behind them rather than a taste problem.
+  - **Tapping "I'm going to sleep" really did look inert.** The pill was the
+    last widget in the scroll and the open session rendered *in its place* —
+    at the bottom of a page long enough to push the result below the fold. So
+    the button you just pressed scrolled out of view and a line of grey text
+    took its place where nobody was looking. The action is **docked** below
+    the list now, and the session it opens is announced at the **top** of the
+    scroll as its own card (elapsed so far, since when, and what actually
+    records the night). One tap, two visible changes, neither off-screen.
+    `sleep_page_test.dart` asserts the card's *position* relative to the week
+    — presence alone would have passed on the old layout too.
+  - **A read that failed rendered as nothing at all.** `SleepController`'s
+    three subscriptions carried no `onError`, and `hasLoaded` only ever
+    flipped in the nights *data* handler — so a refused Firestore read (or an
+    undecodable snapshot) left the headline showing its not-yet-loaded
+    placeholder **forever**: a silent 120px void between the title and the
+    week, with everything below it looking perfectly healthy. There is now a
+    third state (`loadFailed`) with its own card and a retry that
+    **re-subscribes** — an errored snapshot listener is finished, so
+    re-reading the health store alone would have fixed nothing — and the
+    loading state is a skeleton rather than a gap. Covered by a repository
+    whose `watchNights()` errors.
+  - **The green button.** The header's targets action sat on
+    `TrainHeaderAction`'s *default* accent, which is green — training's hue —
+    on a screen that measures neither training nor money, and it was the only
+    warm thing on a cool page. Sleep also borrowed `violet`/`violetGlyph`
+    wholesale, i.e. Ask's lavender. Sleep now has three tones of its own
+    (`sleepAccent`/`sleepGlyph`/`sleepWash`) at ~225° against Ask's ~242°, and
+    a cooler screen wash. **Same hue, walked toward blue — not a fifth hue**,
+    so ADR-006's table is untouched; ADR-010 carries the amendment.
+  - **The italic serif is out of the insights section** (owner decision).
+    `AppText.aside` at 21px italic over a paragraph on near-black was the
+    least readable text on the screen, and it was carrying the screen's
+    conclusions. That section is Manrope now. **Sleep only** — the ~25 other
+    `aside` call sites are untouched and ADR-009's rule stands, with this
+    logged there as its one exception.
+  - **The rest of the redesign.** Sections are cards (hairline over a top-lit
+    gradient — the house depth language) instead of content floating on the
+    raw background; the three weekly figures went from three near-identical
+    full-width grey sentences ("Not enough nights yet — 0 of 3", three times)
+    to a three-up strip where a gated figure is an em dash over "0 of 3
+    nights", with the window's own n moved once into the section label; the
+    week-over-week line is labelled so it stops reading as a fourth stray
+    figure; and "Why this number" / "Edit this night" are glass pills at a
+    real touch target rather than 13px coloured captions.
+  - **New: a "How Sleep works" sheet** behind an info button in the header —
+    what a session is, what ZIVO reads and when, why every number names its
+    source, why some figures are deliberately blank, and that there is no
+    score. Sleep is the one feature here whose behaviour is not guessable from
+    its screen: a tap opens something that records nothing until a second tap
+    closes it.
+  - **Coverage:** 76 sleep tests (up from 74), the whole suite green (1300),
+    `flutter analyze` clean, 27 new ARB keys in both languages.
+  - **⚠ OWNER ACTION.** The two symptoms above are consistent with
+    `firestore.rules` **not being deployed** for the sleep collections — a
+    denied read on `sleepNights` produces exactly the blank headline, and a
+    denied write on `sleepSettings/main` produces exactly the "nothing
+    happens" tap. The rules and their tests are in the repo and have been
+    since the feature landed. Worth running `firebase deploy --only
+    firestore:rules` and re-checking; the client now *reports* both failures
+    instead of swallowing them, so it will say so if that is what it is.
+
+- **Spotify syncs automatically; it no longer *launches* automatically** (2026-09-07,
+  owner report). Opening ZIVO dragged the Spotify app on screen and started playing —
+  and quitting Spotify just made it come back, so the only way to stop it was
+  Settings → Disconnect. Cause: `spotify_sdk` spells two different things "connect", and
+  the auto-reconnect at launch/resume/backoff was calling the wrong one.
+  `connectToSpotifyRemote()` with no access token becomes iOS's `authorizeAndPlayURI`,
+  which opens Spotify **and starts playback**; with a token it becomes
+  `SPTAppRemote.connect`, which attaches to a running Spotify and fails harmlessly when
+  there isn't one. `SpotifyMusicController` now keeps the two apart: every automatic
+  attempt takes the silent path and **does nothing at all** when it has no token to take
+  it with, while the authorizing path is reachable only from the user's own Connect tap
+  (which itself tries the silent attach first). The token that makes silence possible is
+  persisted by `SpotifyLinkStore`, whose doc no longer claims to hold no credential —
+  see it for what the token is (App Remote scope, ~1h, no refresh token) and the
+  Keychain upgrade path if that bar needs raising. Also: the connection-status channel is
+  now subscribed for the controller's lifetime rather than only inside a successful
+  connect (so a late or missed handshake self-corrects), a drop clears the track it was
+  carrying, and the 2s→5s→12s→30s backoff is one 2s retry — a silent attach can't
+  conjure a player the user has closed. Net behaviour: **Spotify playing → ZIVO syncs
+  with no tap; Spotify closed → ZIVO stays disconnected; close Spotify → ZIVO stops
+  syncing; Connect Spotify is a button.** Held by
+  `test/music/spotify_music_controller_test.dart`, which asserts on the platform channel
+  because both spellings look identical from Dart.
+
+- **…and then the same sweep across the rest of the app** (2026-09-07). The
+  Ask pass produced five recurring shapes; each was grepped for app-wide and
+  the hits confirmed on a simulator in Arabic before being touched.
+  - **The list divider inset was wrong on every card in the app.**
+    `TrainListRow.dividerInset` was applied as a physical `left`, so in Arabic
+    the hairline ran *under* the leading icon column and stopped short of the
+    title it is documented to start at. One-line fix in `train_surfaces.dart`
+    and `settings_row.dart`; visible on Settings, You, and every list surface.
+  - **Four more composed runs were never pinned**: `~21` rendered `21~` on
+    Today's next-workout card, `-2:47` rendered `2:47-` on Settings' Spotify
+    card, and the live session's ± weight chips and progress percentage the
+    same. `ltrFor` on the numeric skeleton only — the translated word beside it
+    stays unpinned, per `core/util/bidi.dart`.
+  - **Media controls do not mirror, everywhere** — not just the nav lozenge.
+    The four `spotify_strip` densities and the full player's transport had the
+    identical flip, and the scrubber's timecodes sat under the wrong ends of a
+    bar that is positioned physically (raw `dx`, `Positioned.left`) and so
+    always ran left-to-right. Track titles across the music surfaces now pick
+    their own direction.
+  - **English still on Arabic screens.** Today's diet glance was two
+    interpolated sentences — and the meals half already had an ARB key the
+    widget never read. Also the whole default-rest control on plan edit, the
+    add-day sheet, `shortest`/`longest` on the session-length page, and two
+    `domain/` label functions (`consumedBasisShortLabel`, `findingKindLabel`)
+    rendered straight onto the diet plan and Today's Read cards. The domain
+    halves stay where they are — the coaching engine splices them into
+    generated English prose — and got presentation twins in `diet_labels.dart`.
+  - **The standing guard has a hole worth knowing about.**
+    `test/shell/rtl_layout_test.dart` boots the whole app in both languages and
+    fails on any layout error, which is why none of this was caught: not one of
+    these bugs throws. A mirrored control, a backwards run and an untranslated
+    string all lay out perfectly. The new tests assert *position* (previous is
+    left of next) and *content* (no English in an Arabic tree) instead — the
+    transport one is verified to fail without its fix.
+  - **The alignment sites were then swept too** (same day), all ~65 audited
+    individually. About half were `LinearGradient(begin: topLeft, end:
+    bottomRight)` — decorative diagonal sheen, deliberately left physical, as
+    a gradient carries no reading order. Of the rest, seventeen `Align`s were
+    genuinely leading/trailing chrome and moved to `AlignmentDirectional`: back
+    chips on three auth screens and the live session, the profile's Settings
+    button, "forgot password", the full player's close button, two generic
+    progress fills (a *task* bar mirrors, unlike a media playhead), and two
+    more swipe-to-delete reveals with the identical bug the sessions sheet had
+    — `endToStart` paired with a physical `centerRight`, so the bin sat on the
+    side the swipe never uncovers. Three `Positioned` badges (the avatar's
+    camera, a stat tile's sparkline, the Spotify mark) became
+    `PositionedDirectional`; twelve asymmetric `EdgeInsets.fromLTRB` and
+    nineteen `EdgeInsets.only(left:/right:)` became directional, including one
+    more divider inset on the expenses list.
+  - **Two more surfaces needed pinning, not mirroring.** The expense and wallet
+    amount entries are `[digits][caret]` rows: mirrored, the caret landed on
+    the far side of the figure, reading as though typing ran backwards. Both
+    are now `Directionality(ltr)`, for the same reason the transports are.
+  - **Two more English leaks, both with ARB keys that already existed** and
+    were simply never read: the Moments filter bar (All/Photos/Notes/Camera/
+    Library) and — found in the same pass — a moment's caption inheriting the
+    UI direction, so an English note in an Arabic gallery right-aligned with
+    its full stop at the start of the last line. Captions now use
+    `directionOfFor`, like chat messages and track titles.
+  - **Still deliberately physical**, each with a comment saying why: the
+    scrubber's track (raw `dx`, `Positioned.left`), the lozenge playhead, the
+    rest ring's fractional-seconds suffix (it trails an always-LTR numeral),
+    and every decorative gradient.
+
+- **Ask reads properly in Arabic** (2026-09-07, on `feature/sleep`). A pass
+  over the Ask screen after the owner shot it in Arabic. Same lesson as the
+  sleep bugs above — the suite asserts in English, where most of this is a
+  no-op — so every fix landed with a test that pumps `Locale('ar')`.
+  - **A message now reads in ITS OWN language, not the app's.** The worst one:
+    ZIVO answering in English inside an Arabic UI inherited the app's RTL
+    paragraph, so the reply right-aligned and its closing full stop was laid
+    out at the paragraph's end — the LEFT edge: `.answer using your real ZIVO
+    data`. Direction for a whole block is a property of the **content**, so
+    `bidi.dart` gained `directionOf`/`directionOfFor` (first-strong, falling
+    back to the ambient direction) and each bubble asks its own text. This is
+    the paragraph-level counterpart to the existing `isolate`/`ltrFor`, which
+    are for a run *inside* a sentence; it also fixes which end
+    `TextOverflow.ellipsis` eats, so a Latin track title stopped truncating as
+    `…Fixture Track Th`. The bubble's *side* still follows the UI — that says
+    who is speaking, not what language they said it in.
+  - **Media controls do not mirror.** The now-playing strip's transport had
+    flipped to `next · ⏸ · previous` while the glyphs (painted, not flipped)
+    kept pointing their own way, so the pair aimed away from each other with
+    the two actions swapped under the thumb; the playhead drained right-to-left
+    as the track advanced. Both are pinned LTR now — a track's timeline runs
+    one way in every language. Same reasoning the nav island already documents
+    for opting out of mirroring. This is shell chrome, so it lands app-wide.
+  - **Three English strings were still hardcoded on this screen.** The
+    reply-style menu (`Concise/Balanced/Detailed`) came from `domain/`, which
+    is Flutter-free and so has no context to translate from — moved to
+    `presentation/ai_labels.dart`, the split `diet_labels.dart` already uses.
+    `timeAgo`'s four words (`now`, `5m`, `3h`, `2d`) were literals in a shared
+    util; it now takes a context, which touched its 4 callers in workout and
+    moments. And a proposal chip printed the gateway's raw `"eaten"`/`"not
+    eaten"` — read as a flag now, worded by the app.
+  - **The physical-edge bugs**, all `EdgeInsets`/`Alignment` that should have
+    been directional: the composer's hint had no leading inset in Arabic (18px
+    of padding sat on the trailing side); the header's wide screen inset went
+    to the buttons and the narrow one to the title; the user bubble's tail
+    corner stayed bottom-right while the pill moved to the left edge, pointing
+    into the middle of the screen; the swipe-to-delete reveal put its bin on
+    the side the `endToStart` swipe never uncovers; and the thinking rail's
+    slow-turn line indented from the wrong edge.
+  - **ZIVO's voice loses its slant in Arabic** (owner's call). Instrument Serif
+    is Latin-only, so asking it for italic over Arabic got no Arabic italic —
+    there is none, and no such tradition — and the shaper **synthesised** the
+    slant onto the system's upright fallback. The greeting was rendering as an
+    obliqued أهلًا. `TrainType.serifVoice(context, …)` drops the italic when
+    the paragraph is RTL; the gate is direction rather than a language list,
+    since Hebrew, Farsi and Urdu are in the same position. Arabic keeps the
+    serif — one reserved face, still only where ZIVO speaks, just upright.
+    English is byte-identical. This made `AppText.aside` take a `BuildContext`
+    (alone on that ladder), which rippled to its 24 call sites and
+    `AuthHeader.asideStyle`. **Giving Arabic a voice marker of its own means an
+    Arabic display face — a fourth family, so an ADR** (ADR-009).
+  - **Not done:** the mixed greeting picks one style for the whole line, so
+    "ZIVO" inside the Arabic sentence goes upright too — a `TextStyle` applies
+    to the whole span. Splitting it would need `Text.rich` per script.
+
+- **Sleep landed as a full feature** (2026-09-07, on `feature/sleep`). Reads
+  Apple Health / Health Connect, logs by hand, and carries **provenance on
+  every number**. Design + the platform research behind it:
+  [`SLEEP_SYSTEM.md`](SLEEP_SYSTEM.md); the decisions:
+  [ADR-010](DECISIONS/ADR-010-sleep-provenance.md).
+  - **The four platform facts that shaped it**, all verified against vendor
+    docs rather than assumed: HealthKit has **no sleep session** (it stores
+    overlapping samples; `sleep_sessionizer.dart` stitches them, Health
+    Connect records skip it); **an iPhone with no watch produces no sleep data
+    at all** since iOS 18 removed time-in-bed tracking, which is why manual
+    logging is core and not a fallback; **iOS never discloses a denied read**,
+    so the UI may never say "you have no sleep data"; and **iOS Screen Time
+    cannot leave its report extension's sandbox**, so device activity is an
+    Android-only signal and is deliberately out of v1.
+  - **Ranking is on method, never on provider.** "Apple Health data" is not a
+    tier — Apple Health *contains* hand-typed entries — so `methodFor` tests
+    the platform's manual flag **before** any device signal. Tier 4 routinely
+    arrives wearing tier 1's device metadata.
+  - **Choose, never merge.** Two providers disagreeing about one night is
+    settled by picking one and keeping the rest as alternates; the night
+    detail sheet shows the disagreement. An averaged night is one nobody
+    measured.
+  - **Circular statistics.** The arithmetic mean of 23:40 and 00:20 is noon;
+    `circularMeanMinutes` is now the only sanctioned way to average a clock
+    time in this codebase. Trends use Theil–Sen so one all-nighter cannot flip
+    a fortnight.
+  - **The AI interprets, never computes.** It gets a fact sheet of finished
+    numbers plus an explicit list of what it may not discuss, and every
+    numeral it writes is checked against that sheet — `functions/ai/
+    sleep_insights.js` on the server, `groundedNumerals` again on the client.
+    Beneath it is a deterministic tier that is always available, so the
+    feature never needs a model round trip to say something true.
+  - **Three more bugs, found by running it on a simulator rather than by the
+    suite** (same day). The worst was the Arabic hero rendering `س12د7`:
+    `sleepDurationText` pinned the localized string with `ltrFor`, but
+    `7س 12د` is not a composed numeric run — `س`/`د` are abbreviated words,
+    strong RTL, so forcing LTR interleaved the two number+unit pairs.
+    `core/util/bidi.dart` already states the rule; the pinning is gone from
+    every string carrying translated words, and clock times keep theirs.
+    The Today glance was over-stuffed and ellipsised **both** the source chip
+    and the delta, leaving a duration with no provenance — the delta moved to
+    the Sleep page. The week figures wrapped `16س`/`51د` onto two lines. And a
+    full week against an empty previous one read "not enough nights yet —
+    5 of 5"; it now reports the weaker week. **The suite was blind to all of
+    it**: the widget tests assert on English, where `ltrFor` is a deliberate
+    no-op. `test/sleep/sleep_labels_test.dart` now pins the rule in both
+    languages.
+  - **Two regressions worth remembering.** (1) `SleepService.syncState` is a
+    `ValueNotifier`, not a stream: a fast sync emitted its terminal state into
+    the window between `listen()` and an `async*` generator subscribing, so an
+    "unavailable" host rendered the "nothing recorded yet" screen. (2) Every
+    test that boots the real `ZivoApp` now injects `sleep:`/`sleepSource:` —
+    the Firestore default resolves its uid through FirebaseAuth at
+    construction, and `rtl_layout_test` hung for ten minutes on it.
+  - **Coverage:** 74 sleep tests (sessionizer, resolver, circular stats,
+    gates, codec round-trip, the numeral gate, and the page's *claims* — that
+    a typed night says "You logged" and never "Asleep"), plus 9 new Firestore
+    rules tests and 15 backend tests. `flutter analyze` clean; the Android
+    release build compiles.
+  - **⚠ OWNER ACTIONS — five.**
+    1. **`minSdk` rose 23 → 26** (`android/app/build.gradle.kts`). Health
+       Connect's client requires it and the manifest merger fails below it.
+       Drops Android 6.0–7.1. Reversible only by dropping Android sleep.
+    2. **New dependency: `health: ^13.3.1`.** Justified in `pubspec.yaml` and
+       ADR-010; the migration trigger to a native layer is background delivery.
+    3. **iOS needs the HealthKit capability enabled in Xcode** — the
+       entitlement is in `Runner.entitlements`, but the capability has to be
+       added to the App ID in the developer portal, which needs your account.
+    4. **Play Console health-permissions declaration** is required before an
+       Android build using `READ_SLEEP` can ship.
+    5. **`assets/hub/sleep.jpg` does not exist** — the Hub card falls back to
+       a violet wash, which is correct but not the design. Add the photo.
+  - **Not done (deliberate, listed in SLEEP_SYSTEM §20):** background delivery
+    on either platform, the Android Sleep API estimate path, Samsung Health
+    Data SDK (needs a partnership), sleep-adjacent metrics (HR/HRV/SpO2/temp),
+    naps in metrics, and correlations. `functions/ai/sleep_insights.js` is
+    written and tested but **not yet wired to a callable** — the client runs
+    the deterministic tier until it is.
 
 - **The Arabic copy pass finished the app-facing surfaces** (2026-09-06, on
   `core-edits`). **1144 keys** in both languages, up from 344 — the en/ar gap
@@ -1222,6 +1633,18 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 > against the code before assuming otherwise.
 
 ## Owner action items (blockers only the owner can clear — not code bugs)
+
+- **Rules deploy for the streak/session-duration work (2026-09-08):**
+  `firebase deploy --only firestore:rules` (owner creds). Until it ships, the
+  catch-all denies the new `users/{uid}/trainingDayMarks` collection, so a
+  streak restore or a missed-day reason will fail to save on device (it surfaces
+  as a deferred-write toast, nothing is lost locally). The same deploy adds
+  `voided` to the allowed `workoutSessions` statuses and the bounds on
+  `correctedDurationMinutes` — **voiding a session and correcting a duration
+  will be rejected until then.** No functions change is required for this, but
+  `functions/ai/tools.js` + `store.js` also changed (the coach now honours a
+  corrected duration and withholds an implausible one), so a
+  `firebase deploy --only functions` is worth pairing with it.
 
 - **Live Session screen-wake — a dependency decision, not a bug.** The phone still
   sleeps mid-set during a guided session: the app never asks the OS to keep the screen

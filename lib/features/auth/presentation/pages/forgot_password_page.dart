@@ -259,7 +259,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(22, 6, 22, 0),
                   child: Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: AlignmentDirectional.centerStart,
                     // From the code step, back means back one *step*, not off
                     // the page — so the flow is escapable without losing the
                     // code you already asked for.
@@ -344,7 +344,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 TextSpan(text: l(context).authCodeSentTo),
                 TextSpan(
                   text: _email.text.trim(),
-                  style: AuthHeader.asideStyle.copyWith(
+                  style: AuthHeader.asideStyle(context).copyWith(
                     color: TrainColors.ink,
                     fontWeight: FontWeight.w600,
                   ),
@@ -475,10 +475,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         duration: const Duration(milliseconds: 150),
         opacity: _errorText == null ? 0 : 1,
         child: Padding(
-          padding: const EdgeInsets.only(top: 10, left: 4),
+          padding: const EdgeInsetsDirectional.only(top: 10, start: 4),
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.error_outline_rounded,
                 size: 15,
                 color: TrainColors.ember,

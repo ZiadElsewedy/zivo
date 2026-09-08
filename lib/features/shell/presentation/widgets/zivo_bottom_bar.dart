@@ -93,10 +93,10 @@ class _ZivoBottomBarState extends State<ZivoBottomBar>
   /// localized, so they change with the app's language and cannot be baked in
   /// at compile time. The icons and their order are still fixed.
   List<_TabSpec> _tabsFor(BuildContext context) => <_TabSpec>[
-    _TabSpec(l(context).tabToday, AppIcons.today),
-    _TabSpec(l(context).tabHub, AppIcons.hub),
-    _TabSpec(l(context).tabAsk, AppIcons.ask),
-    _TabSpec(l(context).tabYou, AppIcons.you),
+    _TabSpec(l(context).tabToday, AppIcons.today, AppIcons.todayFill),
+    _TabSpec(l(context).tabHub, AppIcons.hub, AppIcons.hubFill),
+    _TabSpec(l(context).tabAsk, AppIcons.ask, AppIcons.askFill),
+    _TabSpec(l(context).tabYou, AppIcons.you, AppIcons.youFill),
   ];
 
   /// The live, fractional position of the ember capsule along the tab row
@@ -286,9 +286,14 @@ class _Capsule extends StatelessWidget {
 }
 
 class _TabSpec {
-  const _TabSpec(this.label, this.icon);
+  const _TabSpec(this.label, this.icon, this.iconFill);
   final String label;
+
+  /// The stroked glyph, and Phosphor's true solid cut of the same mark. Two
+  /// real weights, not one glyph twice: under Lucide there was no fill to
+  /// reach for, so the active tab was carried by colour alone.
   final IconData icon;
+  final IconData iconFill;
 }
 
 class _Tab extends StatelessWidget {
@@ -313,7 +318,25 @@ class _Tab extends StatelessWidget {
         children: [
           Transform.scale(
             scale: 1.0 + 0.12 * t,
-            child: Icon(spec.icon, size: 24, color: color),
+            // Cross-faded on `t`, not switched at a threshold, for the same
+            // reason the colour and scale are interpolated: `t` is the
+            // capsule's live distance from this tab, so the solid cut blooms
+            // in as the capsule arrives and thins back out as it leaves. A
+            // hard swap at t > 0.5 would be the one snapping thing in a bar
+            // built entirely out of easing.
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Opacity(
+                  opacity: 1 - t,
+                  child: Icon(spec.icon, size: 24, color: color),
+                ),
+                Opacity(
+                  opacity: t,
+                  child: Icon(spec.iconFill, size: 24, color: color),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 4),
           Text(

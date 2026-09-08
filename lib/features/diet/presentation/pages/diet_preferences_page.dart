@@ -260,7 +260,7 @@ class _TargetNote extends StatelessWidget {
     if (targets != null) {
       return Row(
         children: [
-          const Icon(Icons.flag_outlined, size: 16, color: TrainColors.green),
+          Icon(Icons.flag_outlined, size: 16, color: TrainColors.green),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -277,7 +277,7 @@ class _TargetNote extends StatelessWidget {
       onTap: onSetTarget,
       child: Row(
         children: [
-          const Icon(Icons.flag_outlined, size: 18, color: TrainColors.ink2),
+          Icon(Icons.flag_outlined, size: 18, color: TrainColors.ink2),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -292,11 +292,7 @@ class _TargetNote extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(
-            Icons.chevron_right_rounded,
-            size: 18,
-            color: TrainColors.ink3,
-          ),
+          Icon(Icons.chevron_right_rounded, size: 18, color: TrainColors.ink3),
         ],
       ),
     );

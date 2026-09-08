@@ -18,7 +18,11 @@ import 'package:zivo/features/workout/data/in_memory_workout_session_repository.
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/workout/domain/body_weight_entry.dart';
 import 'package:zivo/features/workout/domain/live_session.dart';
+import 'package:zivo/features/workout/domain/planned_exercise.dart';
+import 'package:zivo/features/workout/domain/rep_target.dart';
+import 'package:zivo/features/workout/domain/set_type.dart';
 import 'package:zivo/features/workout/domain/workout_day.dart';
+import 'package:zivo/features/workout/domain/workout_set.dart';
 import 'package:zivo/features/workout/domain/workout_session_repository.dart';
 
 import '../support/fake_auth_repository.dart';
@@ -36,12 +40,31 @@ class _FakeStepCounter implements StepCounterService {
   Stream<int> watchStepsToday() => Stream.value(steps);
 }
 
+/// A day with one working set, because the streak counts a day only once a
+/// **completed working set** is on it — a session built from an exercise-less
+/// day reads like a trained day and is not one.
 const WorkoutDay _day = WorkoutDay(
   id: 'd',
   slot: 'A',
   label: 'Pull',
   order: 0,
-  exercises: [],
+  exercises: [
+    PlannedExercise(
+      id: 'bench',
+      name: 'Bench Press',
+      muscleGroup: 'Chest',
+      order: 0,
+      defaultRestSeconds: 90,
+      sets: [
+        PlannedSet(
+          order: 0,
+          repTarget: RepTarget.fixed(8),
+          restSeconds: 90,
+          type: SetType.working,
+        ),
+      ],
+    ),
+  ],
 );
 
 /// A completed session starting at [at].
@@ -53,12 +76,18 @@ const WorkoutDay _day = WorkoutDay(
 /// the streak silently collapsed and the momentum assertions failed for
 /// anyone running the suite late in the evening. Seed from [_todayAt] or
 /// [_middayToday], never from the wall clock.
-LiveSession _done(DateTime at, String id) => LiveSession.start(
-  _day,
-  id: id,
-  planId: 'p',
-  now: at,
-).complete(now: at.add(const Duration(minutes: 40)));
+LiveSession _done(DateTime at, String id) {
+  final finishedAt = at.add(const Duration(minutes: 40));
+  return LiveSession.start(_day, id: id, planId: 'p', now: at)
+      .markSetDone(
+        'bench',
+        'bench-s0',
+        now: finishedAt,
+        actualReps: 8,
+        actualWeightKg: 60,
+      )
+      .complete(now: finishedAt);
+}
 
 /// Today at [hour] — the fixed instant every test in this file runs at.
 ///
@@ -211,13 +240,16 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      // Two sessions, but not on consecutive days → no streak, so the left
-      // slot shows its low-data caption beside the busiest right-hand one.
+      // Two sessions, five days apart — past the every-3-days allowance, so
+      // the run is just today and there is no streak to show. (Three days
+      // apart WOULD now be a live two-day streak: two rest days are the rule,
+      // not a break.) The left slot then shows its low-data caption beside
+      // the busiest right-hand one.
       final now = _middayToday();
       final sessions = InMemoryWorkoutSessionRepository(
         seed: [
           _done(now, 'a'),
-          _done(now.subtract(const Duration(days: 3)), 'b'),
+          _done(now.subtract(const Duration(days: 5)), 'b'),
         ],
       );
 

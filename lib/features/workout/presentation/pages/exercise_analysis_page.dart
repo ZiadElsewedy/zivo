@@ -167,7 +167,7 @@ class _StatusHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          TrainIconTile(icon: style.icon, accent: style.color, size: 42, iconSize: 20, radius: 13),
+          TrainIconTile(icon: style.icon, accent: style.color, size: 42, iconSize: 24),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -229,7 +229,7 @@ class _InsightCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -332,7 +332,7 @@ class _TrendCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -568,7 +568,7 @@ class _SessionCard extends StatelessWidget {
     final vol = formatVolume(record.totalVolumeKg);
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -576,7 +576,7 @@ class _SessionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 14, 12),
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 14, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -668,7 +668,7 @@ class _DeltaStrip extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: TrainColors.hairline)),
       ),
       child: Column(
@@ -748,7 +748,7 @@ class _PrBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(AppIcons.trophy, size: 11, color: TrainColors.amber),
+          Icon(AppIcons.trophy, size: 11, color: TrainColors.amber),
           const SizedBox(width: 4),
           Text(
             l(context).workoutPbCaps,
@@ -838,14 +838,14 @@ class _EmptyState extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: TrainColors.hairline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(AppIcons.analysis, size: 22, color: TrainColors.green),
+          Icon(AppIcons.analysis, size: 22, color: TrainColors.green),
           const SizedBox(height: 12),
           Text(
             l(context).workoutExerciseEmptyTitle,

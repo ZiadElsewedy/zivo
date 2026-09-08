@@ -21,12 +21,14 @@ Future<CaptureChoice?> showQuickCaptureSheet(BuildContext context) {
 class _QuickCaptureSheet extends StatelessWidget {
   const _QuickCaptureSheet();
 
-  static const _neutralTile = TrainColors.raisedStrong;
+  // A getter, not a `static const`: a field would be evaluated once and
+  // then hold the first skin the app ever drew (ADR-011).
+  static Color get _neutralTile => TrainColors.raisedStrong;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
@@ -43,7 +45,7 @@ class _QuickCaptureSheet extends StatelessWidget {
           Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 6),
+            padding: const EdgeInsetsDirectional.only(start: 2, bottom: 6),
             child: Text(l(context).captureTitle, style: AppText.cardTitle),
           ),
           _Option(
@@ -105,7 +107,7 @@ class _Option extends StatelessWidget {
         decoration: BoxDecoration(
           border: last
               ? null
-              : const Border(bottom: BorderSide(color: TrainColors.hairline)),
+              : Border(bottom: BorderSide(color: TrainColors.hairline)),
         ),
         padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 4),
         child: Row(
@@ -141,7 +143,7 @@ class _Option extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 20,
               color: TrainColors.ink3,

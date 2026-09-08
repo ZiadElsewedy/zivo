@@ -20,6 +20,8 @@ import '../core/media/domain/media_store.dart';
 import '../core/media/media_service.dart';
 import '../core/scope/app_scope.dart';
 import '../core/theme/app_theme.dart';
+import '../core/theme/theme_controller.dart';
+import '../core/theme/zivo_palette.dart';
 import '../core/theme/zivo_scroll_behavior.dart';
 import '../core/widgets/deferred_write_reporter.dart';
 import '../l10n/app_localizations.dart';
@@ -43,6 +45,12 @@ import '../features/diet/domain/diet_repository.dart';
 import '../features/diet/domain/nutrition/composite_food_resolver.dart';
 import '../features/diet/domain/nutrition/food_resolver.dart';
 import '../features/device/steps/step_counter.dart';
+import '../features/sleep/data/firestore_sleep_repository.dart';
+import '../features/sleep/data/health_sleep_source.dart';
+import '../features/sleep/data/in_memory_sleep_repository.dart';
+import '../features/sleep/domain/sleep_repository.dart';
+import '../features/sleep/domain/sleep_service.dart';
+import '../features/sleep/domain/sleep_source.dart';
 import '../features/expenses/data/firestore_category_repository.dart';
 import '../features/expenses/data/firestore_expense_repository.dart';
 import '../features/expenses/data/firestore_wallet_repository.dart';
@@ -71,7 +79,14 @@ import '../features/workout/data/in_memory_workout_session_repository.dart';
 import '../features/workout/domain/body_weight_repository.dart';
 import '../features/workout/domain/workout_plan_repository.dart';
 import '../features/workout/domain/workout_repository.dart';
+import '../features/workout/domain/session_maintenance.dart';
+import '../features/workout/domain/training_day_mark_repository.dart';
 import '../features/workout/domain/workout_session_repository.dart';
+import '../features/workout/domain/workout_settings_repository.dart';
+import '../features/workout/data/firestore_training_day_mark_repository.dart';
+import '../features/workout/data/firestore_workout_settings_repository.dart';
+import '../features/workout/data/in_memory_training_day_mark_repository.dart';
+import '../features/workout/data/in_memory_workout_settings_repository.dart';
 
 /// Firestore persistence for a feature is opt-out via `--dart-define
 /// USE_FIRESTORE=false` (e.g. for offline/dev runs); it defaults to on.
@@ -95,12 +110,16 @@ class ZivoApp extends StatefulWidget {
     this.activity,
     this.expenses,
     this.stepCounter,
+    this.sleep,
+    this.sleepSource,
     this.wallet,
     this.expenseCategories,
     this.moments,
     this.workouts,
     this.workoutPlans,
     this.workoutSessions,
+    this.workoutSettings,
+    this.trainingDayMarks,
     this.bodyWeight,
     this.diet,
     this.foods,
@@ -110,6 +129,7 @@ class ZivoApp extends StatefulWidget {
     this.mediaPreferences,
     this.music,
     this.locale,
+    this.theme,
     super.key,
   });
 
@@ -123,6 +143,8 @@ class ZivoApp extends StatefulWidget {
   final WorkoutRepository? workouts;
   final WorkoutPlanRepository? workoutPlans;
   final WorkoutSessionRepository? workoutSessions;
+  final WorkoutSettingsRepository? workoutSettings;
+  final TrainingDayMarkRepository? trainingDayMarks;
   final BodyWeightRepository? bodyWeight;
   final DietRepository? diet;
 
@@ -132,6 +154,13 @@ class ZivoApp extends StatefulWidget {
   final AiRepository? ai;
   final AudioRecorderService? recorder;
   final StepCounterService? stepCounter;
+
+  /// Overridable so tests can drive Sleep without Firestore.
+  final SleepRepository? sleep;
+
+  /// Overridable so tests can drive Sleep without HealthKit / Health Connect.
+  final SleepSource? sleepSource;
+
   final MediaService? media;
   final MediaPreferencesRepository? mediaPreferences;
   final MusicController? music;
@@ -139,6 +168,10 @@ class ZivoApp extends StatefulWidget {
   /// Overridable so a test can pin the app to a locale instead of the
   /// device's.
   final LocaleController? locale;
+
+  /// Overridable so a test can pin the app to a skin instead of the stored
+  /// choice.
+  final ThemeController? theme;
 
   @override
   State<ZivoApp> createState() => _ZivoAppState();
@@ -151,7 +184,8 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       widget.profiles ?? FirestoreProfileRepository();
   // Auth bookkeeping (account metadata + event log) follows the Firestore
   // flag: a real recorder against the live backend, a silent no-op offline.
-  late final AuthActivityRepository _activity = widget.activity ??
+  late final AuthActivityRepository _activity =
+      widget.activity ??
       (_useFirestore
           ? FirestoreAuthActivityRepository()
           : const NoopAuthActivityRepository());
@@ -167,6 +201,18 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       widget.workoutPlans ?? _defaultWorkoutPlans();
   late final WorkoutSessionRepository _workoutSessions =
       widget.workoutSessions ?? _defaultWorkoutSessions();
+  late final WorkoutSettingsRepository _workoutSettings =
+      widget.workoutSettings ?? _defaultWorkoutSettings();
+  late final TrainingDayMarkRepository _trainingDayMarks =
+      widget.trainingDayMarks ?? _defaultTrainingDayMarks();
+
+  /// Closes sessions that were left open. Same shape as [_sleepService]: a
+  /// domain service over the repository seam, triggered on sign-in and on
+  /// resume rather than hidden inside a screen.
+  late final SessionMaintenance _sessionMaintenance = SessionMaintenance(
+    sessions: _workoutSessions,
+    settings: _workoutSettings,
+  );
   late final BodyWeightRepository _bodyWeight =
       widget.bodyWeight ?? _defaultBodyWeight();
   late final DietRepository _diet = widget.diet ?? _defaultDiet();
@@ -194,6 +240,22 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       widget.stepCounter ??
       (deviceHasStepSensor ? PedometerStepCounterService() : null);
 
+  late final SleepRepository _sleep = widget.sleep ?? _defaultSleep();
+
+  /// The platform health seam. Only where a health store can exist (iOS /
+  /// Android); every other host gets [UnsupportedSleepSource], which is not an
+  /// error path — sleep still works there through manual logging.
+  late final SleepSource _sleepSource =
+      widget.sleepSource ??
+      (HealthSleepSource.isSupportedHost
+          ? HealthSleepSource()
+          : const UnsupportedSleepSource());
+
+  late final SleepService _sleepService = SleepService(
+    repository: _sleep,
+    source: _sleepSource,
+  );
+
   // Media is local-first: the byte store is always the on-device documents
   // directory, independent of the Firestore flag. Only the *metadata* registry
   // and per-account preferences follow [_useFirestore].
@@ -213,6 +275,14 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   /// blank one.
   late final LocaleController _locale = widget.locale ?? LocaleController();
 
+  /// The app skin. Constructed on the default (dark) and then asked to restore
+  /// the stored choice in [initState], for the same reason [_locale] is:
+  /// preferences are async, and blocking first paint on them would trade a
+  /// correct first frame for a blank one. The cost is that a light-mode user
+  /// can see one dark frame at launch — cheaper than an empty window, and the
+  /// swap lands before anything is legible.
+  late final ThemeController _theme = widget.theme ?? ThemeController();
+
   /// Watches the signed-in account and clears the device-local backup
   /// connection when it changes away from a signed-in account (sign-out or
   /// account switch), so account A's backup connection can never leak into
@@ -226,6 +296,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     if (widget.locale == null) _locale.load();
+    if (widget.theme == null) _theme.load();
     _authSub = _auth.watchAuthState().listen((_) {
       final uid = _auth.currentUser?.uid;
       if (_prevUid != null && _prevUid != uid) {
@@ -235,8 +306,29 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
         _media.disconnectBackup();
       }
       _prevUid = uid;
+      // A signed-in user is the precondition for a sleep sync: the repository
+      // writes under `users/{uid}` and throws without one. This is also the
+      // *only* automatic sleep read at launch — see [_syncSleep].
+      if (uid != null) _syncSleep();
+      if (uid != null) _sweepStaleSessions();
     });
   }
+
+  /// Read the health store, throttled, whenever the app has reason to think
+  /// last night has changed.
+  ///
+  /// Sleep used to be read from exactly one place: `SleepPage`'s
+  /// `didChangeDependencies`. Everything else in the app — Today's sleep
+  /// glance, the Hub's sleep card — renders the Firestore mirror, which only
+  /// ever changes when something writes to it. So a user who opened ZIVO in
+  /// the morning saw the night from whenever they last opened the *Sleep*
+  /// page, days old, with nothing on screen admitting it. That is not a
+  /// caching bug to paper over with a refresh button; it is a missing trigger,
+  /// and this is the trigger.
+  ///
+  /// [SleepService.syncIfStale] carries the throttle, so signing in, resuming,
+  /// and opening the page in quick succession cost one read between them.
+  void _syncSleep() => unawaited(_sleepService.syncIfStale());
 
   /// Reattach to the music player every time the app comes forward.
   ///
@@ -245,15 +337,36 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   /// phone sleeps — so "connected at launch" is not a state that survives
   /// normal use. Without this the user came back to a dead strip and had to
   /// find a Connect button, which is precisely the friction this removes.
-  /// The call is a no-op on a device that has never linked, so it can never
-  /// raise an authorization prompt nobody asked for (see
-  /// [MusicController.reconnectIfLinked]).
+  ///
+  /// This is a *sync*, not a launch: [MusicController.reconnectIfLinked] joins
+  /// a player that is already running and does nothing at all otherwise — no
+  /// Spotify appearing on screen, no playback the user didn't start, no
+  /// authorization prompt. It is also a no-op on a device that has never
+  /// linked.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_music.reconnectIfLinked());
+      // The night that matters most is the one that ended while ZIVO was in
+      // the background. A watch writes it to the health store minutes after
+      // the user wakes, and without this the app can only learn about it by
+      // being killed and relaunched.
+      if (_auth.currentUser != null) _syncSleep();
+      // A session left open is discovered by coming back to the app, which is
+      // exactly this moment — the phone that was locked at 6pm is unlocked
+      // again the next morning.
+      if (_auth.currentUser != null) _sweepStaleSessions();
     }
   }
+
+  /// Close any session that was left open, at its last logged set.
+  ///
+  /// Fire-and-forget and idempotent: a sweep that finds nothing writes
+  /// nothing, and running it twice is the same as running it once. It never
+  /// touches a session a live screen has open — `LiveSessionPage` owns that
+  /// one, and it re-checks on its own resume anyway.
+  void _sweepStaleSessions() =>
+      unawaited(_sessionMaintenance.sweep(now: DateTime.now()));
 
   @override
   void dispose() {
@@ -263,8 +376,17 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     // (a test passing its own fake) stays theirs to dispose.
     if (widget.music == null) _music.dispose();
     if (widget.locale == null) _locale.dispose();
+    if (widget.theme == null) _theme.dispose();
     super.dispose();
   }
+
+  WorkoutSettingsRepository _defaultWorkoutSettings() => _useFirestore
+      ? FirestoreWorkoutSettingsRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryWorkoutSettingsRepository();
+
+  TrainingDayMarkRepository _defaultTrainingDayMarks() => _useFirestore
+      ? FirestoreTrainingDayMarkRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryTrainingDayMarkRepository();
 
   MediaPreferencesRepository _defaultMediaPreferences() => _useFirestore
       ? FirestoreMediaPreferencesRepository(uidSource: UidSource.firebaseAuth())
@@ -292,6 +414,10 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   ExpenseRepository _defaultExpenses() => _useFirestore
       ? FirestoreExpenseRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryExpenseRepository();
+
+  SleepRepository _defaultSleep() => _useFirestore
+      ? FirestoreSleepRepository(uidSource: UidSource.firebaseAuth())
+      : InMemorySleepRepository();
 
   WalletRepository _defaultWallet() => _useFirestore
       ? FirestoreWalletRepository(uidSource: UidSource.firebaseAuth())
@@ -354,41 +480,84 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       workouts: _workouts,
       workoutPlans: _workoutPlans,
       workoutSessions: _workoutSessions,
+      workoutSettings: _workoutSettings,
+      trainingDayMarks: _trainingDayMarks,
+      sessionMaintenance: _sessionMaintenance,
       bodyWeight: _bodyWeight,
       diet: _diet,
       foods: _foods,
       ai: _ai,
       recorder: _recorder,
       stepCounter: _stepCounter,
+      sleep: _sleep,
+      sleepService: _sleepService,
       media: _media,
       music: _music,
       locale: _locale,
+      theme: _theme,
       // Rebuilds the whole MaterialApp on a language change, which is what
       // swaps both the strings and the text direction: `locale: null` means
       // "resolve against the device", so RTL follows from the locale itself
       // rather than from anything the screens do.
       child: ValueListenableBuilder<Locale?>(
         valueListenable: _locale.locale,
-        builder: (context, locale, _) => MaterialApp(
-          title: 'ZIVO',
-          debugShowCheckedModeBanner: false,
-          scrollBehavior: const ZivoScrollBehavior(),
-          theme: AppTheme.dark,
-          darkTheme: AppTheme.dark,
-          themeMode: ThemeMode.dark,
-          locale: locale,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
-            value: SystemUiOverlayStyle.light,
-            // Local-first saves pop before their durable write lands, so the
-            // one place that can report a write that *didn't* land is above
-            // every screen — here. See core/util/deferred_write.dart.
-            child: DeferredWriteReporter(
-              child: child ?? const SizedBox.shrink(),
-            ),
-          ),
-          home: const AuthGate(),
+        // ...and on a skin change, for a related but not identical reason.
+        // `MaterialApp` can pick between `theme` and `darkTheme` on its own,
+        // but the app's colours are read by name off `TrainColors` rather
+        // than out of `Theme.of(context)` (ADR-011), so the active palette
+        // has to be swapped *before* the subtree that reads it builds — which
+        // is exactly what this builder is: it runs above every route, and a
+        // change to `_theme.mode` rebuilds all of it.
+        builder: (context, locale, _) => ValueListenableBuilder<ThemeMode>(
+          valueListenable: _theme.mode,
+          builder: (context, mode, _) {
+            // `platformBrightnessOf` is a dependency, not a read: on
+            // ThemeMode.system this is what makes the app follow the phone
+            // flipping itself at sunset without anyone touching Settings.
+            final brightness = switch (mode) {
+              ThemeMode.dark => Brightness.dark,
+              ThemeMode.light => Brightness.light,
+              ThemeMode.system => MediaQuery.platformBrightnessOf(context),
+            };
+            // Swapping the skin also repaints the tree — nothing in it is
+            // subscribed to the palette, so `const` screens would otherwise
+            // keep whichever skin they were first built in (ADR-011).
+            ZivoTheme.use(brightness);
+            final dark = brightness == Brightness.dark;
+            return MaterialApp(
+              title: 'ZIVO',
+              debugShowCheckedModeBanner: false,
+              scrollBehavior: const ZivoScrollBehavior(),
+              theme: AppTheme.light,
+              darkTheme: AppTheme.dark,
+              themeMode: mode,
+              // No cross-fade. `MaterialApp` lerps `ThemeData` over 200ms by
+              // default, and the tokens under it snap — so an animated swap
+              // spends those 200ms with a half-dark `scaffoldBackgroundColor`
+              // under fully-light surfaces. One skin at a time.
+              themeAnimationDuration: Duration.zero,
+              locale: locale,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (context, child) =>
+                  AnnotatedRegion<SystemUiOverlayStyle>(
+                    // The status bar reads the *content* behind it, so light
+                    // icons belong on the near-black skin and dark ones on
+                    // paper — the opposite of the skin's own name.
+                    value: dark
+                        ? SystemUiOverlayStyle.light
+                        : SystemUiOverlayStyle.dark,
+                    // Local-first saves pop before their durable write lands,
+                    // so the one place that can report a write that *didn't*
+                    // land is above every screen — here. See
+                    // core/util/deferred_write.dart.
+                    child: DeferredWriteReporter(
+                      child: child ?? const SizedBox.shrink(),
+                    ),
+                  ),
+              home: const AuthGate(),
+            );
+          },
         ),
       ),
     );

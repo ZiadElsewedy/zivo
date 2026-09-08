@@ -9,6 +9,7 @@ import '../../../../../core/util/parse.dart';
 import '../../../../../l10n/l10n.dart';
 import 'live_session_format.dart';
 import 'phases/phase_scaffold.dart';
+import '../../../../../core/util/bidi.dart';
 
 /// Every tappable thing that belongs to the reps/weight cluster shares this
 /// tap-region group: the two fields, their four ± buttons and the quick-load
@@ -39,8 +40,8 @@ class ActionCluster extends StatelessWidget {
             label: l(context).liveSkip,
             mono: false,
             height: kCommitRowHeight,
-            icon: const TrainPlayGlyph(
-              color: Color(0x99F4F4F0),
+            icon: TrainPlayGlyph(
+              color: TrainColors.inkAt(0.6),
               size: 11,
               bar: true,
             ),
@@ -146,7 +147,7 @@ class _StepperFieldState extends State<StepperField>
               size: 8.5,
               weight: FontWeight.w500,
               tracking: 0.16,
-              color: const Color(0x52F4F4F0),
+              color: TrainColors.ink4,
             ),
           ),
           const SizedBox(height: 8),
@@ -159,7 +160,7 @@ class _StepperFieldState extends State<StepperField>
               decoration: BoxDecoration(
                 color: TrainColors.glassSoft,
                 borderRadius: radius,
-                border: Border.all(color: const Color(0x14FFFFFF)),
+                border: Border.all(color: TrainColors.liftAt(0.078)),
               ),
               child: ClipRRect(
                 borderRadius: radius,
@@ -214,7 +215,7 @@ class _StepperFieldState extends State<StepperField>
                             hintText: widget.hint,
                             hintStyle: TrainType.mono(
                               size: 20,
-                              color: const Color(0x59F4F4F0),
+                              color: TrainColors.inkAt(0.35),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
                               vertical: 14,
@@ -274,12 +275,12 @@ class QuickWeightRow extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.s),
           QuickWeightChip(
-            label: '+${trimWeight(stepKg)}',
+            label: ltrFor(context, '+${trimWeight(stepKg)}'),
             onTap: () => onPick(baseWeight + stepKg),
           ),
           const SizedBox(width: AppSpacing.s),
           QuickWeightChip(
-            label: '−${trimWeight(stepKg)}',
+            label: ltrFor(context, '−${trimWeight(stepKg)}'),
             onTap: () => onPick(baseWeight - stepKg),
           ),
         ],
@@ -319,7 +320,7 @@ class QuickWeightChip extends StatelessWidget {
             border: Border.all(
               color: primary
                   ? TrainColors.green.withValues(alpha: 0.30)
-                  : const Color(0x14FFFFFF),
+                  : TrainColors.liftAt(0.078),
             ),
           ),
           child: Text(
@@ -327,7 +328,7 @@ class QuickWeightChip extends StatelessWidget {
             style: TrainType.mono(
               size: 11.5,
               weight: FontWeight.w500,
-              color: primary ? TrainColors.green : const Color(0x99F4F4F0),
+              color: primary ? TrainColors.green : TrainColors.inkAt(0.6),
             ),
           ),
         ),

@@ -5,6 +5,7 @@ import '../../l10n/l10n.dart';
 import '../scope/app_scope.dart';
 import '../theme/app_typography.dart';
 import '../theme/train_tokens.dart';
+import '../widgets/zivo_choice_row.dart';
 import '../widgets/zivo_sheet.dart';
 
 /// The language picker: Arabic, English, or whatever the phone is set to.
@@ -30,9 +31,9 @@ class _LanguageSheet extends StatelessWidget {
     final controller = AppScope.of(context).requireLocale;
     final strings = l(context);
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.raised,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),
       child: ValueListenableBuilder<Locale?>(
@@ -56,7 +57,7 @@ class _LanguageSheet extends StatelessWidget {
                 strings.settingsLanguageArabic,
               ),
             ])
-              _Option(
+              ZivoChoiceRow(
                 key: Key(key),
                 label: label,
                 selected: current?.languageCode == locale?.languageCode,
@@ -65,48 +66,6 @@ class _LanguageSheet extends StatelessWidget {
                   controller.set(locale);
                   Navigator.of(context).pop();
                 },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Option extends StatelessWidget {
-  const _Option({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    super.key,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 15),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: AppText.rowTitle.copyWith(
-                  color: selected ? TrainColors.inkPlain : TrainColors.ink2,
-                ),
-              ),
-            ),
-            if (selected)
-              const Icon(
-                Icons.check_rounded,
-                size: 19,
-                color: TrainColors.violetGlyph,
               ),
           ],
         ),

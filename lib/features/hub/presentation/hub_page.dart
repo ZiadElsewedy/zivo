@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/scope/app_scope.dart';
+import '../../sleep/domain/sleep_night.dart';
+import '../../sleep/presentation/pages/sleep_page.dart';
+import '../../sleep/presentation/sleep_labels.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/train_tokens.dart';
@@ -62,7 +65,7 @@ class HubPage extends StatelessWidget {
     return DecoratedBox(
       // The one soft radial glow this surface gets — the same green wash the
       // Workout hub and Diet carry, since this is where they're opened from.
-      decoration: const BoxDecoration(gradient: TrainColors.hubTint),
+      decoration: BoxDecoration(gradient: TrainColors.hubTint),
       child: Stack(
         children: [
           // The page is a single top-aligned scroll view: header, then the
@@ -110,6 +113,7 @@ class HubPage extends StatelessWidget {
                       _DietTile(),
                       _ExpensesTile(),
                       _MomentsTile(),
+                      _SleepTile(),
                     ],
                   ),
                   const _ConnectedSection(),
@@ -185,7 +189,14 @@ class _WorkoutTile extends StatelessWidget {
             stream: scope.workoutSessions.watchActiveSession(),
             initialData: scope.workoutSessions.activeSession,
             builder: (context, sessionSnapshot) {
-              final selection = resolveUpNext(plan, sessionSnapshot.data);
+              final selection = resolveUpNext(
+              plan,
+              sessionSnapshot.data,
+              // A session left open on Tuesday must not still be offering
+              // itself as "resume" on Thursday, in place of the day due.
+              now: DateTime.now(),
+              maxSessionDuration: AppScope.of(context).maxSessionDuration,
+            );
               final day = selection.day;
               // Localized whole, not assembled from a translated word and a
               // separator: an English fragment inside an Arabic paragraph is
@@ -371,6 +382,53 @@ class _MomentsTile extends StatelessWidget {
   }
 }
 
+/// Sleep — last night's duration, with how it was known.
+///
+/// The stat carries the **method**, not just the figure, for the same reason
+/// every sleep surface does: "7h 12m" alone is a claim ZIVO cannot stand
+/// behind without saying where it came from (`docs/SLEEP_SYSTEM.md` §11). The
+/// card is violet, the hue this palette already gives the night (ADR-010).
+class _SleepTile extends StatelessWidget {
+  const _SleepTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context);
+    final sleep = scope.sleep;
+    return RiseIn(
+      delay: const Duration(milliseconds: 250),
+      child: StreamBuilder<List<SleepNight>>(
+        stream: sleep?.watchNights(),
+        initialData: sleep?.current ?? const <SleepNight>[],
+        builder: (context, snapshot) {
+          final nights = snapshot.data ?? const <SleepNight>[];
+          SleepNight? last;
+          for (final night in nights) {
+            if (night.hasData) {
+              last = night;
+              break;
+            }
+          }
+          final stat = last == null
+              ? l(context).hubNoSleepYet
+              : '${sleepDurationText(context, last.main!.asleepDuration)} · '
+                    '${sleepMethodLabel(context, last.main!.provenance.method)}';
+          return _ModuleCard(
+            image: 'assets/hub/sleep.jpg',
+            icon: AppIcons.sleep,
+            accent: TrainColors.sleepAccent,
+            label: l(context).hubSleep,
+            stat: stat,
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const SleepPage())),
+          );
+        },
+      ),
+    );
+  }
+}
+
 /// The shared visual shell for a Hub module card: a hero photograph up top, a
 /// hue-tinted icon chip, the module label, and a live stat line underneath.
 /// Data-fetching lives entirely in each concrete `_XTile` above — this is
@@ -439,8 +497,7 @@ class _ModuleCard extends StatelessWidget {
                                 icon: icon,
                                 accent: accent,
                                 size: 34,
-                                iconSize: 17,
-                                radius: 11,
+                                iconSize: 21,
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -527,15 +584,15 @@ class _HeroPhoto extends StatelessWidget {
           ),
           // The seam-softening fade: transparent over the top half, deepening
           // to the screen base at the very bottom edge.
-          const DecoratedBox(
+          DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0x00080908),
-                  Color(0x00080908),
-                  Color(0xC2080908),
+                  TrainColors.base.withValues(alpha: 0),
+                  TrainColors.base.withValues(alpha: 0),
+                  TrainColors.base.withValues(alpha: 0.76),
                 ],
                 stops: [0.0, 0.52, 1.0],
               ),
@@ -761,7 +818,7 @@ class _SpotifyMark extends StatelessWidget {
       height: size,
       filterQuality: FilterQuality.medium,
       errorBuilder: (context, error, stack) =>
-          const Icon(AppIcons.music, size: 16, color: TrainColors.green),
+          Icon(AppIcons.music, size: 16, color: TrainColors.green),
     );
   }
 }

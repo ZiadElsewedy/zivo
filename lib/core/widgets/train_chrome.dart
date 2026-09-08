@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../theme/app_spacing.dart';
 import '../theme/train_tokens.dart';
 import 'pressable_scale.dart';
 
@@ -19,7 +20,7 @@ import 'pressable_scale.dart';
 class TrainCard extends StatelessWidget {
   const TrainCard({
     required this.child,
-    this.radius = 22,
+    this.radius = AppRadius.card,
     this.padding = const EdgeInsets.all(18),
     this.gradient,
     this.border,
@@ -27,6 +28,14 @@ class TrainCard extends StatelessWidget {
   });
 
   final Widget child;
+
+  /// Defaults to [AppRadius.card] — the app's one card radius.
+  ///
+  /// It used to default to 22 while `AppRadius.card` said 20, so the design
+  /// system carried two answers to "how round is a card". Six of this
+  /// widget's own call sites were already passing `radius: 20` to override
+  /// the default back to the token, which is the drift stating itself out
+  /// loud.
   final double radius;
   final EdgeInsets padding;
 
@@ -57,17 +66,27 @@ class TrainPrimaryButton extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.icon,
-    this.color = TrainColors.ember,
+    Color? color,
     this.labelColor = Colors.white,
     this.height = 60,
     this.glowAlpha = 0.32,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _color = color;
 
   final String label;
   final VoidCallback onTap;
   final Widget? icon;
-  final Color color;
+  final Color? _color;
+
+  /// Defaults to the active skin's `ember` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get color => _color ?? TrainColors.ember;
   final Color labelColor;
   final double height;
   final double glowAlpha;
@@ -128,6 +147,7 @@ class TrainGhostButton extends StatelessWidget {
     this.icon,
     this.height = 52,
     this.mono = true,
+    this.loading = false,
     super.key,
   });
 
@@ -139,45 +159,68 @@ class TrainGhostButton extends StatelessWidget {
   /// ±15s read as numbers (mono); "Skip" reads as a word (Manrope).
   final bool mono;
 
+  /// Swaps the label for a spinner and stops accepting taps.
+  ///
+  /// Here rather than at a call site because Settings had written this whole
+  /// widget out a second time — same glass fill, same pill, same hairline,
+  /// same pressable — purely to add a spinner to Sign out, and the copy had
+  /// drifted three values away (border `.12` vs `.10`, label 15/w700 vs
+  /// 14/w400) from the ghost pill sitting ten rows above it.
+  final bool loading;
+
   @override
   Widget build(BuildContext context) {
     return PressableScale(
+      enabled: !loading,
       scale: 0.985,
       child: Material(
         color: TrainColors.glass,
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
           borderRadius: BorderRadius.circular(999),
-          onTap: () {
-            HapticFeedback.selectionClick();
-            onTap();
-          },
+          onTap: loading
+              ? null
+              : () {
+                  HapticFeedback.selectionClick();
+                  onTap();
+                },
           child: Container(
             height: height,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0x1AFFFFFF)),
+              border: Border.all(color: TrainColors.liftAt(0.1)),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (icon != null) ...[icon!, const SizedBox(width: 8)],
-                Text(
-                  label,
-                  style: mono
-                      ? TrainType.mono(
-                          size: 14,
-                          weight: FontWeight.w500,
-                          color: const Color(0xBFF4F4F0),
-                        )
-                      : TrainType.ui(
-                          size: 14,
-                          color: const Color(0xB2F4F4F0),
-                          height: 1,
-                        ),
-                ),
-              ],
-            ),
+            child: loading
+                ? Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: TrainColors.ink2,
+                      ),
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (icon != null) ...[icon!, const SizedBox(width: 8)],
+                      Text(
+                        label,
+                        style: mono
+                            ? TrainType.mono(
+                                size: 14,
+                                weight: FontWeight.w500,
+                                color: TrainColors.inkAt(0.75),
+                              )
+                            : TrainType.ui(
+                                size: 14,
+                                color: TrainColors.inkAt(0.7),
+                                height: 1,
+                              ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),
@@ -193,16 +236,26 @@ class TrainCircleButton extends StatelessWidget {
     required this.onTap,
     required this.semanticLabel,
     this.size = 36,
-    this.fill = TrainColors.glassStrong,
+    Color? fill,
     this.border,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _fill = fill;
 
   final Widget child;
   final VoidCallback onTap;
   final String semanticLabel;
   final double size;
-  final Color fill;
+  final Color? _fill;
+
+  /// Defaults to the active skin's `glassStrong` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get fill => _fill ?? TrainColors.glassStrong;
   final Color? border;
 
   /// The accessible minimum the visible chip is centred inside.
@@ -281,7 +334,7 @@ class TrainSegmentBar extends StatelessWidget {
                     ? TrainColors.green
                     : i == current
                     ? TrainColors.ember.withValues(alpha: 0.85)
-                    : const Color(0x1AFFFFFF),
+                    : TrainColors.liftAt(0.1),
               ),
             ),
           ),
@@ -297,13 +350,23 @@ class TrainSegmentCaptions extends StatelessWidget {
   const TrainSegmentCaptions({
     required this.left,
     required this.right,
-    this.rightColor = TrainColors.ink4,
+    Color? rightColor,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _rightColor = rightColor;
 
   final String left;
   final String right;
-  final Color rightColor;
+  final Color? _rightColor;
+
+  /// Defaults to the active skin's `ink4` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get rightColor => _rightColor ?? TrainColors.ink4;
 
   @override
   Widget build(BuildContext context) {
@@ -319,7 +382,7 @@ class TrainSegmentCaptions extends StatelessWidget {
           style: TrainType.caption(
             size: 10.5,
             tracking: 0.14,
-            color: const Color(0x7AF4F4F0),
+            color: TrainColors.inkAt(0.48),
           ),
         ),
         Text(
@@ -410,7 +473,7 @@ class TrainMetricRing extends StatelessWidget {
                           size: 8,
                           weight: FontWeight.w500,
                           tracking: 0.12,
-                          color: const Color(0x61F4F4F0),
+                          color: TrainColors.inkAt(0.38),
                         ),
                       ),
                     ],
@@ -440,7 +503,7 @@ class TrainMetricRing extends StatelessWidget {
           style: TrainType.mono(
             size: 9.5,
             tracking: 0.08,
-            color: subColor ?? const Color(0x61F4F4F0),
+            color: subColor ?? TrainColors.inkAt(0.38),
           ),
         ),
       ],
@@ -482,14 +545,24 @@ class _RingPainter extends CustomPainter {
 class TrainCaption extends StatelessWidget {
   const TrainCaption(
     this.text, {
-    this.color = TrainColors.ink4,
+    Color? color,
     this.size = 9.5,
     this.tracking = 0.2,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _color = color;
 
   final String text;
-  final Color color;
+  final Color? _color;
+
+  /// Defaults to the active skin's `ink4` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get color => _color ?? TrainColors.ink4;
   final double size;
   final double tracking;
 

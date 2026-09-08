@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/util/bidi.dart';
+import '../../../../l10n/l10n.dart';
 import 'hue.dart';
 import '../../../../core/theme/train_tokens.dart';
 
@@ -41,13 +43,19 @@ class DietGlanceRow extends StatelessWidget {
 
   /// "1,400 kcal left of target" / "200 kcal over target" / "1,400 kcal left
   /// of plan", with "~" when the figure rests on estimated values.
-  String _kcalText() {
+  ///
+  /// The figure and its "~" are one composed run and are pinned together; the
+  /// sentence around them is translated copy and is not.
+  String _kcalText(BuildContext context) {
     final tilde = kcalEstimated ? '~' : '';
-    final baseline = againstTarget ? 'target' : 'plan';
+    final strings = l(context);
     if (againstTarget && kcalLeft < 0) {
-      return '$tilde${-kcalLeft} kcal over $baseline';
+      return strings.dietKcalOverTarget(ltrFor(context, '$tilde${-kcalLeft}'));
     }
-    return '$tilde$kcalLeft kcal left of $baseline';
+    final kcal = ltrFor(context, '$tilde$kcalLeft');
+    return againstTarget
+        ? strings.dietKcalLeftOfTarget(kcal)
+        : strings.dietKcalLeftOfPlan(kcal);
   }
 
   @override
@@ -63,9 +71,9 @@ class DietGlanceRow extends StatelessWidget {
               TextSpan(
                 style: AppText.amount.copyWith(color: TrainColors.ink),
                 children: [
-                  TextSpan(text: '$eaten of $total meals eaten'),
+                  TextSpan(text: l(context).dietMealsEaten(eaten, total)),
                   TextSpan(
-                    text: '  ·  ${_kcalText()}',
+                    text: '  ·  ${_kcalText(context)}',
                     style: AppText.body.copyWith(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
@@ -76,11 +84,7 @@ class DietGlanceRow extends StatelessWidget {
               ),
             ),
           ),
-          const Icon(
-            Icons.chevron_right_rounded,
-            size: 18,
-            color: TrainColors.ink3,
-          ),
+          Icon(Icons.chevron_right_rounded, size: 18, color: TrainColors.ink3),
         ],
       ),
     );

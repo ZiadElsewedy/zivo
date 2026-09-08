@@ -30,11 +30,9 @@ class AuthHeader extends StatelessWidget {
 
   /// The base style rich asides should build on, so a caller's emphasised
   /// span stays in the same optical size as the rest of the line.
-  static TextStyle get asideStyle => AppText.aside.copyWith(
-    fontSize: 17,
-    height: 1.42,
-    color: TrainColors.ink2,
-  );
+  static TextStyle asideStyle(BuildContext context) => AppText.aside(
+    context,
+  ).copyWith(fontSize: 17, height: 1.42, color: TrainColors.ink2);
 
   @override
   Widget build(BuildContext context) {
@@ -48,9 +46,9 @@ class AuthHeader extends StatelessWidget {
         if (aside != null || asideSpan != null) ...[
           const SizedBox(height: 12),
           if (asideSpan != null)
-            Text.rich(asideSpan!, style: asideStyle)
+            Text.rich(asideSpan!, style: asideStyle(context))
           else
-            Text(aside!, style: asideStyle),
+            Text(aside!, style: asideStyle(context)),
         ],
       ],
     );
@@ -70,7 +68,7 @@ class AuthSectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 10),
+      padding: const EdgeInsetsDirectional.only(start: 4, bottom: 10),
       child: Text(text.toUpperCase(), style: AppText.sectionLabel),
     );
   }
