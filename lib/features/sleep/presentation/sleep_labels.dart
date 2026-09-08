@@ -131,10 +131,7 @@ String sleepMethodLabel(BuildContext context, SleepMethod method) {
   };
 }
 
-String sleepConfidenceLabel(
-  BuildContext context,
-  SleepConfidence confidence,
-) {
+String sleepConfidenceLabel(BuildContext context, SleepConfidence confidence) {
   final strings = l(context);
   return switch (confidence) {
     SleepConfidence.high => strings.sleepConfidenceHigh,
@@ -248,6 +245,23 @@ String? sleepBedtimeDeltaText(BuildContext context, SleepNight night) {
 /// sentence ("٦ من ٧ ليالٍ"), not a numeric run.
 String sleepNightsOfText(BuildContext context, int count, int total) =>
     l(context).sleepNightsOf(count, total);
+
+/// "Average 7h 30m · 6 of 7 nights" — the history row's second line.
+///
+/// Here rather than in the widget because it is a *sentence about sleep*, and
+/// this file is the only place one is built. Composed in a widget it would sit
+/// outside the copy contract, and — the practical half — outside the bidi
+/// reasoning: two of its three parts are translated words, so the run must
+/// not be pinned, and that is a decision the call site should not be making.
+String sleepHistoryStatText(
+  BuildContext context,
+  num meanMinutes,
+  int nights,
+  int windowNights,
+) => l(context).sleepHistoryStat(
+  sleepMinutesText(context, meanMinutes),
+  sleepNightsOfText(context, nights, windowNights),
+);
 
 /// "±48 min" — a variability figure. The `±` is neutral and the duration
 /// inside carries its own direction, so this needs no pinning either.

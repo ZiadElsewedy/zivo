@@ -70,6 +70,7 @@ class SleepController extends ChangeNotifier {
     final elapsed = _now().toUtc().difference(mark.atUtc);
     return elapsed.isNegative ? Duration.zero : elapsed;
   }
+
   SleepSyncState get syncState => service.syncState.value;
 
   /// Whether the first snapshot has arrived. Distinguishes "still loading"
@@ -205,10 +206,8 @@ class SleepController extends ChangeNotifier {
   SleepStageAverages? stageAveragesFor(List<SleepNight> nights) =>
       SleepStageAverages.forWindow(nights);
 
-  SleepComparison get comparison => SleepMetrics.compare(
-    current: weekMetrics,
-    previous: previousWeekMetrics,
-  );
+  SleepComparison get comparison =>
+      SleepMetrics.compare(current: weekMetrics, previous: previousWeekMetrics);
 
   SleepTrend get trend => SleepMetrics.trend(
     SleepWindow.daysEndingOn(

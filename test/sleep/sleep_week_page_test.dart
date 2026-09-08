@@ -51,10 +51,7 @@ SleepNight _night(DateTime day, {double hours = 7.5}) {
       endAt: start.add(Duration(minutes: (hours * 60).round())).toUtc(),
       startOffsetMinutes: start.timeZoneOffset.inMinutes,
       endOffsetMinutes: start.timeZoneOffset.inMinutes,
-      provenance: SleepProvenance.manual(
-        ingestedAt: _now,
-        providerName: 'You',
-      ),
+      provenance: SleepProvenance.manual(ingestedAt: _now, providerName: 'You'),
     ),
     targets: SleepTargets.defaults,
   );
@@ -91,7 +88,8 @@ void main() {
   // so the default 800x600 surface would leave the lower sections unbuilt —
   // and "not rendered" reads exactly like "not found".
   setUp(() {
-    final view = TestWidgetsFlutterBinding.ensureInitialized().platformDispatcher
+    final view = TestWidgetsFlutterBinding.ensureInitialized()
+        .platformDispatcher
         .views
         .first;
     view.physicalSize = const Size(1400, 4400);
@@ -99,15 +97,17 @@ void main() {
   });
 
   tearDown(() {
-    final view = TestWidgetsFlutterBinding.ensureInitialized().platformDispatcher
+    final view = TestWidgetsFlutterBinding.ensureInitialized()
+        .platformDispatcher
         .views
         .first;
     view.resetPhysicalSize();
     view.resetDevicePixelRatio();
   });
 
-  testWidgets('a full week reports its averages with the n behind them',
-      (tester) async {
+  testWidgets('a full week reports its averages with the n behind them', (
+    tester,
+  ) async {
     await _pump(tester, [
       for (var day = 2; day <= 8; day++) _night(DateTime(2026, 9, day)),
     ]);
@@ -130,8 +130,9 @@ void main() {
     expect(findTextIgnoringBidi('1 of 5 nights'), findsOneWidget);
   });
 
-  testWidgets('a day with no record is a row that says so, never a zero',
-      (tester) async {
+  testWidgets('a day with no record is a row that says so, never a zero', (
+    tester,
+  ) async {
     // Filtering the empty days out would turn a three-night week into a
     // three-day week and quietly delete the most actionable thing on the page.
     await _pump(tester, [
@@ -158,8 +159,9 @@ void main() {
     expect(findTextIgnoringBidi('EVERY NIGHT'), findsNothing);
   });
 
-  testWidgets('a week with no staged night says so instead of a chart',
-      (tester) async {
+  testWidgets('a week with no staged night says so instead of a chart', (
+    tester,
+  ) async {
     // Manual entries carry no stages. A composition chart over them would be
     // invented, so the section states the absence and names nothing.
     await _pump(tester, [
@@ -172,8 +174,9 @@ void main() {
     );
   });
 
-  testWidgets('the trend states its own gate rather than vanishing',
-      (tester) async {
+  testWidgets('the trend states its own gate rather than vanishing', (
+    tester,
+  ) async {
     // The gate could not open at all before the sync window was widened, and
     // a section that simply disappeared gave no way to notice. It now names
     // exactly what would open it.

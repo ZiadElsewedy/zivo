@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../domain/sleep_night.dart';
 import '../../domain/sleep_session.dart';
+import '../../domain/sleep_stage_breakdown.dart';
 import 'sleep_axis.dart';
+import 'sleep_stage_split.dart';
 
 /// One night drawn on [SleepAxis] — the shared primitive behind both the daily
 /// hero bar and every row of the weekly raster.
@@ -19,11 +21,30 @@ import 'sleep_axis.dart';
 /// * **In-bed time sits behind the sleep bar, not inside it.** An hour of
 ///   reading in bed is drawn as the fainter frame around the night, so it can
 ///   be seen without being counted as sleep.
+///
+/// ## [showStages]
+///
+/// Off by default, and on only for the daily hero. With it on, a night the
+/// source actually graded is drawn as its stages in place along the axis — a
+/// hypnogram at bar height — instead of one flat block. This is the only
+/// drawing in the feature that renders the stage data the pipeline has always
+/// carried, and it is the reason the hero bar is worth looking at rather than
+/// merely worth reading.
+///
+/// It does not weaken the fill rule. A stage-shaded bar can only be produced
+/// from measured stages ([SleepStageBreakdown] refuses everything else), so
+/// the shading is itself evidence of measurement — and where a night has no
+/// usable staging this falls straight back to [SleepBarFill]. The **weekly
+/// raster leaves it off** deliberately: seven stage-shaded rows would put
+/// colour where the raster needs shape, and method-as-fill is the property
+/// that makes a week of typed entries impossible to mistake for a week of
+/// measurement.
 class SleepBar extends StatelessWidget {
   const SleepBar({
     required this.night,
     this.height = 14,
     this.showInterruptions = true,
+    this.showStages = false,
     super.key,
   });
 
@@ -33,6 +54,9 @@ class SleepBar extends StatelessWidget {
   /// Awake bouts notch the bar. Off in the compact week rows, where a notch
   /// would be a single pixel and read as a rendering artefact.
   final bool showInterruptions;
+
+  /// Draw the night's stages in place, where the source graded them.
+  final bool showStages;
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +69,15 @@ class SleepBar extends StatelessWidget {
               painter: _SleepBarPainter(
                 session: session,
                 showInterruptions: showInterruptions,
+                // Asking the breakdown rather than the raw segment list is
+                // what keeps this honest: it is null for an ungraded night
+                // and for staging too sparse to describe one, and those are
+                // exactly the nights that must not be drawn as a hypnogram.
+                stages:
+                    showStages &&
+                        SleepStageBreakdown.forSession(session) != null
+                    ? session.stages
+                    : const [],
               ),
               size: Size.infinite,
             ),
@@ -57,19 +90,23 @@ class _EmptyNightRule extends StatelessWidget {
   const _EmptyNightRule();
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Container(height: 1, color: TrainColors.hairline),
-  );
+  Widget build(BuildContext context) =>
+      Center(child: Container(height: 1, color: TrainColors.hairline));
 }
 
 class _SleepBarPainter extends CustomPainter {
   const _SleepBarPainter({
     required this.session,
     required this.showInterruptions,
+    this.stages = const [],
   });
 
   final SleepSession session;
   final bool showInterruptions;
+
+  /// Empty unless the caller asked for stages **and** the night has usable
+  /// ones. See [SleepBar.showStages].
+  final List<SleepStageSegment> stages;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -100,19 +137,23 @@ class _SleepBarPainter extends CustomPainter {
     );
     final rrect = RRect.fromRectAndRadius(rect, radius);
 
-    switch (fill) {
-      case SleepBarFill.solid:
-        canvas.drawRRect(rrect, Paint()..color = TrainColors.sleepGlyph);
-      case SleepBarFill.muted:
-        canvas.drawRRect(
-          rrect,
-          Paint()..color = TrainColors.sleepAccent.withValues(alpha: 0.55),
-        );
-      case SleepBarFill.outlined:
-        _outline(canvas, rrect);
-      case SleepBarFill.hatched:
-        _hatch(canvas, rrect);
-        _outline(canvas, rrect);
+    if (stages.isNotEmpty) {
+      _paintStages(canvas, rrect);
+    } else {
+      switch (fill) {
+        case SleepBarFill.solid:
+          canvas.drawRRect(rrect, Paint()..color = TrainColors.sleepGlyph);
+        case SleepBarFill.muted:
+          canvas.drawRRect(
+            rrect,
+            Paint()..color = TrainColors.sleepAccent.withValues(alpha: 0.55),
+          );
+        case SleepBarFill.outlined:
+          _outline(canvas, rrect);
+        case SleepBarFill.hatched:
+          _hatch(canvas, rrect);
+          _outline(canvas, rrect);
+      }
     }
 
     if (!showInterruptions) return;
@@ -130,6 +171,45 @@ class _SleepBarPainter extends CustomPainter {
         inset: 0,
       );
       canvas.drawRect(gap, notch);
+    }
+    canvas.restore();
+  }
+
+  /// The night's stages, each drawn where it happened.
+  ///
+  /// Clipped to the bar's rounded rect and painted over a base fill, so the
+  /// gaps a source leaves between graded runs read as ordinary unstaged sleep
+  /// rather than as holes in the night — a gap in stage data is not a gap in
+  /// the sleep, and drawing it as one would be the same false claim as a
+  /// zero-height bar.
+  void _paintStages(Canvas canvas, RRect rrect) {
+    canvas.save();
+    canvas.clipRRect(rrect);
+    canvas.drawRRect(
+      rrect,
+      Paint()..color = TrainColors.sleepStageUnknown.withValues(alpha: 0.55),
+    );
+
+    final bounds = rrect.outerRect;
+    for (final segment in stages) {
+      if (segment.stage == SleepStage.inBed ||
+          segment.stage == SleepStage.outOfBed) {
+        continue;
+      }
+      final start = _fractionOf(segment.startAt, session.startOffsetMinutes);
+      final end = _fractionOf(segment.endAt, session.startOffsetMinutes);
+      // A run that wraps the axis edge (a night running past noon) would
+      // otherwise paint backwards across the whole bar.
+      if (end <= start) continue;
+      canvas.drawRect(
+        Rect.fromLTRB(
+          start * bounds.width,
+          bounds.top,
+          end * bounds.width,
+          bounds.bottom,
+        ),
+        Paint()..color = sleepStageColor(segment.stage),
+      );
     }
     canvas.restore();
   }
@@ -177,5 +257,7 @@ class _SleepBarPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SleepBarPainter old) =>
-      old.session != session || old.showInterruptions != showInterruptions;
+      old.session != session ||
+      old.showInterruptions != showInterruptions ||
+      old.stages != stages;
 }

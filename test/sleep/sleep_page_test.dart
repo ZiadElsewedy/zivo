@@ -180,7 +180,8 @@ void main() {
   // the default 800x600 surface would leave the week and the insights
   // unbuilt — and "not rendered" would read exactly like "not found".
   setUp(() {
-    final view = TestWidgetsFlutterBinding.ensureInitialized().platformDispatcher
+    final view = TestWidgetsFlutterBinding.ensureInitialized()
+        .platformDispatcher
         .views
         .first;
     view.physicalSize = const Size(1400, 4000);
@@ -188,7 +189,8 @@ void main() {
   });
 
   tearDown(() {
-    final view = TestWidgetsFlutterBinding.ensureInitialized().platformDispatcher
+    final view = TestWidgetsFlutterBinding.ensureInitialized()
+        .platformDispatcher
         .views
         .first;
     view.resetPhysicalSize();
@@ -220,8 +222,9 @@ void main() {
     expect(findTextIgnoringBidi('You · Logged by you'), findsOneWidget);
   });
 
-  testWidgets('an unattributed platform record says "recorded", not "asleep"',
-      (tester) async {
+  testWidgets('an unattributed platform record says "recorded", not "asleep"', (
+    tester,
+  ) async {
     await _pump(tester, method: SleepMethod.platformDerived);
 
     expect(findTextIgnoringBidi('Sleep recorded 11:47 PM'), findsOneWidget);
@@ -254,19 +257,21 @@ void main() {
   });
 
   testWidgets(
-      'an empty read we were not confirmed to be allowed does not claim '
-      'there is no data', (tester) async {
-    // The iOS case. Apple never reports read denial, so an empty result may
-    // mean "refused" — asserting emptiness would be a claim with nothing
-    // behind it.
-    await _pump(tester, authorization: SleepAuthorization.unknown);
+    'an empty read we were not confirmed to be allowed does not claim '
+    'there is no data',
+    (tester) async {
+      // The iOS case. Apple never reports read denial, so an empty result may
+      // mean "refused" — asserting emptiness would be a claim with nothing
+      // behind it.
+      await _pump(tester, authorization: SleepAuthorization.unknown);
 
-    expect(
-      findTextIgnoringBidi('No sleep data visible to ZIVO'),
-      findsOneWidget,
-    );
-    expect(findTextIgnoringBidi('No sleep recorded'), findsNothing);
-  });
+      expect(
+        findTextIgnoringBidi('No sleep data visible to ZIVO'),
+        findsOneWidget,
+      );
+      expect(findTextIgnoringBidi('No sleep recorded'), findsNothing);
+    },
+  );
 
   testWidgets('a confirmed-empty store may say there is no sleep recorded', (
     tester,
@@ -282,12 +287,16 @@ void main() {
   ) async {
     await _pump(tester, available: false);
 
-    expect(findTextIgnoringBidi('No health app on this device'), findsOneWidget);
+    expect(
+      findTextIgnoringBidi('No health app on this device'),
+      findsOneWidget,
+    );
     expect(findTextIgnoringBidi("I'm going to sleep"), findsOneWidget);
   });
 
-  testWidgets('the dashboard shows one night and no window averages',
-      (tester) async {
+  testWidgets('the dashboard shows one night and no window averages', (
+    tester,
+  ) async {
     // The dashboard's whole claim is that every figure on it shares one time
     // base. A single recorded night is the case that used to break it worst:
     // the week card sat under the hero showing three gated figures and a
@@ -302,8 +311,10 @@ void main() {
     expect(findTextIgnoringBidi('CONSISTENCY'), findsNothing);
     expect(findTextIgnoringBidi('vs last week'.toUpperCase()), findsNothing);
     expect(
-      findTextIgnoringBidi('No conclusion can be drawn from the nights '
-          'recorded so far.'),
+      findTextIgnoringBidi(
+        'No conclusion can be drawn from the nights '
+        'recorded so far.',
+      ),
       findsOneWidget,
     );
 
@@ -311,8 +322,9 @@ void main() {
     expect(findTextIgnoringBidi('Sleep history'), findsOneWidget);
   });
 
-  testWidgets('a night older than last night is dated, not called last night',
-      (tester) async {
+  testWidgets('a night older than last night is dated, not called last night', (
+    tester,
+  ) async {
     // The failure this guards is the one indistinguishable from "the app
     // stopped updating": a real, correctly computed figure rendered under the
     // words "Last night" when it is four nights old. The screen has to name
@@ -344,8 +356,122 @@ void main() {
     expect(findTextIgnoringBidi('4 NIGHTS AGO'), findsOneWidget);
     expect(findTextIgnoringBidi('LAST NIGHT'), findsNothing);
     expect(
-      findTextIgnoringBidi('Nothing has been recorded since. This is your '
-          'most recent night, not last night.'),
+      findTextIgnoringBidi(
+        'Nothing has been recorded since. This is your '
+        'most recent night, not last night.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a graded night shows its stages; an ungraded one says so', (
+    tester,
+  ) async {
+    // Stages were ingested, ranked on by the resolver and persisted from the
+    // first commit, and drawn nowhere — the app was preferring detail it then
+    // discarded. Both halves of the contract are asserted here: a graded night
+    // renders the split, and a night the source did not grade says that in
+    // words rather than leaving the reader to conclude ZIVO has no stages.
+    final now = DateTime.now();
+    final day = DateTime(now.year, now.month, now.day);
+    final start = DateTime(day.year, day.month, day.day - 1, 23).toUtc();
+
+    SleepStageSegment seg(SleepStage stage, int from, int to) =>
+        SleepStageSegment(
+          startAt: start.add(Duration(minutes: from)),
+          endAt: start.add(Duration(minutes: to)),
+          stage: stage,
+        );
+
+    SleepNight nightWith(List<SleepStageSegment> stages) => SleepNight(
+      sleepDay: day,
+      main: SleepSession(
+        id: 'staged',
+        startAt: start,
+        endAt: start.add(const Duration(hours: 8)),
+        startOffsetMinutes: 0,
+        endOffsetMinutes: 0,
+        stages: stages,
+        provenance: SleepProvenance(
+          method: SleepMethod.measuredWearable,
+          providerId: 'com.apple.health',
+          providerName: 'Apple Watch',
+          deviceKind: SleepDeviceKind.watch,
+          recordingMethod: SleepRecordingMethod.automatic,
+          confidence: SleepConfidence.high,
+          completeness: 1,
+          rawRefs: const [],
+          ingestedAt: now,
+        ),
+      ),
+    );
+
+    await _pump(
+      tester,
+      available: false,
+      seeded: nightWith([
+        seg(SleepStage.light, 0, 260),
+        seg(SleepStage.deep, 260, 380),
+        seg(SleepStage.rem, 380, 480),
+      ]),
+    );
+
+    expect(findTextIgnoringBidi('STAGES'), findsOneWidget);
+    expect(findTextIgnoringBidi('Deep'), findsOneWidget);
+    expect(findTextIgnoringBidi('REM'), findsOneWidget);
+    expect(findTextIgnoringBidi('Light'), findsOneWidget);
+  });
+
+  testWidgets('a night the source did not grade says so, and draws no split', (
+    tester,
+  ) async {
+    // The other half. A pile of "asleep, kind unknown" samples — an Apple
+    // Watch before watchOS 9, or a bare Health Connect session — is not a
+    // composition, and naming the source that did not grade it is a more
+    // useful sentence than an absent section, which reads as "ZIVO has no
+    // stages".
+    final now = DateTime.now();
+    final day = DateTime(now.year, now.month, now.day);
+    final start = DateTime(day.year, day.month, day.day - 1, 23).toUtc();
+
+    await _pump(
+      tester,
+      available: false,
+      seeded: SleepNight(
+        sleepDay: day,
+        main: SleepSession(
+          id: 'ungraded',
+          startAt: start,
+          endAt: start.add(const Duration(hours: 8)),
+          startOffsetMinutes: 0,
+          endOffsetMinutes: 0,
+          stages: [
+            SleepStageSegment(
+              startAt: start,
+              endAt: start.add(const Duration(hours: 8)),
+              stage: SleepStage.asleepUnspecified,
+            ),
+          ],
+          provenance: SleepProvenance(
+            method: SleepMethod.measuredWearable,
+            providerId: 'com.apple.health',
+            providerName: 'Apple Watch',
+            deviceKind: SleepDeviceKind.watch,
+            recordingMethod: SleepRecordingMethod.automatic,
+            confidence: SleepConfidence.high,
+            completeness: 1,
+            rawRefs: const [],
+            ingestedAt: now,
+          ),
+        ),
+      ),
+    );
+
+    expect(findTextIgnoringBidi('Deep'), findsNothing);
+    expect(
+      findTextIgnoringBidi(
+        'Apple Watch recorded when you slept, but not which stages.',
+      ),
       findsOneWidget,
     );
   });
@@ -383,8 +509,9 @@ void main() {
     );
   });
 
-  testWidgets('a storage read that fails says so, instead of loading forever',
-      (tester) async {
+  testWidgets('a storage read that fails says so, instead of loading forever', (
+    tester,
+  ) async {
     // The controller's nights subscription used to carry no `onError`, and
     // `hasLoaded` only ever flipped in its data handler — so a refused read
     // left the headline rendering its not-yet-loaded placeholder for the life

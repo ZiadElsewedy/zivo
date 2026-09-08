@@ -66,8 +66,7 @@ class _SleepWeekPageState extends State<SleepWeekPage> {
 
   SleepController get _c => widget.controller;
 
-  DateTime get _weekEnd =>
-      _c.today.subtract(Duration(days: 7 * _weeksBack));
+  DateTime get _weekEnd => _c.today.subtract(Duration(days: 7 * _weeksBack));
 
   DateTime get _weekStart => _weekEnd.subtract(const Duration(days: 6));
 
@@ -450,20 +449,33 @@ class _TypicalNight extends StatelessWidget {
                         label: strings.sleepWeekConsistency,
                         value: metrics.midpointSdMinutes == null
                             ? null
-                            : Text(
-                                ltrFor(
-                                  context,
-                                  sleepVariabilityText(
-                                    context,
-                                    metrics.midpointSdMinutes!,
+                            // The `±` stays in mono and the duration is a
+                            // `SleepDurationText`, which keeps the unit out
+                            // of the mono run. Set as one composed mono
+                            // string, Arabic's `س`/`د` fall through to a
+                            // system face and the figure renders in two
+                            // typefaces with different metrics.
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  Text(
+                                    '±',
+                                    style: TrainType.mono(
+                                      size: 14,
+                                      color: TrainColors.ink3,
+                                    ),
                                   ),
-                                ),
-                                maxLines: 1,
-                                style: TrainType.mono(
-                                  size: 18,
-                                  tracking: -0.03,
-                                  color: TrainColors.ink,
-                                ),
+                                  SleepDurationText(
+                                    duration: Duration(
+                                      minutes: metrics.midpointSdMinutes!
+                                          .round(),
+                                    ),
+                                    size: 19,
+                                    weight: FontWeight.w400,
+                                  ),
+                                ],
                               ),
                         have: metrics.nightCount,
                         need: SleepGates.minNightsForVariability,
@@ -500,13 +512,13 @@ class _TypicalNight extends StatelessWidget {
                         label: strings.sleepWeekOnTarget,
                         value: metrics.nightsOnTargetBedtime == null
                             ? null
+                            // Also unpinned: the Arabic form is "٤ من ٧" —
+                            // a sentence with a strong Arabic word in it, not
+                            // a numeric skeleton.
                             : Text(
-                                ltrFor(
-                                  context,
-                                  strings.sleepOnTargetRatio(
-                                    metrics.nightsOnTargetBedtime!,
-                                    metrics.nightCount,
-                                  ),
+                                strings.sleepOnTargetRatio(
+                                  metrics.nightsOnTargetBedtime!,
+                                  metrics.nightCount,
                                 ),
                                 maxLines: 1,
                                 style: TrainType.mono(
@@ -532,16 +544,9 @@ class _TypicalNight extends StatelessWidget {
   Widget? _clock(BuildContext context, double? minutes) {
     if (minutes == null) return null;
     return Text(
-      ltrFor(
-        context,
-        formatMinutesSinceMidnight(context, minutes.round()),
-      ),
+      ltrFor(context, formatMinutesSinceMidnight(context, minutes.round())),
       maxLines: 1,
-      style: TrainType.mono(
-        size: 18,
-        tracking: -0.03,
-        color: TrainColors.ink,
-      ),
+      style: TrainType.mono(size: 18, tracking: -0.03, color: TrainColors.ink),
     );
   }
 }
@@ -739,8 +744,7 @@ class _NightList extends StatelessWidget {
           child: Column(
             children: [
               for (var i = 0; i < ordered.length; i++) ...[
-                if (i > 0)
-                  Container(height: 1, color: TrainColors.hairline),
+                if (i > 0) Container(height: 1, color: TrainColors.hairline),
                 _NightRow(night: ordered[i]),
               ],
             ],
@@ -768,9 +772,7 @@ class _NightRow extends StatelessWidget {
       button: session != null,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: session == null
-            ? null
-            : () => showSleepWhySheet(context, night),
+        onTap: session == null ? null : () => showSleepWhySheet(context, night),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
@@ -793,10 +795,7 @@ class _NightRow extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       ltrFor(context, '${night.sleepDay.day}'),
-                      style: TrainType.mono(
-                        size: 11,
-                        color: TrainColors.ink4,
-                      ),
+                      style: TrainType.mono(size: 11, color: TrainColors.ink4),
                     ),
                   ],
                 ),
@@ -981,7 +980,9 @@ class _LongerRun extends StatelessWidget {
               if (basis != null) ...[
                 const SizedBox(height: 6),
                 Text(
-                  ltrFor(context, basis),
+                  // A translated sentence ("7 nights across 21 days"), so it
+                  // keeps its own direction.
+                  basis,
                   style: TrainType.caption(
                     size: 8.5,
                     tracking: 0.14,

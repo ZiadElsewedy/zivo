@@ -82,7 +82,8 @@ class SleepStageBreakdown {
     if (deep > Duration.zero) (SleepStage.deep, deep),
     if (rem > Duration.zero) (SleepStage.rem, rem),
     if (light > Duration.zero) (SleepStage.light, light),
-    if (unspecified > Duration.zero) (SleepStage.asleepUnspecified, unspecified),
+    if (unspecified > Duration.zero)
+      (SleepStage.asleepUnspecified, unspecified),
   ];
 
   /// The staged time must cover at least this much of the session before the

@@ -279,11 +279,7 @@ class _SleepPageState extends State<SleepPage>
 
   void _reportFailure() {
     if (!mounted) return;
-    showZivoToast(
-      context,
-      l(context).sleepMarkFailed,
-      kind: ToastKind.error,
-    );
+    showZivoToast(context, l(context).sleepMarkFailed, kind: ToastKind.error);
   }
 }
 
@@ -315,7 +311,10 @@ class _Band extends StatelessWidget {
     if (!visible) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.section),
-      child: RiseIn(delay: Duration(milliseconds: delay), child: child),
+      child: RiseIn(
+        delay: Duration(milliseconds: delay),
+        child: child,
+      ),
     );
   }
 }
@@ -501,6 +500,18 @@ class _LastNightCard extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: TrainCard(
         padding: const EdgeInsets.fromLTRB(18, 17, 18, 15),
+        // The one tinted card on the page. Five stacked cards of identical
+        // weight is the "collection of cards" failure — every section reads
+        // as equally important and the eye has nowhere to land. The night is
+        // what the screen is *for*, so it gets the hue and the others stay
+        // plain; the sections below are its supporting detail and now look
+        // like it.
+        border: TrainColors.sleepAccent.withValues(alpha: 0.20),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x1A7C9CFF), Color(0x087C9CFF)],
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -513,9 +524,7 @@ class _LastNightCard extends StatelessWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 SleepSourceChip(provenance: session.provenance),
-                SleepConfidenceBadge(
-                  confidence: session.provenance.confidence,
-                ),
+                SleepConfidenceBadge(confidence: session.provenance.confidence),
               ],
             ),
 
@@ -538,7 +547,16 @@ class _LastNightCard extends StatelessWidget {
                     ),
                   ),
                   Positioned.fill(
-                    child: Center(child: SleepBar(night: night, height: 18)),
+                    child: Center(
+                      child: SleepBar(
+                        night: night,
+                        height: 18,
+                        // Only here. The night's own stages, drawn where they
+                        // happened — and a plain method fill when the source
+                        // did not grade it.
+                        showStages: true,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -974,7 +992,8 @@ class _AgainstTarget extends StatelessWidget {
                         ),
                       ),
                     if (bedtime != null) ...[
-                      if (duration != null) const SizedBox(height: AppSpacing.s),
+                      if (duration != null)
+                        const SizedBox(height: AppSpacing.s),
                       Text(
                         bedtime,
                         style: AppText.meta.copyWith(color: TrainColors.ink3),
@@ -1174,16 +1193,12 @@ class _HistoryRow extends StatelessWidget {
                       // over too few nights.
                       metrics.meanDurationMinutes == null
                           ? strings.sleepHistorySubtitle
-                          : '${strings.sleepWeekAverage} '
-                                '${sleepMinutesText(
-                                  context,
-                                  metrics.meanDurationMinutes!,
-                                )} · '
-                                '${sleepNightsOfText(
-                                  context,
-                                  metrics.nightCount,
-                                  metrics.windowNights,
-                                )}',
+                          : sleepHistoryStatText(
+                              context,
+                              metrics.meanDurationMinutes!,
+                              metrics.nightCount,
+                              metrics.windowNights,
+                            ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppText.meta.copyWith(color: TrainColors.ink3),

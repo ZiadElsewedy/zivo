@@ -8166,6 +8166,12 @@ abstract class AppLocalizations {
   /// **'m'**
   String get sleepUnitMinute;
 
+  /// Second line of the row that opens the history page: the week's mean sleep and the nights it rests on.
+  ///
+  /// In en, this message translates to:
+  /// **'Average {average} · {nights}'**
+  String sleepHistoryStat(String average, String nights);
+
   /// Headline label when the most recent recorded night is not last night. Never used for 0 or 1, which say 'Last night' instead.
   ///
   /// In en, this message translates to:

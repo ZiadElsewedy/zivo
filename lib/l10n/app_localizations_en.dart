@@ -4905,6 +4905,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sleepUnitMinute => 'm';
 
   @override
+  String sleepHistoryStat(String average, String nights) {
+    return 'Average $average · $nights';
+  }
+
+  @override
   String sleepNightsAgo(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

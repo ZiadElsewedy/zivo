@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
-import '../../../../core/util/bidi.dart';
 import '../../../../l10n/l10n.dart';
 import '../../domain/sleep_session.dart';
 import '../../domain/sleep_stage_breakdown.dart';
 import '../sleep_labels.dart';
+import 'sleep_duration_text.dart';
 
 /// **What the night was made of** — deep, REM and light, as one proportional
 /// bar with a row per stage under it.
@@ -71,9 +71,7 @@ class SleepStageSplit extends StatelessWidget {
         if (!coversWholeNight) ...[
           const SizedBox(height: AppSpacing.m),
           Text(
-            l(context).sleepStagesPartial(
-              sleepDurationText(context, staged),
-            ),
+            l(context).sleepStagesPartial(sleepDurationText(context, staged)),
             style: AppText.meta.copyWith(color: TrainColors.ink4),
           ),
         ],
@@ -154,9 +152,15 @@ class _StageRow extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.m),
         ],
-        Text(
-          ltrFor(context, sleepDurationText(context, duration)),
-          style: TrainType.mono(size: 13.5, color: TrainColors.ink),
+        // `SleepDurationText`, not a mono string: Azeret Mono carries no
+        // Arabic, so `7س 12د` set as one mono run falls through to a system
+        // face for the two unit letters alone and the figure renders in two
+        // typefaces with different metrics. That widget exists for exactly
+        // this, and a stage row is a duration like any other.
+        SleepDurationText(
+          duration: duration,
+          size: 14,
+          weight: FontWeight.w400,
         ),
       ],
     );

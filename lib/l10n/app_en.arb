@@ -6886,6 +6886,18 @@
   "@sleepUnitMinute": {
     "description": "The minutes unit in a sleep duration. See sleepUnitHour."
   },
+  "sleepHistoryStat": "Average {average} · {nights}",
+  "@sleepHistoryStat": {
+    "description": "Second line of the row that opens the history page: the week's mean sleep and the nights it rests on.",
+    "placeholders": {
+      "average": {
+        "type": "String"
+      },
+      "nights": {
+        "type": "String"
+      }
+    }
+  },
   "sleepNightsAgo": "{count, plural, =2{2 nights ago} other{{count} nights ago}}",
   "@sleepNightsAgo": {
     "description": "Headline label when the most recent recorded night is not last night. Never used for 0 or 1, which say 'Last night' instead.",

@@ -66,25 +66,27 @@ void main() {
       expect(breakdown.shareOf(SleepStage.deep), closeTo(0.25, 0.001));
     });
 
-    test('orders the rows deep, REM, light — and drops a stage with no time',
-        () {
-      // A missing REM segment is not evidence of zero REM sleep. It gets no
-      // row rather than a `0m` one, because `0m REM` is a clinical claim and
-      // "the source did not report any" is not the same statement.
-      final breakdown = SleepStageBreakdown.forSession(
-        _session(
-          stages: [
-            _seg(SleepStage.light, 0, 360),
-            _seg(SleepStage.deep, 360, 480),
-          ],
-        ),
-      )!;
+    test(
+      'orders the rows deep, REM, light — and drops a stage with no time',
+      () {
+        // A missing REM segment is not evidence of zero REM sleep. It gets no
+        // row rather than a `0m` one, because `0m REM` is a clinical claim and
+        // "the source did not report any" is not the same statement.
+        final breakdown = SleepStageBreakdown.forSession(
+          _session(
+            stages: [
+              _seg(SleepStage.light, 0, 360),
+              _seg(SleepStage.deep, 360, 480),
+            ],
+          ),
+        )!;
 
-      expect(
-        breakdown.gradedParts.map((part) => part.$1),
-        [SleepStage.deep, SleepStage.light],
-      );
-    });
+        expect(breakdown.gradedParts.map((part) => part.$1), [
+          SleepStage.deep,
+          SleepStage.light,
+        ]);
+      },
+    );
 
     test('counts overlapping samples once', () {
       // The HealthKit shape. Two light-sleep samples describing the same hour

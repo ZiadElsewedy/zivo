@@ -95,10 +95,7 @@ void main() {
     });
 
     test('latestWithData skips a stored night that has no data', () {
-      final withEmpty = [
-        SleepNight.empty(DateTime(2026, 9, 9)),
-        ...nights,
-      ];
+      final withEmpty = [SleepNight.empty(DateTime(2026, 9, 9)), ...nights];
       expect(
         SleepWindow.latestWithData(withEmpty)!.sleepDay,
         DateTime(2026, 9, 8),
@@ -107,8 +104,10 @@ void main() {
 
     test('ageInDays counts whole sleep-days', () {
       expect(
-        SleepWindow.ageInDays(_night(DateTime(2026, 9, 4)),
-            DateTime(2026, 9, 8, 22, 30)),
+        SleepWindow.ageInDays(
+          _night(DateTime(2026, 9, 4)),
+          DateTime(2026, 9, 8, 22, 30),
+        ),
         4,
       );
     });
@@ -193,42 +192,46 @@ void main() {
       service.dispose();
     });
 
-    test('a store that already holds deep history skips the backfill',
-        () async {
-      final repository = InMemorySleepRepository();
-      await repository.upsertNights([_night(DateTime(2026, 5, 20))]);
-      final source = _RecordingSource();
-      final service = SleepService(
-        repository: repository,
-        source: source,
-        now: () => DateTime(2026, 9, 8),
-      );
+    test(
+      'a store that already holds deep history skips the backfill',
+      () async {
+        final repository = InMemorySleepRepository();
+        await repository.upsertNights([_night(DateTime(2026, 5, 20))]);
+        final source = _RecordingSource();
+        final service = SleepService(
+          repository: repository,
+          source: source,
+          now: () => DateTime(2026, 9, 8),
+        );
 
-      await service.sync();
+        await service.sync();
 
-      expect(source.reads.single.inDays, SleepService.refreshDays);
-      service.dispose();
-    });
+        expect(source.reads.single.inDays, SleepService.refreshDays);
+        service.dispose();
+      },
+    );
 
-    test('concurrent syncs join the one in flight instead of returning early',
-        () async {
-      // A second caller used to get a completed future the instant a sync was
-      // running — so pull-to-refresh dropped its spinner in the frame it
-      // appeared, and `retryLoad` reported success before the read it was
-      // waiting on had begun. Both showed "done" for work that had not
-      // happened.
-      final source = _RecordingSource();
-      final service = SleepService(
-        repository: InMemorySleepRepository(),
-        source: source,
-        now: () => DateTime(2026, 9, 8),
-      );
+    test(
+      'concurrent syncs join the one in flight instead of returning early',
+      () async {
+        // A second caller used to get a completed future the instant a sync was
+        // running — so pull-to-refresh dropped its spinner in the frame it
+        // appeared, and `retryLoad` reported success before the read it was
+        // waiting on had begun. Both showed "done" for work that had not
+        // happened.
+        final source = _RecordingSource();
+        final service = SleepService(
+          repository: InMemorySleepRepository(),
+          source: source,
+          now: () => DateTime(2026, 9, 8),
+        );
 
-      await Future.wait([service.sync(), service.sync()]);
+        await Future.wait([service.sync(), service.sync()]);
 
-      expect(source.reads.length, 1);
-      service.dispose();
-    });
+        expect(source.reads.length, 1);
+        service.dispose();
+      },
+    );
 
     test('syncIfStale reads once inside the throttle window', () async {
       // Today, the Hub and the Sleep page all ask for a refresh on the way in.
