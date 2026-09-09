@@ -2072,6 +2072,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get askActionFailed => 'تعذّر تنفيذ ذلك الآن. حاول مرة أخرى.';
 
   @override
+  String get askInputSubmit => 'إرسال';
+
+  @override
+  String get askInputSent => 'تم الإرسال';
+
+  @override
   String get askThinking => 'يفكّر…';
 
   @override

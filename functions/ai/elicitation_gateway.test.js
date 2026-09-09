@@ -143,6 +143,39 @@ test("an invalid ask_choice is fed back as a tool error, not shown", async () =>
       "no half-formed question card was shown");
 });
 
+test("request_input ends the turn with an input_request form card", async () => {
+  const store = makeStore();
+  const callModel = scriptedModel([
+    toolUse("request_input", {
+      prompt: "Give me a couple of details first",
+      fields: [
+        {key: "heightCm", label: "Height", type: "number", unit: "cm"},
+        {key: "weightKg", label: "Weight", type: "number", unit: "kg"},
+      ],
+    }),
+    textResponse("should not be reached"),
+  ]);
+
+  const result = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "help me gain weight", now: makeClock(1000),
+  });
+
+  assert.equal(result.status, "awaiting-input");
+  assert.ok(result.requestId);
+  assert.equal(result.actionId, null);
+  assert.equal(callModel.callCount(), 1);
+
+  const card = store.messages.find((m) => m.kind === "input_request");
+  assert.ok(card, "an input_request message was appended");
+  assert.equal(card.requestId, result.requestId);
+  assert.equal(card.status, "pending");
+  assert.equal(card.content, "Give me a couple of details first");
+  assert.equal(card.fields.fields.length, 2);
+  assert.equal(card.fields.fields[0].key, "heightCm");
+  assert.equal(card.fields.fields[0].unit, "cm");
+});
+
 test("emits an awaiting_input phase event", async () => {
   const store = makeStore();
   const phases = [];

@@ -714,6 +714,23 @@ class AskController extends ChangeNotifier {
     return send();
   }
 
+  /// Input forms (`input_request`) submitted this session, keyed by requestId →
+  /// the serialized summary that was sent, so the card settles into a disabled
+  /// "sent" state the instant they submit. Session-only, like [answeredChoices].
+  final Map<String, String> _submittedInputs = {};
+  Map<String, String> get submittedInputs => _submittedInputs;
+
+  /// Answers an [input_request] by sending the user's [summary] of their
+  /// entries (e.g. "Height: 180 cm · Weight: 74 kg") as an ordinary next
+  /// message — the coach continues from it exactly as if the user had typed it.
+  /// Reuses the full send path (optimistic bubble, idempotency key).
+  Future<void> submitInput(String requestId, String summary) {
+    if (_submittedInputs.containsKey(requestId)) return Future<void>.value();
+    _submittedInputs[requestId] = summary;
+    input.text = summary;
+    return send();
+  }
+
   // ---- Voice ---------------------------------------------------------------
 
   bool _recording = false;

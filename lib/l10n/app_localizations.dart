@@ -3620,6 +3620,18 @@ abstract class AppLocalizations {
   /// **'Couldn\'t do that just now. Try again.'**
   String get askActionFailed;
 
+  /// Button on the assistant's input form that sends the entered values back to the coach.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get askInputSubmit;
+
+  /// State of the input-form button after the user has submitted their values.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get askInputSent;
+
   /// The assistant is composing a reply. Keep the ellipsis.
   ///
   /// In en, this message translates to:

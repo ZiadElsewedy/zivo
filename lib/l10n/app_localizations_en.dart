@@ -2053,6 +2053,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askActionFailed => 'Couldn\'t do that just now. Try again.';
 
   @override
+  String get askInputSubmit => 'Send';
+
+  @override
+  String get askInputSent => 'Sent';
+
+  @override
   String get askThinking => 'Thinking…';
 
   @override

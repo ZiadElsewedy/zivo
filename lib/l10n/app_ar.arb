@@ -588,6 +588,8 @@
   "askRetry": "إعادة المحاولة",
   "askSaveFailed": "تعذّر الحفظ — حاول مرة أخرى.",
   "askActionFailed": "تعذّر تنفيذ ذلك الآن. حاول مرة أخرى.",
+  "askInputSubmit": "إرسال",
+  "askInputSent": "تم الإرسال",
   "askThinking": "يفكّر…",
   "askUnderstanding": "يفهم طلبك…",
   "askWorking": "يعمل…",

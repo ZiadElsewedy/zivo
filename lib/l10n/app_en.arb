@@ -2920,6 +2920,14 @@
   "@askActionFailed": {
       "description": "Shown when confirming or cancelling a proposed change failed."
   },
+  "askInputSubmit": "Send",
+  "@askInputSubmit": {
+      "description": "Button on the assistant's input form that sends the entered values back to the coach."
+  },
+  "askInputSent": "Sent",
+  "@askInputSent": {
+      "description": "State of the input-form button after the user has submitted their values."
+  },
   "askThinking": "Thinking…",
   "@askThinking": {
       "description": "The assistant is composing a reply. Keep the ellipsis."

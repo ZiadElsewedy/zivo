@@ -23,6 +23,7 @@ import '../widgets/ask/ask_empty_state.dart';
 import '../widgets/ask/error_retry.dart';
 import '../widgets/ask/message_bubble.dart';
 import '../widgets/ask/choice_chips.dart';
+import '../widgets/ask/input_request_card.dart';
 import '../widgets/ask/proposal_card.dart';
 import '../widgets/ask/sessions_sheet.dart';
 import '../widgets/ask/thinking_rail.dart';
@@ -656,7 +657,8 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                               message.role ==
                                                   AiRole.assistant &&
                                               message.pendingAction == null &&
-                                              message.choiceRequest == null) {
+                                              message.choiceRequest == null &&
+                                              message.inputRequest == null) {
                                             // The decision lives in [_revealActive]
                                             // until the typewriter FINISHES — not
                                             // in this frame's flag — so later
@@ -679,6 +681,7 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                                       AiRole.assistant);
                                           final action = message.pendingAction;
                                           final choice = message.choiceRequest;
+                                          final inputReq = message.inputRequest;
                                           Widget content;
                                           if (choice != null) {
                                             content = ChoiceChips(
@@ -690,6 +693,22 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                                     choice.requestId,
                                                     value,
                                                     label,
+                                                  ),
+                                            );
+                                          } else if (inputReq != null) {
+                                            content = InputRequestCard(
+                                              key: ValueKey(
+                                                'input-${inputReq.requestId}',
+                                              ),
+                                              request: inputReq,
+                                              submitted: _c.submittedInputs
+                                                  .containsKey(
+                                                    inputReq.requestId,
+                                                  ),
+                                              onSubmit: (summary) => _c
+                                                  .submitInput(
+                                                    inputReq.requestId,
+                                                    summary,
                                                   ),
                                             );
                                           } else if (action == null) {

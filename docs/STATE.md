@@ -1780,6 +1780,14 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-10 — **Ask elicitation Phase 2 — the coach can ask for missing data with a form**
+  (on `feature/ask-elicitation`; **not yet deployed**). New `request_input` elicitation tool
+  (`functions/ai/elicitations.js`) pauses the turn and appends an `input_request` card the
+  client renders as a 1–4 field form (`input_request_card.dart`: number/text/choice fields
+  with units); on submit a readable summary ("Height: 180 cm · Weight: 74 kg") is sent back
+  as an ordinary next turn via `AskController.submitInput`. The turn loop needed no change —
+  `persistElicitation` is generic over `tool.messageKind`. **Values are NOT persisted to the
+  profile yet — that's Phase 3.** 461 node + 122 Ask flutter tests green.
 - 2026-09-10 — **Ask elicitation Phase 1 — the coach can ask option-chip questions instead
   of guessing** (on `feature/ask-elicitation`, cut from `feature/theme-modes`; **not yet
   deployed** — prompt/tool changes need a functions deploy). New non-executing `ask_choice`

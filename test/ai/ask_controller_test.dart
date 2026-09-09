@@ -108,6 +108,31 @@ void main() {
     expect(c.answeredChoices['req-1'], 'gain');
   });
 
+  test('submitInput sends the summary and marks the form submitted', () async {
+    final ai = _FakeAi();
+    final c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+
+    await c.submitInput('form-1', 'Height: 180 cm · Weight: 74 kg');
+
+    expect(ai.sent.single.text, 'Height: 180 cm · Weight: 74 kg');
+    expect(c.submittedInputs['form-1'], 'Height: 180 cm · Weight: 74 kg');
+  });
+
+  test('submitInput is a no-op once the form is already submitted', () async {
+    final ai = _FakeAi();
+    final c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+
+    await c.submitInput('form-1', 'Height: 180 cm');
+    await c.submitInput('form-1', 'Height: 999 cm');
+
+    expect(ai.sent, hasLength(1));
+    expect(c.submittedInputs['form-1'], 'Height: 180 cm');
+  });
+
   test('a first message in an untitled chat auto-titles it', () async {
     final ai = _FakeAi();
     final c = _controller(ai);
