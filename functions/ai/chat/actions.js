@@ -11,7 +11,8 @@
  *
  * The propose branch lives in `turn.js` (it's part of the turn loop); this
  * module owns the two entrypoints the app calls afterwards (`aiConfirmAction` /
- * `aiCancelAction`) and the shared write dispatch. Nothing here calls the model.
+ * `aiCancelAction`) and the shared write dispatch. Nothing here calls the
+ * model.
  */
 
 const {randomUUID} = require("node:crypto");
@@ -69,6 +70,44 @@ async function persistProposal({
     createdAt,
   });
   return {actionId, summary, fields, kind: tool.kind};
+}
+
+/**
+ * Persists an elicitation tool call (ADR — Ask elicitation) as an assistant
+ * message the client renders as a question card (option chips today). Unlike a
+ * proposal there is NO pending-action doc and NO write path: a question is
+ * resolved by the user answering it — their pick returns as a normal next turn
+ * (`aiChat`), not through a confirm callable — so this only appends the card.
+ *
+ * @param {!Object} args
+ * @param {!Object} args.store
+ * @param {string} args.uid
+ * @param {string} args.conversationId
+ * @param {!Object} args.tool The elicitation tool (has messageKind/summarize/
+ *   fields).
+ * @param {!Object} args.validated The tool's normalized card spec.
+ * @param {function(): !Date} args.clock
+ * @return {!Promise<{requestId: string, prompt: string, fields: !Object,
+ *   kind: string}>}
+ */
+async function persistElicitation({
+  store, uid, conversationId, tool, validated, clock,
+}) {
+  const requestId = randomUUID();
+  const createdAt = clock();
+  const prompt = tool.summarize(validated);
+  const fields = tool.fields(validated);
+
+  await store.appendMessage(uid, conversationId, {
+    role: "assistant",
+    kind: tool.messageKind,
+    content: prompt,
+    requestId,
+    fields,
+    status: "pending",
+    createdAt,
+  });
+  return {requestId, prompt, fields, kind: tool.messageKind};
 }
 
 /**
@@ -275,6 +314,7 @@ async function cancelAction({store, uid, conversationId, actionId, now}) {
 
 module.exports = {
   persistProposal,
+  persistElicitation,
   requireMealInPlan,
   applyProposedAction,
   resultLineFor,

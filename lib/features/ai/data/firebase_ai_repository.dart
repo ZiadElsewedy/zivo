@@ -15,6 +15,7 @@ import '../../workout/domain/workout_import_input.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
 import '../domain/ai_conversation.dart';
+import '../domain/ai_choice_request.dart';
 import '../domain/ai_message.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
@@ -688,7 +689,39 @@ class FirebaseAiRepository implements AiRepository {
       content: data['content'] as String? ?? '',
       createdAt: createdAt is Timestamp ? createdAt.toDate() : DateTime.now(),
       pendingAction: _pendingActionFrom(data),
+      choiceRequest: _choiceRequestFrom(data),
       clientTurnId: data['clientTurnId'] as String?,
+    );
+  }
+
+  /// Maps a `choice_request` message (Ask elicitation, Phase 1) into an
+  /// [AiChoiceRequest]; the message doc carries `requestId` and a `fields` map
+  /// of `{options: [{value, label}], allowMultiple}`. A malformed or optionless
+  /// card returns null so it falls back to a plain text bubble (the `content`
+  /// still holds the question), never a broken empty chip row.
+  AiChoiceRequest? _choiceRequestFrom(Map<String, dynamic> data) {
+    if (data['kind'] != 'choice_request') return null;
+    final requestId = data['requestId'] as String?;
+    if (requestId == null) return null;
+    final fields = data['fields'];
+    if (fields is! Map) return null;
+    final rawOptions = fields['options'];
+    if (rawOptions is! List) return null;
+    final options = <AiChoiceOption>[];
+    for (final raw in rawOptions) {
+      if (raw is! Map) continue;
+      final label = raw['label'] as String?;
+      if (label == null || label.isEmpty) continue;
+      options.add(
+        AiChoiceOption(value: (raw['value'] as String?) ?? label, label: label),
+      );
+    }
+    if (options.length < 2) return null;
+    return AiChoiceRequest(
+      requestId: requestId,
+      prompt: data['content'] as String? ?? '',
+      options: options,
+      allowMultiple: fields['allowMultiple'] == true,
     );
   }
 

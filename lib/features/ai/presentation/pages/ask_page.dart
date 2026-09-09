@@ -22,6 +22,7 @@ import '../controllers/ask_controller.dart';
 import '../widgets/ask/ask_empty_state.dart';
 import '../widgets/ask/error_retry.dart';
 import '../widgets/ask/message_bubble.dart';
+import '../widgets/ask/choice_chips.dart';
 import '../widgets/ask/proposal_card.dart';
 import '../widgets/ask/sessions_sheet.dart';
 import '../widgets/ask/thinking_rail.dart';
@@ -654,7 +655,8 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                               !_c.streamed &&
                                               message.role ==
                                                   AiRole.assistant &&
-                                              message.pendingAction == null) {
+                                              message.pendingAction == null &&
+                                              message.choiceRequest == null) {
                                             // The decision lives in [_revealActive]
                                             // until the typewriter FINISHES — not
                                             // in this frame's flag — so later
@@ -676,8 +678,21 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                                   displayed[i - 1].role !=
                                                       AiRole.assistant);
                                           final action = message.pendingAction;
+                                          final choice = message.choiceRequest;
                                           Widget content;
-                                          if (action == null) {
+                                          if (choice != null) {
+                                            content = ChoiceChips(
+                                              request: choice,
+                                              pickedValue: _c.answeredChoices[choice
+                                                  .requestId],
+                                              onSelect: (value, label) => _c
+                                                  .answerChoice(
+                                                    choice.requestId,
+                                                    value,
+                                                    label,
+                                                  ),
+                                            );
+                                          } else if (action == null) {
                                             content = MessageBubble(
                                               message,
                                               animate: revealing,

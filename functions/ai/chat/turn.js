@@ -4,9 +4,9 @@
  * the "Chat AI implementation" — the thing that runs when the user sends a
  * message.
  *
- * Kept free of `@anthropic-ai/sdk` and `firebase-admin` so it runs offline under
- * `node --test` — `store` (Firestore reads/writes) and the model call are both
- * injected seams; `functions/index.js` wires the real ones.
+ * Kept free of `@anthropic-ai/sdk` and `firebase-admin` so it runs offline
+ * under `node --test` — `store` (Firestore reads/writes) and the model call are
+ * both injected seams; `functions/index.js` wires the real ones.
  *
  * It stays thin by delegating the concerns around it:
  *   config.js   — the ceilings and the canned messages
@@ -25,6 +25,7 @@
 const {dayKeyFor, localNowFacts, isUsableOffset} = require("../dates");
 const {tools} = require("../tools");
 const {mutatingTools} = require("../mutations");
+const {elicitationTools} = require("../elicitations");
 const {validateAdvice} = require("../validator");
 const {AnthropicProvider} = require("../providers/anthropic_provider");
 const {legacyAnthropicClient} = require("../providers/legacy_client");
@@ -49,10 +50,12 @@ const {
 } = require("./messages");
 const {TurnUsage, isOverDailyCap} = require("./usage");
 const {buildSystemBlocks} = require("./context");
-const {persistProposal} = require("./actions");
+const {persistProposal, persistElicitation} = require("./actions");
 
-// The model sees read + mutating tools; the gateway routes by `tool.mutating`.
-const allTools = tools.concat(mutatingTools);
+// The model sees read + mutating + elicitation tools. The gateway routes by
+// `tool.mutating` (propose→confirm) and `tool.elicits` (pause and ask); a bare
+// tool just executes and returns data.
+const allTools = tools.concat(mutatingTools).concat(elicitationTools);
 const allToolsByName = new Map(allTools.map((t) => [t.name, t]));
 
 /**
@@ -239,6 +242,9 @@ async function runAiTurn({
   let refusal = false;
   let tokenCeilingHit = false;
   let proposedAction = null;
+  // Set when a valid elicitation (ask_choice) ended the turn — the persisted
+  // question card the client renders, awaiting the user's answer.
+  let elicitedRequest = null;
   // The most recent diet state+findings payload the model was handed this turn
   // (from get_today/get_diet), kept so the reply can be validated against the
   // very numbers it read (Phase 7). Null when the turn read no diet data.
@@ -287,6 +293,7 @@ async function runAiTurn({
 
     const toolResults = [];
     let proposal = null;
+    let elicitation = null;
     for (const block of resp.content) {
       if (!block || block.type !== "tool_use") continue;
       const tool = allToolsByName.get(block.name);
@@ -296,7 +303,9 @@ async function runAiTurn({
       // becomes a proposal that ends the turn awaiting the user's Confirm;
       // invalid input is fed back as an error so the model can self-correct.
       if (tool && tool.mutating) {
-        if (proposal) continue; // at most one proposal per turn
+        // At most one turn-ender per turn — a proposal never coexists with
+        // another proposal or with a question.
+        if (proposal || elicitation) continue;
         try {
           const validated = tool.validate(block.input || {});
           // `validate` is pure and can only prove the SHAPE of the input — and
@@ -315,6 +324,25 @@ async function runAiTurn({
             tool,
             validated: patch ? Object.assign({}, validated, patch) : validated,
           };
+        } catch (err) {
+          toolResults.push({
+            type: "tool_result",
+            toolUseId: block.id,
+            content: JSON.stringify({error: err.message || "Invalid input."}),
+            isError: true,
+          });
+        }
+        continue;
+      }
+
+      // Elicitation tools (ask_choice) never execute either: the first valid
+      // one becomes the turn-ender that pauses for the user's answer. Like a
+      // proposal — at most one per turn, and never alongside a proposal.
+      // Invalid input is fed back as a tool error so the model self-corrects.
+      if (tool && tool.elicits) {
+        if (proposal || elicitation) continue;
+        try {
+          elicitation = {tool, validated: tool.validate(block.input || {})};
         } catch (err) {
           toolResults.push({
             type: "tool_result",
@@ -391,6 +419,24 @@ async function runAiTurn({
       break;
     }
 
+    // A valid question (ask_choice) ends the turn the same clean way: persist
+    // the card and stop, awaiting the user's answer. No pending action / write
+    // path — a question resolves by being answered, which returns as the next
+    // turn. (No "already pending" gate: a question is inert, so a second one
+    // simply supersedes the first.)
+    if (elicitation) {
+      emitPhase("awaiting_input");
+      elicitedRequest = await persistElicitation({
+        store,
+        uid,
+        conversationId,
+        tool: elicitation.tool,
+        validated: elicitation.validated,
+        clock,
+      });
+      break;
+    }
+
     messages.push({role: "user", content: toolResults});
 
     if (usage.total > cfg.perTurnTokenCeiling) {
@@ -411,6 +457,12 @@ async function runAiTurn({
   if (proposedAction) {
     status = "proposed";
     assistantText = proposedAction.summary;
+    alreadyAppended = true;
+  } else if (elicitedRequest) {
+    // The question card is the turn's output; it was already appended by
+    // persistElicitation, and the prompt text is the durable fallback line.
+    status = "awaiting-input";
+    assistantText = elicitedRequest.prompt;
     alreadyAppended = true;
   } else if (proposalBlocked) {
     status = "proposal-blocked";
@@ -489,6 +541,7 @@ async function runAiTurn({
     status,
     assistantText,
     actionId: proposedAction ? proposedAction.actionId : null,
+    requestId: elicitedRequest ? elicitedRequest.requestId : null,
     validation,
     usage: usageDoc,
   };

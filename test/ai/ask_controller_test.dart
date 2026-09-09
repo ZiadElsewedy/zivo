@@ -80,6 +80,34 @@ void main() {
     expect(c.pendingText, 'hello');
   });
 
+  test('answerChoice sends the picked label and records the pick', () async {
+    final ai = _FakeAi();
+    final c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+
+    await c.answerChoice('req-1', 'gain', 'Gain weight');
+
+    // The pick goes out as an ordinary next turn, so the coach continues from
+    // it exactly as if the user had typed it.
+    expect(ai.sent.single.text, 'Gain weight');
+    // And the card is marked so its chips settle into the picked state.
+    expect(c.answeredChoices['req-1'], 'gain');
+  });
+
+  test('answerChoice is a no-op once the card is already answered', () async {
+    final ai = _FakeAi();
+    final c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+
+    await c.answerChoice('req-1', 'gain', 'Gain weight');
+    await c.answerChoice('req-1', 'lose', 'Lose fat');
+
+    expect(ai.sent, hasLength(1));
+    expect(c.answeredChoices['req-1'], 'gain');
+  });
+
   test('a first message in an untitled chat auto-titles it', () async {
     final ai = _FakeAi();
     final c = _controller(ai);

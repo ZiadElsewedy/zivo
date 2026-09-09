@@ -691,6 +691,29 @@ class AskController extends ChangeNotifier {
     }
   }
 
+  // ---- Question cards (Ask elicitation) ------------------------------------
+
+  /// Choice cards answered this session, keyed by requestId → the picked
+  /// option's value, so the chips settle into a disabled "picked" state the
+  /// instant they tap rather than staying live while the answer's turn is
+  /// already on its way. Not persisted — a reopened card is tappable again
+  /// (Phase 1), which just sends another turn.
+  final Map<String, String> _answeredChoices = {};
+  Map<String, String> get answeredChoices => _answeredChoices;
+
+  /// Answers a [choice_request] by sending the chosen option's [label] as an
+  /// ordinary next message — the coach continues from it exactly as if the
+  /// user had typed it. Reuses the whole send path (optimistic bubble,
+  /// idempotency key, auto-title), so a picked chip behaves like any send.
+  /// [value] is the option's stable key, recorded so the card can mark which
+  /// chip was chosen.
+  Future<void> answerChoice(String requestId, String value, String label) {
+    if (_answeredChoices.containsKey(requestId)) return Future<void>.value();
+    _answeredChoices[requestId] = value;
+    input.text = label;
+    return send();
+  }
+
   // ---- Voice ---------------------------------------------------------------
 
   bool _recording = false;

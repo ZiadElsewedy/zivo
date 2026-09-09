@@ -1780,6 +1780,17 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-10 — **Ask elicitation Phase 1 — the coach can ask option-chip questions instead
+  of guessing** (on `feature/ask-elicitation`, cut from `feature/theme-modes`; **not yet
+  deployed** — prompt/tool changes need a functions deploy). New non-executing `ask_choice`
+  tool (`functions/ai/elicitations.js`, `elicits: true`) pauses the turn and appends a
+  `choice_request` card the client renders as tappable chips (`choice_chips.dart`); the
+  pick returns as an ordinary next turn via `AskController.answerChoice` — no confirm/
+  execute half and no pending-action doc (a question resolves by being answered). Turn-ender
+  wiring + `awaiting_input` phase in `turn.js`, `persistElicitation` in `actions.js`,
+  read-before-you-ask prompt rules in `prompt/sections/elicitation.js`. 453 node + 120
+  Ask flutter tests green. Phases 2–3 (`request_input` form + profile persistence) still to
+  come. See `lib/features/ai/FEATURE.md`.
 - 2026-09-06 — **Media bytes are scoped by owner on disk.** `LocalMediaStore` wrote to a
   flat `media/{kind}/{id}.{ext}` shared across every account on the device. New imports
   use `media/{owner}/{kind}/{id}.{ext}`, with the owner sanitised to one safe path

@@ -42,8 +42,10 @@ tree. The `ask_page_*_test.dart` suite still covers what the screen renders.
 
 `ai_conversation.dart`, `ai_message.dart`, `ai_role.dart`, `ai_turn_event.dart`
 (server-authoritative phase events driving the activity rail), `ai_pending_action.dart`
-(a proposed write awaiting confirm), `ai_response_style.dart`, and STT: `stt_outcome.dart`,
-`stt_error.dart`.
+(a proposed write awaiting confirm), `ai_choice_request.dart` (an assistant question with
+option chips — Ask elicitation Phase 1; rendered by `widgets/ask/choice_chips.dart`,
+answered via `AskController.answerChoice`), `ai_response_style.dart`, and STT:
+`stt_outcome.dart`, `stt_error.dart`.
 
 ## Backend — the real brain ([`functions/ai/`](../../../functions/ai))
 
@@ -57,6 +59,7 @@ tree. The `ask_page_*_test.dart` suite still covers what the screen renders.
 | `exercise_analytics.js` | the **per-exercise drill-down + plan-adherence engine** — the Node mirror of `exercise_analysis.dart` + `plan_adherence.dart`, reusing `workout_analytics.js`'s primitives. `analyzeExercise` (one lift's session records, session-to-session deltas, **intensity-first** verdict/tone, PRs, frequency, insight) and `analyzePlanAdherence` (skipped/never-trained/stale planned movements). The numeric facts + verdict/tone + change tags + adherence reasons are pinned to Dart by the `exerciseAnalysis`/`planAdherence` golden vectors (both suites); the insight PROSE is generated per side, not pinned |
 | `dates.js` | timezone-aware day/week/month resolution — takes the client's `offsetMinutes` so "today" is the **user's** today, not the server's UTC one |
 | `mutations.js` | confirm-gated **write** tools (propose → confirm → execute): `create_expense`, `edit_expense`, `delete_expense`, `mark_meal_eaten`, **`log_food`** (logs what the user ate; nutrition computed server-side in `verify`, never supplied by the model) |
+| `elicitations.js` | **elicitation** tools (Phase 1): `ask_choice` — a non-executing turn-ender (`elicits: true`) that PAUSES the turn to ask the user a multiple-choice question instead of guessing. `runAiTurn` persists it as a `choice_request` assistant message (via `chat/actions.js` `persistElicitation`); status is `awaiting-input`. Unlike a write proposal there's **no pending-action doc and no confirm/execute half** — the user's pick returns as an ordinary next `aiChat` turn (client `AskController.answerChoice` sends the option label), which is how the coach continues. Prompt rules live in `chat/prompt/sections/elicitation.js` (**read before you ask** — `get_today` already carries profile/weight/age; one question per turn) |
 | `../nutrition/resolve.js` | the ONE server path from a food reference (query or `foodId`) + an amount to calories — mirrors the Dart `CompositeFoodResolver` (custom foods layered over USDA). Shared by `resolve_food`, `calculate_meal_nutrition` and `log_food` so they can't disagree |
 | `validator.js` | **advice validator + safety intercept** (Phase 7): checks the model's reply against the diet state it read and, on a violation, replaces it with the findings' deterministic text (or a safety message). Server-only — replies are generated only here |
 | `workout_import.js`, `diet_import.js` | PDF → structured plan extractors |
