@@ -10,9 +10,9 @@
  * separation out of plain text alone: short one-idea paragraphs, blank lines,
  * and a "• " bullet for genuine lists.
  *
- * If a Markdown renderer is ever added on the client, this is the one section to
- * revisit (relax the "plain text only" rule); nothing else in the prompt depends
- * on it.
+ * If a Markdown renderer is ever added on the client, this is the one section
+ * to revisit (relax the "plain text only" rule); nothing else in the prompt
+ * depends on it.
  *
  * New guidance — covered by the "formatting" gateway test added with it.
  */

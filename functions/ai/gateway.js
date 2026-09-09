@@ -5,7 +5,7 @@
  * `./chat/`, split by concern so each part is findable on its own:
  *
  *   chat/turn.js              — runAiTurn: the model↔tool turn loop
- *   chat/actions.js           — confirmAction / cancelAction + the write dispatch
+ *   chat/actions.js           — confirmAction / cancelAction + write dispatch
  *   chat/context.js           — the system blocks handed to the model each turn
  *   chat/config.js            — ceilings, pricing, canned user-facing messages
  *   chat/usage.js             — token accounting + cost + the daily cap
