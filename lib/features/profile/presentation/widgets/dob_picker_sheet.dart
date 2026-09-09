@@ -80,7 +80,7 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: TrainColors.raised,
+        color: TrainColors.sheetSurface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: EdgeInsets.only(

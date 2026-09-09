@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-08 · **Active branch:** `feature/theme-modes`
+**Last updated:** 2026-09-10 · **Active branch:** `feature/theme-modes`
 (cut from `feature/sleep`, which is 60 commits ahead of `version-1`)
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
@@ -92,6 +92,20 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Bottom sheets are opaque again** (2026-09-10, on `feature/theme-modes`). Owner
+  review: most sheets "looked transparent" — the launching screen showed straight
+  through them. Two causes: `SheetShell` (the plan-edit sheets: Edit exercise / day /
+  default-rest) and `workout_capture_page`'s exercise sheet painted their whole ground
+  with `sectionFill` (~3% opacity on dark) — a tint token meant to sit *on top of* a
+  surface; and every other sheet used `raised` (~94%), a faint but real bleed. Fix: a
+  dedicated **opaque** `sheetSurface` token (dark `0xFF141514`, light `0xFFFFFFFF` —
+  `raised`'s tone without the alpha), in both skins per ADR-011, exposed on `TrainColors`
+  and painted by `ZivoSheetSurface`, `SheetShell`, and the ~13 sheets that grounded
+  themselves directly. Cards keep `raised`; translucent depth stays the `glass*` tokens'
+  job. Profile's `_EditTextSheet` was the last translucent one — a `BackdropFilter`
+  frosted card — and is now solid too (blur dropped, since it does nothing behind an
+  opaque surface). Every bottom sheet is now an opaque `sheetSurface`.
 
 - **Sleep split into a dashboard and a history view, and its freshness fixed**
   (2026-09-08, on `feature/sleep`). Owner review: the dashboard was confusing,

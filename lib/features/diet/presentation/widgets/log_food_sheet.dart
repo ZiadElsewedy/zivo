@@ -164,7 +164,7 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
     final picked = _picked;
     return Container(
       decoration: BoxDecoration(
-        color: TrainColors.raised,
+        color: TrainColors.sheetSurface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: EdgeInsets.only(
@@ -606,7 +606,7 @@ class _CustomFoodSheetState extends State<_CustomFoodSheet> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: TrainColors.raised,
+        color: TrainColors.sheetSurface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: EdgeInsets.only(

@@ -591,7 +591,7 @@ class _DaySheetState extends State<_DaySheet> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: TrainColors.raised,
+        color: TrainColors.sheetSurface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: EdgeInsets.only(
@@ -700,7 +700,7 @@ class _MealSheetState extends State<_MealSheet> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: TrainColors.raised,
+        color: TrainColors.sheetSurface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: EdgeInsets.only(
@@ -819,7 +819,7 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: TrainColors.raised,
+        color: TrainColors.sheetSurface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: EdgeInsets.only(

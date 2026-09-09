@@ -130,6 +130,12 @@ abstract final class TrainColors {
   /// inside floating chrome.
   static Color get raisedStrong => _p.raisedStrong;
 
+  /// The opaque ground of a modal bottom sheet — [raised]'s tone with no
+  /// translucency, because a sheet has the live launching screen right behind
+  /// it and any bleed-through makes it read as see-through. Every sheet surface
+  /// paints this; cards keep [raised].
+  static Color get sheetSurface => _p.sheetSurface;
+
   /// The edge of a floating object, where [hairline] is the edge of a flat
   /// one.
   static Color get hairlineStrong => _p.hairlineStrong;

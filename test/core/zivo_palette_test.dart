@@ -139,6 +139,18 @@ void main() {
       expect(_luminance(p.raisedStrong), lessThan(_luminance(p.raised)));
     });
 
+    test('a sheet surface is fully opaque — nothing ghosts through it', () {
+      // A sheet is the one surface with the live launching screen right
+      // behind it, so its ground must not be translucent (see `sheetSurface`).
+      expect(ZivoPalette.dark.sheetSurface.a, 1.0);
+      expect(ZivoPalette.light.sheetSurface.a, 1.0);
+      // ...and it carries `raised`'s tone, just without the alpha.
+      expect(
+        _luminance(ZivoPalette.dark.sheetSurface),
+        greaterThan(_luminance(ZivoPalette.dark.base)),
+      );
+    });
+
     test('an arbitrary ink step lands where the named ones did', () {
       // `inkAt`/`liftAt` have to make the same journey the named steps made,
       // or ~100 call sites get a dark-tuned alpha on paper. The curve is
@@ -193,6 +205,7 @@ void main() {
         ('ink2', d.ink2, l.ink2),
         ('hairline', d.hairline, l.hairline),
         ('raised', d.raised, l.raised),
+        ('sheetSurface', d.sheetSurface, l.sheetSurface),
         ('green', d.green, l.green),
         ('ember', d.ember, l.ember),
         ('amber', d.amber, l.amber),

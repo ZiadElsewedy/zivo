@@ -237,7 +237,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
         margin: const EdgeInsets.all(14),
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
         decoration: BoxDecoration(
-          color: TrainColors.raised,
+          color: TrainColors.sheetSurface,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: TrainColors.hairline),
         ),

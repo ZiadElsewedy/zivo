@@ -66,6 +66,7 @@ class ZivoPalette {
     required this.fabGradient,
     required this.raised,
     required this.raisedStrong,
+    required this.sheetSurface,
     required this.emberWash,
     required this.violetWash,
     required this.greenWash,
@@ -145,6 +146,14 @@ class ZivoPalette {
   // ---- Floating chrome ----
   final Color raised;
   final Color raisedStrong;
+
+  /// The background of a modal bottom sheet — the same tone as [raised] but
+  /// fully opaque. A sheet is the one surface with live page content sitting
+  /// directly behind it (the launching screen, only dimmed by the barrier), so
+  /// any translucency here lets that content ghost through and the sheet reads
+  /// as "see-through". Cards keep [raised]; sheets take this. Translucent depth
+  /// is the job of the `glass*` tokens, never of a sheet's own ground.
+  final Color sheetSurface;
 
   // ---- Ink on a filled hue ----
   // A label sitting *on* green or amber, rather than beside it. These are the
@@ -296,6 +305,7 @@ class ZivoPalette {
     fabGradient: _fabGradientDark,
     raised: Color(0xF0141514),
     raisedStrong: Color(0xFF1D1E1D),
+    sheetSurface: Color(0xFF141514),
     emberWash: Color(0x24FF5C1A),
     violetWash: Color(0x248F8BFF),
     greenWash: Color(0x241FE08A),
@@ -453,6 +463,7 @@ class ZivoPalette {
     sectionFill: Color(0xC7FFFFFF),
     raised: Color(0xF5FFFFFF),
     raisedStrong: Color(0xFFEBEDEA),
+    sheetSurface: Color(0xFFFFFFFF),
 
     // Elevation points the other way here, so every small surface step is
     // ink rather than light. This one value is what makes ~120 call sites
