@@ -22,6 +22,7 @@ import '../controllers/ask_controller.dart';
 import '../widgets/ask/ask_empty_state.dart';
 import '../widgets/ask/error_retry.dart';
 import '../widgets/ask/message_bubble.dart';
+import '../../data/repository_body_data_writer.dart';
 import '../widgets/ask/choice_chips.dart';
 import '../widgets/ask/input_request_card.dart';
 import '../widgets/ask/proposal_card.dart';
@@ -138,6 +139,13 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
       vsync: this,
       transcribeTimeout: widget.transcribeTimeout,
       strings: l(context),
+      // Lets the coach's input form remember height/weight straight into the
+      // user's own body data (Phase 3), through the same repositories the
+      // manual capture screens write to.
+      bodyWriter: RepositoryBodyDataWriter(
+        diet: scope.diet,
+        bodyWeight: scope.bodyWeight,
+      ),
       onError: _showError,
       onSendStarted: () => _autoFollow = true,
       onContentGrew: ({required bool instant}) {
@@ -705,10 +713,11 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                                   .containsKey(
                                                     inputReq.requestId,
                                                   ),
-                                              onSubmit: (summary) => _c
+                                              onSubmit: (summary, values) => _c
                                                   .submitInput(
                                                     inputReq.requestId,
                                                     summary,
+                                                    values,
                                                   ),
                                             );
                                           } else if (action == null) {

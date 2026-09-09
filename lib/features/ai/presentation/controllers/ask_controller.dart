@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../../data/audio_recorder.dart';
+import '../../../../core/util/parse.dart';
 import '../../../../l10n/l10n.dart';
+import '../../domain/body_data_writer.dart';
 import '../../domain/ai_conversation.dart';
 import '../../domain/ai_message.dart';
 import '../../domain/ai_pending_action.dart';
@@ -44,12 +46,15 @@ class AskController extends ChangeNotifier {
     required TickerProvider vsync,
     required this.transcribeTimeout,
     required AppLocalizations strings,
+    BodyDataWriter? bodyWriter,
     this.onError,
     this.onContentGrew,
     this.onSendStarted,
   }) : // An initializing formal would have to be `this._ai`, and a named
        // parameter cannot start with an underscore — so these stay plain
        // assignments.
+       // ignore: prefer_initializing_formals
+       _bodyWriter = bodyWriter,
        // ignore: prefer_initializing_formals
        _strings = strings,
        // ignore: prefer_initializing_formals
@@ -72,6 +77,12 @@ class AskController extends ChangeNotifier {
   final AiRepository _ai;
   final AudioRecorderService? _recorder;
   final TickerProvider _vsync;
+
+  /// Persists whitelisted `request_input` values (height, weight) to the user's
+  /// own body data so the coach asks once (Phase 3). Null in scopes/tests that
+  /// don't wire it — persistence is then simply skipped and the value still
+  /// reaches the coach as the submitted summary turn.
+  final BodyDataWriter? _bodyWriter;
 
   /// How long a voice-note transcription may run before the UI gives up and
   /// offers a retry — a hung request must never leave the composer locked.
@@ -720,15 +731,47 @@ class AskController extends ChangeNotifier {
   final Map<String, String> _submittedInputs = {};
   Map<String, String> get submittedInputs => _submittedInputs;
 
-  /// Answers an [input_request] by sending the user's [summary] of their
-  /// entries (e.g. "Height: 180 cm · Weight: 74 kg") as an ordinary next
-  /// message — the coach continues from it exactly as if the user had typed it.
-  /// Reuses the full send path (optimistic bubble, idempotency key).
-  Future<void> submitInput(String requestId, String summary) {
-    if (_submittedInputs.containsKey(requestId)) return Future<void>.value();
+  /// Answers an [input_request]: persists any whitelisted values (height,
+  /// weight) to the user's own body data so the coach asks once, then sends the
+  /// [summary] of their entries (e.g. "Height: 180 cm · Weight: 74 kg") as an
+  /// ordinary next message — the coach continues from it exactly as if the user
+  /// had typed it. [values] maps each field key to its raw entry.
+  ///
+  /// Persistence is best-effort and never blocks the reply: a value that fails
+  /// to save (or has no writer) still reaches the coach as the summary turn.
+  Future<void> submitInput(
+    String requestId,
+    String summary,
+    Map<String, String> values,
+  ) async {
+    if (_submittedInputs.containsKey(requestId)) return;
     _submittedInputs[requestId] = summary;
+    _notify();
+    await _persistBodyData(values);
     input.text = summary;
-    return send();
+    await send();
+  }
+
+  /// Writes the height/weight the user typed to their own body data through
+  /// [_bodyWriter], keyed by the canonical field keys. Swallows failures — a
+  /// remember that didn't land must never stop the coach from replying.
+  Future<void> _persistBodyData(Map<String, String> values) async {
+    final writer = _bodyWriter;
+    if (writer == null) return;
+    try {
+      final rawHeight = values[kBodyInputHeightCm];
+      if (rawHeight != null) {
+        final cm = parsePositiveDecimal(rawHeight);
+        if (cm != null) await writer.saveHeightCm(cm);
+      }
+      final rawWeight = values[kBodyInputWeightKg];
+      if (rawWeight != null) {
+        final kg = parsePositiveDecimal(rawWeight);
+        if (kg != null) await writer.saveWeightKg(kg);
+      }
+    } catch (_) {
+      // Best-effort: the value still reaches the coach as the summary turn.
+    }
   }
 
   // ---- Voice ---------------------------------------------------------------

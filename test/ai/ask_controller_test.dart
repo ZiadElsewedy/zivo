@@ -8,6 +8,7 @@ import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_pending_action.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/ai/domain/body_data_writer.dart';
 import 'package:zivo/features/workout/domain/workout_import_input.dart';
 import 'package:zivo/features/ai/domain/ai_response_style.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
@@ -114,7 +115,7 @@ void main() {
     addTearDown(c.dispose);
     await c.load();
 
-    await c.submitInput('form-1', 'Height: 180 cm · Weight: 74 kg');
+    await c.submitInput('form-1', 'Height: 180 cm · Weight: 74 kg', const {});
 
     expect(ai.sent.single.text, 'Height: 180 cm · Weight: 74 kg');
     expect(c.submittedInputs['form-1'], 'Height: 180 cm · Weight: 74 kg');
@@ -126,11 +127,57 @@ void main() {
     addTearDown(c.dispose);
     await c.load();
 
-    await c.submitInput('form-1', 'Height: 180 cm');
-    await c.submitInput('form-1', 'Height: 999 cm');
+    await c.submitInput('form-1', 'Height: 180 cm', const {});
+    await c.submitInput('form-1', 'Height: 999 cm', const {});
 
     expect(ai.sent, hasLength(1));
     expect(c.submittedInputs['form-1'], 'Height: 180 cm');
+  });
+
+  test('submitInput persists whitelisted height/weight to body data', () async {
+    final ai = _FakeAi();
+    final writer = _FakeBodyWriter();
+    final c = _controller(ai, bodyWriter: writer);
+    addTearDown(c.dispose);
+    await c.load();
+
+    await c.submitInput('form-1', 'Height: 180 cm · Weight: 74 kg', const {
+      'heightCm': '180',
+      'weightKg': '74',
+    });
+
+    expect(writer.heights, [180.0]);
+    expect(writer.weights, [74.0]);
+    // The value still reaches the coach as the summary turn.
+    expect(ai.sent.single.text, 'Height: 180 cm · Weight: 74 kg');
+  });
+
+  test('submitInput ignores non-whitelisted keys and bad numbers', () async {
+    final ai = _FakeAi();
+    final writer = _FakeBodyWriter();
+    final c = _controller(ai, bodyWriter: writer);
+    addTearDown(c.dispose);
+    await c.load();
+
+    await c.submitInput('form-1', 'summary', const {
+      'goal': 'gain',
+      'heightCm': 'not a number',
+    });
+
+    expect(writer.heights, isEmpty);
+    expect(writer.weights, isEmpty);
+  });
+
+  test('submitInput still sends when persistence throws', () async {
+    final ai = _FakeAi();
+    final writer = _FakeBodyWriter(throwOnSave: true);
+    final c = _controller(ai, bodyWriter: writer);
+    addTearDown(c.dispose);
+    await c.load();
+
+    await c.submitInput('form-1', 'Weight: 74 kg', const {'weightKg': '74'});
+
+    expect(ai.sent.single.text, 'Weight: 74 kg');
   });
 
   test('a first message in an untitled chat auto-titles it', () async {
@@ -383,15 +430,40 @@ class _NoopTickerProvider implements TickerProvider {
 /// English copy, built directly rather than resolved from a widget tree —
 /// [AskController] takes an [AppLocalizations] value (it never holds a
 /// BuildContext, per ADR-008), so these tests need no `pumpWidget`.
-AskController _controller(AiRepository ai, {void Function(String)? onError}) =>
-    AskController(
-      ai: ai,
-      recorder: null,
-      vsync: _NoopTickerProvider(),
-      transcribeTimeout: const Duration(seconds: 5),
-      strings: AppLocalizationsEn(),
-      onError: onError,
-    );
+AskController _controller(
+  AiRepository ai, {
+  void Function(String)? onError,
+  BodyDataWriter? bodyWriter,
+}) => AskController(
+  ai: ai,
+  recorder: null,
+  vsync: _NoopTickerProvider(),
+  transcribeTimeout: const Duration(seconds: 5),
+  strings: AppLocalizationsEn(),
+  onError: onError,
+  bodyWriter: bodyWriter,
+);
+
+/// Records what the controller asked to persist.
+class _FakeBodyWriter implements BodyDataWriter {
+  _FakeBodyWriter({this.throwOnSave = false});
+  final bool throwOnSave;
+  final List<double> heights = [];
+  final List<double> weights = [];
+
+  @override
+  Future<void> saveWeightKg(double weightKg) async {
+    if (throwOnSave) throw StateError('save failed');
+    weights.add(weightKg);
+  }
+
+  @override
+  Future<bool> saveHeightCm(double heightCm) async {
+    if (throwOnSave) throw StateError('save failed');
+    heights.add(heightCm);
+    return true;
+  }
+}
 
 AiMessage _message(String id, AiRole role, String text, String? turnId) =>
     AiMessage(

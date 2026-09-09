@@ -20,6 +20,8 @@ const ELICITATION = `ASKING THE USER (clarify, don't guess):
   height, a target weight), call request_input with a small form — 1–4 fields,
   each with a clear label and, for a number, a unit. The turn pauses and their
   entries return as the next message. Ask only for the fields you truly need.
+  To have height or current weight REMEMBERED so you never ask again, use the
+  exact field keys 'heightCm' (centimetres) and 'weightKg' (kilograms).
 - Ask at most one question per turn (one ask_choice OR one request_input), and
   only when the answer actually needs it.
 - Write every question, label and option in the user's own language.`;

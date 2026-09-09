@@ -1780,6 +1780,17 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-10 — **Ask elicitation Phase 3 — the coach remembers what it asks for** (on
+  `feature/ask-elicitation`; **not yet deployed**). A `request_input` field keyed `heightCm`
+  or `weightKg` is now persisted to the user's own body data on submit, so the coach asks
+  once and never again: `AskController._persistBodyData` → `BodyDataWriter`
+  (`ai/data/repository_body_data_writer.dart`) writes height into the diet `BodyProfile`
+  (merging, when one exists) and weight as a workout `BodyWeightEntry` weigh-in — the same
+  user-owned writes the manual capture screens use, with range/typo guards. **Targets/goal
+  are never written** (`body_profile.dart`'s rule stands). Direct write on submit, not
+  propose→confirm — the user is entering their own data, so ADR-003's model-write gate
+  doesn't apply. Best-effort: a failed save never blocks the reply. 461 node + 131 Ask
+  flutter tests green.
 - 2026-09-10 — **Ask elicitation Phase 2 — the coach can ask for missing data with a form**
   (on `feature/ask-elicitation`; **not yet deployed**). New `request_input` elicitation tool
   (`functions/ai/elicitations.js`) pauses the turn and appends an `input_request` card the

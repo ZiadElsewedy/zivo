@@ -212,7 +212,11 @@ const REQUEST_INPUT = {
     "'heightCm'), label (what the user sees), type ('number', 'text' or " +
     "'choice'), and optionally unit ('cm', 'kg', …), options (for 'choice', " +
     "2–5 {value, label}), and required (default true). Ask only for the fields " +
-    "you truly need, in the user's language. At most one question per turn.",
+    "you truly need, in the user's language. To have a value REMEMBERED into " +
+    "the user's profile (so you never ask again), use these exact keys and " +
+    "units: 'heightCm' (a number in centimetres) and 'weightKg' (their current " +
+    "weight in kilograms). Any other key is used only for this reply. At most " +
+    "one question per turn.",
   inputSchema: {
     type: "object",
     properties: {

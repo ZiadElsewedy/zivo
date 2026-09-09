@@ -29,8 +29,9 @@ class InputRequestCard extends StatefulWidget {
   /// True once the user has submitted this form this session.
   final bool submitted;
 
-  /// Called with the serialized summary of the entries when the user submits.
-  final void Function(String summary) onSubmit;
+  /// Called when the user submits, with the serialized summary of the entries
+  /// and a map of each field key to its raw value (for persistence).
+  final void Function(String summary, Map<String, String> values) onSubmit;
 
   @override
   State<InputRequestCard> createState() => _InputRequestCardState();
@@ -85,17 +86,18 @@ class _InputRequestCardState extends State<InputRequestCard> {
   void _submit() {
     if (!_canSubmit) return;
     final parts = <String>[];
+    final values = <String, String>{};
     for (final f in widget.request.fields) {
-      final value = f.type == AiInputFieldType.choice
-          ? _labelOf(f)
-          : _valueOf(f);
-      if (value.isEmpty) continue; // skip untouched optional fields
+      final raw = _valueOf(f); // picked value for a choice, else the text
+      if (raw.isEmpty) continue; // skip untouched optional fields
+      values[f.key] = raw;
+      final shown = f.type == AiInputFieldType.choice ? _labelOf(f) : raw;
       final unit = (f.unit != null && f.type == AiInputFieldType.number)
           ? ' ${f.unit}'
           : '';
-      parts.add('${f.label}: $value$unit');
+      parts.add('${f.label}: $shown$unit');
     }
-    widget.onSubmit(parts.join(' · '));
+    widget.onSubmit(parts.join(' · '), values);
   }
 
   @override
