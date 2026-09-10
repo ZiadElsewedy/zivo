@@ -59,7 +59,7 @@ class ZivoSheetSurface extends StatelessWidget {
       borderRadius: const BorderRadius.vertical(
         top: Radius.circular(AppRadius.sheet),
       ),
-      child: ColoredBox(color: TrainColors.raised, child: child),
+      child: ColoredBox(color: TrainColors.sheetSurface, child: child),
     );
   }
 }

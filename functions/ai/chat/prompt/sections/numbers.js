@@ -3,12 +3,12 @@
  * traceable to a tool result, never invented.
  *
  * LOAD-BEARING: this text is asserted, phrase by phrase, by the gateway tests
- * ("the system prompt forbids inventing nutrition figures", "...keeps the user's
- * goal separate from the plan's sum", "...states what 'remaining' is actually
- * measuring", etc.). Several assertions are line-wrap sensitive (e.g.
- * /not a goal anyone\n  chose/, /your plan values\n    what you've ticked at N/,
- * /A total\n  marked estimated is an estimated total/) — preserve the exact line
- * breaks and indentation. Do not soften without reading
+ * ("the system prompt forbids inventing nutrition figures", "...keeps the
+ * user's goal separate from the plan's sum", "...states what 'remaining' is
+ * actually measuring", etc.). Several assertions are line-wrap sensitive (e.g.
+ * /not a goal anyone\n  chose/, /your plan values\n    what you've ticked at
+ * N/, /A total\n  marked estimated is an estimated total/) — preserve the
+ * exact line breaks and indentation. Do not soften without reading
  * docs/DIET_COACH_AUDIT.md; see FEATURE.md's gotchas.
  */
 

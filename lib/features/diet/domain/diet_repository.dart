@@ -66,6 +66,15 @@ abstract interface class DietRepository {
   BodyProfile? get currentBodyProfile;
   Stream<BodyProfile?> watchBodyProfile();
 
+  /// A one-shot read of the body profile, or null when none is stored.
+  ///
+  /// Unlike [currentBodyProfile] — a sync cache that is only warm once someone
+  /// has subscribed to [watchBodyProfile] this session — this always reads the
+  /// stored value. Use it when a caller needs the profile without having
+  /// mounted a screen that watches it (e.g. the Ask input form remembering a
+  /// height), where the cache would read null even though a profile exists.
+  Future<BodyProfile?> fetchBodyProfile();
+
   /// Creates or replaces the body profile (there is only ever one).
   Future<void> saveBodyProfile(BodyProfile profile);
 

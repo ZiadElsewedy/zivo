@@ -2,12 +2,15 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/util/bidi.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/pressable_scale.dart';
+import '../pages/streak_orbit_page.dart';
 import '../../../diet/domain/diet_plan.dart';
 import '../../../diet/domain/diet_summary.dart';
 import '../../../diet/presentation/today_diet.dart';
@@ -317,28 +320,44 @@ class MomentumSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(l(context).pulseMomentum),
-            Container(
-              padding: const EdgeInsets.fromLTRB(18, 15, 18, 15),
-              decoration: BoxDecoration(
-                gradient: TrainColors.cardGradient,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: TrainColors.hairline),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _StreakRow(sessions: sessions, clock: now),
-                  if (sessions.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    WeekActivityBars(sessions: sessions, now: now),
-                  ],
-                  if (hasWeight) ...[
-                    const SizedBox(height: 12),
-                    Divider(height: 1, color: TrainColors.hairline),
-                    const SizedBox(height: 10),
-                    const _WeightRow(),
-                  ],
-                ],
+            // The whole card opens the Streak Orbit — the visual consistency
+            // scene. The chevron in the streak row is the affordance; the tap
+            // target is the card, not just that glyph.
+            PressableScale(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => StreakOrbitPage(now: now),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(18, 15, 18, 15),
+                  decoration: BoxDecoration(
+                    gradient: TrainColors.cardGradient,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: TrainColors.hairline),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _StreakRow(sessions: sessions, clock: now),
+                      if (sessions.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        WeekActivityBars(sessions: sessions, now: now),
+                      ],
+                      if (hasWeight) ...[
+                        const SizedBox(height: 12),
+                        Divider(height: 1, color: TrainColors.hairline),
+                        const SizedBox(height: 10),
+                        const _WeightRow(),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
@@ -419,6 +438,16 @@ class _StreakRow extends StatelessWidget {
               color: TrainColors.ink4,
             ),
           ),
+        ),
+        // The affordance that the card opens the Streak Orbit — the same
+        // trailing chevron the diet/sleep/spending glances use to say "this
+        // opens". As the row's last child it lands on the trailing edge (the
+        // Row flips with the paragraph direction), matching those glances.
+        const SizedBox(width: 6),
+        Icon(
+          Icons.chevron_right_rounded,
+          size: 16,
+          color: TrainColors.ink4,
         ),
       ],
     );

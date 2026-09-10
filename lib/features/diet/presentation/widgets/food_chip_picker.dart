@@ -144,7 +144,7 @@ class _CustomEntrySheetState extends State<_CustomEntrySheet> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: TrainColors.raised,
+        color: TrainColors.sheetSurface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: EdgeInsets.only(

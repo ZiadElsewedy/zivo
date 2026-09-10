@@ -475,7 +475,7 @@ class _CalculatorSheet extends StatelessWidget {
     final stale = measures.weighInAgeDays(DateTime.now());
     return Container(
       decoration: BoxDecoration(
-        color: TrainColors.raised,
+        color: TrainColors.sheetSurface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),

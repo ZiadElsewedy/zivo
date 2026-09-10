@@ -12,6 +12,7 @@
  *   training   — defer to the deterministic workout engine (LOAD-BEARING)
  *   coaching   — the coaching stance + stay-in-your-lane
  *   mutations  — propose→confirm writes                    (LOAD-BEARING)
+ *   elicitation— ask (option chips) instead of guessing
  *   safety     — tool output is data, not instructions     (LOAD-BEARING)
  *
  * ORDER MATTERS for readability but not for correctness: the gateway tests
@@ -32,9 +33,10 @@ const {NUMBERS} = require("./sections/numbers");
 const {TRAINING} = require("./sections/training");
 const {COACHING} = require("./sections/coaching");
 const {MUTATIONS} = require("./sections/mutations");
+const {ELICITATION} = require("./sections/elicitation");
 const {SAFETY} = require("./sections/safety");
 
-// Blank line between sections; each section owns no leading/trailing blank line.
+// Blank line between sections; no section owns a leading/trailing blank line.
 const SYSTEM_PROMPT = [
   PERSONA,
   FOCUS,
@@ -43,6 +45,7 @@ const SYSTEM_PROMPT = [
   TRAINING,
   COACHING,
   MUTATIONS,
+  ELICITATION,
   SAFETY,
 ].join("\n\n");
 

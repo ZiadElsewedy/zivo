@@ -1506,6 +1506,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workoutDayStreak => 'Day streak';
 
   @override
+  String get streakOrbitTitle => 'Consistency';
+
+  @override
+  String get streakOrbitBestLabel => 'Best streak';
+
+  @override
+  String get streakOrbitTrainedTotal => 'Days trained';
+
+  @override
   String get workoutNoActiveStreak =>
       'No active streak — complete a workout to start one.';
 
@@ -2051,6 +2060,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get askActionFailed => 'Couldn\'t do that just now. Try again.';
+
+  @override
+  String get askInputSubmit => 'Send';
+
+  @override
+  String get askInputSent => 'Sent';
 
   @override
   String get askThinking => 'Thinking…';

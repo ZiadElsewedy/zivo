@@ -57,6 +57,9 @@ abstract class DietRepositoryStub implements DietRepository {
   Stream<BodyProfile?> watchBodyProfile() => Stream.value(null);
 
   @override
+  Future<BodyProfile?> fetchBodyProfile() async => null;
+
+  @override
   Future<void> saveBodyProfile(BodyProfile profile) async {}
 
   @override

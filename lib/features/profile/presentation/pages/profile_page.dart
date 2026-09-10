@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -162,7 +161,10 @@ class ProfilePage extends StatelessWidget {
   /// flow uses (`image_cropper`), here locked to a 1:1 **circular** frame and
   /// themed to ZIVO. Returns the cropped file, or null if the person backs
   /// out. "Move & Scale" so the circle previews exactly what will be saved.
-  Future<CroppedFile?> _cropAvatar(AppLocalizations strings, String sourcePath) {
+  Future<CroppedFile?> _cropAvatar(
+    AppLocalizations strings,
+    String sourcePath,
+  ) {
     return ImageCropper().cropImage(
       sourcePath: sourcePath,
       aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
@@ -567,7 +569,7 @@ class _LifetimeStats extends StatelessWidget {
         final months = _monthsSince(user.createdAt);
 
         return TrainCard(
-                    padding: const EdgeInsets.symmetric(vertical: 17, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 17, horizontal: 4),
           child: TrainStatStrip(
             items: [
               TrainStat('$completed', l(context).profileStatSessions),
@@ -711,10 +713,7 @@ class _Avatar extends StatelessWidget {
                       // The badge punches a hole in the ring rather than
                       // floating over it — the border is the page's own
                       // ground colour, not a shadow.
-                      border: Border.all(
-                        color: TrainColors.base,
-                        width: 2.5,
-                      ),
+                      border: Border.all(color: TrainColors.base, width: 2.5),
                     ),
                     child: const Icon(
                       AppIcons.camera,
@@ -957,11 +956,7 @@ class _AboutSectionState extends State<_AboutSection> {
                   ),
                   if (editable) ...[
                     const SizedBox(width: 12),
-                    Icon(
-                      AppIcons.edit,
-                      size: 13,
-                      color: TrainColors.ink3,
-                    ),
+                    Icon(AppIcons.edit, size: 13, color: TrainColors.ink3),
                   ],
                 ],
               ),
@@ -1156,120 +1151,112 @@ class _EditTextSheetState extends State<_EditTextSheet> {
 
   @override
   Widget build(BuildContext context) {
-    // Premium edit surface: the sheet material is a translucent, blurred
-    // glass card (the backdrop dims + blurs behind it) rather than a flat
-    // opaque strip — the same material language as the workout start
-    // confirm. Keyboard insets ride the padding so the field stays visible
-    // while typing.
+    // A flat, opaque edit card — the same solid sheet ground every other sheet
+    // uses (see `sheetSurface`), so nothing ghosts through it. Keyboard insets
+    // ride the padding so the field stays visible while typing.
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: Container(
-          decoration: BoxDecoration(
-            color: TrainColors.raised.withValues(alpha: 0.94),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-            border: Border.all(color: TrainColors.hairlineStrong),
-          ),
-          padding: EdgeInsets.only(
-            top: 12,
-            left: 22,
-            right: 22,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(child: const ZivoSheetHandle()),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsetsDirectional.only(start: 2, bottom: 12),
-                child: Text(widget.title, style: AppText.cardTitle),
-              ),
-              TextField(
-                controller: _text,
-                autofocus: true,
-                maxLength: widget.maxLength,
-                maxLines: 1,
-                textCapitalization: widget.capitalizeWords
-                    ? TextCapitalization.words
-                    : TextCapitalization.sentences,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _submit(),
-                onChanged: (_) => setState(() {}),
-                cursorColor: TrainColors.ember,
-                style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
-                decoration: InputDecoration(
-                  isCollapsed: true,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                  counterStyle: AppText.meta.copyWith(
-                    color: TrainColors.ink3,
-                    fontSize: 11,
-                  ),
-                  border: UnderlineInputBorder(
-                    borderSide: BorderSide(color: TrainColors.hairline),
-                  ),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: TrainColors.hairline),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(
-                      color: TrainColors.ember,
-                      width: 1.6,
-                    ),
-                  ),
-                  hintText: widget.hint,
-                  hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
+      child: Container(
+        decoration: BoxDecoration(
+          color: TrainColors.sheetSurface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+          border: Border.all(color: TrainColors.hairlineStrong),
+        ),
+        padding: EdgeInsets.only(
+          top: 12,
+          left: 22,
+          right: 22,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: const ZivoSheetHandle()),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 2, bottom: 12),
+              child: Text(widget.title, style: AppText.cardTitle),
+            ),
+            TextField(
+              controller: _text,
+              autofocus: true,
+              maxLength: widget.maxLength,
+              maxLines: 1,
+              textCapitalization: widget.capitalizeWords
+                  ? TextCapitalization.words
+                  : TextCapitalization.sentences,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
+              onChanged: (_) => setState(() {}),
+              cursorColor: TrainColors.ember,
+              style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
+              decoration: InputDecoration(
+                isCollapsed: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                counterStyle: AppText.meta.copyWith(
+                  color: TrainColors.ink3,
+                  fontSize: 11,
                 ),
+                border: UnderlineInputBorder(
+                  borderSide: BorderSide(color: TrainColors.hairline),
+                ),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: TrainColors.hairline),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: TrainColors.ember, width: 1.6),
+                ),
+                hintText: widget.hint,
+                hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
               ),
-              const SizedBox(height: 22),
-              Opacity(
-                opacity: _canSave ? 1 : 0.45,
-                child: Material(
-                  color: Colors.transparent,
-                  child: Ink(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [TrainColors.emberLift, TrainColors.ember],
-                      ),
-                      borderRadius: BorderRadius.circular(999),
-                      boxShadow: TrainColors.actionGlow(TrainColors.ember),
+            ),
+            const SizedBox(height: 22),
+            Opacity(
+              opacity: _canSave ? 1 : 0.45,
+              child: Material(
+                color: Colors.transparent,
+                child: Ink(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [TrainColors.emberLift, TrainColors.ember],
                     ),
-                    child: InkWell(
-                      onTap: _canSave ? _submit : null,
-                      borderRadius: BorderRadius.circular(999),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        alignment: Alignment.center,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              AppIcons.check,
-                              size: 18,
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: TrainColors.actionGlow(TrainColors.ember),
+                  ),
+                  child: InkWell(
+                    onTap: _canSave ? _submit : null,
+                    borderRadius: BorderRadius.circular(999),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      alignment: Alignment.center,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            AppIcons.check,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            l(context).actionSave,
+                            style: AppText.button.copyWith(
+                              fontSize: 16,
                               color: Colors.white,
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              l(context).actionSave,
-                              style: AppText.button.copyWith(
-                                fontSize: 16,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

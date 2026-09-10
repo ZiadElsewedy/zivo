@@ -319,6 +319,54 @@ class _Band extends StatelessWidget {
   }
 }
 
+/// The inner padding every supporting section's card carries.
+///
+/// It was written out at each call site and had already drifted — 17 above and
+/// below in Stages, 16 in Against target and Insights. One pixel is invisible
+/// on its own and is exactly why nobody caught it; stacked down a scroll of
+/// five cards it is the kind of drift that makes a page look approximate. The
+/// Detail card keeps its own 6 because its rows carry 11 of their own, which
+/// lands on the same 17.
+const _sectionCardPadding = EdgeInsets.fromLTRB(18, 17, 18, 17);
+
+/// The stand-in a card shows when the thing it exists to display was not
+/// recorded: a glyph, then the sentence.
+///
+/// Stages the source did not grade, and a target nobody has set, both used to
+/// render as a bare paragraph of `ink3` filling the card edge to edge. Two
+/// lines of flat grey with nothing in front of them do not read as a state the
+/// screen meant to show — they read as a string that got loose, which is
+/// precisely the wrong impression for the one case where ZIVO is being careful
+/// about what it does not know. The glyph gives the sentence something to hang
+/// off and a left margin to wrap against, and it is how the same idea is
+/// already drawn a section above in [_StaleNotice].
+class _AbsentNote extends StatelessWidget {
+  const _AbsentNote({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // A 14px glyph top-aligned against 14.5px text at 1.5 line height sits
+      // visibly high; 3 puts it on the first line's optical centre.
+      Padding(
+        padding: const EdgeInsets.only(top: 3),
+        child: Icon(icon, size: 14, color: TrainColors.ink4),
+      ),
+      const SizedBox(width: AppSpacing.s),
+      Expanded(
+        child: Text(
+          text,
+          style: AppText.body.copyWith(color: TrainColors.ink3),
+        ),
+      ),
+    ],
+  );
+}
+
 // ---------------------------------------------------------------------------
 // The open session
 // ---------------------------------------------------------------------------
@@ -801,15 +849,12 @@ class _Stages extends StatelessWidget {
         TrainSectionLabel(l(context).sleepStagesTitle),
         const SizedBox(height: AppSpacing.s),
         TrainCard(
-          padding: const EdgeInsets.fromLTRB(18, 17, 18, 17),
+          padding: _sectionCardPadding,
           child: breakdown == null
-              ? Text(
-                  l(context).sleepStagesUnavailable(
+              ? _AbsentNote(
+                  icon: AppIcons.info,
+                  text: l(context).sleepStagesUnavailable(
                     sleepProviderName(context, session.provenance),
-                  ),
-                  style: AppText.body.copyWith(
-                    color: TrainColors.ink3,
-                    height: 1.45,
                   ),
                 )
               : SleepStageSplit(
@@ -981,13 +1026,15 @@ class _AgainstTarget extends StatelessWidget {
         TrainSectionLabel(l(context).sleepAgainstTargetTitle),
         const SizedBox(height: AppSpacing.s),
         TrainCard(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+          padding: _sectionCardPadding,
           child: duration == null && bedtime == null
               // No target set. An invitation, not a zero delta against a goal
-              // nobody chose.
-              ? Text(
-                  l(context).sleepNoTargets,
-                  style: AppText.body.copyWith(color: TrainColors.ink3),
+              // nobody chose — and drawn under the same mark the header's
+              // "set targets" action carries, so the sentence points at the
+              // control that answers it.
+              ? _AbsentNote(
+                  icon: AppIcons.sleepTargets,
+                  text: l(context).sleepNoTargets,
                 )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1073,7 +1120,7 @@ class _Insights extends StatelessWidget {
         TrainSectionLabel(l(context).sleepInsightsTitle),
         const SizedBox(height: AppSpacing.s),
         TrainCard(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+          padding: _sectionCardPadding,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

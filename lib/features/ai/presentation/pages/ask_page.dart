@@ -22,6 +22,9 @@ import '../controllers/ask_controller.dart';
 import '../widgets/ask/ask_empty_state.dart';
 import '../widgets/ask/error_retry.dart';
 import '../widgets/ask/message_bubble.dart';
+import '../../data/repository_body_data_writer.dart';
+import '../widgets/ask/choice_chips.dart';
+import '../widgets/ask/input_request_card.dart';
 import '../widgets/ask/proposal_card.dart';
 import '../widgets/ask/sessions_sheet.dart';
 import '../widgets/ask/thinking_rail.dart';
@@ -136,6 +139,13 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
       vsync: this,
       transcribeTimeout: widget.transcribeTimeout,
       strings: l(context),
+      // Lets the coach's input form remember height/weight straight into the
+      // user's own body data (Phase 3), through the same repositories the
+      // manual capture screens write to.
+      bodyWriter: RepositoryBodyDataWriter(
+        diet: scope.diet,
+        bodyWeight: scope.bodyWeight,
+      ),
       onError: _showError,
       onSendStarted: () => _autoFollow = true,
       onContentGrew: ({required bool instant}) {
@@ -654,7 +664,9 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                               !_c.streamed &&
                                               message.role ==
                                                   AiRole.assistant &&
-                                              message.pendingAction == null) {
+                                              message.pendingAction == null &&
+                                              message.choiceRequest == null &&
+                                              message.inputRequest == null) {
                                             // The decision lives in [_revealActive]
                                             // until the typewriter FINISHES — not
                                             // in this frame's flag — so later
@@ -676,8 +688,39 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                                   displayed[i - 1].role !=
                                                       AiRole.assistant);
                                           final action = message.pendingAction;
+                                          final choice = message.choiceRequest;
+                                          final inputReq = message.inputRequest;
                                           Widget content;
-                                          if (action == null) {
+                                          if (choice != null) {
+                                            content = ChoiceChips(
+                                              request: choice,
+                                              pickedValue: _c.answeredChoices[choice
+                                                  .requestId],
+                                              onSelect: (value, label) => _c
+                                                  .answerChoice(
+                                                    choice.requestId,
+                                                    value,
+                                                    label,
+                                                  ),
+                                            );
+                                          } else if (inputReq != null) {
+                                            content = InputRequestCard(
+                                              key: ValueKey(
+                                                'input-${inputReq.requestId}',
+                                              ),
+                                              request: inputReq,
+                                              submitted: _c.submittedInputs
+                                                  .containsKey(
+                                                    inputReq.requestId,
+                                                  ),
+                                              onSubmit: (summary, values) => _c
+                                                  .submitInput(
+                                                    inputReq.requestId,
+                                                    summary,
+                                                    values,
+                                                  ),
+                                            );
+                                          } else if (action == null) {
                                             content = MessageBubble(
                                               message,
                                               animate: revealing,

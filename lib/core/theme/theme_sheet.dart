@@ -32,7 +32,7 @@ class _ThemeSheet extends StatelessWidget {
     final strings = l(context);
     return Container(
       decoration: BoxDecoration(
-        color: TrainColors.raised,
+        color: TrainColors.sheetSurface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),

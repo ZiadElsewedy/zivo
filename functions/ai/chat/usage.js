@@ -20,6 +20,7 @@ const {
  * derives totals + cost from them.
  */
 class TurnUsage {
+  /** Starts every bucket at zero; `add()` accumulates into them. */
   constructor() {
     this.uncachedTokensIn = 0;
     this.cacheReadTokens = 0;
@@ -60,7 +61,8 @@ class TurnUsage {
   }
 
   /**
-   * The turn's dollar cost, with cache reads/writes priced at their multipliers.
+   * The turn's dollar cost, with cache reads/writes priced at their
+   * multipliers.
    * @return {number}
    */
   costUsd() {

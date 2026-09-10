@@ -1511,6 +1511,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get workoutDayStreak => 'أيام متتالية';
 
   @override
+  String get streakOrbitTitle => 'المواظبة';
+
+  @override
+  String get streakOrbitBestLabel => 'أطول سلسلة';
+
+  @override
+  String get streakOrbitTrainedTotal => 'أيام التمرين';
+
+  @override
   String get workoutNoActiveStreak =>
       'لا سلسلة نشطة — أكمل تمرينًا لتبدأ واحدة.';
 
@@ -2070,6 +2079,12 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get askActionFailed => 'تعذّر تنفيذ ذلك الآن. حاول مرة أخرى.';
+
+  @override
+  String get askInputSubmit => 'إرسال';
+
+  @override
+  String get askInputSent => 'تم الإرسال';
 
   @override
   String get askThinking => 'يفكّر…';

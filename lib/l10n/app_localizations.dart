@@ -2756,6 +2756,24 @@ abstract class AppLocalizations {
   /// **'Day streak'**
   String get workoutDayStreak;
 
+  /// Title of the streak-orbit page opened from Today's Momentum card.
+  ///
+  /// In en, this message translates to:
+  /// **'Consistency'**
+  String get streakOrbitTitle;
+
+  /// Label under the all-time best streak figure on the streak-orbit page.
+  ///
+  /// In en, this message translates to:
+  /// **'Best streak'**
+  String get streakOrbitBestLabel;
+
+  /// Label under the lifetime count of distinct days the user trained, on the streak-orbit page.
+  ///
+  /// In en, this message translates to:
+  /// **'Days trained'**
+  String get streakOrbitTrainedTotal;
+
   /// Label under a zero day-streak.
   ///
   /// In en, this message translates to:
@@ -3619,6 +3637,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t do that just now. Try again.'**
   String get askActionFailed;
+
+  /// Button on the assistant's input form that sends the entered values back to the coach.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get askInputSubmit;
+
+  /// State of the input-form button after the user has submitted their values.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get askInputSent;
 
   /// The assistant is composing a reply. Keep the ellipsis.
   ///

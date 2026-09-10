@@ -2153,6 +2153,18 @@
   "@workoutDayStreak": {
       "description": "The number of consecutive days trained."
   },
+  "streakOrbitTitle": "Consistency",
+  "@streakOrbitTitle": {
+      "description": "Title of the streak-orbit page opened from Today's Momentum card."
+  },
+  "streakOrbitBestLabel": "Best streak",
+  "@streakOrbitBestLabel": {
+      "description": "Label under the all-time best streak figure on the streak-orbit page."
+  },
+  "streakOrbitTrainedTotal": "Days trained",
+  "@streakOrbitTrainedTotal": {
+      "description": "Label under the lifetime count of distinct days the user trained, on the streak-orbit page."
+  },
   "workoutNoActiveStreak": "No active streak — complete a workout to start one.",
   "@workoutNoActiveStreak": {
       "description": "Label under a zero day-streak."
@@ -2919,6 +2931,14 @@
   "askActionFailed": "Couldn't do that just now. Try again.",
   "@askActionFailed": {
       "description": "Shown when confirming or cancelling a proposed change failed."
+  },
+  "askInputSubmit": "Send",
+  "@askInputSubmit": {
+      "description": "Button on the assistant's input form that sends the entered values back to the coach."
+  },
+  "askInputSent": "Sent",
+  "@askInputSent": {
+      "description": "State of the input-form button after the user has submitted their values."
   },
   "askThinking": "Thinking…",
   "@askThinking": {

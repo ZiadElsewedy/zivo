@@ -21,9 +21,9 @@
 const {SYSTEM_PROMPT} = require("./prompt/system_prompt");
 
 // The user's reply-length/style preference (`users/{uid}/settings/ai`, plumbed
-// through `aiChat`'s `responseStyle` field). 'balanced' adds no directive at all
-// — the SYSTEM_PROMPT's own tone guidance already covers it. An unrecognized
-// value (never trust client input) also falls back to 'balanced'.
+// through `aiChat`'s `responseStyle` field). 'balanced' adds no directive at
+// all — the SYSTEM_PROMPT's own tone guidance already covers it. An
+// unrecognized value (never trust client input) also falls back to 'balanced'.
 const RESPONSE_STYLE_DIRECTIVES = {
   concise:
     "Keep replies short and to the point — a sentence or two when you can.",
@@ -75,7 +75,7 @@ Today is ${facts.weekday}, ${facts.longDate} (${facts.dayKey}). ` +
  * @param {!Object} args
  * @param {?string} args.responseStyle 'concise'|'balanced'|'detailed'|other.
  * @param {!Object} args.facts A `localNowFacts()` result for the CONTEXT block.
- * @return {!Array<{text: string, cache?: string}>}
+ * @return {!Array<{text: string, cache: (string|undefined)}>}
  */
 function buildSystemBlocks({responseStyle, facts}) {
   const blocks = [{text: SYSTEM_PROMPT, cache: "ephemeral"}];

@@ -294,6 +294,13 @@ class FirestoreDietRepository implements DietRepository {
   }
 
   @override
+  Future<BodyProfile?> fetchBodyProfile() async {
+    final uid = _requireUid();
+    final snapshot = await _bodyProfileDoc(uid).get();
+    return snapshot.exists ? _bodyProfileFromMap(snapshot.data()) : null;
+  }
+
+  @override
   Future<void> saveBodyProfile(BodyProfile profile) {
     final uid = _requireUid();
     return _bodyProfileDoc(uid).set({

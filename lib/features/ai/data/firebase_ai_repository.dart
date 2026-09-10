@@ -15,6 +15,8 @@ import '../../workout/domain/workout_import_input.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
 import '../domain/ai_conversation.dart';
+import '../domain/ai_choice_request.dart';
+import '../domain/ai_input_request.dart';
 import '../domain/ai_message.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
@@ -688,7 +690,97 @@ class FirebaseAiRepository implements AiRepository {
       content: data['content'] as String? ?? '',
       createdAt: createdAt is Timestamp ? createdAt.toDate() : DateTime.now(),
       pendingAction: _pendingActionFrom(data),
+      choiceRequest: _choiceRequestFrom(data),
+      inputRequest: _inputRequestFrom(data),
       clientTurnId: data['clientTurnId'] as String?,
+    );
+  }
+
+  /// Maps an `input_request` message (Ask elicitation Phase 2) into an
+  /// [AiInputRequest]; the doc carries `requestId` and a `fields` map of
+  /// `{fields: [{key, label, type, unit?, options?, required}]}`. A malformed
+  /// or fieldless card returns null so it falls back to a plain text bubble
+  /// (the `content` still holds the ask), never a broken empty form.
+  AiInputRequest? _inputRequestFrom(Map<String, dynamic> data) {
+    if (data['kind'] != 'input_request') return null;
+    final requestId = data['requestId'] as String?;
+    if (requestId == null) return null;
+    final fields = data['fields'];
+    if (fields is! Map) return null;
+    final rawFields = fields['fields'];
+    if (rawFields is! List) return null;
+    final parsed = <AiInputField>[];
+    for (final raw in rawFields) {
+      if (raw is! Map) continue;
+      final key = raw['key'] as String?;
+      final label = raw['label'] as String?;
+      if (key == null || key.isEmpty || label == null || label.isEmpty) {
+        continue;
+      }
+      parsed.add(
+        AiInputField(
+          key: key,
+          label: label,
+          type: AiInputFieldType.fromName(raw['type'] as String?),
+          unit: raw['unit'] as String?,
+          options: _optionsFrom(raw['options']),
+          required: raw['required'] != false,
+        ),
+      );
+    }
+    if (parsed.isEmpty) return null;
+    return AiInputRequest(
+      requestId: requestId,
+      prompt: data['content'] as String? ?? '',
+      fields: parsed,
+    );
+  }
+
+  /// Parses a raw `[{value, label}]` list into [AiChoiceOption]s, dropping any
+  /// entry without a usable label. Shared by choice questions and a
+  /// `choice`-type input field.
+  List<AiChoiceOption> _optionsFrom(Object? raw) {
+    if (raw is! List) return const [];
+    final options = <AiChoiceOption>[];
+    for (final o in raw) {
+      if (o is! Map) continue;
+      final label = o['label'] as String?;
+      if (label == null || label.isEmpty) continue;
+      options.add(
+        AiChoiceOption(value: (o['value'] as String?) ?? label, label: label),
+      );
+    }
+    return options;
+  }
+
+  /// Maps a `choice_request` message (Ask elicitation, Phase 1) into an
+  /// [AiChoiceRequest]; the message doc carries `requestId` and a `fields` map
+  /// of `{options: [{value, label}], allowMultiple}`. A malformed or optionless
+  /// card returns null so it falls back to a plain text bubble (the `content`
+  /// still holds the question), never a broken empty chip row.
+  AiChoiceRequest? _choiceRequestFrom(Map<String, dynamic> data) {
+    if (data['kind'] != 'choice_request') return null;
+    final requestId = data['requestId'] as String?;
+    if (requestId == null) return null;
+    final fields = data['fields'];
+    if (fields is! Map) return null;
+    final rawOptions = fields['options'];
+    if (rawOptions is! List) return null;
+    final options = <AiChoiceOption>[];
+    for (final raw in rawOptions) {
+      if (raw is! Map) continue;
+      final label = raw['label'] as String?;
+      if (label == null || label.isEmpty) continue;
+      options.add(
+        AiChoiceOption(value: (raw['value'] as String?) ?? label, label: label),
+      );
+    }
+    if (options.length < 2) return null;
+    return AiChoiceRequest(
+      requestId: requestId,
+      prompt: data['content'] as String? ?? '',
+      options: options,
+      allowMultiple: fields['allowMultiple'] == true,
     );
   }
 

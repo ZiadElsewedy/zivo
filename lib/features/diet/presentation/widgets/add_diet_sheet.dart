@@ -50,7 +50,7 @@ class _AddDietSheet extends StatelessWidget {
     final hasRecorder = AppScope.of(context).recorder != null;
     return Container(
       decoration: BoxDecoration(
-        color: TrainColors.raised,
+        color: TrainColors.sheetSurface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),

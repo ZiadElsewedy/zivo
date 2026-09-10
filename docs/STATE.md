@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-08 · **Active branch:** `feature/theme-modes`
+**Last updated:** 2026-09-10 · **Active branch:** `feature/theme-modes`
 (cut from `feature/sleep`, which is 60 commits ahead of `version-1`)
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
@@ -92,6 +92,20 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Bottom sheets are opaque again** (2026-09-10, on `feature/theme-modes`). Owner
+  review: most sheets "looked transparent" — the launching screen showed straight
+  through them. Two causes: `SheetShell` (the plan-edit sheets: Edit exercise / day /
+  default-rest) and `workout_capture_page`'s exercise sheet painted their whole ground
+  with `sectionFill` (~3% opacity on dark) — a tint token meant to sit *on top of* a
+  surface; and every other sheet used `raised` (~94%), a faint but real bleed. Fix: a
+  dedicated **opaque** `sheetSurface` token (dark `0xFF141514`, light `0xFFFFFFFF` —
+  `raised`'s tone without the alpha), in both skins per ADR-011, exposed on `TrainColors`
+  and painted by `ZivoSheetSurface`, `SheetShell`, and the ~13 sheets that grounded
+  themselves directly. Cards keep `raised`; translucent depth stays the `glass*` tokens'
+  job. Profile's `_EditTextSheet` was the last translucent one — a `BackdropFilter`
+  frosted card — and is now solid too (blur dropped, since it does nothing behind an
+  opaque surface). Every bottom sheet is now an opaque `sheetSurface`.
 
 - **Sleep split into a dashboard and a history view, and its freshness fixed**
   (2026-09-08, on `feature/sleep`). Owner review: the dashboard was confusing,
@@ -1766,6 +1780,44 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-10 — **Ask elicitation — audit fixes F1 + F2** (on `feature/ask-elicitation`;
+  Dart-only, no functions redeploy). F1: `AskController.submitInput` now fires body-data
+  persistence with `unawaited(...)`, so an un-acked Firestore write can't block the coach's
+  reply offline (matching the app's fire-and-forget capture convention). F2: new
+  `DietRepository.fetchBodyProfile()` (one-shot read, impl in both repos + the test stub);
+  `repository_body_data_writer` reads through it instead of the sync `currentBodyProfile`
+  cache, so height is remembered even when Ask is reached without a Diet screen warming the
+  cache. Both locked with regression tests. F3 (duplicate card on retry) left documented.
+- 2026-09-10 — **Ask elicitation Phase 3 — the coach remembers what it asks for** (on
+  `feature/ask-elicitation`; **not yet deployed**). A `request_input` field keyed `heightCm`
+  or `weightKg` is now persisted to the user's own body data on submit, so the coach asks
+  once and never again: `AskController._persistBodyData` → `BodyDataWriter`
+  (`ai/data/repository_body_data_writer.dart`) writes height into the diet `BodyProfile`
+  (merging, when one exists) and weight as a workout `BodyWeightEntry` weigh-in — the same
+  user-owned writes the manual capture screens use, with range/typo guards. **Targets/goal
+  are never written** (`body_profile.dart`'s rule stands). Direct write on submit, not
+  propose→confirm — the user is entering their own data, so ADR-003's model-write gate
+  doesn't apply. Best-effort: a failed save never blocks the reply. 461 node + 131 Ask
+  flutter tests green.
+- 2026-09-10 — **Ask elicitation Phase 2 — the coach can ask for missing data with a form**
+  (on `feature/ask-elicitation`; **not yet deployed**). New `request_input` elicitation tool
+  (`functions/ai/elicitations.js`) pauses the turn and appends an `input_request` card the
+  client renders as a 1–4 field form (`input_request_card.dart`: number/text/choice fields
+  with units); on submit a readable summary ("Height: 180 cm · Weight: 74 kg") is sent back
+  as an ordinary next turn via `AskController.submitInput`. The turn loop needed no change —
+  `persistElicitation` is generic over `tool.messageKind`. **Values are NOT persisted to the
+  profile yet — that's Phase 3.** 461 node + 122 Ask flutter tests green.
+- 2026-09-10 — **Ask elicitation Phase 1 — the coach can ask option-chip questions instead
+  of guessing** (on `feature/ask-elicitation`, cut from `feature/theme-modes`; **not yet
+  deployed** — prompt/tool changes need a functions deploy). New non-executing `ask_choice`
+  tool (`functions/ai/elicitations.js`, `elicits: true`) pauses the turn and appends a
+  `choice_request` card the client renders as tappable chips (`choice_chips.dart`); the
+  pick returns as an ordinary next turn via `AskController.answerChoice` — no confirm/
+  execute half and no pending-action doc (a question resolves by being answered). Turn-ender
+  wiring + `awaiting_input` phase in `turn.js`, `persistElicitation` in `actions.js`,
+  read-before-you-ask prompt rules in `prompt/sections/elicitation.js`. 453 node + 120
+  Ask flutter tests green. Phases 2–3 (`request_input` form + profile persistence) still to
+  come. See `lib/features/ai/FEATURE.md`.
 - 2026-09-06 — **Media bytes are scoped by owner on disk.** `LocalMediaStore` wrote to a
   flat `media/{kind}/{id}.{ext}` shared across every account on the device. New imports
   use `media/{owner}/{kind}/{id}.{ext}`, with the owner sanitised to one safe path

@@ -6,8 +6,8 @@
  * card. The gateway loop enforces this (`turn.js`), but the model must know to
  * propose exactly one change, identify records by real ids from the read tools,
  * and never claim a change is done. Carried verbatim from the original prompt;
- * the log_food / mark_meal_eaten wording is asserted by the gateway tests. Never
- * loosen the "calling a tool does NOT save" contract.
+ * the log_food / mark_meal_eaten wording is asserted by the gateway tests.
+ * Never loosen the "calling a tool does NOT save" contract.
  */
 
 const MUTATIONS = `You can help the user CHANGE their data — log an expense (create_expense),

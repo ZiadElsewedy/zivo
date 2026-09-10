@@ -128,7 +128,7 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
           // by the thing it's about, so the warning is in the material before
           // it's in the copy.
           child: AuthBackdrop(
-            base: TrainColors.raised,
+            base: TrainColors.sheetSurface,
             hue: TrainColors.ember,
             alignment: const Alignment(-0.75, -1.6),
             intensity: 0.85,

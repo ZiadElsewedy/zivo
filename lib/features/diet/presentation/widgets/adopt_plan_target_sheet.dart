@@ -100,7 +100,7 @@ class _AdoptSheetState extends State<_AdoptSheet> {
     final tilde = approx(energy.estimated);
     return Container(
       decoration: BoxDecoration(
-        color: TrainColors.raised,
+        color: TrainColors.sheetSurface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: EdgeInsets.only(
