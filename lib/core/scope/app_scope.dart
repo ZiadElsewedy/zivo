@@ -5,6 +5,7 @@ import '../theme/theme_controller.dart';
 import '../media/media_service.dart';
 import '../../features/ai/data/audio_recorder.dart';
 import '../../features/ai/domain/ai_repository.dart';
+import '../../features/auth/data/device_session_guard.dart';
 import '../../features/auth/domain/auth_activity_repository.dart';
 import '../../features/auth/domain/auth_repository.dart';
 import '../../features/profile/domain/profile_repository.dart';
@@ -35,6 +36,7 @@ import '../../features/workout/domain/workout_settings_repository.dart';
 class AppScope extends InheritedWidget {
   const AppScope({
     required this.auth,
+    this.deviceSession,
     required this.profiles,
     this.activity,
     required this.expenses,
@@ -66,6 +68,13 @@ class AppScope extends InheritedWidget {
   /// The authentication backend. Its signed-in `uid` is the app's canonical
   /// identity (and the future Firestore ownership key).
   final AuthRepository auth;
+
+  /// Enforces one-account-one-active-device: it raises
+  /// [DeviceSessionGuard.signedOutElsewhere] when this device was signed out
+  /// because the account was claimed on another. Optional so the many widget
+  /// tests that never authenticate can omit it; production always wires one.
+  /// The login page reads it to explain the forced sign-out.
+  final DeviceSessionGuard? deviceSession;
 
   /// Persists the signed-in user's [UserProfile] (`users/{uid}` in Firestore).
   final ProfileRepository profiles;
@@ -313,6 +322,7 @@ class AppScope extends InheritedWidget {
   @override
   bool updateShouldNotify(AppScope oldWidget) =>
       auth != oldWidget.auth ||
+      deviceSession != oldWidget.deviceSession ||
       profiles != oldWidget.profiles ||
       activity != oldWidget.activity ||
       expenses != oldWidget.expenses ||

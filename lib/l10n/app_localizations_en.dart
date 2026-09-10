@@ -3504,6 +3504,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Password updated. Sign in with your new password.';
 
   @override
+  String get authSignedOutOtherDevice =>
+      'Your account was signed in on another device.';
+
+  @override
   String authShowField(String label) {
     return 'Show $label';
   }

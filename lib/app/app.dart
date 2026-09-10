@@ -29,8 +29,11 @@ import '../features/ai/data/audio_recorder.dart';
 import '../features/ai/data/fake_ai_repository.dart';
 import '../features/ai/data/firebase_ai_repository.dart';
 import '../features/ai/domain/ai_repository.dart';
+import '../features/auth/data/device_session_guard.dart';
 import '../features/auth/data/firebase_auth_repository.dart';
 import '../features/auth/data/firestore_auth_activity_repository.dart';
+import '../features/auth/data/firestore_device_session_repository.dart';
+import '../features/auth/data/in_memory_device_session_repository.dart';
 import '../features/profile/data/firestore_profile_repository.dart';
 import '../features/auth/data/noop_auth_activity_repository.dart';
 import '../features/auth/domain/auth_activity_repository.dart';
@@ -106,6 +109,7 @@ final bool _useFirestore = AppEnvironment.useFirestore;
 class ZivoApp extends StatefulWidget {
   const ZivoApp({
     this.auth,
+    this.deviceSession,
     this.profiles,
     this.activity,
     this.expenses,
@@ -134,6 +138,7 @@ class ZivoApp extends StatefulWidget {
   });
 
   final AuthRepository? auth;
+  final DeviceSessionGuard? deviceSession;
   final ProfileRepository? profiles;
   final AuthActivityRepository? activity;
   final ExpenseRepository? expenses;
@@ -180,6 +185,18 @@ class ZivoApp extends StatefulWidget {
 class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   late final AuthRepository _auth =
       widget.auth ?? FirebaseAuthRepository(activityRepository: _activity);
+
+  /// Enforces one-account-one-active-device (see [DeviceSessionGuard]). Driven
+  /// by [_authSub] below: it claims + watches the account on sign-in/restore and
+  /// signs this device out if the account is later claimed elsewhere.
+  late final DeviceSessionGuard _deviceSession =
+      widget.deviceSession ??
+      DeviceSessionGuard(
+        authRepository: _auth,
+        repository: _useFirestore
+            ? FirestoreDeviceSessionRepository()
+            : InMemoryDeviceSessionRepository(),
+      );
   late final ProfileRepository _profiles =
       widget.profiles ?? FirestoreProfileRepository();
   // Auth bookkeeping (account metadata + event log) follows the Firestore
@@ -299,6 +316,9 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     if (widget.theme == null) _theme.load();
     _authSub = _auth.watchAuthState().listen((_) {
       final uid = _auth.currentUser?.uid;
+      // Single-device enforcement: claim + watch on sign-in/restore, tear down
+      // on sign-out. Idempotent across the stream's re-emissions.
+      _deviceSession.handleAuthChange(uid);
       if (_prevUid != null && _prevUid != uid) {
         // disconnectBackup also drops the read-side resolution caches, which
         // are keyed by ref alone and would otherwise serve the previous
@@ -372,6 +392,8 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _authSub?.cancel();
+    // Only when we own it (the default) — a test-supplied guard stays theirs.
+    if (widget.deviceSession == null) _deviceSession.dispose();
     // Only when we own it (the default) — a caller-supplied controller
     // (a test passing its own fake) stays theirs to dispose.
     if (widget.music == null) _music.dispose();
@@ -471,6 +493,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return AppScope(
       auth: _auth,
+      deviceSession: _deviceSession,
       profiles: _profiles,
       activity: _activity,
       expenses: _expenses,

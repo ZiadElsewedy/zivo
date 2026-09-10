@@ -212,6 +212,37 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Active-device session ledger (users/{uid}/session/current): the single
+    // source of truth for "which device is allowed to act on this account right
+    // now". ZIVO enforces one account = one active device — a sign-in/launch on
+    // a device writes a fresh sessionId here (an atomic replace), and every
+    // device watches this doc and signs itself out the instant its own
+    // sessionId is no longer the one on record. See DeviceSessionGuard.
+    //
+    // Deliberately `isOwner`, not `canWrite`: an UNVERIFIED account still signs
+    // in and still needs single-device enforcement, exactly as the auth-summary
+    // and authEvents rules above reason. Owning the ledger doc can never modify
+    // real account data, so gating it on email verification would only weaken
+    // the takeover mechanism.
+    //
+    // The shape is pinned so this doc can't become an unbounded client-writable
+    // channel, and delete is denied (a leftover doc is harmless — the next
+    // claim replaces it — and there is no reason a client needs to erase it).
+    match /users/{userId}/session/{docId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(
+             ['sessionId', 'deviceId', 'platform', 'createdAt', 'lastSeenAt'])
+        && request.resource.data.sessionId is string
+        && request.resource.data.sessionId.size() > 0
+        && request.resource.data.deviceId is string
+        && request.resource.data.deviceId.size() > 0
+        && request.resource.data.platform is string
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.lastSeenAt is timestamp;
+      allow delete: if false;
+    }
+
     // Expenses: each user reads/writes only their own expenses (append-only log).
     // Rules do not cascade from the parent /users/{userId} match, so this is
     // explicit. `allow delete` is split out from create/update: on a delete

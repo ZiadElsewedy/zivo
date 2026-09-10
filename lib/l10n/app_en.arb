@@ -4938,6 +4938,10 @@
   "@authPasswordUpdatedSignIn": {
       "description": "Message on the sign-in screen after a password reset completes."
   },
+  "authSignedOutOtherDevice": "Your account was signed in on another device.",
+  "@authSignedOutOtherDevice": {
+      "description": "Message on the sign-in screen after this device was signed out because the account became active on another device (single-device session enforcement)."
+  },
   "authShowField": "Show {label}",
   "@authShowField": {
       "description": "Accessibility label on the reveal toggle of an obscured field.",

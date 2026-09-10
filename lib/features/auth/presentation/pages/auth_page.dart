@@ -5,6 +5,7 @@ import '../../../../l10n/l10n.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/rise_in.dart';
+import '../../data/device_session_guard.dart';
 import '../../domain/auth_repository.dart';
 import '../../domain/auth_result.dart';
 import '../widgets/auth_backdrop.dart';
@@ -38,6 +39,54 @@ class _AuthPageState extends State<AuthPage> {
 
   /// An address handed back by the reset flow, to seed the email field.
   String? _prefillEmail;
+
+  /// The single-device guard, watched so this page can explain a forced
+  /// sign-out ("signed in on another device"). Null in tests without auth.
+  DeviceSessionGuard? _sessionGuard;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final guard = AppScope.of(context).deviceSession;
+    if (!identical(guard, _sessionGuard)) {
+      _sessionGuard?.signedOutElsewhere.removeListener(_onSignedOutElsewhere);
+      _sessionGuard = guard;
+      guard?.signedOutElsewhere.addListener(_onSignedOutElsewhere);
+    }
+    // The takeover happens in the shell, which then drops us here — so the flag
+    // is usually already set by the time this page first mounts.
+    if (guard?.signedOutElsewhere.value ?? false) _onSignedOutElsewhere();
+  }
+
+  /// Shows the reason for a device-takeover sign-out once, then clears the flag
+  /// so it isn't shown again on the next rebuild.
+  void _onSignedOutElsewhere() {
+    final guard = _sessionGuard;
+    if (guard == null || !guard.signedOutElsewhere.value) return;
+    guard.signedOutElsewhere.value = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              l(context).authSignedOutOtherDevice,
+              style: AppText.meta.copyWith(color: TrainColors.ink),
+            ),
+            backgroundColor: TrainColors.raisedStrong,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+    });
+  }
+
+  @override
+  void dispose() {
+    _sessionGuard?.signedOutElsewhere.removeListener(_onSignedOutElsewhere);
+    super.dispose();
+  }
 
   Future<void> _run(
     AuthAction action,

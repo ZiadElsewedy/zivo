@@ -21,6 +21,7 @@ import 'package:zivo/features/workout/data/in_memory_workout_settings_repository
 import 'package:zivo/features/workout/domain/exercise.dart';
 import 'package:zivo/features/workout/domain/workout.dart';
 
+import 'support/fake_device_session.dart';
 import 'support/fake_auth_repository.dart';
 import 'support/fake_profile_repository.dart';
 import 'support/test_app.dart';
@@ -72,6 +73,7 @@ void main() {
         auth: FakeAuthRepository(
           initial: const Authenticated(AuthUser(uid: 'test-uid')),
         ),
+        deviceSession: fakeDeviceSessionGuard(),
         profiles: FakeProfileRepository(),
         expenses: InMemoryExpenseRepository(),
         wallet: InMemoryWalletRepository(),

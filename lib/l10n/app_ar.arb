@@ -968,6 +968,7 @@
   "authContinueWithGoogle": "المتابعة عبر Google",
   "authPasswordUpdated": "تم تحديث كلمة المرور.",
   "authPasswordUpdatedSignIn": "تم تحديث كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.",
+  "authSignedOutOtherDevice": "تم تسجيل الدخول إلى حسابك على جهاز آخر.",
   "authShowField": "إظهار {label}",
   "authHideField": "إخفاء {label}",
   "authOtpFieldLabel": "رمز تحقق من {length} أرقام",

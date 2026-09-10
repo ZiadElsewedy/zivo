@@ -3562,6 +3562,10 @@ class AppLocalizationsAr extends AppLocalizations {
       'تم تحديث كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.';
 
   @override
+  String get authSignedOutOtherDevice =>
+      'تم تسجيل الدخول إلى حسابك على جهاز آخر.';
+
+  @override
   String authShowField(String label) {
     return 'إظهار $label';
   }

@@ -51,6 +51,7 @@ const valid = {
   mediaTombstones: { driveFileId: 'f1', driveAccountKey: 'acc-1', deletedAt: ts(), schemaVersion: 1 },
   sleepSettings: { schemaVersion: 1, targets: { bedtimeMinutes: 1380, wakeMinutes: 420, durationMinutes: 480 } },
   trainingDayMarks: { dayKey: '2026-01-01', restored: true, reason: 'travel', createdAt: ts(), schemaVersion: 1 },
+  session: { sessionId: 's1', deviceId: 'd1', platform: 'ios', createdAt: ts(), lastSeenAt: ts() },
 };
 
 // Each violates exactly one validation clause of its collection's write rule.
@@ -72,6 +73,7 @@ const invalid = {
   mediaTombstones: { driveFileId: 123, schemaVersion: 1 }, // driveFileId not a string
   sleepSettings: { schemaVersion: 1, targets: 'nope' }, // targets not a map
   trainingDayMarks: { dayKey: '2026-01-01', restored: 'yes', createdAt: ts(), schemaVersion: 1 }, // restored not bool
+  session: { sessionId: 123, deviceId: 'd1', platform: 'ios', createdAt: ts(), lastSeenAt: ts() }, // sessionId not a string
 };
 
 const collections = Object.keys(valid);

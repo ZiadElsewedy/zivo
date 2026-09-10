@@ -20,6 +20,7 @@ import 'package:zivo/features/sleep/domain/sleep_provenance.dart';
 import 'package:zivo/features/sleep/domain/sleep_session.dart';
 import 'package:zivo/features/sleep/domain/sleep_targets.dart';
 
+import 'support/fake_device_session.dart';
 import 'support/fake_auth_repository.dart';
 import 'support/fake_profile_repository.dart';
 
@@ -44,6 +45,7 @@ void main() {
     sleep: _previewSleep(),
     sleepSource: HealthSleepSource(),
     auth: auth,
+    deviceSession: fakeDeviceSessionGuard(),
     profiles: FakeProfileRepository(),
     music: FakeMusicController(),
   ));

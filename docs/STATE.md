@@ -93,6 +93,28 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Single-device session enforcement — one account = one active device**
+  (2026-09-10, on `feature/ask-elicitation`). The same account signed in on two
+  devices was corrupting Google Drive / Moments sync. Now a sign-in *or* app
+  launch/restore **claims** the account: `DeviceSessionGuard`
+  ([`lib/features/auth/data/device_session_guard.dart`](../lib/features/auth/data/device_session_guard.dart))
+  writes a fresh `sessionId` to the server-owned ledger
+  `users/{uid}/session/current` (an atomic replace, `DeviceSessionRepository` →
+  Firestore/in-memory) and watches that doc in real time. The moment the stored
+  `sessionId` is no longer this device's, the device signs out of Firebase Auth
+  (the gate returns to `AuthPage`) and shows *"Your account was signed in on
+  another device."* Firebase Auth alone can't do this — it keeps every device's
+  token valid independently — so the ledger is the source of truth; the realtime
+  listener is what makes the takeover immediate. Once signed out the stale device
+  is `request.auth == null` and fails `canWrite` on every collection, so it can no
+  longer touch account-level Drive/Moments data. Wired in
+  [`app.dart`](../lib/app/app.dart)'s `_authSub` (claim/teardown) and exposed via
+  `AppScope.deviceSession`. New `firestore.rules` block `users/{userId}/session/{docId}`
+  (owner-only, shape-pinned, `isOwner` not `canWrite` so unverified accounts are
+  still enforced); covered by `firestore-tests` (171 pass) and
+  `test/auth/device_session_guard_test.dart` (4 pass). **Owner action: rules deploy
+  — see below.**
+
 - **Bottom sheets are opaque again** (2026-09-10, on `feature/theme-modes`). Owner
   review: most sheets "looked transparent" — the launching screen showed straight
   through them. Two causes: `SheetShell` (the plan-edit sheets: Edit exercise / day /
@@ -1647,6 +1669,14 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 > against the code before assuming otherwise.
 
 ## Owner action items (blockers only the owner can clear — not code bugs)
+
+- **Rules deploy for single-device sessions (2026-09-10):**
+  `firebase deploy --only firestore:rules` (owner creds). Until it ships, the
+  catch-all denies the new `users/{uid}/session/current` doc, so a device cannot
+  write its claim — the client-side realtime enforcement then silently no-ops
+  (the guard swallows the rejected write) and two devices can still both be
+  active. No functions change is required. Purely additive; safe to deploy with
+  or ahead of the client build.
 
 - **Rules deploy for the streak/session-duration work (2026-09-08):**
   `firebase deploy --only firestore:rules` (owner creds). Until it ships, the

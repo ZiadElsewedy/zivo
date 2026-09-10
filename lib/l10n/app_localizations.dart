@@ -5910,6 +5910,12 @@ abstract class AppLocalizations {
   /// **'Password updated. Sign in with your new password.'**
   String get authPasswordUpdatedSignIn;
 
+  /// Message on the sign-in screen after this device was signed out because the account became active on another device (single-device session enforcement).
+  ///
+  /// In en, this message translates to:
+  /// **'Your account was signed in on another device.'**
+  String get authSignedOutOtherDevice;
+
   /// Accessibility label on the reveal toggle of an obscured field.
   ///
   /// In en, this message translates to:
