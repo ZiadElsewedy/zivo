@@ -2756,6 +2756,24 @@ abstract class AppLocalizations {
   /// **'Day streak'**
   String get workoutDayStreak;
 
+  /// Title of the streak-orbit page opened from Today's Momentum card.
+  ///
+  /// In en, this message translates to:
+  /// **'Consistency'**
+  String get streakOrbitTitle;
+
+  /// Label under the all-time best streak figure on the streak-orbit page.
+  ///
+  /// In en, this message translates to:
+  /// **'Best streak'**
+  String get streakOrbitBestLabel;
+
+  /// Label under the lifetime count of distinct days the user trained, on the streak-orbit page.
+  ///
+  /// In en, this message translates to:
+  /// **'Days trained'**
+  String get streakOrbitTrainedTotal;
+
   /// Label under a zero day-streak.
   ///
   /// In en, this message translates to:
