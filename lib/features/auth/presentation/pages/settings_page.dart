@@ -18,6 +18,7 @@ import '../../../music/domain/music_controller.dart';
 import '../../../music/domain/now_playing.dart';
 import '../../../music/music_config.dart';
 import '../../../music/presentation/music_player_page.dart';
+import '../../../reminders/presentation/pages/reminders_page.dart';
 import 'change_password_page.dart';
 import 'privacy_page.dart';
 import '../widgets/media_backup_section.dart';
@@ -131,6 +132,22 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: l(context).settingsTheme,
                     value: _themeValue(context),
                     onTap: () => showThemeSheet(context),
+                  ),
+                  // Reminders — local meal/workout/activity notifications.
+                  // Under Theme: it configures how the app behaves, like the
+                  // two rows above it.
+                  SettingsRow(
+                    key: const Key('settings-reminders'),
+                    icon: AppIcons.reminders,
+                    title: l(context).remindersTitle,
+                    value: '',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const RemindersPage(),
+                        ),
+                      );
+                    },
                   ),
                   SettingsRow(
                     icon: AppIcons.version,

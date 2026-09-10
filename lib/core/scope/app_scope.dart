@@ -9,6 +9,8 @@ import '../../features/auth/data/device_session_guard.dart';
 import '../../features/auth/domain/auth_activity_repository.dart';
 import '../../features/auth/domain/auth_repository.dart';
 import '../../features/profile/domain/profile_repository.dart';
+import '../../features/reminders/domain/notification_scheduler.dart';
+import '../../features/reminders/domain/reminders_repository.dart';
 import '../../features/sleep/domain/sleep_repository.dart';
 import '../../features/sleep/domain/sleep_service.dart';
 import '../../features/diet/domain/diet_repository.dart';
@@ -57,6 +59,8 @@ class AppScope extends InheritedWidget {
     this.stepCounter,
     this.sleep,
     this.sleepService,
+    this.reminders,
+    this.notifications,
     this.media,
     this.music,
     this.locale,
@@ -160,6 +164,18 @@ class AppScope extends InheritedWidget {
   /// and manual logging. Paired with [sleep] — production wires both or
   /// neither. Read it through [requireSleepService].
   final SleepService? sleepService;
+
+  /// The account's local reminders (meal/workout/activity notifications the
+  /// user set up). Optional for the same reason [workoutSettings] is: the many
+  /// widget tests that never open the Reminders page keep constructing a scope
+  /// without it. Production always wires one.
+  final RemindersRepository? reminders;
+
+  /// The local-notification scheduler behind the reminders feature — the seam
+  /// the Reminders page asks to request OS notification permission. Optional
+  /// for the same reason [reminders] is; production always wires one (a no-op
+  /// off Firestore).
+  final NotificationScheduler? notifications;
 
   /// The sleep repository, asserting it was provided. Use from the Sleep page
   /// and Today's sleep glance — production always wires it.
@@ -343,6 +359,8 @@ class AppScope extends InheritedWidget {
       stepCounter != oldWidget.stepCounter ||
       sleep != oldWidget.sleep ||
       sleepService != oldWidget.sleepService ||
+      reminders != oldWidget.reminders ||
+      notifications != oldWidget.notifications ||
       media != oldWidget.media ||
       music != oldWidget.music ||
       locale != oldWidget.locale ||

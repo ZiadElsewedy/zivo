@@ -54,6 +54,12 @@ import '../features/sleep/data/in_memory_sleep_repository.dart';
 import '../features/sleep/domain/sleep_repository.dart';
 import '../features/sleep/domain/sleep_service.dart';
 import '../features/sleep/domain/sleep_source.dart';
+import '../features/reminders/data/firestore_reminders_repository.dart';
+import '../features/reminders/data/in_memory_reminders_repository.dart';
+import '../features/reminders/data/local_notification_scheduler.dart';
+import '../features/reminders/domain/notification_scheduler.dart';
+import '../features/reminders/domain/reminder.dart';
+import '../features/reminders/domain/reminders_repository.dart';
 import '../features/expenses/data/firestore_category_repository.dart';
 import '../features/expenses/data/firestore_expense_repository.dart';
 import '../features/expenses/data/firestore_wallet_repository.dart';
@@ -116,6 +122,8 @@ class ZivoApp extends StatefulWidget {
     this.stepCounter,
     this.sleep,
     this.sleepSource,
+    this.reminders,
+    this.notifications,
     this.wallet,
     this.expenseCategories,
     this.moments,
@@ -165,6 +173,13 @@ class ZivoApp extends StatefulWidget {
 
   /// Overridable so tests can drive Sleep without HealthKit / Health Connect.
   final SleepSource? sleepSource;
+
+  /// Overridable so tests can drive Reminders without Firestore.
+  final RemindersRepository? reminders;
+
+  /// Overridable so app-boot tests inject a no-op scheduler instead of the real
+  /// `flutter_local_notifications` one, which reaches a platform channel.
+  final NotificationScheduler? notifications;
 
   final MediaService? media;
   final MediaPreferencesRepository? mediaPreferences;
@@ -273,6 +288,17 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     source: _sleepSource,
   );
 
+  late final RemindersRepository _reminders =
+      widget.reminders ?? _defaultReminders();
+
+  /// The local-notification scheduler. Real on a Firestore run, a no-op
+  /// otherwise (and in tests) so booting the app never touches a platform
+  /// channel. Kept in sync with [_reminders] by [_remindersSub].
+  late final NotificationScheduler _notifications =
+      widget.notifications ?? _defaultNotifications();
+
+  StreamSubscription<List<Reminder>>? _remindersSub;
+
   // Media is local-first: the byte store is always the on-device documents
   // directory, independent of the Firestore flag. Only the *metadata* registry
   // and per-account preferences follow [_useFirestore].
@@ -314,6 +340,15 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     if (widget.locale == null) _locale.load();
     if (widget.theme == null) _theme.load();
+    // Keep the OS's scheduled notifications an exact mirror of the stored
+    // reminders: init once, then reschedule on every change — including the
+    // re-scope to `[]` on sign-out and to the account's reminders on sign-in.
+    // The OS holds scheduled notifications across launches, so no per-resume
+    // work is needed (unlike the sleep/session sweeps below).
+    unawaited(_notifications.init());
+    _remindersSub = _reminders.watch().listen(
+      (list) => unawaited(_notifications.reschedule(list)),
+    );
     _authSub = _auth.watchAuthState().listen((_) {
       final uid = _auth.currentUser?.uid;
       // Single-device enforcement: claim + watch on sign-in/restore, tear down
@@ -392,6 +427,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _authSub?.cancel();
+    _remindersSub?.cancel();
     // Only when we own it (the default) — a test-supplied guard stays theirs.
     if (widget.deviceSession == null) _deviceSession.dispose();
     // Only when we own it (the default) — a caller-supplied controller
@@ -405,6 +441,15 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   WorkoutSettingsRepository _defaultWorkoutSettings() => _useFirestore
       ? FirestoreWorkoutSettingsRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryWorkoutSettingsRepository();
+
+  RemindersRepository _defaultReminders() => _useFirestore
+      ? FirestoreRemindersRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryRemindersRepository();
+
+  // Real scheduler only on a Firestore (device) run; offline/dev and tests get
+  // the no-op so nothing reaches a platform channel.
+  NotificationScheduler _defaultNotifications() =>
+      _useFirestore ? LocalNotificationScheduler() : NoOpNotificationScheduler();
 
   TrainingDayMarkRepository _defaultTrainingDayMarks() => _useFirestore
       ? FirestoreTrainingDayMarkRepository(uidSource: UidSource.firebaseAuth())
@@ -514,6 +559,8 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       stepCounter: _stepCounter,
       sleep: _sleep,
       sleepService: _sleepService,
+      reminders: _reminders,
+      notifications: _notifications,
       media: _media,
       music: _music,
       locale: _locale,

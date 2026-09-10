@@ -102,6 +102,17 @@ dependencies:
   # path — see ADR-010.
   health: ^13.3.1
 
+  # Local reminders (features/reminders): meal/workout/activity notifications the
+  # user schedules themselves. Local-only — no push, no APNs/FCM, no backend.
+  # `flutter_local_notifications` is the one maintained way to schedule an OS
+  # notification from Flutter. `zonedSchedule` needs a `TZDateTime`, so `timezone`
+  # supplies the zone database and `flutter_timezone` reports the device's zone —
+  # together they make a daily reminder fire at the right wall-clock time across
+  # DST, matching the app's existing DST discipline (ADR-012). See ADR-013.
+  flutter_local_notifications: ^22.3.0
+  timezone: ^0.11.1
+  flutter_timezone: ^5.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

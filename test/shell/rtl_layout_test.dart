@@ -20,6 +20,8 @@ import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_training_day_mark_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_settings_repository.dart';
+import 'package:zivo/features/reminders/data/in_memory_reminders_repository.dart';
+import 'package:zivo/features/reminders/domain/notification_scheduler.dart';
 
 import '../support/fake_device_session.dart';
 import '../support/fake_auth_repository.dart';
@@ -91,6 +93,8 @@ void main() {
           workoutPlans: InMemoryWorkoutPlanRepository(),
           workoutSessions: InMemoryWorkoutSessionRepository(),
           workoutSettings: InMemoryWorkoutSettingsRepository(),
+          reminders: InMemoryRemindersRepository(),
+          notifications: const NoOpNotificationScheduler(),
           trainingDayMarks: InMemoryTrainingDayMarkRepository(),
           bodyWeight: InMemoryBodyWeightRepository(),
           diet: InMemoryDietRepository(),

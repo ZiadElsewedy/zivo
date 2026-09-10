@@ -27,7 +27,8 @@ Shell is a 4-tab
 `IndexedStack`: **Today · Hub · Ask · You** with a floating "island" bottom bar and a
 center capture FAB. Sign-in gate is [`AuthGate`](../lib/features/auth/presentation/auth_gate.dart).
 Live feature set: **workout, diet, expenses, moments, ai (Ask), music (Spotify companion),
-auth/profile, home/Today, hub, capture, device (steps)**.
+auth/profile, home/Today, hub, capture, device (steps), sleep, reminders (local
+notifications)**.
 
 ## Scope (standing decisions)
 
@@ -92,6 +93,29 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Local reminders — the notification system** (2026-09-11, on
+  `feature/ask-elicitation`). The simplest practical version the owner asked
+  for: the user schedules a local notification for a meal, a workout, or any
+  other activity and the OS fires it at that time. **Local only** — no push, no
+  backend ([ADR-013](DECISIONS/ADR-013-local-notifications.md)). New
+  `features/reminders/`: one flat `Reminder` (`label · kind · time · repeat-days
+  · on/off`) covers all three cases; one **Reminders** page reached from
+  Settings; storage in one schema-free doc `users/{uid}/settings/reminders`
+  (`RemindersRepository`, Firestore/in-memory — **no rules change**); and a
+  `NotificationScheduler` seam (`flutter_local_notifications` +
+  `timezone`/`flutter_timezone`, or a no-op offline/in-tests). The OS's
+  scheduled set is a pure mirror of the stored reminders, kept in sync at app
+  root off `reminders.watch()`. Scheduling is **inexact** (no
+  `SCHEDULE_EXACT_ALARM`); permission is asked on first enable, not at launch.
+  Three new deps (justified in `pubspec.yaml` + the ADR). Platform config added
+  (`AndroidManifest`: POST_NOTIFICATIONS/RECEIVE_BOOT_COMPLETED + two receivers;
+  `AppDelegate.swift`: the `UNUserNotificationCenter` delegate); `minSdk` 26
+  already covers the plugin. Cover: 17 new reminders tests (codec/logic, repo,
+  the pure `reminderOccurrences` plan, page) + the 3 app-boot tests now inject
+  the no-op scheduler; whole suite **1539** green, analyze clean. **Owner
+  action: only a real device can confirm a reminder actually fires at its set
+  time and that the iOS/Android permission prompts appear.**
 
 - **Single-device session enforcement — one account = one active device**
   (2026-09-10, on `feature/ask-elicitation`). The same account signed in on two

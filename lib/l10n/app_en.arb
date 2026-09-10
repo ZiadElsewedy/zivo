@@ -7364,5 +7364,81 @@
   "workoutSettingsSaveFailed": "Couldn't save that setting.",
   "@workoutSettingsSaveFailed": {
     "description": "Toast when a workout setting fails to save."
+  },
+  "remindersTitle": "Reminders",
+  "@remindersTitle": {
+    "description": "Title of the reminders page and its row on the Settings page."
+  },
+  "remindersIntro": "Get a notification when it's time to eat, train, or anything else you schedule.",
+  "@remindersIntro": {
+    "description": "One-line explanation under the reminders page header."
+  },
+  "remindersEmpty": "No reminders yet",
+  "@remindersEmpty": {
+    "description": "Empty-state title when the user has no reminders."
+  },
+  "remindersEmptyBody": "Add one to be reminded at the same time on the days you choose.",
+  "@remindersEmptyBody": {
+    "description": "Empty-state body under remindersEmpty."
+  },
+  "remindersAdd": "Add reminder",
+  "@remindersAdd": {
+    "description": "Button that opens the sheet to create a new reminder."
+  },
+  "remindersNewTitle": "New reminder",
+  "@remindersNewTitle": {
+    "description": "Title of the reminder sheet when creating a new one."
+  },
+  "remindersEditTitle": "Edit reminder",
+  "@remindersEditTitle": {
+    "description": "Title of the reminder sheet when editing an existing one."
+  },
+  "remindersLabelHint": "Name (e.g. Breakfast, Leg day)",
+  "@remindersLabelHint": {
+    "description": "Hint text for the reminder name field."
+  },
+  "remindersKindMeal": "Meal",
+  "@remindersKindMeal": {
+    "description": "Reminder kind label: a meal reminder."
+  },
+  "remindersKindWorkout": "Workout",
+  "@remindersKindWorkout": {
+    "description": "Reminder kind label: a workout reminder."
+  },
+  "remindersKindOther": "Other",
+  "@remindersKindOther": {
+    "description": "Reminder kind label: any other scheduled activity."
+  },
+  "remindersTimeLabel": "Time",
+  "@remindersTimeLabel": {
+    "description": "Label for the time picker in the reminder sheet."
+  },
+  "remindersRepeatLabel": "Repeat",
+  "@remindersRepeatLabel": {
+    "description": "Label for the day-of-week chooser in the reminder sheet."
+  },
+  "remindersEveryDay": "Every day",
+  "@remindersEveryDay": {
+    "description": "Repeat value shown when a reminder fires on all seven days."
+  },
+  "remindersSave": "Save",
+  "@remindersSave": {
+    "description": "Confirms and saves the reminder in the sheet."
+  },
+  "remindersDelete": "Delete reminder",
+  "@remindersDelete": {
+    "description": "Deletes the reminder being edited."
+  },
+  "remindersDeleteConfirm": "Delete this reminder?",
+  "@remindersDeleteConfirm": {
+    "description": "Confirmation prompt before deleting a reminder."
+  },
+  "remindersSaveFailed": "Couldn't save that reminder.",
+  "@remindersSaveFailed": {
+    "description": "Toast when saving a reminder fails."
+  },
+  "remindersPermissionDenied": "Turn on notifications for ZIVO in your phone's settings to get reminders.",
+  "@remindersPermissionDenied": {
+    "description": "Note shown when the OS notification permission was denied."
   }
 }

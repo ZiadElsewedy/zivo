@@ -8735,6 +8735,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t save that setting.'**
   String get workoutSettingsSaveFailed;
+
+  /// Title of the reminders page and its row on the Settings page.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders'**
+  String get remindersTitle;
+
+  /// One-line explanation under the reminders page header.
+  ///
+  /// In en, this message translates to:
+  /// **'Get a notification when it\'s time to eat, train, or anything else you schedule.'**
+  String get remindersIntro;
+
+  /// Empty-state title when the user has no reminders.
+  ///
+  /// In en, this message translates to:
+  /// **'No reminders yet'**
+  String get remindersEmpty;
+
+  /// Empty-state body under remindersEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Add one to be reminded at the same time on the days you choose.'**
+  String get remindersEmptyBody;
+
+  /// Button that opens the sheet to create a new reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Add reminder'**
+  String get remindersAdd;
+
+  /// Title of the reminder sheet when creating a new one.
+  ///
+  /// In en, this message translates to:
+  /// **'New reminder'**
+  String get remindersNewTitle;
+
+  /// Title of the reminder sheet when editing an existing one.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit reminder'**
+  String get remindersEditTitle;
+
+  /// Hint text for the reminder name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Name (e.g. Breakfast, Leg day)'**
+  String get remindersLabelHint;
+
+  /// Reminder kind label: a meal reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Meal'**
+  String get remindersKindMeal;
+
+  /// Reminder kind label: a workout reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Workout'**
+  String get remindersKindWorkout;
+
+  /// Reminder kind label: any other scheduled activity.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get remindersKindOther;
+
+  /// Label for the time picker in the reminder sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get remindersTimeLabel;
+
+  /// Label for the day-of-week chooser in the reminder sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat'**
+  String get remindersRepeatLabel;
+
+  /// Repeat value shown when a reminder fires on all seven days.
+  ///
+  /// In en, this message translates to:
+  /// **'Every day'**
+  String get remindersEveryDay;
+
+  /// Confirms and saves the reminder in the sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get remindersSave;
+
+  /// Deletes the reminder being edited.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete reminder'**
+  String get remindersDelete;
+
+  /// Confirmation prompt before deleting a reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this reminder?'**
+  String get remindersDeleteConfirm;
+
+  /// Toast when saving a reminder fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save that reminder.'**
+  String get remindersSaveFailed;
+
+  /// Note shown when the OS notification permission was denied.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on notifications for ZIVO in your phone\'s settings to get reminders.'**
+  String get remindersPermissionDenied;
 }
 
 class _AppLocalizationsDelegate

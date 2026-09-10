@@ -5376,4 +5376,64 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get workoutSettingsSaveFailed => 'تعذّر حفظ هذا الإعداد.';
+
+  @override
+  String get remindersTitle => 'التذكيرات';
+
+  @override
+  String get remindersIntro =>
+      'احصل على إشعار عندما يحين وقت الأكل أو التمرين أو أي نشاط آخر تجدوله.';
+
+  @override
+  String get remindersEmpty => 'لا تذكيرات بعد';
+
+  @override
+  String get remindersEmptyBody =>
+      'أضِف تذكيرًا ليصلك في الوقت نفسه في الأيام التي تختارها.';
+
+  @override
+  String get remindersAdd => 'إضافة تذكير';
+
+  @override
+  String get remindersNewTitle => 'تذكير جديد';
+
+  @override
+  String get remindersEditTitle => 'تعديل التذكير';
+
+  @override
+  String get remindersLabelHint => 'الاسم (مثل: الفطور، يوم الأرجل)';
+
+  @override
+  String get remindersKindMeal => 'وجبة';
+
+  @override
+  String get remindersKindWorkout => 'تمرين';
+
+  @override
+  String get remindersKindOther => 'أخرى';
+
+  @override
+  String get remindersTimeLabel => 'الوقت';
+
+  @override
+  String get remindersRepeatLabel => 'التكرار';
+
+  @override
+  String get remindersEveryDay => 'كل يوم';
+
+  @override
+  String get remindersSave => 'حفظ';
+
+  @override
+  String get remindersDelete => 'حذف التذكير';
+
+  @override
+  String get remindersDeleteConfirm => 'حذف هذا التذكير؟';
+
+  @override
+  String get remindersSaveFailed => 'تعذّر حفظ هذا التذكير.';
+
+  @override
+  String get remindersPermissionDenied =>
+      'فعّل إشعارات ZIVO من إعدادات هاتفك لتصلك التذكيرات.';
 }

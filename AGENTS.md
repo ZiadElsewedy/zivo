@@ -110,6 +110,7 @@ repos, provides `AppScope`, a `MaterialApp` on the chosen skin, `home: AuthGate`
 | **capture** | Quick-capture sheet + shared capture widgets | [`lib/features/capture/`](lib/features/capture/FEATURE.md) | — |
 | **sleep** | Apple Health / Health Connect sleep + manual logging, with provenance on every number — training recovery | [`lib/features/sleep/`](lib/features/sleep/FEATURE.md) | [SLEEP_SYSTEM.md](docs/SLEEP_SYSTEM.md), [ADR-010](docs/DECISIONS/ADR-010-sleep-provenance.md) |
 | **device** | Pedometer step counter (Today's Move ring) | [`lib/features/device/`](lib/features/device/FEATURE.md) | — |
+| **reminders** | Simple customizable **local** notifications — meal/workout/activity reminders the user schedules | [`lib/features/reminders/`](lib/features/reminders/FEATURE.md) | [ADR-013](docs/DECISIONS/ADR-013-local-notifications.md) |
 
 **Shared / cross-cutting (`lib/core/`):**
 
@@ -200,4 +201,5 @@ launcher file; those are kept to a one-line pointer here so there is a single so
 | [`docs/DECISIONS/ADR-010-sleep-provenance.md`](docs/DECISIONS/ADR-010-sleep-provenance.md) | **Why every sleep number carries how it was produced, and what that forbids** | reference |
 | [`docs/DECISIONS/ADR-011-light-mode.md`](docs/DECISIONS/ADR-011-light-mode.md) | **Two skins on one system — how a token resolves, and why you must never cache one** | reference |
 | [`docs/DECISIONS/ADR-012-streaks-and-session-duration.md`](docs/DECISIONS/ADR-012-streaks-and-session-duration.md) | **What a streak means, why calendar maths never uses `Duration`, and why a session's duration is measured rather than capped** | reference |
+| [`docs/DECISIONS/ADR-013-local-notifications.md`](docs/DECISIONS/ADR-013-local-notifications.md) | **Reminders: local-only notifications, the three deps, and why scheduling is inexact** | reference |
 | [`docs/build_configurations.md`](docs/build_configurations.md) | Build configs + dart-defines | reference |

@@ -5272,4 +5272,64 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workoutSettingsSaveFailed => 'Couldn\'t save that setting.';
+
+  @override
+  String get remindersTitle => 'Reminders';
+
+  @override
+  String get remindersIntro =>
+      'Get a notification when it\'s time to eat, train, or anything else you schedule.';
+
+  @override
+  String get remindersEmpty => 'No reminders yet';
+
+  @override
+  String get remindersEmptyBody =>
+      'Add one to be reminded at the same time on the days you choose.';
+
+  @override
+  String get remindersAdd => 'Add reminder';
+
+  @override
+  String get remindersNewTitle => 'New reminder';
+
+  @override
+  String get remindersEditTitle => 'Edit reminder';
+
+  @override
+  String get remindersLabelHint => 'Name (e.g. Breakfast, Leg day)';
+
+  @override
+  String get remindersKindMeal => 'Meal';
+
+  @override
+  String get remindersKindWorkout => 'Workout';
+
+  @override
+  String get remindersKindOther => 'Other';
+
+  @override
+  String get remindersTimeLabel => 'Time';
+
+  @override
+  String get remindersRepeatLabel => 'Repeat';
+
+  @override
+  String get remindersEveryDay => 'Every day';
+
+  @override
+  String get remindersSave => 'Save';
+
+  @override
+  String get remindersDelete => 'Delete reminder';
+
+  @override
+  String get remindersDeleteConfirm => 'Delete this reminder?';
+
+  @override
+  String get remindersSaveFailed => 'Couldn\'t save that reminder.';
+
+  @override
+  String get remindersPermissionDenied =>
+      'Turn on notifications for ZIVO in your phone\'s settings to get reminders.';
 }
