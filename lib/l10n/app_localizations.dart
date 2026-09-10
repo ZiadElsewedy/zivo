@@ -3044,6 +3044,72 @@ abstract class AppLocalizations {
   /// **'tap to drill in'**
   String get workoutTapToDrillIn;
 
+  /// Section label over the searchable, category-grouped exercise browser on the Analysis page.
+  ///
+  /// In en, this message translates to:
+  /// **'Exercises'**
+  String get workoutExercisesBrowse;
+
+  /// Placeholder in the exercise search field on the Analysis page.
+  ///
+  /// In en, this message translates to:
+  /// **'Search exercises'**
+  String get workoutSearchExercises;
+
+  /// Shown when the exercise search finds nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No exercises match “{query}”.'**
+  String workoutNoMatches(String query);
+
+  /// Caps count of movements beside a muscle-category header on the Analysis browser.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 MOVEMENT} other{{count} MOVEMENTS}}'**
+  String workoutExerciseCountCaps(int count);
+
+  /// Muscle-group category header on the Analysis browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Chest'**
+  String get workoutMuscleChest;
+
+  /// Muscle-group category header on the Analysis browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get workoutMuscleBack;
+
+  /// Muscle-group category header on the Analysis browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Legs'**
+  String get workoutMuscleLegs;
+
+  /// Muscle-group category header on the Analysis browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Shoulders'**
+  String get workoutMuscleShoulders;
+
+  /// Muscle-group category header on the Analysis browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Arms'**
+  String get workoutMuscleArms;
+
+  /// Muscle-group category header on the Analysis browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Core'**
+  String get workoutMuscleCore;
+
+  /// Fallback category header for exercises with no recognised muscle group.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get workoutMuscleOther;
+
   /// Caps label over the summary verdict card.
   ///
   /// In en, this message translates to:

@@ -2401,6 +2401,52 @@
   "@workoutTapToDrillIn": {
       "description": "Hint beside the All exercises section."
   },
+  "workoutExercisesBrowse": "Exercises",
+  "@workoutExercisesBrowse": {
+      "description": "Section label over the searchable, category-grouped exercise browser on the Analysis page."
+  },
+  "workoutSearchExercises": "Search exercises",
+  "@workoutSearchExercises": {
+      "description": "Placeholder in the exercise search field on the Analysis page."
+  },
+  "workoutNoMatches": "No exercises match “{query}”.",
+  "@workoutNoMatches": {
+      "description": "Shown when the exercise search finds nothing.",
+      "placeholders": { "query": { "type": "String" } }
+  },
+  "workoutExerciseCountCaps": "{count, plural, =1{1 MOVEMENT} other{{count} MOVEMENTS}}",
+  "@workoutExerciseCountCaps": {
+      "description": "Caps count of movements beside a muscle-category header on the Analysis browser.",
+      "placeholders": { "count": { "type": "int" } }
+  },
+  "workoutMuscleChest": "Chest",
+  "@workoutMuscleChest": {
+      "description": "Muscle-group category header on the Analysis browser."
+  },
+  "workoutMuscleBack": "Back",
+  "@workoutMuscleBack": {
+      "description": "Muscle-group category header on the Analysis browser."
+  },
+  "workoutMuscleLegs": "Legs",
+  "@workoutMuscleLegs": {
+      "description": "Muscle-group category header on the Analysis browser."
+  },
+  "workoutMuscleShoulders": "Shoulders",
+  "@workoutMuscleShoulders": {
+      "description": "Muscle-group category header on the Analysis browser."
+  },
+  "workoutMuscleArms": "Arms",
+  "@workoutMuscleArms": {
+      "description": "Muscle-group category header on the Analysis browser."
+  },
+  "workoutMuscleCore": "Core",
+  "@workoutMuscleCore": {
+      "description": "Muscle-group category header on the Analysis browser."
+  },
+  "workoutMuscleOther": "Other",
+  "@workoutMuscleOther": {
+      "description": "Fallback category header for exercises with no recognised muscle group."
+  },
   "workoutOverallCaps": "OVERALL",
   "@workoutOverallCaps": {
       "description": "Caps label over the summary verdict card."

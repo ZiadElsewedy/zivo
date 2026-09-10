@@ -28,7 +28,7 @@ import '../widgets/up_next_workout_card.dart';
 import 'bodyweight_history_page.dart';
 import '../widgets/add_workout_sheet.dart';
 import 'workout_plan_edit_page.dart';
-import 'workout_progress_page.dart';
+import 'workout_analysis_page.dart';
 import 'workout_stats_pages.dart';
 import '../../../../core/util/bidi.dart';
 import '../../../../l10n/l10n.dart';
@@ -40,10 +40,10 @@ import 'package:intl/intl.dart';
 /// `WorkoutHistoryPage` shows) to answer: did I train today, what/how
 /// consistently am I training, how long do sessions run, and how's my
 /// bodyweight moving. Deliberately only three blocks: the training card, this
-/// week, and bodyweight. The split breakdown, progress verdict and recent
-/// activity — plus the Analysis/History/Splits destinations — live one tap
-/// away on [WorkoutProgressPage] via the header's Progress action, so this
-/// landing stays calm instead of stacking six similar-looking cards.
+/// week, and bodyweight. The progress verdict, per-exercise breakdown, PRs and
+/// the Plan/History/Splits destinations — live one tap away on
+/// [WorkoutAnalysisPage] via the header's "Analysis" action, so this landing
+/// stays calm instead of stacking six similar-looking cards.
 ///
 /// Dressed to the design handoff's **Workout hub** screen (2c): the green
 /// screen wash, a 36px back circle beside the Manrope 800/27 title, the
@@ -117,10 +117,9 @@ class WorkoutDashboardPage extends StatelessWidget {
                     now: now,
                   );
                   // Deliberately just three blocks — the training card,
-                  // this week, and bodyweight. Split/progress/recent-
-                  // activity depth lives on `WorkoutProgressPage` (the
-                  // header's Progress action) so this landing stays
-                  // calm and scannable.
+                  // this week, and bodyweight. Progress/per-exercise depth
+                  // lives on `WorkoutAnalysisPage` (the header's "Analysis"
+                  // action) so this landing stays calm and scannable.
                   return ListView(
                     // This page is pushed (its own header, no bottom
                     // nav), so the bottom padding only needs to clear
@@ -142,14 +141,14 @@ class WorkoutDashboardPage extends StatelessWidget {
                       RiseIn(
                         child: TrainPageHeader(
                           title: l(context).workoutTitle,
-                          action: TrainHeaderAction(
+                          action: TrainHeaderTextAction(
                             icon: AppIcons.analysis,
-                            semanticLabel: l(context).workoutProgress,
+                            label: l(context).workoutAnalysis,
                             onTap: () {
                               HapticFeedback.selectionClick();
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => const WorkoutProgressPage(),
+                                  builder: (_) => const WorkoutAnalysisPage(),
                                 ),
                               );
                             },

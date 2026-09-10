@@ -92,6 +92,7 @@ class AppIcons {
 
   // Common actions / affordances.
   static const add = PhosphorIconsRegular.plus;
+  static const search = PhosphorIconsRegular.magnifyingGlass;
   static const camera = PhosphorIconsRegular.camera;
   static const image = PhosphorIconsRegular.image;
   static const crop = PhosphorIconsRegular.crop;

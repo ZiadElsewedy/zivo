@@ -1713,6 +1713,53 @@ class AppLocalizationsAr extends AppLocalizations {
   String get workoutTapToDrillIn => 'اضغط للتفاصيل';
 
   @override
+  String get workoutExercisesBrowse => 'التمارين';
+
+  @override
+  String get workoutSearchExercises => 'ابحث عن تمرين';
+
+  @override
+  String workoutNoMatches(String query) {
+    return 'لا تمارين تطابق «$query».';
+  }
+
+  @override
+  String workoutExerciseCountCaps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count تمرين',
+      many: '$count تمرينًا',
+      few: '$count تمارين',
+      two: 'تمرينان',
+      one: 'تمرين واحد',
+      zero: 'لا تمارين',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutMuscleChest => 'الصدر';
+
+  @override
+  String get workoutMuscleBack => 'الظهر';
+
+  @override
+  String get workoutMuscleLegs => 'الأرجل';
+
+  @override
+  String get workoutMuscleShoulders => 'الأكتاف';
+
+  @override
+  String get workoutMuscleArms => 'الذراعان';
+
+  @override
+  String get workoutMuscleCore => 'الجذع';
+
+  @override
+  String get workoutMuscleOther => 'أخرى';
+
+  @override
   String get workoutOverallCaps => 'الإجمالي';
 
   @override

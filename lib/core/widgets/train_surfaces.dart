@@ -236,6 +236,78 @@ class TrainHeaderAction extends StatelessWidget {
   }
 }
 
+/// The header's trailing action as a **labelled pill** rather than a bare
+/// circle — for a destination whose name a first-time reader can't infer from
+/// an icon (the Workout dashboard's "Analysis" jump). Glass pill, hairline
+/// border, the accent carried only by the small leading glyph so the control
+/// reads as a quiet chip, not a second primary button.
+class TrainHeaderTextAction extends StatelessWidget {
+  const TrainHeaderTextAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    Color? accent,
+    super.key,
+  // A named parameter can't be private, and a token that answers to the
+  // active skin can't be a const default — so the field is resolved on read
+  // below, keeping this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _accent = accent;
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? _accent;
+
+  Color get accent => _accent ?? TrainColors.green;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      scale: 0.97,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: Material(
+          color: TrainColors.glass,
+          borderRadius: BorderRadius.circular(999),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              onTap();
+            },
+            child: Container(
+              height: 36,
+              padding: const EdgeInsetsDirectional.only(start: 12, end: 14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: TrainColors.hairline),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 15, color: accent),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TrainType.ui(
+                      size: 13,
+                      weight: FontWeight.w700,
+                      color: TrainColors.inkAt(0.75),
+                      height: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// A section label: the mono caption on the left, and an optional second
 /// caption right-aligned carrying the section's own qualifier
 /// ("LAST 7 DAYS", "−1.4 KG · 8 WKS").

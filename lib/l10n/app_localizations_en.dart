@@ -1698,6 +1698,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workoutTapToDrillIn => 'tap to drill in';
 
   @override
+  String get workoutExercisesBrowse => 'Exercises';
+
+  @override
+  String get workoutSearchExercises => 'Search exercises';
+
+  @override
+  String workoutNoMatches(String query) {
+    return 'No exercises match “$query”.';
+  }
+
+  @override
+  String workoutExerciseCountCaps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count MOVEMENTS',
+      one: '1 MOVEMENT',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutMuscleChest => 'Chest';
+
+  @override
+  String get workoutMuscleBack => 'Back';
+
+  @override
+  String get workoutMuscleLegs => 'Legs';
+
+  @override
+  String get workoutMuscleShoulders => 'Shoulders';
+
+  @override
+  String get workoutMuscleArms => 'Arms';
+
+  @override
+  String get workoutMuscleCore => 'Core';
+
+  @override
+  String get workoutMuscleOther => 'Other';
+
+  @override
   String get workoutOverallCaps => 'OVERALL';
 
   @override

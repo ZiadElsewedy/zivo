@@ -1834,6 +1834,24 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-11 — **Workout Analysis redesign + Progress retired** (on
+  `feature/workout-analysis-redesign`, cut from `feature/ask-elicitation`; Dart/UI only, no
+  engine/repo/functions change). The Analysis hub (`workout_analysis_page.dart`) is reorganised
+  from verdict-grouped lists (going-well / getting-worse / stalled / all-exercises, where a lift
+  appeared twice) into a slim summary (verdict · volume · PRs · focus-next) over a **searchable,
+  muscle-category-grouped exercise browser** (`_ExerciseBrowser`, grouping on the engine's existing
+  `ExercisePerformance.muscleGroup` — no engine change) → the unchanged per-exercise drill-down.
+  The dashboard's bare top-right icon is now a labelled **"Analysis"** pill
+  (new `TrainHeaderTextAction`) that opens the Analysis hub **directly**. The separate
+  **`workout_progress_page.dart` landing was deleted** — its Plan/History/Splits links moved to
+  an always-present "Go deeper" card on Analysis, and its overview stats already live on the
+  dashboard tiles (so nothing was orphaned; the plan viewer `WorkoutPlanPage`, which only Progress
+  reached, is now reached from that card). Colour carries **status only** on these screens:
+  decorative green icon tiles are neutral ink, "focus next" is ember (the Now/Next colour). New
+  `AppIcons.search`, `muscleGroupLabel` in `workout_labels.dart`, muscle/search l10n keys in both
+  ARBs. Tests updated (Progress-nav tests repointed to Analysis, Progress-only tests removed) +
+  search/grouping coverage added; **full suite green (1537)**. Deferred: a global light-base
+  softening (whole-app palette, ADR-011) if light mode still reads harsh after the de-green.
 - 2026-09-10 — **Ask elicitation — audit fixes F1 + F2** (on `feature/ask-elicitation`;
   Dart-only, no functions redeploy). F1: `AskController.submitInput` now fires body-data
   persistence with `unawaited(...)`, so an un-acked Firestore write can't block the coach's
