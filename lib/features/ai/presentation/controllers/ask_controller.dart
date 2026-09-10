@@ -747,7 +747,11 @@ class AskController extends ChangeNotifier {
     if (_submittedInputs.containsKey(requestId)) return;
     _submittedInputs[requestId] = summary;
     _notify();
-    await _persistBodyData(values);
+    // Fire-and-forget: a Firestore write's future resolves only on server ack,
+    // so awaiting it would hang the whole reply offline (audit F1 — the app's
+    // own capture writes fire-and-forget for the same reason). The value still
+    // reaches the coach as the summary turn regardless of whether it persists.
+    unawaited(_persistBodyData(values));
     input.text = summary;
     await send();
   }

@@ -52,7 +52,12 @@ class RepositoryBodyDataWriter implements BodyDataWriter {
     // Height alone can't construct a BodyProfile (sex + activity are required),
     // so it can only be MERGED into one that already exists. When none does,
     // report false and let the value flow on to the coach unremembered.
-    final existing = _diet.currentBodyProfile;
+    //
+    // A one-shot fetch, NOT the sync `currentBodyProfile` cache: that cache is
+    // only warm once a screen has subscribed to the profile stream this
+    // session, so from Ask (where none has) it reads null even when a profile
+    // exists — and height would silently never be remembered (audit F2).
+    final existing = await _diet.fetchBodyProfile();
     if (existing == null) return false;
     if (existing.heightCm == heightCm) return true; // already set — no-op write
     await _diet.saveBodyProfile(

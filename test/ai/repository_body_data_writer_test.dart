@@ -5,6 +5,8 @@ import 'package:zivo/features/diet/domain/body_profile.dart';
 import 'package:zivo/features/diet/domain/nutrition_targets.dart';
 import 'package:zivo/features/workout/data/in_memory_body_weight_repository.dart';
 
+import '../support/diet_repository_stub.dart';
+
 /// Phase 3: the Ask input form writing height/weight through the app's own
 /// body-data repositories.
 void main() {
@@ -96,4 +98,41 @@ void main() {
     // Must not throw — persistence is best-effort.
     await w.saveWeightKg(74);
   });
+
+  test('saveHeightCm reads via fetch, not the cold sync cache (F2)', () async {
+    // From Ask, no screen has warmed currentBodyProfile, so it reads null even
+    // though a profile is stored. The writer must fetch, or height is silently
+    // never remembered.
+    final diet = _ColdCacheDiet(profile(heightCm: 170));
+    final w = RepositoryBodyDataWriter(
+      diet: diet,
+      bodyWeight: InMemoryBodyWeightRepository(),
+    );
+
+    final saved = await w.saveHeightCm(185);
+
+    expect(saved, isTrue);
+    expect(diet.saved!.heightCm, 185);
+    expect(diet.saved!.sex, TargetSex.male);
+  });
+}
+
+/// A diet repo whose sync cache is cold (null) but whose stored profile is
+/// readable via [fetchBodyProfile] — the exact shape of the F2 bug.
+class _ColdCacheDiet extends DietRepositoryStub {
+  _ColdCacheDiet(this._stored);
+  BodyProfile? _stored;
+  BodyProfile? saved;
+
+  @override
+  BodyProfile? get currentBodyProfile => null;
+
+  @override
+  Future<BodyProfile?> fetchBodyProfile() async => _stored;
+
+  @override
+  Future<void> saveBodyProfile(BodyProfile profile) async {
+    saved = profile;
+    _stored = profile;
+  }
 }

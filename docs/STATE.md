@@ -1780,6 +1780,14 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-10 — **Ask elicitation — audit fixes F1 + F2** (on `feature/ask-elicitation`;
+  Dart-only, no functions redeploy). F1: `AskController.submitInput` now fires body-data
+  persistence with `unawaited(...)`, so an un-acked Firestore write can't block the coach's
+  reply offline (matching the app's fire-and-forget capture convention). F2: new
+  `DietRepository.fetchBodyProfile()` (one-shot read, impl in both repos + the test stub);
+  `repository_body_data_writer` reads through it instead of the sync `currentBodyProfile`
+  cache, so height is remembered even when Ask is reached without a Diet screen warming the
+  cache. Both locked with regression tests. F3 (duplicate card on retry) left documented.
 - 2026-09-10 — **Ask elicitation Phase 3 — the coach remembers what it asks for** (on
   `feature/ask-elicitation`; **not yet deployed**). A `request_input` field keyed `heightCm`
   or `weightKg` is now persisted to the user's own body data on submit, so the coach asks

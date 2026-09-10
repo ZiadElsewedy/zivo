@@ -180,6 +180,21 @@ void main() {
     expect(ai.sent.single.text, 'Weight: 74 kg');
   });
 
+  test('submitInput does not block the reply on a hanging persist', () async {
+    // Audit F1: a Firestore write's future resolves only on server ack, so a
+    // persist that never completes (offline) must NOT stop the coach replying.
+    final ai = _FakeAi();
+    final writer = _FakeBodyWriter(hang: true);
+    final c = _controller(ai, bodyWriter: writer);
+    addTearDown(c.dispose);
+    await c.load();
+
+    // If persistence were awaited this would hang and the test would time out.
+    await c.submitInput('form-1', 'Weight: 74 kg', const {'weightKg': '74'});
+
+    expect(ai.sent.single.text, 'Weight: 74 kg');
+  });
+
   test('a first message in an untitled chat auto-titles it', () async {
     final ai = _FakeAi();
     final c = _controller(ai);
@@ -444,21 +459,26 @@ AskController _controller(
   bodyWriter: bodyWriter,
 );
 
-/// Records what the controller asked to persist.
+/// Records what the controller asked to persist. [hang] makes the writes never
+/// complete — standing in for an offline Firestore write, whose future resolves
+/// only on server ack.
 class _FakeBodyWriter implements BodyDataWriter {
-  _FakeBodyWriter({this.throwOnSave = false});
+  _FakeBodyWriter({this.throwOnSave = false, this.hang = false});
   final bool throwOnSave;
+  final bool hang;
   final List<double> heights = [];
   final List<double> weights = [];
 
   @override
   Future<void> saveWeightKg(double weightKg) async {
+    if (hang) return Completer<void>().future;
     if (throwOnSave) throw StateError('save failed');
     weights.add(weightKg);
   }
 
   @override
   Future<bool> saveHeightCm(double heightCm) async {
+    if (hang) return Completer<bool>().future;
     if (throwOnSave) throw StateError('save failed');
     heights.add(heightCm);
     return true;

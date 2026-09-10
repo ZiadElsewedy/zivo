@@ -273,6 +273,9 @@ class InMemoryDietRepository implements DietRepository {
   BodyProfile? get currentBodyProfile => _bodyProfile;
 
   @override
+  Future<BodyProfile?> fetchBodyProfile() async => _bodyProfile;
+
+  @override
   Stream<BodyProfile?> watchBodyProfile() async* {
     yield _bodyProfile;
     yield* _bodyProfileController.stream;
