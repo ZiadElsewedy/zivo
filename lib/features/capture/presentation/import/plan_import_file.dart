@@ -37,19 +37,20 @@ typedef PickedImportFile = ({Uint8List bytes, String mimeType});
 /// file with no readable bytes throws, same as any other read failure, so
 /// callers only need two branches.
 Future<PickedImportFile?> pickImportFile() async {
-  final picked = await FilePicker.platform.pickFiles(
+  // file_picker 12 replaced `FilePicker.platform.pickFiles(...)` with a static
+  // `pickFile` for single-file selection, and deprecated eager `withData` in
+  // favour of reading the bytes on demand via `PlatformFile.readAsBytes()`.
+  final file = await FilePicker.pickFile(
     type: FileType.custom,
     allowedExtensions: List.unmodifiable(kImportAllowedExtensions.keys),
-    withData: true,
   );
-  if (picked == null || picked.files.isEmpty) return null;
-  final file = picked.files.single;
+  if (file == null) return null;
   final mimeType = kImportAllowedExtensions[file.extension?.toLowerCase()];
   if (mimeType == null) {
     throw StateError('Unsupported file type: ${file.extension}');
   }
-  final bytes = file.bytes;
-  if (bytes == null || bytes.isEmpty) {
+  final bytes = await file.readAsBytes();
+  if (bytes.isEmpty) {
     throw StateError("Couldn't read that file.");
   }
   return (bytes: bytes, mimeType: mimeType);
