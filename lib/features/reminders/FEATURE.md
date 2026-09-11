@@ -55,7 +55,11 @@
   (`_SheetCloseButton`) — the reliable way out of a tall, keyboard-lifted sheet that
   leaves no scrim to tap. Selection is deliberately
   **monochrome** — solid ink-fill chips, hue-less `neutralMark` accents, native
-  (adaptive) switches, ember only on Save and the preview's app tile.
+  (adaptive) switches, ember only on Save and the preview's app tile. **Feel**
+  (Apple fluid-interface pass): every chip/button/row is wrapped in `PressableScale`
+  (instant press-down scale, reduced-motion aware) and fires `HapticFeedback` on
+  tap; the sync section sits in one `AnimatedSize` so kind swaps and toggle reveals
+  unfold continuously instead of jumping.
 - `presentation/workout_reminder_context.dart` — `workoutReminderContext(plan, {motivation})`
   builds the `ReminderContext` (next-up day + short exercise line + motivation) from the
   active plan. Shared by the app root and the edit-sheet preview so both resolve identical

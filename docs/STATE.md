@@ -1895,6 +1895,16 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-11 — **Reminder UI: Apple fluid-interface polish pass** (on `feature/reminders-sync`;
+  Dart only, reused existing primitives — no new deps). Applied the `apple-design` skill within
+  the design system: every interactive control in the reminders sheet + list (kind/day/emoji/tone
+  chips, sync/time/close/meal buttons, list rows) now wraps `PressableScale` (instant press-down
+  scale on pointer-down, spring-back, reduced-motion aware) and fires `HapticFeedback`
+  (`selectionClick` for picks, `lightImpact` for close, native iOS haptics left to the adaptive
+  switches). The whole sync-section area sits in one `AnimatedSize` (240ms easeOutCubic, zero on
+  reduced-motion) so switching kind or flipping a nested toggle **unfolds continuously** instead of
+  hard-jumping. No visual-system changes (monochrome selection, tokens, type all untouched).
+  `flutter test` green (1566).
 - 2026-09-11 — **Reminder enrichments: emoji · motivational tone · Snooze action** (on
   `feature/reminders-sync`; Dart + l10n + AndroidManifest). Three additions on top of the
   editor work below. **(1) Per-reminder emoji** — `Reminder.emoji`, a curated `_EmojiPicker`

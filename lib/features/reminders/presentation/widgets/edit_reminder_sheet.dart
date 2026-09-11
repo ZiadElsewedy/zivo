@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
@@ -7,6 +8,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/util/bidi.dart';
 import '../../../../core/util/date_format.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/train_chrome.dart';
 import '../../../../core/widgets/zivo_confirm.dart';
 import '../../../../core/widgets/zivo_field.dart';
@@ -132,6 +134,47 @@ class _EditReminderSheetState extends State<_EditReminderSheet> {
     return null;
   }
 
+  /// The sync affordance for the current kind — a meal picker, the workout-sync
+  /// block, or nothing for a general reminder. Extracted so the whole area can
+  /// sit inside one [AnimatedSize] and unfold continuously as the kind changes.
+  Widget _buildSyncSection() {
+    switch (_kind) {
+      case ReminderKind.meal:
+        return Column(
+          key: const ValueKey('meal'),
+          children: [
+            const SizedBox(height: 18),
+            _MealSyncSection(
+              mealLabel: _mealLabel,
+              items: _mealItems,
+              addController: _addItem,
+              onSync: _openMealPicker,
+              onAddItem: _addMealItem,
+              onRemoveItem: _removeMealItem,
+            ),
+          ],
+        );
+      case ReminderKind.workout:
+        return Column(
+          key: const ValueKey('workout'),
+          children: [
+            const SizedBox(height: 18),
+            _WorkoutSyncSection(
+              linked: _workoutLinked,
+              motivational: _workoutMotivational,
+              tone: _tone,
+              onChanged: (v) => setState(() => _workoutLinked = v),
+              onMotivationalChanged: (v) =>
+                  setState(() => _workoutMotivational = v),
+              onToneChanged: (t) => setState(() => _tone = t),
+            ),
+          ],
+        );
+      case ReminderKind.general:
+        return const SizedBox(width: double.infinity, key: ValueKey('general'));
+    }
+  }
+
   /// The live text the notification would carry right now — resolved through the
   /// very same `resolveReminderText` the scheduler uses, so the preview can't lie
   /// about what will fire.
@@ -207,12 +250,17 @@ class _EditReminderSheetState extends State<_EditReminderSheet> {
                       style: AppText.cardTitle.copyWith(fontSize: 16),
                     ),
                     const Spacer(),
-                    TextButton(
-                      onPressed: () => Navigator.of(sheetContext).pop(temp),
-                      child: Text(
-                        l(sheetContext).actionDone,
-                        style: AppText.button.copyWith(
-                          color: TrainColors.inkPlain,
+                    PressableScale(
+                      child: TextButton(
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          Navigator.of(sheetContext).pop(temp);
+                        },
+                        child: Text(
+                          l(sheetContext).actionDone,
+                          style: AppText.button.copyWith(
+                            color: TrainColors.inkPlain,
+                          ),
                         ),
                       ),
                     ),
@@ -349,6 +397,7 @@ class _EditReminderSheetState extends State<_EditReminderSheet> {
     // The keyboard inset, so the sheet lifts its content above the keyboard
     // when the name field is focused.
     final keyboard = MediaQuery.of(context).viewInsets.bottom;
+    final reduce = MediaQuery.of(context).disableAnimations;
     final preview = _previewText();
     final previewTime = formatClockTime(
       context,
@@ -421,29 +470,17 @@ class _EditReminderSheetState extends State<_EditReminderSheet> {
                   onSelected: (e) => setState(() => _emoji = e),
                 ),
 
-                // Sync — meal or workout.
-                if (_kind == ReminderKind.meal) ...[
-                  const SizedBox(height: 18),
-                  _MealSyncSection(
-                    mealLabel: _mealLabel,
-                    items: _mealItems,
-                    addController: _addItem,
-                    onSync: _openMealPicker,
-                    onAddItem: _addMealItem,
-                    onRemoveItem: _removeMealItem,
-                  ),
-                ] else if (_kind == ReminderKind.workout) ...[
-                  const SizedBox(height: 18),
-                  _WorkoutSyncSection(
-                    linked: _workoutLinked,
-                    motivational: _workoutMotivational,
-                    tone: _tone,
-                    onChanged: (v) => setState(() => _workoutLinked = v),
-                    onMotivationalChanged: (v) =>
-                        setState(() => _workoutMotivational = v),
-                    onToneChanged: (t) => setState(() => _tone = t),
-                  ),
-                ],
+                // Sync — meal or workout. Wrapped so the section unfolds
+                // continuously when the kind changes or a nested toggle reveals
+                // more (Apple: transitions are continuous, not hard jumps).
+                AnimatedSize(
+                  duration: reduce
+                      ? Duration.zero
+                      : const Duration(milliseconds: 240),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: _buildSyncSection(),
+                ),
                 const SizedBox(height: 18),
 
                 // Preview — the exact title/body the notification will carry,
@@ -499,11 +536,20 @@ class _EditReminderSheetState extends State<_EditReminderSheet> {
                 if (widget.existing != null && widget.onDelete != null) ...[
                   const SizedBox(height: 6),
                   Center(
-                    child: TextButton(
-                      onPressed: _delete,
-                      child: Text(
-                        l(context).remindersDelete,
-                        style: AppText.button.copyWith(color: TrainColors.ember),
+                    child: PressableScale(
+                      child: TextButton(
+                        // A light tick opens the destructive confirm; the
+                        // heavier commit haptic lands inside confirmDestructive.
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          _delete();
+                        },
+                        child: Text(
+                          l(context).remindersDelete,
+                          style: AppText.button.copyWith(
+                            color: TrainColors.ember,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -518,6 +564,14 @@ class _EditReminderSheetState extends State<_EditReminderSheet> {
 }
 
 String _newId() => DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+
+/// Wraps a tap so it fires a light selection tick first — the house multimodal
+/// feedback for picking a chip or option in this sheet (Apple: causality +
+/// harmony, the visual scale and the haptic land on the same touch).
+VoidCallback _selectHaptic(VoidCallback onTap) => () {
+  HapticFeedback.selectionClick();
+  onTap();
+};
 
 /// A food item as one line for a synced meal reminder: "Chicken 200 g".
 String foodItemLine(FoodItem item) {
@@ -583,21 +637,23 @@ class _EmojiChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        width: 42,
-        height: 42,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? TrainColors.inkPlain : TrainColors.base,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? TrainColors.inkPlain : TrainColors.hairline,
+    return PressableScale(
+      child: GestureDetector(
+        onTap: _selectHaptic(onTap),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          width: 42,
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? TrainColors.inkPlain : TrainColors.base,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? TrainColors.inkPlain : TrainColors.hairline,
+            ),
           ),
+          child: child,
         ),
-        child: child,
       ),
     );
   }
@@ -708,19 +764,24 @@ class _SheetCloseButton extends StatelessWidget {
     return Semantics(
       button: true,
       label: l(context).actionClose,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          width: 32,
-          height: 32,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: TrainColors.base,
-            shape: BoxShape.circle,
-            border: Border.all(color: TrainColors.hairline),
+      child: PressableScale(
+        child: GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: TrainColors.base,
+              shape: BoxShape.circle,
+              border: Border.all(color: TrainColors.hairline),
+            ),
+            child: Icon(AppIcons.close, size: 16, color: TrainColors.ink2),
           ),
-          child: Icon(AppIcons.close, size: 16, color: TrainColors.ink2),
         ),
       ),
     );
@@ -817,10 +878,12 @@ class _MealItemRow extends StatelessWidget {
               style: TrainType.ui(size: 14, color: TrainColors.inkPlain),
             ),
           ),
-          IconButton(
-            onPressed: onRemove,
-            visualDensity: VisualDensity.compact,
-            icon: Icon(Icons.close_rounded, size: 16, color: TrainColors.ink3),
+          PressableScale(
+            child: IconButton(
+              onPressed: _selectHaptic(onRemove),
+              visualDensity: VisualDensity.compact,
+              icon: Icon(Icons.close_rounded, size: 16, color: TrainColors.ink3),
+            ),
           ),
         ],
       ),
@@ -845,9 +908,11 @@ class _AddItemField extends StatelessWidget {
         hintText: l(context).remindersAddItem,
         accent: TrainColors.neutralMark,
       ).copyWith(
-        suffixIcon: IconButton(
-          onPressed: onSubmit,
-          icon: Icon(AppIcons.add, size: 18, color: TrainColors.neutralMark),
+        suffixIcon: PressableScale(
+          child: IconButton(
+            onPressed: _selectHaptic(onSubmit),
+            icon: Icon(AppIcons.add, size: 18, color: TrainColors.neutralMark),
+          ),
         ),
       ),
     );
@@ -972,33 +1037,35 @@ class _SyncButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        decoration: BoxDecoration(
-          color: TrainColors.base,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: TrainColors.hairline),
-        ),
-        child: Row(
-          children: [
-            Icon(AppIcons.reminderSync, size: 18, color: TrainColors.neutralMark),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TrainType.ui(
-                  size: 15,
-                  weight: FontWeight.w700,
-                  color: TrainColors.inkPlain,
+    return PressableScale(
+      child: GestureDetector(
+        onTap: _selectHaptic(onTap),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          decoration: BoxDecoration(
+            color: TrainColors.base,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: TrainColors.hairline),
+          ),
+          child: Row(
+            children: [
+              Icon(AppIcons.reminderSync, size: 18, color: TrainColors.neutralMark),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TrainType.ui(
+                    size: 15,
+                    weight: FontWeight.w700,
+                    color: TrainColors.inkPlain,
+                  ),
                 ),
               ),
-            ),
-            Icon(AppIcons.chevron, size: 16, color: TrainColors.ink3),
-          ],
+              Icon(AppIcons.chevron, size: 16, color: TrainColors.ink3),
+            ],
+          ),
         ),
       ),
     );
@@ -1085,47 +1152,49 @@ class _MealOption extends StatelessWidget {
         .map((i) => i.name)
         .where((n) => n.trim().isNotEmpty)
         .join(' · ');
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: TrainColors.base,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: TrainColors.hairline),
-        ),
-        child: Row(
-          children: [
-            Icon(AppIcons.reminderMeal, size: 20, color: TrainColors.neutralMark),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isolate(meal.label),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TrainType.ui(
-                      size: 15,
-                      weight: FontWeight.w700,
-                      color: TrainColors.inkPlain,
-                    ),
-                  ),
-                  if (count > 0) ...[
-                    const SizedBox(height: 3),
+    return PressableScale(
+      child: GestureDetector(
+        onTap: _selectHaptic(onTap),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: TrainColors.base,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: TrainColors.hairline),
+          ),
+          child: Row(
+            children: [
+              Icon(AppIcons.reminderMeal, size: 20, color: TrainColors.neutralMark),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      subtitle,
+                      isolate(meal.label),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.meta.copyWith(color: TrainColors.ink3),
+                      style: TrainType.ui(
+                        size: 15,
+                        weight: FontWeight.w700,
+                        color: TrainColors.inkPlain,
+                      ),
                     ),
+                    if (count > 0) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.meta.copyWith(color: TrainColors.ink3),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            Icon(AppIcons.chevron, size: 16, color: TrainColors.ink3),
-          ],
+              Icon(AppIcons.chevron, size: 16, color: TrainColors.ink3),
+            ],
+          ),
         ),
       ),
     );
@@ -1151,32 +1220,34 @@ class _KindChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final fg = selected ? TrainColors.base : TrainColors.ink2;
     return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: selected ? TrainColors.inkPlain : TrainColors.base,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: selected ? TrainColors.inkPlain : TrainColors.hairline,
-            ),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, size: 20, color: fg),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.meta.copyWith(
-                  color: fg,
-                  fontWeight: FontWeight.w700,
-                ),
+      child: PressableScale(
+        child: GestureDetector(
+          onTap: _selectHaptic(onTap),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: selected ? TrainColors.inkPlain : TrainColors.base,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: selected ? TrainColors.inkPlain : TrainColors.hairline,
               ),
-            ],
+            ),
+            child: Column(
+              children: [
+                Icon(icon, size: 20, color: fg),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.meta.copyWith(
+                    color: fg,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1192,24 +1263,26 @@ class _TimeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: TrainColors.base,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: TrainColors.hairline),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.access_time_rounded, size: 18, color: TrainColors.neutralMark),
-            const SizedBox(width: 12),
-            Text(
-              ltrFor(context, label),
-              style: TrainType.mono(size: 16, color: TrainColors.inkPlain),
-            ),
-          ],
+    return PressableScale(
+      child: GestureDetector(
+        onTap: _selectHaptic(onTap),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: TrainColors.base,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: TrainColors.hairline),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.access_time_rounded, size: 18, color: TrainColors.neutralMark),
+              const SizedBox(width: 12),
+              Text(
+                ltrFor(context, label),
+                style: TrainType.mono(size: 16, color: TrainColors.inkPlain),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1230,23 +1303,25 @@ class _DayChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-        decoration: BoxDecoration(
-          color: selected ? TrainColors.inkPlain : TrainColors.base,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected ? TrainColors.inkPlain : TrainColors.hairline,
+    return PressableScale(
+      child: GestureDetector(
+        onTap: _selectHaptic(onTap),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? TrainColors.inkPlain : TrainColors.base,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: selected ? TrainColors.inkPlain : TrainColors.hairline,
+            ),
           ),
-        ),
-        child: Text(
-          label,
-          style: AppText.meta.copyWith(
-            color: selected ? TrainColors.base : TrainColors.ink2,
-            fontWeight: FontWeight.w700,
+          child: Text(
+            label,
+            style: AppText.meta.copyWith(
+              color: selected ? TrainColors.base : TrainColors.ink2,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
