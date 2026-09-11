@@ -94,6 +94,44 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Reminders v2 — kinds, an iOS wheel picker, a de-purpled premium UI, and plan
+  sync** (2026-09-11, on `feature/reminders-sync`, cut from
+  `feature/workout-analysis-redesign`). Owner wanted the basic reminders feature to
+  feel premium and actually pull from the user's plans.
+  - **Kinds are now General · Meal · Workout** — `ReminderKind.other` → `general`
+    (reordered first). Legacy stored `"other"` folds into `general` on decode, so no
+    migration. Default new-reminder kind is `general`.
+  - **iPhone-style time wheel.** The Material `showTimePicker` dialog is replaced by
+    a `CupertinoDatePicker` wheel in a `showZivoSheet`, themed to both skins and
+    honouring the locale's 24h setting.
+  - **No more purple.** The whole area drops `violet`/`violetGlyph` for a monochrome
+    segmented look (solid ink-fill selected chips, hue-less `neutralMark` accents,
+    native adaptive switches, ember only on Save, neutral `hubTint` screen wash) —
+    respects ADR-006 hue discipline (no area invents a hue).
+  - **Sync.** New optional `ReminderSync` on a reminder (nullable, back-compatible
+    codec). **`MealSync`** — "Sync from your plan" pulls the meal scheduled for the
+    day from the active diet plan, the user picks which one, then adds/removes items;
+    stored as a snapshot and listed in the notification body. Editing there **never
+    touches the diet plan or food log.** **`WorkoutSync`** — a "Sync with my plan"
+    toggle links the reminder to the active plan; its notification text is
+    re-resolved to the current next-up rotation day (name + short exercise line)
+    every reschedule. `app.dart` now watches `workoutPlans.watchActivePlan()`
+    alongside `reminders.watch()` and passes a `ReminderContext`, with a **dedupe
+    guard** so unrelated plan writes don't churn the platform channel (also the main
+    perf win here). Notifications now carry a **body**, not just a title.
+  - **Honest caveat** (owner-chosen "smart/auto-refresh"): a `WorkoutSync`
+    notification's text is fresh as of the last reschedule (app open/resume or plan
+    change) — the OS fires pre-scheduled alarms and can't recompute the rotation at
+    fire time. [ADR-013](DECISIONS/ADR-013-local-notifications.md) unchanged (still
+    local-only, inexact).
+  - **Cover:** +9 reminders tests (sync codec + legacy-kind decode, meal/workout
+    body resolution via `ReminderContext`, the Cupertino wheel opening, a synced
+    row), whole suite **1548** green, `flutter analyze` clean, 10 new ARB keys in
+    both languages.
+  - **⚠ OWNER ACTIONS.** (1) ~10 new Arabic strings are mine, not a native
+    speaker's — worth a check. (2) On-device confirmation that reminders fire and
+    that a workout-synced reminder reflects the next-up day (unchanged from ADR-013).
+
 - **The profile avatar moved to Firebase Storage; moments stay on Drive**
   (2026-09-11, on `feature/workout-analysis-redesign`). Owner report: an avatar
   set on one device didn't appear on another. Root cause was structural — the

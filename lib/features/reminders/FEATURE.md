@@ -24,9 +24,17 @@
   live next-up workout text a `WorkoutSync` needs, resolved by the app root so this
   layer depends on no repository.
 - `presentation/pages/reminders_page.dart` — the one screen, reached from Settings.
-- `presentation/widgets/edit_reminder_sheet.dart` — create/edit sheet.
+  A synced reminder's row carries a small "synced" line (the meal, or the linked
+  workout day).
+- `presentation/widgets/edit_reminder_sheet.dart` — create/edit sheet. The time
+  field is an **iOS-style `CupertinoDatePicker` wheel** in a `showZivoSheet`. A meal
+  kind shows **"Sync from your plan"** (opens `_MealPickerSheet`, then an editable
+  item checklist — add/remove only shapes the reminder, never the diet plan); a
+  workout kind shows a **"Sync with my plan"** toggle. Selection is deliberately
+  **monochrome** — solid ink-fill chips, hue-less `neutralMark` accents, native
+  (adaptive) switches, ember only on Save. No violet anywhere (was the old accent).
 - `presentation/reminder_labels.dart` — the domain→presentation label split for
-  `ReminderKind`, weekdays, time and the repeat summary.
+  `ReminderKind`, weekdays, time, the repeat summary, and `reminderSyncSummary`.
 
 ## Data
 
@@ -46,9 +54,13 @@
   Firestore run, in-memory + no-op otherwise. Exposed as `AppScope.reminders` /
   `AppScope.notifications` (both nullable).
 - The OS's scheduled notifications are a **pure mirror** of the stored reminders:
-  `app.dart` subscribes the scheduler to `reminders.watch()` and reschedules on
-  every change (edits, and the sign-in/sign-out re-scope). The OS holds them
-  across launches, so there is no per-resume work.
+  `app.dart` subscribes the scheduler to `reminders.watch()` **and**
+  `workoutPlans.watchActivePlan()`, reschedules on either change, and passes a
+  `ReminderContext` (the current next-up workout's title + a short exercise line) so
+  a `WorkoutSync` reminder always shows today's rotation day. Reschedules are
+  **deduped** — with no workout-synced reminder the context is empty, so unrelated
+  plan writes never reach the platform channel. The OS holds notifications across
+  launches, so there is no per-resume work.
 
 ## Gotchas
 
@@ -61,3 +73,9 @@
   RECEIVE_BOOT_COMPLETED, the two receivers) and `ios/Runner/AppDelegate.swift`
   (the `UNUserNotificationCenter` delegate). `minSdk` 26 already covers the plugin.
 - A notification actually **firing** can only be verified on a real device.
+- **A `WorkoutSync` reminder is only as fresh as the last reschedule.** The OS fires
+  a pre-scheduled notification even when ZIVO is closed, so its baked text reflects
+  the next-up day as of the last time the app rescheduled (open/resume, or a
+  plan/cursor change) — it cannot recompute the rotation at fire time. This is the
+  accepted local-only trade (owner decision); for a workout nudge the app is usually
+  open around training, so it's usually current.
