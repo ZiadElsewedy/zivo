@@ -107,6 +107,22 @@ void main() {
       final decoded = Reminder.fromMap(reminder.toMap());
       expect(decoded, reminder);
       expect((decoded!.sync as WorkoutSync).cachedDayLabel, 'Push Day');
+      // Absent in the map means not motivational — the original behaviour.
+      expect((decoded.sync as WorkoutSync).motivational, isFalse);
+    });
+
+    test('a motivational workout sync round-trips through the codec', () {
+      const reminder = Reminder(
+        id: 'r3m',
+        label: 'Train',
+        kind: ReminderKind.workout,
+        hour: 18,
+        minute: 30,
+        sync: WorkoutSync(cachedDayLabel: 'Push Day', motivational: true),
+      );
+      final decoded = Reminder.fromMap(reminder.toMap());
+      expect(decoded, reminder);
+      expect((decoded!.sync as WorkoutSync).motivational, isTrue);
     });
 
     test('an unrecognised stored sync degrades to a plain reminder', () {

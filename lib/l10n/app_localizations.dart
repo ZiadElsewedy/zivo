@@ -8934,6 +8934,18 @@ abstract class AppLocalizations {
   /// **'Shows your next scheduled workout, and keeps it up to date.'**
   String get remindersSyncWorkoutHint;
 
+  /// Toggle on a synced workout reminder that shows a short line of encouragement instead of the list of exercises.
+  ///
+  /// In en, this message translates to:
+  /// **'Motivational message'**
+  String get remindersMotivational;
+
+  /// Explanation under the motivational-message toggle on a workout reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Names today\'s workout and adds a line to keep you going, instead of the exercise list.'**
+  String get remindersMotivationalHint;
+
   /// Title of the sheet that lists the meals in the plan to pick one for a reminder.
   ///
   /// In en, this message translates to:

@@ -73,28 +73,40 @@ class MealSync extends ReminderSync {
 /// A workout reminder linked to the active plan. Carries no schedule payload of
 /// its own — the title/body are resolved live at reschedule time — beyond
 /// [cachedDayLabel], the last known next-up day name, kept only for the list row.
+///
+/// [motivational] flips the notification from the day's exercise list to a short
+/// line of encouragement (see `workout_motivations.dart`): the day is still
+/// named, but the body is a rotating motivational phrase rather than the lift
+/// details. Off by default, so the original behaviour is unchanged.
 @immutable
 class WorkoutSync extends ReminderSync {
-  const WorkoutSync({this.cachedDayLabel});
+  const WorkoutSync({this.cachedDayLabel, this.motivational = false});
 
   final String? cachedDayLabel;
+  final bool motivational;
 
   @override
   Map<String, dynamic> toMap() => {
     'type': 'workout',
     if (cachedDayLabel != null) 'cachedDayLabel': cachedDayLabel,
+    if (motivational) 'motivational': true,
   };
 
   static WorkoutSync fromMap(Map raw) => WorkoutSync(
     cachedDayLabel: raw['cachedDayLabel'] is String
         ? raw['cachedDayLabel'] as String
         : null,
+    motivational: raw['motivational'] is bool
+        ? raw['motivational'] as bool
+        : false,
   );
 
   @override
   bool operator ==(Object other) =>
-      other is WorkoutSync && other.cachedDayLabel == cachedDayLabel;
+      other is WorkoutSync &&
+      other.cachedDayLabel == cachedDayLabel &&
+      other.motivational == motivational;
 
   @override
-  int get hashCode => cachedDayLabel.hashCode;
+  int get hashCode => Object.hash(cachedDayLabel, motivational);
 }

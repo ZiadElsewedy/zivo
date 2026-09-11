@@ -5495,6 +5495,13 @@ class AppLocalizationsAr extends AppLocalizations {
       'يعرض تمرينك التالي المجدول ويبقيه محدّثًا.';
 
   @override
+  String get remindersMotivational => 'رسالة تحفيزية';
+
+  @override
+  String get remindersMotivationalHint =>
+      'يذكر تمرين اليوم ويضيف عبارة تشجّعك على الاستمرار، بدلًا من قائمة التمارين.';
+
+  @override
   String get remindersPickMeal => 'أي وجبة؟';
 
   @override

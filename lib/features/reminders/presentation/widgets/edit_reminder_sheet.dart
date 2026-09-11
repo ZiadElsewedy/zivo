@@ -67,8 +67,10 @@ class _EditReminderSheetState extends State<_EditReminderSheet> {
   String? _mealLabel;
   List<String> _mealItems = [];
 
-  // Workout sync: linked to the active plan (its text is resolved live).
+  // Workout sync: linked to the active plan (its text is resolved live), and
+  // whether the notification shows encouragement instead of the exercise list.
   bool _workoutLinked = false;
+  bool _workoutMotivational = false;
 
   @override
   void initState() {
@@ -84,8 +86,9 @@ class _EditReminderSheetState extends State<_EditReminderSheet> {
       case MealSync m:
         _mealLabel = m.mealLabel;
         _mealItems = [...m.items];
-      case WorkoutSync _:
+      case WorkoutSync w:
         _workoutLinked = true;
+        _workoutMotivational = w.motivational;
       case null:
         break;
     }
@@ -229,7 +232,10 @@ class _EditReminderSheetState extends State<_EditReminderSheet> {
       sync = MealSync(mealLabel: _mealLabel!, items: _mealItems);
     } else if (_kind == ReminderKind.workout && _workoutLinked) {
       final nextDay = AppScope.of(context).workoutPlans.activePlan?.nextDay;
-      sync = WorkoutSync(cachedDayLabel: nextDay?.label);
+      sync = WorkoutSync(
+        cachedDayLabel: nextDay?.label,
+        motivational: _workoutMotivational,
+      );
     }
     final reminder = Reminder.clamped(
       id: widget.existing?.id ?? _newId(),
@@ -327,7 +333,10 @@ class _EditReminderSheetState extends State<_EditReminderSheet> {
                   const SizedBox(height: 18),
                   _WorkoutSyncSection(
                     linked: _workoutLinked,
+                    motivational: _workoutMotivational,
                     onChanged: (v) => setState(() => _workoutLinked = v),
+                    onMotivationalChanged: (v) =>
+                        setState(() => _workoutMotivational = v),
                   ),
                 ],
                 const SizedBox(height: 18),
@@ -530,11 +539,20 @@ class _AddItemField extends StatelessWidget {
   }
 }
 
-/// The workout-sync block: a single toggle plus an explanation.
+/// The workout-sync block: the sync toggle plus its explanation, and — once
+/// synced — a nested "motivational message" toggle that swaps the exercise list
+/// for a line of encouragement.
 class _WorkoutSyncSection extends StatelessWidget {
-  const _WorkoutSyncSection({required this.linked, required this.onChanged});
+  const _WorkoutSyncSection({
+    required this.linked,
+    required this.motivational,
+    required this.onChanged,
+    required this.onMotivationalChanged,
+  });
   final bool linked;
+  final bool motivational;
   final ValueChanged<bool> onChanged;
+  final ValueChanged<bool> onMotivationalChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -572,6 +590,40 @@ class _WorkoutSyncSection extends StatelessWidget {
               style: AppText.meta.copyWith(color: TrainColors.ink3, height: 1.4),
             ),
           ),
+          if (linked) ...[
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 30, top: 12),
+              child: Divider(height: 1, color: TrainColors.hairline),
+            ),
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 30, top: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      l(context).remindersMotivational,
+                      style: TrainType.ui(
+                        size: 15,
+                        weight: FontWeight.w700,
+                        color: TrainColors.inkPlain,
+                      ),
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: motivational,
+                    onChanged: onMotivationalChanged,
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 30, end: 8, top: 2),
+              child: Text(
+                l(context).remindersMotivationalHint,
+                style: AppText.meta.copyWith(color: TrainColors.ink3, height: 1.4),
+              ),
+            ),
+          ],
         ],
       ),
     );

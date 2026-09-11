@@ -1895,6 +1895,19 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-11 — **Motivational workout reminders** (on `feature/reminders-sync`; Dart + l10n,
+  no repo/rules change). A synced workout reminder can now be flipped to **motivational**: a
+  nested "Motivational message" toggle on the edit sheet (shown only once "Sync with my plan"
+  is on). In that mode the notification **names today's workout but swaps the exercise list for
+  one line of encouragement** ("Arm Day · Don't skip leg day.") instead of the lift details.
+  New local, offline copy in `reminders/domain/workout_motivations.dart` (EN + AR, index-aligned)
+  + pure deterministic `pickWorkoutMotivation(seed, languageCode)`; the app root picks **one line
+  per calendar day** (seeded so the choice is stable across a reschedule, keeping the dedupe that
+  protects the platform channel) and hands it in via the new `ReminderContext.workoutMotivation`.
+  `WorkoutSync` gains a persisted `motivational` flag (absent = off, unchanged behaviour). New
+  `remindersMotivational`/`remindersMotivationalHint` l10n keys (en + ar). Tests: motivational
+  occurrence cases, `WorkoutSync` motivational round-trip, and a `workout_motivations` suite —
+  `flutter test test/reminders` green (37 → +6).
 - 2026-09-11 — **Workout Analysis redesign + Progress retired** (on
   `feature/workout-analysis-redesign`, cut from `feature/ask-elicitation`; Dart/UI only, no
   engine/repo/functions change). The Analysis hub (`workout_analysis_page.dart`) is reorganised

@@ -13,7 +13,11 @@ import 'reminder.dart';
 /// label, exactly as a plain reminder would.
 @immutable
 class ReminderContext {
-  const ReminderContext({this.workoutTitle, this.workoutBody});
+  const ReminderContext({
+    this.workoutTitle,
+    this.workoutBody,
+    this.workoutMotivation,
+  });
 
   /// The next-up workout day's name (e.g. "Push Day"), or null.
   final String? workoutTitle;
@@ -21,16 +25,24 @@ class ReminderContext {
   /// A short line under it (e.g. "Bench · OHP · Dips +2 more"), or null.
   final String? workoutBody;
 
+  /// The motivational line a [WorkoutSync] with `motivational` on shows instead
+  /// of [workoutBody] (e.g. "Don't skip leg day."), or null. Picked once per day
+  /// by the app root so the choice is stable across a reschedule; see
+  /// `workout_motivations.dart`.
+  final String? workoutMotivation;
+
   static const empty = ReminderContext();
 
   @override
   bool operator ==(Object other) =>
       other is ReminderContext &&
       other.workoutTitle == workoutTitle &&
-      other.workoutBody == workoutBody;
+      other.workoutBody == workoutBody &&
+      other.workoutMotivation == workoutMotivation;
 
   @override
-  int get hashCode => Object.hash(workoutTitle, workoutBody);
+  int get hashCode =>
+      Object.hash(workoutTitle, workoutBody, workoutMotivation);
 }
 
 /// The seam between the app and the platform's local-notification machinery —

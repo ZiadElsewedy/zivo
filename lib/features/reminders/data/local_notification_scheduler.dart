@@ -23,6 +23,10 @@ typedef ReminderOccurrence = ({
 /// a [MealSync] lists its customised items in the body; a [WorkoutSync] takes
 /// the live next-up workout from [context] (and falls back to the reminder's own
 /// label when no plan is resolved); a plain reminder is title-only, as before.
+///
+/// A [WorkoutSync] with `motivational` on is the exception: it names the day but
+/// swaps the exercise list for [ReminderContext.workoutMotivation] — one short
+/// line of encouragement, never the lift details.
 ({String title, String? body}) resolveReminderText(
   Reminder reminder, {
   required String fallbackTitle,
@@ -35,8 +39,27 @@ typedef ReminderOccurrence = ({
           ? labelled
           : (m.mealLabel.isNotEmpty ? m.mealLabel : fallbackTitle);
       return (title: title, body: m.items.isEmpty ? null : m.items.join(' · '));
-    case WorkoutSync _:
+    case WorkoutSync w:
       final day = context.workoutTitle;
+      if (w.motivational) {
+        // Motivational mode: encouragement, not the exercise list. The day still
+        // shows so the reminder is grounded ("Arm Day · Keep going"); with no day
+        // resolved it is the motivational line alone.
+        final motivation = context.workoutMotivation?.trim();
+        final title = labelled.isNotEmpty ? labelled : (day ?? fallbackTitle);
+        // What the body should carry, in order of preference: the motivational
+        // line (prefixed with the day when the title isn't already the day), the
+        // day on its own, or nothing.
+        final String? body;
+        if (motivation != null && motivation.isNotEmpty) {
+          body = (day != null && labelled.isNotEmpty)
+              ? '$day · $motivation'
+              : motivation;
+        } else {
+          body = labelled.isNotEmpty ? day : null;
+        }
+        return (title: title, body: body);
+      }
       if (day == null) {
         // No active plan / no next day resolved — behave like a plain reminder.
         return (

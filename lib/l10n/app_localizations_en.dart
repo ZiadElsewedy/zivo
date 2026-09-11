@@ -5387,6 +5387,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Shows your next scheduled workout, and keeps it up to date.';
 
   @override
+  String get remindersMotivational => 'Motivational message';
+
+  @override
+  String get remindersMotivationalHint =>
+      'Names today\'s workout and adds a line to keep you going, instead of the exercise list.';
+
+  @override
   String get remindersPickMeal => 'Which meal?';
 
   @override

@@ -15,7 +15,14 @@
   reminder; `null` = plain). Sealed: **`MealSync`** (a snapshot — which plan meal +
   the customised item lines shown in the notification body) and **`WorkoutSync`** (a
   live link — text is re-resolved from the active plan's next-up day at reschedule
-  time; `cachedDayLabel` is only for the row).
+  time; `cachedDayLabel` is only for the row). `WorkoutSync.motivational` swaps the
+  exercise list for one line of encouragement — the day is still named, the lifts
+  are not.
+- `domain/workout_motivations.dart` — the **local** motivational copy (EN + AR,
+  index-aligned) a motivational `WorkoutSync` shows, plus the pure, deterministic
+  `pickWorkoutMotivation(seed, languageCode)`. No network, no backend. The app root
+  picks one line per calendar day (seeded so the choice is stable across a
+  reschedule) and hands it in via `ReminderContext.workoutMotivation`.
 - `domain/reminders_repository.dart` — the storage seam (`current`/`watch`/`save`),
   same shape as `WorkoutSettingsRepository`.
 - `domain/notification_scheduler.dart` — the platform seam (`init`/
@@ -30,7 +37,8 @@
   field is an **iOS-style `CupertinoDatePicker` wheel** in a `showZivoSheet`. A meal
   kind shows **"Sync from your plan"** (opens `_MealPickerSheet`, then an editable
   item checklist — add/remove only shapes the reminder, never the diet plan); a
-  workout kind shows a **"Sync with my plan"** toggle. Selection is deliberately
+  workout kind shows a **"Sync with my plan"** toggle, and — once synced — a nested
+  **"Motivational message"** toggle. Selection is deliberately
   **monochrome** — solid ink-fill chips, hue-less `neutralMark` accents, native
   (adaptive) switches, ember only on Save. No violet anywhere (was the old accent).
 - `presentation/reminder_labels.dart` — the domain→presentation label split for

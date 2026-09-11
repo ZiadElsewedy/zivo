@@ -1472,6 +1472,8 @@
   "remindersSyncFromPlan": "المزامنة من خطتك",
   "remindersSyncWorkout": "المزامنة مع خطتي",
   "remindersSyncWorkoutHint": "يعرض تمرينك التالي المجدول ويبقيه محدّثًا.",
+  "remindersMotivational": "رسالة تحفيزية",
+  "remindersMotivationalHint": "يذكر تمرين اليوم ويضيف عبارة تشجّعك على الاستمرار، بدلًا من قائمة التمارين.",
   "remindersPickMeal": "أي وجبة؟",
   "remindersMealItems": "العناصر",
   "remindersAddItem": "إضافة عنصر",

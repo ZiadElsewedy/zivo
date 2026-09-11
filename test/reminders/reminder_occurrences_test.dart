@@ -129,5 +129,73 @@ void main() {
       expect(occ.single.title, 'Workout');
       expect(occ.single.body, isNull);
     });
+
+    test('a motivational sync shows the day and the motivation, not the '
+        'exercise list', () {
+      const r = Reminder(
+        id: 'a',
+        label: '',
+        kind: ReminderKind.workout,
+        hour: 18,
+        minute: 0,
+        sync: WorkoutSync(motivational: true),
+      );
+      final occ = reminderOccurrences(
+        const [r],
+        fallbackTitle: 'Reminder',
+        context: const ReminderContext(
+          workoutTitle: 'Arm Day',
+          workoutBody: 'Curl · Press · Dips +2',
+          workoutMotivation: "Keep going — you've got this.",
+        ),
+      );
+      // The day is the title; the body is the motivation, never the exercises.
+      expect(occ.single.title, 'Arm Day');
+      expect(occ.single.body, "Keep going — you've got this.");
+    });
+
+    test('a labelled motivational sync keeps its label and folds the day into '
+        'the motivation line', () {
+      const r = Reminder(
+        id: 'a',
+        label: 'Tamreen time',
+        kind: ReminderKind.workout,
+        hour: 18,
+        minute: 0,
+        sync: WorkoutSync(motivational: true),
+      );
+      final occ = reminderOccurrences(
+        const [r],
+        fallbackTitle: 'Reminder',
+        context: const ReminderContext(
+          workoutTitle: 'Arm Day',
+          workoutBody: 'Curl · Press',
+          workoutMotivation: "Don't skip it.",
+        ),
+      );
+      expect(occ.single.title, 'Tamreen time');
+      expect(occ.single.body, "Arm Day · Don't skip it.");
+    });
+
+    test('a motivational sync still encourages when no plan day is resolved', () {
+      const r = Reminder(
+        id: 'a',
+        label: '',
+        kind: ReminderKind.workout,
+        hour: 18,
+        minute: 0,
+        sync: WorkoutSync(motivational: true),
+      );
+      final occ = reminderOccurrences(
+        const [r],
+        fallbackTitle: 'Reminder',
+        context: const ReminderContext(
+          workoutMotivation: 'Show up for yourself today.',
+        ),
+      );
+      // No day resolved: the fallback titles it, the motivation is the body.
+      expect(occ.single.title, 'Reminder');
+      expect(occ.single.body, 'Show up for yourself today.');
+    });
   });
 }

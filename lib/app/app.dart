@@ -64,6 +64,7 @@ import '../features/reminders/domain/notification_scheduler.dart';
 import '../features/reminders/domain/reminder.dart';
 import '../features/reminders/domain/reminder_sync.dart';
 import '../features/reminders/domain/reminders_repository.dart';
+import '../features/reminders/domain/workout_motivations.dart';
 import '../features/workout/domain/workout_plan.dart';
 import '../features/expenses/data/firestore_category_repository.dart';
 import '../features/expenses/data/firestore_expense_repository.dart';
@@ -459,11 +460,20 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   /// plan, skipping the platform call when neither the reminders nor the resolved
   /// [ReminderContext] changed since the last push (see the fields above).
   void _rescheduleNotifications() {
-    final needsPlan = _latestReminders.any(
-      (r) => r.enabled && r.sync is WorkoutSync,
+    final workoutSynced = _latestReminders
+        .where((r) => r.enabled && r.sync is WorkoutSync)
+        .toList();
+    final needsPlan = workoutSynced.isNotEmpty;
+    // Only resolve (and so pay for) a motivational line when some enabled
+    // workout reminder actually asks for one.
+    final needsMotivation = workoutSynced.any(
+      (r) => (r.sync as WorkoutSync).motivational,
     );
     final context = needsPlan
-        ? _workoutContext(_latestPlan)
+        ? _workoutContext(
+            _latestPlan,
+            motivation: needsMotivation ? _pickMotivation() : null,
+          )
         : ReminderContext.empty;
     if (_lastScheduledReminders != null &&
         listEquals(_lastScheduledReminders, _latestReminders) &&
@@ -475,12 +485,34 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     unawaited(_notifications.reschedule(_latestReminders, context: context));
   }
 
+  /// One motivational line for today, in the app's language.
+  ///
+  /// Seeded by the calendar day (plus a fixed salt) so it is **stable across a
+  /// reschedule** — two reschedules on the same day pick the same line, so the
+  /// dedupe in [_rescheduleNotifications] still holds and the platform channel
+  /// isn't churned — while rotating from one day to the next.
+  String _pickMotivation() {
+    final now = DateTime.now();
+    final epochDay = DateTime(now.year, now.month, now.day)
+        .difference(DateTime(2020))
+        .inDays;
+    final language =
+        _locale.locale.value?.languageCode ??
+        WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+    return pickWorkoutMotivation(seed: epochDay, languageCode: language);
+  }
+
   /// The live text a workout-synced reminder should carry: the active plan's
-  /// next-up day name, and a short list of its exercises. Empty when there is no
-  /// plan or no next day — a synced reminder then falls back to its own label.
-  ReminderContext _workoutContext(WorkoutPlan? plan) {
+  /// next-up day name and a short list of its exercises, plus the day's
+  /// [motivation] line for reminders in motivational mode. The day text is empty
+  /// when there is no plan or no next day (a synced reminder then falls back to
+  /// its own label), but [motivation] is still carried so a motivational
+  /// reminder shows encouragement even before a plan resolves.
+  ReminderContext _workoutContext(WorkoutPlan? plan, {String? motivation}) {
     final day = plan?.nextDay;
-    if (day == null) return ReminderContext.empty;
+    if (day == null) {
+      return ReminderContext(workoutMotivation: motivation);
+    }
     final names = [
       for (final e in (day.exercises.toList()
             ..sort((a, b) => a.order.compareTo(b.order))))
@@ -497,6 +529,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     return ReminderContext(
       workoutTitle: label.isEmpty ? null : label,
       workoutBody: body,
+      workoutMotivation: motivation,
     );
   }
 
