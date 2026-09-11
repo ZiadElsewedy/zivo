@@ -3044,6 +3044,72 @@ abstract class AppLocalizations {
   /// **'tap to drill in'**
   String get workoutTapToDrillIn;
 
+  /// Section label over the searchable, category-grouped exercise browser on the Analysis page.
+  ///
+  /// In en, this message translates to:
+  /// **'Exercises'**
+  String get workoutExercisesBrowse;
+
+  /// Placeholder in the exercise search field on the Analysis page.
+  ///
+  /// In en, this message translates to:
+  /// **'Search exercises'**
+  String get workoutSearchExercises;
+
+  /// Shown when the exercise search finds nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No exercises match “{query}”.'**
+  String workoutNoMatches(String query);
+
+  /// Caps count of movements beside a muscle-category header on the Analysis browser.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 MOVEMENT} other{{count} MOVEMENTS}}'**
+  String workoutExerciseCountCaps(int count);
+
+  /// Muscle-group category header on the Analysis browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Chest'**
+  String get workoutMuscleChest;
+
+  /// Muscle-group category header on the Analysis browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get workoutMuscleBack;
+
+  /// Muscle-group category header on the Analysis browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Legs'**
+  String get workoutMuscleLegs;
+
+  /// Muscle-group category header on the Analysis browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Shoulders'**
+  String get workoutMuscleShoulders;
+
+  /// Muscle-group category header on the Analysis browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Arms'**
+  String get workoutMuscleArms;
+
+  /// Muscle-group category header on the Analysis browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Core'**
+  String get workoutMuscleCore;
+
+  /// Fallback category header for exercises with no recognised muscle group.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get workoutMuscleOther;
+
   /// Caps label over the summary verdict card.
   ///
   /// In en, this message translates to:
@@ -5910,6 +5976,12 @@ abstract class AppLocalizations {
   /// **'Password updated. Sign in with your new password.'**
   String get authPasswordUpdatedSignIn;
 
+  /// Message on the sign-in screen after this device was signed out because the account became active on another device (single-device session enforcement).
+  ///
+  /// In en, this message translates to:
+  /// **'Your account was signed in on another device.'**
+  String get authSignedOutOtherDevice;
+
   /// Accessibility label on the reveal toggle of an obscured field.
   ///
   /// In en, this message translates to:
@@ -8729,6 +8801,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t save that setting.'**
   String get workoutSettingsSaveFailed;
+
+  /// Title of the reminders page and its row on the Settings page.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders'**
+  String get remindersTitle;
+
+  /// One-line explanation under the reminders page header.
+  ///
+  /// In en, this message translates to:
+  /// **'Get a notification when it\'s time to eat, train, or anything else you schedule.'**
+  String get remindersIntro;
+
+  /// Empty-state title when the user has no reminders.
+  ///
+  /// In en, this message translates to:
+  /// **'No reminders yet'**
+  String get remindersEmpty;
+
+  /// Empty-state body under remindersEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Add one to be reminded at the same time on the days you choose.'**
+  String get remindersEmptyBody;
+
+  /// Button that opens the sheet to create a new reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Add reminder'**
+  String get remindersAdd;
+
+  /// Title of the reminder sheet when creating a new one.
+  ///
+  /// In en, this message translates to:
+  /// **'New reminder'**
+  String get remindersNewTitle;
+
+  /// Title of the reminder sheet when editing an existing one.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit reminder'**
+  String get remindersEditTitle;
+
+  /// Hint text for the reminder name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Name (e.g. Breakfast, Leg day)'**
+  String get remindersLabelHint;
+
+  /// Reminder kind label: a meal reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Meal'**
+  String get remindersKindMeal;
+
+  /// Reminder kind label: a workout reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Workout'**
+  String get remindersKindWorkout;
+
+  /// Reminder kind label: a general reminder the user names themselves.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get remindersKindGeneral;
+
+  /// Label for the time picker in the reminder sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get remindersTimeLabel;
+
+  /// Label for the day-of-week chooser in the reminder sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat'**
+  String get remindersRepeatLabel;
+
+  /// Repeat value shown when a reminder fires on all seven days.
+  ///
+  /// In en, this message translates to:
+  /// **'Every day'**
+  String get remindersEveryDay;
+
+  /// Confirms and saves the reminder in the sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get remindersSave;
+
+  /// Deletes the reminder being edited.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete reminder'**
+  String get remindersDelete;
+
+  /// Confirmation prompt before deleting a reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this reminder?'**
+  String get remindersDeleteConfirm;
+
+  /// Toast when saving a reminder fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save that reminder.'**
+  String get remindersSaveFailed;
+
+  /// Note shown when the OS notification permission was denied.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on notifications for ZIVO in your phone\'s settings to get reminders.'**
+  String get remindersPermissionDenied;
+
+  /// Button on a meal reminder that loads the meal scheduled in the active diet plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync from your plan'**
+  String get remindersSyncFromPlan;
+
+  /// Toggle on a workout reminder that links it to the active workout plan so it shows the next scheduled workout.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync with my plan'**
+  String get remindersSyncWorkout;
+
+  /// Explanation under the workout-sync toggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows your next scheduled workout, and keeps it up to date.'**
+  String get remindersSyncWorkoutHint;
+
+  /// Title of the sheet that lists the meals in the plan to pick one for a reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Which meal?'**
+  String get remindersPickMeal;
+
+  /// Section label above the editable list of food items on a synced meal reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Items'**
+  String get remindersMealItems;
+
+  /// Hint on the field for adding a custom food item to a synced meal reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Add item'**
+  String get remindersAddItem;
+
+  /// Shown when a meal reminder is asked to sync but there is no active diet plan.
+  ///
+  /// In en, this message translates to:
+  /// **'No active meal plan to sync from.'**
+  String get remindersNoMealPlan;
+
+  /// Shown when a workout reminder is asked to sync but there is no active workout plan.
+  ///
+  /// In en, this message translates to:
+  /// **'No active workout plan to sync from.'**
+  String get remindersNoWorkoutPlan;
+
+  /// Small badge on a reminder row indicating it is linked to a plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Synced'**
+  String get remindersSyncedBadge;
 }
 
 class _AppLocalizationsDelegate

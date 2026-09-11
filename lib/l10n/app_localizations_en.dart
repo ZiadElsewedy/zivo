@@ -1698,6 +1698,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workoutTapToDrillIn => 'tap to drill in';
 
   @override
+  String get workoutExercisesBrowse => 'Exercises';
+
+  @override
+  String get workoutSearchExercises => 'Search exercises';
+
+  @override
+  String workoutNoMatches(String query) {
+    return 'No exercises match “$query”.';
+  }
+
+  @override
+  String workoutExerciseCountCaps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count MOVEMENTS',
+      one: '1 MOVEMENT',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutMuscleChest => 'Chest';
+
+  @override
+  String get workoutMuscleBack => 'Back';
+
+  @override
+  String get workoutMuscleLegs => 'Legs';
+
+  @override
+  String get workoutMuscleShoulders => 'Shoulders';
+
+  @override
+  String get workoutMuscleArms => 'Arms';
+
+  @override
+  String get workoutMuscleCore => 'Core';
+
+  @override
+  String get workoutMuscleOther => 'Other';
+
+  @override
   String get workoutOverallCaps => 'OVERALL';
 
   @override
@@ -3504,6 +3547,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Password updated. Sign in with your new password.';
 
   @override
+  String get authSignedOutOtherDevice =>
+      'Your account was signed in on another device.';
+
+  @override
   String authShowField(String label) {
     return 'Show $label';
   }
@@ -5268,4 +5315,92 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workoutSettingsSaveFailed => 'Couldn\'t save that setting.';
+
+  @override
+  String get remindersTitle => 'Reminders';
+
+  @override
+  String get remindersIntro =>
+      'Get a notification when it\'s time to eat, train, or anything else you schedule.';
+
+  @override
+  String get remindersEmpty => 'No reminders yet';
+
+  @override
+  String get remindersEmptyBody =>
+      'Add one to be reminded at the same time on the days you choose.';
+
+  @override
+  String get remindersAdd => 'Add reminder';
+
+  @override
+  String get remindersNewTitle => 'New reminder';
+
+  @override
+  String get remindersEditTitle => 'Edit reminder';
+
+  @override
+  String get remindersLabelHint => 'Name (e.g. Breakfast, Leg day)';
+
+  @override
+  String get remindersKindMeal => 'Meal';
+
+  @override
+  String get remindersKindWorkout => 'Workout';
+
+  @override
+  String get remindersKindGeneral => 'General';
+
+  @override
+  String get remindersTimeLabel => 'Time';
+
+  @override
+  String get remindersRepeatLabel => 'Repeat';
+
+  @override
+  String get remindersEveryDay => 'Every day';
+
+  @override
+  String get remindersSave => 'Save';
+
+  @override
+  String get remindersDelete => 'Delete reminder';
+
+  @override
+  String get remindersDeleteConfirm => 'Delete this reminder?';
+
+  @override
+  String get remindersSaveFailed => 'Couldn\'t save that reminder.';
+
+  @override
+  String get remindersPermissionDenied =>
+      'Turn on notifications for ZIVO in your phone\'s settings to get reminders.';
+
+  @override
+  String get remindersSyncFromPlan => 'Sync from your plan';
+
+  @override
+  String get remindersSyncWorkout => 'Sync with my plan';
+
+  @override
+  String get remindersSyncWorkoutHint =>
+      'Shows your next scheduled workout, and keeps it up to date.';
+
+  @override
+  String get remindersPickMeal => 'Which meal?';
+
+  @override
+  String get remindersMealItems => 'Items';
+
+  @override
+  String get remindersAddItem => 'Add item';
+
+  @override
+  String get remindersNoMealPlan => 'No active meal plan to sync from.';
+
+  @override
+  String get remindersNoWorkoutPlan => 'No active workout plan to sync from.';
+
+  @override
+  String get remindersSyncedBadge => 'Synced';
 }

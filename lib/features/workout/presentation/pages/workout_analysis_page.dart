@@ -14,10 +14,15 @@ import '../../domain/analytics/workout_analytics.dart';
 import '../../domain/live_session.dart';
 import '../../domain/training_volume.dart';
 import '../../domain/workout_plan.dart';
+import '../../../../core/widgets/zivo_field.dart';
 import '../widgets/progress_status_style.dart';
 import '../widgets/staggered_reveal.dart';
 import '../widgets/trend_chart.dart';
+import '../workout_labels.dart';
 import 'exercise_analysis_page.dart';
+import 'split_management_page.dart';
+import 'workout_history_page.dart';
+import 'workout_plan_page.dart';
 import '../../../../l10n/l10n.dart';
 
 /// The Analysis hub — a coaching dashboard, not one AI text block.
@@ -30,8 +35,25 @@ import '../../../../l10n/l10n.dart';
 /// skipped, and — reachable from every exercise row — the full per-exercise
 /// drill-down. Everything reads from real completed sessions; a verdict is only
 /// shown once there's enough history to mean it.
-class WorkoutAnalysisPage extends StatelessWidget {
+class WorkoutAnalysisPage extends StatefulWidget {
   const WorkoutAnalysisPage({super.key});
+
+  @override
+  State<WorkoutAnalysisPage> createState() => _WorkoutAnalysisPageState();
+}
+
+class _WorkoutAnalysisPageState extends State<WorkoutAnalysisPage> {
+  // The search box lives on the State, not inside the StreamBuilder's builder:
+  // the sessions stream rebuilds on every logged set, and a controller created
+  // in `build` would drop the query and the keyboard mid-type.
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,22 +82,23 @@ class WorkoutAnalysisPage extends StatelessWidget {
                 now: now,
               );
 
-              final declining = analysis.exercises
-                  .where((e) => e.status == ProgressStatus.regressing)
-                  .toList(growable: false);
-              final stalled = analysis.exercises
-                  .where((e) => e.status == ProgressStatus.plateauing)
-                  .toList(growable: false);
-
               var step = 60;
               Duration delay() => Duration(milliseconds: (step += 20));
 
               return ListView(
+                // The keyboard should give way to a scroll, not fight it — the
+                // one dismissal affordance a search-over-a-list screen needs.
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(
                     22, 12, 22, TrainBottomInset.of(context)),
                 children: [
                   RiseIn(child: TrainPageHeader(title: l(context).workoutAnalysis)),
                   const SizedBox(height: 20),
+                  // ---- The summary the page opens on: verdict, then the
+                  // three things worth surfacing above the fold (this week's
+                  // volume, recent wins, the one next move). Everything else
+                  // is browsable below, not stacked here.
                   RiseIn(
                     delay: const Duration(milliseconds: 40),
                     child: _OverallCard(analysis: analysis),
@@ -84,36 +107,39 @@ class WorkoutAnalysisPage extends StatelessWidget {
                     const SizedBox(height: 16),
                     const _EmptyHint(),
                   ] else ...[
+                    _Section(
+                      label: l(context).workoutTrainingVolume,
+                      delay: delay(),
+                      child: _VolumeCard(volume: analysis.volume),
+                    ),
                     if (analysis.recentPrs.isNotEmpty)
                       _Section(
                         label: l(context).workoutRecentPrs,
                         delay: delay(),
                         child: _RecentPrsCard(prs: analysis.recentPrs),
                       ),
-                    if (analysis.improving.isNotEmpty)
+                    if (analysis.nextStep != null)
                       _Section(
-                        label: l(context).workoutGoingWell,
-                        trailing: l(context).workoutImprovingCount(
-                          analysis.improving.length,
-                        ),
+                        label: l(context).workoutFocusNext,
                         delay: delay(),
-                        child: _ExerciseCard(exercises: analysis.improving),
+                        child: _NextStepCard(step: analysis.nextStep!),
                       ),
-                    if (declining.isNotEmpty)
+                    // ---- The browsable core: one searchable list grouped by
+                    // muscle category, each row carrying its own status colour.
+                    // Replaces the old going-well / getting-worse / stalled /
+                    // all-exercises stack, where the same movement appeared in
+                    // two lists at once.
+                    if (analysis.exercises.isNotEmpty)
                       _Section(
-                        label: l(context).workoutGettingWorse,
-                        trailing: l(context).workoutDecliningCount(
-                          declining.length,
+                        label: l(context).workoutExercisesBrowse,
+                        delay: delay(),
+                        child: _ExerciseBrowser(
+                          exercises: analysis.exercises,
+                          controller: _searchController,
+                          query: _query,
+                          onQueryChanged: (v) =>
+                              setState(() => _query = v.trim()),
                         ),
-                        delay: delay(),
-                        child: _ExerciseCard(exercises: declining),
-                      ),
-                    if (stalled.isNotEmpty)
-                      _Section(
-                        label: l(context).workoutStalled,
-                        trailing: l(context).workoutFlatCount(stalled.length),
-                        delay: delay(),
-                        child: _ExerciseCard(exercises: stalled),
                       ),
                     if (adherence.neglected.isNotEmpty)
                       _Section(
@@ -125,31 +151,189 @@ class WorkoutAnalysisPage extends StatelessWidget {
                         delay: delay(),
                         child: _SkippedCard(neglected: adherence.neglected),
                       ),
-                    if (analysis.nextStep != null)
-                      _Section(
-                        label: l(context).workoutFocusNext,
-                        delay: delay(),
-                        child: _NextStepCard(step: analysis.nextStep!),
-                      ),
-                    _Section(
-                      label: l(context).workoutTrainingVolume,
-                      delay: delay(),
-                      child: _VolumeCard(volume: analysis.volume),
-                    ),
-                    if (analysis.exercises.isNotEmpty)
-                      _Section(
-                        label: l(context).workoutAllExercises,
-                        trailing: l(context).workoutTapToDrillIn,
-                        delay: delay(),
-                        child: _ExerciseCard(exercises: analysis.exercises),
-                      ),
                   ],
+                  // ---- The deeper destinations, always reachable (even with
+                  // no history yet): the plan, the full log, and split
+                  // management. This is where those links live now that the
+                  // separate Progress landing is gone. Neutral marks — a
+                  // destination is not a status.
+                  _Section(
+                    label: l(context).workoutGoDeeper,
+                    delay: delay(),
+                    child: TrainListCard(
+                      rows: [
+                        TrainListRow(
+                          icon: AppIcons.planDoc,
+                          accent: TrainColors.ink2,
+                          label: l(context).workoutPlanShort,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const WorkoutPlanPage(),
+                            ),
+                          ),
+                        ),
+                        TrainListRow(
+                          icon: AppIcons.history,
+                          accent: TrainColors.ink2,
+                          label: l(context).workoutAllHistory,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const WorkoutHistoryPage(),
+                            ),
+                          ),
+                        ),
+                        TrainListRow(
+                          icon: AppIcons.splits,
+                          accent: TrainColors.ink2,
+                          label: l(context).workoutSplits,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const SplitManagementPage(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               );
             },
           );
         },
       ),
+    );
+  }
+}
+
+// ---- Exercise browser (search + muscle-category groups) -------------------
+
+/// The order the six major buckets read in — the way a coach lays a body out,
+/// push before pull before legs. `null`/unrecognised folds into "Other" last.
+const List<String> _muscleOrder = [
+  'Chest',
+  'Back',
+  'Legs',
+  'Shoulders',
+  'Arms',
+  'Core',
+];
+
+/// The searchable, category-grouped exercise list. Pure over the engine's
+/// [ExercisePerformance] list — grouping and filtering are presentation, no
+/// engine call. The query is owned by the page State (survives stream
+/// rebuilds); this widget only renders it and reports edits back.
+class _ExerciseBrowser extends StatelessWidget {
+  const _ExerciseBrowser({
+    required this.exercises,
+    required this.controller,
+    required this.query,
+    required this.onQueryChanged,
+  });
+
+  final List<ExercisePerformance> exercises;
+  final TextEditingController controller;
+  final String query;
+  final ValueChanged<String> onQueryChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final q = query.toLowerCase();
+    final filtered = q.isEmpty
+        ? exercises
+        : exercises
+            .where((e) => e.name.toLowerCase().contains(q))
+            .toList(growable: false);
+
+    // Group into the fixed bucket order, "Other" (null bucket) last, dropping
+    // any category the filter emptied.
+    final buckets = <String?, List<ExercisePerformance>>{};
+    for (final e in filtered) {
+      final key = _muscleOrder.contains(e.muscleGroup) ? e.muscleGroup : null;
+      (buckets[key] ??= []).add(e);
+    }
+    final orderedKeys = <String?>[
+      for (final m in _muscleOrder)
+        if (buckets.containsKey(m)) m,
+      if (buckets.containsKey(null)) null,
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: controller,
+          onChanged: onQueryChanged,
+          textInputAction: TextInputAction.search,
+          style: TrainType.ui(size: 15, color: TrainColors.ink),
+          cursorColor: TrainColors.green,
+          decoration: zivoFieldDecoration(
+            hintText: l(context).workoutSearchExercises,
+            accent: TrainColors.green,
+            fill: TrainColors.sectionFill,
+            prefixIcon: Icon(
+              AppIcons.search,
+              size: 18,
+              color: TrainColors.ink4,
+            ),
+          ),
+        ),
+        if (filtered.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 14),
+            child: Text(
+              l(context).workoutNoMatches(query),
+              style: AppText.meta.copyWith(color: TrainColors.ink4, height: 1.4),
+            ),
+          )
+        else
+          for (final key in orderedKeys) ...[
+            const SizedBox(height: 18),
+            _CategoryHeader(
+              label: muscleGroupLabel(context, key),
+              count: buckets[key]!.length,
+            ),
+            const SizedBox(height: 8),
+            _ExerciseCard(exercises: buckets[key]!),
+          ],
+      ],
+    );
+  }
+}
+
+/// A muscle-category sub-header — the localized bucket name, and a mono count
+/// of the movements under it. Neutral ink: the colour on this page belongs to
+/// status, and a category is not a status.
+class _CategoryHeader extends StatelessWidget {
+  const _CategoryHeader({required this.label, required this.count});
+
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(
+          label,
+          style: TrainType.ui(
+            size: 15,
+            weight: FontWeight.w700,
+            color: TrainColors.ink,
+            height: 1.1,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          l(context).workoutExerciseCountCaps(count),
+          style: TrainType.caption(
+            size: 8.5,
+            tracking: 0.14,
+            color: TrainColors.ink4,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -434,9 +618,10 @@ class _ExerciseRow extends StatelessWidget {
                 child: TrendChart(
                   values: [for (final v in ex.e1rmSeries) v],
                   height: 30,
-                  color: ex.status == ProgressStatus.regressing
-                      ? TrainColors.ember
-                      : TrainColors.green,
+                  // The line takes the row's own status colour — the same
+                  // green/amber/ember the label carries — so a glance down the
+                  // list reads as a column of verdicts, not decoration.
+                  color: style.color,
                 ),
               ),
             ],
@@ -555,20 +740,19 @@ class _VolumeCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         child: Row(
           children: [
+            // Neutral mark: this card's meaning is carried by the delta text's
+            // colour below, not by the icon. Green here would just be more of
+            // the wallpaper that drowns the status green out.
             Container(
               width: 34,
               height: 34,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    TrainColors.green.withValues(alpha: 0.28),
-                    TrainColors.green.withValues(alpha: 0.10),
-                  ],
-                ),
+                color: TrainColors.glass,
                 borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: TrainColors.hairline),
               ),
-              child: Icon(AppIcons.workout, size: 17, color: TrainColors.green),
+              child: Icon(AppIcons.workout, size: 17, color: TrainColors.ink2),
             ),
             const SizedBox(width: 13),
             Expanded(
@@ -630,22 +814,25 @@ class _NextStepCard extends StatelessWidget {
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.all(18),
+            // Ember, not green: the design system reserves ember for Now/Next
+            // and the single primary action, and "what to do next" is exactly
+            // that. It also keeps green meaning only "progressing" on this page.
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  TrainColors.green.withValues(alpha: 0.12),
-                  TrainColors.green.withValues(alpha: 0.03),
+                  TrainColors.ember.withValues(alpha: 0.12),
+                  TrainColors.ember.withValues(alpha: 0.03),
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: TrainColors.green.withValues(alpha: 0.16)),
+              border: Border.all(color: TrainColors.ember.withValues(alpha: 0.16)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(AppIcons.bolt, size: 18, color: TrainColors.green),
+                Icon(AppIcons.bolt, size: 18, color: TrainColors.ember),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -657,7 +844,7 @@ class _NextStepCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                Icon(AppIcons.chevron, size: 16, color: TrainColors.green),
+                Icon(AppIcons.chevron, size: 16, color: TrainColors.ember),
               ],
             ),
           ),
@@ -714,7 +901,7 @@ class _EmptyHint extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(AppIcons.analysis, size: 22, color: TrainColors.green),
+            Icon(AppIcons.analysis, size: 22, color: TrainColors.ink2),
             const SizedBox(height: 12),
             Text(
               l(context).workoutAnalysisEmptyTitle,

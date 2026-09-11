@@ -52,10 +52,11 @@ class FakeProfileRepository implements ProfileRepository {
     required String uid,
     required String name,
     required DateTime dateOfBirth,
+    String? photoUrl,
     String? photoPath,
     String? bio,
   }) async {
-    final saved = UserProfile(uid: uid, name: name, dateOfBirth: dateOfBirth, photoPath: photoPath, bio: bio);
+    final saved = UserProfile(uid: uid, name: name, dateOfBirth: dateOfBirth, photoUrl: photoUrl, photoPath: photoPath, bio: bio);
     lastSaved = saved;
     if (saveProfileError != null) throw saveProfileError!;
     setProfile(saved);

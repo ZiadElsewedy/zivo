@@ -15,6 +15,7 @@ import 'package:zivo/features/auth/domain/auth_state.dart';
 import 'package:zivo/features/auth/domain/auth_user.dart';
 import 'package:zivo/features/music/data/fake_music_controller.dart';
 
+import 'support/fake_device_session.dart';
 import 'support/fake_auth_repository.dart';
 import 'support/fake_profile_repository.dart';
 
@@ -37,6 +38,7 @@ void main() {
       sleep: InMemorySleepRepository(),
       sleepSource: const UnsupportedSleepSource(),
       auth: FakeAuthRepository(initial: const Authenticated(user)),
+      deviceSession: fakeDeviceSessionGuard(),
       profiles: FakeProfileRepository(),
       music: FakeMusicController(),
     ),

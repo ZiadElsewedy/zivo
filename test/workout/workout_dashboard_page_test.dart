@@ -213,16 +213,16 @@ void main() {
       expect(find.text('Push Pull Legs'), findsNothing); // split breakdown card
       expect(find.text('Completed'), findsNothing); // recent-activity row
 
-      // One calm AppBar action, and none of the old per-destination icons.
-      expect(find.byTooltip('Progress'), findsOneWidget);
-      expect(find.byTooltip('Analysis'), findsNothing);
+      // One calm, labelled header action, and none of the old per-destination
+      // icons. The action is a text pill now, not a bare icon circle.
+      expect(find.text('Analysis'), findsOneWidget);
       expect(find.byTooltip('Splits'), findsNothing);
       expect(find.byTooltip('History'), findsNothing);
       expect(find.byTooltip('Plan'), findsNothing);
     },
   );
 
-  testWidgets('the AppBar Progress action opens the Progress screen with the moved sections', (
+  testWidgets('the header Analysis action opens the Analysis page with its deeper destinations', (
     tester,
   ) async {
     _useTallViewport(tester);
@@ -241,80 +241,20 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byTooltip('Progress'));
+    await tester.tap(find.text('Analysis'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350)); // let the push transition finish
 
-    // Every section that left the landing is here, on the same live data.
-    expect(find.text('CURRENT SPLIT'), findsOneWidget);
-    expect(find.text('RECENT ACTIVITY'), findsOneWidget);
-    expect(find.text('Push Pull Legs'), findsOneWidget);
-    // The split breakdown renders each training day as its own row (the
-    // label also appears in the recent-activity row and the analysis teaser).
-    expect(find.text('Push'), findsWidgets);
-    expect(find.text('Completed'), findsOneWidget); // recent-activity row
-
-    // No destination was lost in the move.
-    expect(find.text('Full analysis'), findsOneWidget);
+    // The pill lands straight on Analysis, and its "Go deeper" card carries the
+    // Plan/History/Splits destinations that used to live on the retired
+    // Progress landing — nothing was lost in the move.
+    expect(find.text('GO DEEPER'), findsOneWidget);
+    expect(find.text('Plan'), findsOneWidget);
     expect(find.text('All history'), findsOneWidget);
     expect(find.text('Splits'), findsOneWidget);
   });
 
-  testWidgets('from the Progress screen, a recent session row opens its Session details', (
-    tester,
-  ) async {
-    _useTallViewport(tester);
-    final plans = InMemoryWorkoutPlanRepository();
-    addTearDown(plans.dispose);
-    await plans.savePlan(_plan());
-    final sessions = InMemoryWorkoutSessionRepository();
-    await sessions.saveSession(
-      _completedSession(id: 's1', startedAt: DateTime.now().subtract(const Duration(hours: 2))),
-    );
-    final bodyWeight = InMemoryBodyWeightRepository();
-    addTearDown(bodyWeight.dispose);
-
-    await tester.pumpWidget(
-      _wrap(child: const WorkoutDashboardPage(), plans: plans, sessions: sessions, bodyWeight: bodyWeight),
-    );
-    await tester.pump();
-
-    await tester.tap(find.byTooltip('Progress'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 350));
-
-    await tester.tap(find.text('Completed'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Session details'), findsOneWidget); // SessionDetailsPage's own AppBar title
-  });
-
-  testWidgets('from the Progress screen, Full analysis opens WorkoutAnalysisPage', (tester) async {
-    _useTallViewport(tester);
-    final plans = InMemoryWorkoutPlanRepository();
-    addTearDown(plans.dispose);
-    await plans.savePlan(_plan());
-    final sessions = InMemoryWorkoutSessionRepository();
-    final bodyWeight = InMemoryBodyWeightRepository();
-    addTearDown(bodyWeight.dispose);
-
-    await tester.pumpWidget(
-      _wrap(child: const WorkoutDashboardPage(), plans: plans, sessions: sessions, bodyWeight: bodyWeight),
-    );
-    await tester.pump();
-
-    await tester.tap(find.byTooltip('Progress'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 350));
-
-    await tester.tap(find.text('Full analysis'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 350));
-
-    expect(find.text('Analysis'), findsOneWidget); // WorkoutAnalysisPage's own AppBar title
-  });
-
-  testWidgets('from the Progress screen, the current split card opens Split Management', (
+  testWidgets('from Analysis, the Splits destination opens Split Management', (
     tester,
   ) async {
     _useTallViewport(tester);
@@ -330,15 +270,15 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byTooltip('Progress'));
+    await tester.tap(find.text('Analysis'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
 
-    await tester.tap(find.text('Push Pull Legs'));
+    await tester.tap(find.text('Splits'));
     await tester.pumpAndSettle();
 
-    // Split Management's own AppBar title — the "Splits" destination row is
-    // gone from the tree now that we've navigated away from Progress.
+    // Split Management's own AppBar title — the Analysis "Splits" destination
+    // row is gone from the tree now that we've navigated onto it.
     expect(find.text('Splits'), findsOneWidget);
   });
 

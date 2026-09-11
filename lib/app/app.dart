@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -29,13 +30,18 @@ import '../features/ai/data/audio_recorder.dart';
 import '../features/ai/data/fake_ai_repository.dart';
 import '../features/ai/data/firebase_ai_repository.dart';
 import '../features/ai/domain/ai_repository.dart';
+import '../features/auth/data/device_session_guard.dart';
 import '../features/auth/data/firebase_auth_repository.dart';
 import '../features/auth/data/firestore_auth_activity_repository.dart';
+import '../features/auth/data/firestore_device_session_repository.dart';
+import '../features/auth/data/in_memory_device_session_repository.dart';
+import '../features/profile/data/firebase_avatar_storage.dart';
 import '../features/profile/data/firestore_profile_repository.dart';
 import '../features/auth/data/noop_auth_activity_repository.dart';
 import '../features/auth/domain/auth_activity_repository.dart';
 import '../features/auth/domain/auth_repository.dart';
 import '../features/auth/domain/auth_state.dart';
+import '../features/profile/domain/avatar_storage.dart';
 import '../features/profile/domain/profile_repository.dart';
 import '../features/auth/presentation/auth_gate.dart';
 import '../features/diet/data/firestore_diet_repository.dart';
@@ -51,6 +57,14 @@ import '../features/sleep/data/in_memory_sleep_repository.dart';
 import '../features/sleep/domain/sleep_repository.dart';
 import '../features/sleep/domain/sleep_service.dart';
 import '../features/sleep/domain/sleep_source.dart';
+import '../features/reminders/data/firestore_reminders_repository.dart';
+import '../features/reminders/data/in_memory_reminders_repository.dart';
+import '../features/reminders/data/local_notification_scheduler.dart';
+import '../features/reminders/domain/notification_scheduler.dart';
+import '../features/reminders/domain/reminder.dart';
+import '../features/reminders/domain/reminder_sync.dart';
+import '../features/reminders/domain/reminders_repository.dart';
+import '../features/workout/domain/workout_plan.dart';
 import '../features/expenses/data/firestore_category_repository.dart';
 import '../features/expenses/data/firestore_expense_repository.dart';
 import '../features/expenses/data/firestore_wallet_repository.dart';
@@ -106,12 +120,16 @@ final bool _useFirestore = AppEnvironment.useFirestore;
 class ZivoApp extends StatefulWidget {
   const ZivoApp({
     this.auth,
+    this.deviceSession,
     this.profiles,
+    this.avatarStorage,
     this.activity,
     this.expenses,
     this.stepCounter,
     this.sleep,
     this.sleepSource,
+    this.reminders,
+    this.notifications,
     this.wallet,
     this.expenseCategories,
     this.moments,
@@ -134,7 +152,9 @@ class ZivoApp extends StatefulWidget {
   });
 
   final AuthRepository? auth;
+  final DeviceSessionGuard? deviceSession;
   final ProfileRepository? profiles;
+  final AvatarStorage? avatarStorage;
   final AuthActivityRepository? activity;
   final ExpenseRepository? expenses;
   final WalletRepository? wallet;
@@ -161,6 +181,13 @@ class ZivoApp extends StatefulWidget {
   /// Overridable so tests can drive Sleep without HealthKit / Health Connect.
   final SleepSource? sleepSource;
 
+  /// Overridable so tests can drive Reminders without Firestore.
+  final RemindersRepository? reminders;
+
+  /// Overridable so app-boot tests inject a no-op scheduler instead of the real
+  /// `flutter_local_notifications` one, which reaches a platform channel.
+  final NotificationScheduler? notifications;
+
   final MediaService? media;
   final MediaPreferencesRepository? mediaPreferences;
   final MusicController? music;
@@ -180,8 +207,25 @@ class ZivoApp extends StatefulWidget {
 class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   late final AuthRepository _auth =
       widget.auth ?? FirebaseAuthRepository(activityRepository: _activity);
+
+  /// Enforces one-account-one-active-device (see [DeviceSessionGuard]). Driven
+  /// by [_authSub] below: it claims + watches the account on sign-in/restore and
+  /// signs this device out if the account is later claimed elsewhere.
+  late final DeviceSessionGuard _deviceSession =
+      widget.deviceSession ??
+      DeviceSessionGuard(
+        authRepository: _auth,
+        repository: _useFirestore
+            ? FirestoreDeviceSessionRepository()
+            : InMemoryDeviceSessionRepository(),
+      );
   late final ProfileRepository _profiles =
       widget.profiles ?? FirestoreProfileRepository();
+  // The avatar lives in Firebase Storage (ADR-014). Constructed lazily like
+  // the profile repo — Firebase core is already initialized wherever a real
+  // backend is used; tests inject a fake.
+  late final AvatarStorage _avatarStorage =
+      widget.avatarStorage ?? FirebaseAvatarStorage();
   // Auth bookkeeping (account metadata + event log) follows the Firestore
   // flag: a real recorder against the live backend, a silent no-op offline.
   late final AuthActivityRepository _activity =
@@ -256,6 +300,27 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     source: _sleepSource,
   );
 
+  late final RemindersRepository _reminders =
+      widget.reminders ?? _defaultReminders();
+
+  /// The local-notification scheduler. Real on a Firestore run, a no-op
+  /// otherwise (and in tests) so booting the app never touches a platform
+  /// channel. Kept in sync with [_reminders] by [_remindersSub].
+  late final NotificationScheduler _notifications =
+      widget.notifications ?? _defaultNotifications();
+
+  StreamSubscription<List<Reminder>>? _remindersSub;
+  StreamSubscription<WorkoutPlan?>? _workoutPlanSub;
+
+  // The latest of each input the notification schedule is derived from, plus the
+  // last (reminders, context) pair actually pushed to the OS — so an unrelated
+  // plan write (or a plan change no synced reminder depends on) is deduped out
+  // instead of churning the platform channel (cancelAll + N zonedSchedule).
+  List<Reminder> _latestReminders = const [];
+  WorkoutPlan? _latestPlan;
+  List<Reminder>? _lastScheduledReminders;
+  ReminderContext? _lastScheduledContext;
+
   // Media is local-first: the byte store is always the on-device documents
   // directory, independent of the Firestore flag. Only the *metadata* registry
   // and per-account preferences follow [_useFirestore].
@@ -297,8 +362,30 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     if (widget.locale == null) _locale.load();
     if (widget.theme == null) _theme.load();
+    // Keep the OS's scheduled notifications an exact mirror of the stored
+    // reminders: init once, then reschedule on every change — including the
+    // re-scope to `[]` on sign-out and to the account's reminders on sign-in.
+    // The OS holds scheduled notifications across launches, so no per-resume
+    // work is needed (unlike the sleep/session sweeps below).
+    unawaited(_notifications.init());
+    _remindersSub = _reminders.watch().listen((list) {
+      _latestReminders = list;
+      _rescheduleNotifications();
+    });
+    // A workout-synced reminder shows the *current* next-up day, which changes as
+    // the rotation advances, so the schedule also has to follow the active plan —
+    // not just the stored reminders. The dedupe in [_rescheduleNotifications]
+    // makes this cheap: with no workout-synced reminder, plan changes resolve to
+    // the same empty context and are skipped.
+    _workoutPlanSub = _workoutPlans.watchActivePlan().listen((plan) {
+      _latestPlan = plan;
+      _rescheduleNotifications();
+    });
     _authSub = _auth.watchAuthState().listen((_) {
       final uid = _auth.currentUser?.uid;
+      // Single-device enforcement: claim + watch on sign-in/restore, tear down
+      // on sign-out. Idempotent across the stream's re-emissions.
+      _deviceSession.handleAuthChange(uid);
       if (_prevUid != null && _prevUid != uid) {
         // disconnectBackup also drops the read-side resolution caches, which
         // are keyed by ref alone and would otherwise serve the previous
@@ -368,10 +455,59 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   void _sweepStaleSessions() =>
       unawaited(_sessionMaintenance.sweep(now: DateTime.now()));
 
+  /// Rebuild the OS notification schedule from the latest reminders and active
+  /// plan, skipping the platform call when neither the reminders nor the resolved
+  /// [ReminderContext] changed since the last push (see the fields above).
+  void _rescheduleNotifications() {
+    final needsPlan = _latestReminders.any(
+      (r) => r.enabled && r.sync is WorkoutSync,
+    );
+    final context = needsPlan
+        ? _workoutContext(_latestPlan)
+        : ReminderContext.empty;
+    if (_lastScheduledReminders != null &&
+        listEquals(_lastScheduledReminders, _latestReminders) &&
+        _lastScheduledContext == context) {
+      return;
+    }
+    _lastScheduledReminders = _latestReminders;
+    _lastScheduledContext = context;
+    unawaited(_notifications.reschedule(_latestReminders, context: context));
+  }
+
+  /// The live text a workout-synced reminder should carry: the active plan's
+  /// next-up day name, and a short list of its exercises. Empty when there is no
+  /// plan or no next day — a synced reminder then falls back to its own label.
+  ReminderContext _workoutContext(WorkoutPlan? plan) {
+    final day = plan?.nextDay;
+    if (day == null) return ReminderContext.empty;
+    final names = [
+      for (final e in (day.exercises.toList()
+            ..sort((a, b) => a.order.compareTo(b.order))))
+        if (e.name.trim().isNotEmpty) e.name.trim(),
+    ];
+    const maxNames = 3;
+    String? body;
+    if (names.length <= maxNames) {
+      body = names.isEmpty ? null : names.join(' · ');
+    } else {
+      body = '${names.take(maxNames).join(' · ')} +${names.length - maxNames}';
+    }
+    final label = day.label.trim();
+    return ReminderContext(
+      workoutTitle: label.isEmpty ? null : label,
+      workoutBody: body,
+    );
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _authSub?.cancel();
+    _remindersSub?.cancel();
+    _workoutPlanSub?.cancel();
+    // Only when we own it (the default) — a test-supplied guard stays theirs.
+    if (widget.deviceSession == null) _deviceSession.dispose();
     // Only when we own it (the default) — a caller-supplied controller
     // (a test passing its own fake) stays theirs to dispose.
     if (widget.music == null) _music.dispose();
@@ -383,6 +519,15 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   WorkoutSettingsRepository _defaultWorkoutSettings() => _useFirestore
       ? FirestoreWorkoutSettingsRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryWorkoutSettingsRepository();
+
+  RemindersRepository _defaultReminders() => _useFirestore
+      ? FirestoreRemindersRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryRemindersRepository();
+
+  // Real scheduler only on a Firestore (device) run; offline/dev and tests get
+  // the no-op so nothing reaches a platform channel.
+  NotificationScheduler _defaultNotifications() =>
+      _useFirestore ? LocalNotificationScheduler() : NoOpNotificationScheduler();
 
   TrainingDayMarkRepository _defaultTrainingDayMarks() => _useFirestore
       ? FirestoreTrainingDayMarkRepository(uidSource: UidSource.firebaseAuth())
@@ -471,7 +616,9 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return AppScope(
       auth: _auth,
+      deviceSession: _deviceSession,
       profiles: _profiles,
+      avatarStorage: _avatarStorage,
       activity: _activity,
       expenses: _expenses,
       wallet: _wallet,
@@ -491,6 +638,8 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       stepCounter: _stepCounter,
       sleep: _sleep,
       sleepService: _sleepService,
+      reminders: _reminders,
+      notifications: _notifications,
       media: _media,
       music: _music,
       locale: _locale,

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
@@ -6,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../../core/media/domain/media_kind.dart';
 import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
@@ -63,6 +63,7 @@ class ProfilePage extends StatelessWidget {
       uid: profile.uid,
       name: name,
       dateOfBirth: profile.dateOfBirth,
+      photoUrl: profile.photoUrl,
       photoPath: profile.photoPath,
       bio: profile.bio,
     );
@@ -75,6 +76,7 @@ class ProfilePage extends StatelessWidget {
       uid: profile.uid,
       name: profile.name,
       dateOfBirth: picked,
+      photoUrl: profile.photoUrl,
       photoPath: profile.photoPath,
       bio: profile.bio,
     );
@@ -90,7 +92,7 @@ class ProfilePage extends StatelessWidget {
             onPressed: () => Navigator.pop(sheetContext, _PhotoAction.choose),
             child: Text(l(context).profileChoosePhoto),
           ),
-          if (profile.photoPath != null)
+          if (profile.photoUrl != null || profile.photoPath != null)
             CupertinoActionSheetAction(
               isDestructiveAction: true,
               onPressed: () => Navigator.pop(sheetContext, _PhotoAction.remove),
@@ -121,37 +123,46 @@ class ProfilePage extends StatelessWidget {
       // blind cover-cropping of a rectangle. Backing out cancels the change.
       final cropped = await _cropAvatar(strings, picked.path);
       if (cropped == null || !context.mounted) return;
-      // Route the avatar through the media pipeline: durable local copy +
-      // registry entry + any enabled backup targets. Returns the store
-      // reference persisted on the profile (relative, so it survives reinstalls
-      // that would strand an absolute path on iOS).
-      final media = AppScope.of(context).requireMedia;
-      final savedPath = await media.capture(
-        sourcePath: cropped.path,
-        kind: MediaKind.avatar,
-        id: profile.uid,
-        ownerUid: profile.uid,
-      );
-      if (!context.mounted) return;
-      await AppScope.of(context).profiles.saveProfile(
-        uid: profile.uid,
-        name: profile.name,
-        dateOfBirth: profile.dateOfBirth,
-        photoPath: savedPath,
-        bio: profile.bio,
-      );
-    } else {
+      // Upload the avatar bytes to Firebase Storage and persist only the
+      // resulting URL. The avatar is identity, not a bulk moment: it must show
+      // up on every device the profile syncs to, without the user connecting
+      // Google Drive there — so it does NOT go through the local/Drive media
+      // pipeline (see ADR-014).
       final scope = AppScope.of(context);
       final oldPath = profile.photoPath;
+      final photoUrl = await scope.requireAvatarStorage.upload(
+        uid: profile.uid,
+        file: File(cropped.path),
+      );
+      if (!context.mounted) return;
       await scope.profiles.saveProfile(
         uid: profile.uid,
         name: profile.name,
         dateOfBirth: profile.dateOfBirth,
+        photoUrl: photoUrl,
+        // The new avatar supersedes any legacy media-pipeline copy.
         photoPath: null,
         bio: profile.bio,
       );
+      // Clean up the legacy local/Drive copy this photo replaces, if any.
       if (oldPath != null) {
-        // Best-effort: remove the local file and its registry entry.
+        await scope.requireMedia.deleteMedia(id: profile.uid, ref: oldPath);
+      }
+    } else {
+      final scope = AppScope.of(context);
+      final oldPath = profile.photoPath;
+      final hadUrl = profile.photoUrl != null;
+      await scope.profiles.saveProfile(
+        uid: profile.uid,
+        name: profile.name,
+        dateOfBirth: profile.dateOfBirth,
+        photoUrl: null,
+        photoPath: null,
+        bio: profile.bio,
+      );
+      // Best-effort cleanup of wherever the removed avatar lived.
+      if (hadUrl) await scope.requireAvatarStorage.remove(profile.uid);
+      if (oldPath != null) {
         await scope.requireMedia.deleteMedia(id: profile.uid, ref: oldPath);
       }
     }
@@ -276,6 +287,7 @@ class ProfilePage extends StatelessWidget {
                             uid: profile.uid,
                             name: profile.name,
                             dateOfBirth: profile.dateOfBirth,
+                            photoUrl: profile.photoUrl,
                             photoPath: profile.photoPath,
                             bio: bio,
                           ),
@@ -433,6 +445,7 @@ class _ProfileHeader extends StatelessWidget {
       children: [
         _Avatar(
           name: _name(context),
+          photoUrl: profile?.photoUrl,
           photoPath: profile?.photoPath,
           onTap: onTapAvatar,
           completeness: _profileCompleteness(user, profile),
@@ -501,7 +514,7 @@ double _profileCompleteness(AuthUser user, UserProfile? profile) {
   var filled = user.isEmailVerified ? 1 : 0;
   if (profile != null) {
     if (profile.name.trim().isNotEmpty) filled++;
-    if (profile.photoPath != null) filled++;
+    if (profile.photoUrl != null || profile.photoPath != null) filled++;
     if ((profile.bio ?? '').trim().isNotEmpty) filled++;
     // A default-constructed profile carries today's date; treat a DOB that
     // isn't plausibly a birthday as unset rather than claiming credit for it.
@@ -611,12 +624,20 @@ int? _monthsSince(DateTime? since) {
 class _Avatar extends StatelessWidget {
   const _Avatar({
     required this.name,
+    required this.photoUrl,
     required this.photoPath,
     required this.onTap,
     required this.completeness,
   });
 
   final String name;
+
+  /// The Firebase Storage avatar URL — the current mechanism, preferred over
+  /// [photoPath] when present.
+  final String? photoUrl;
+
+  /// The legacy local/Drive media-pipeline reference, still rendered on a
+  /// device that holds it when there is no [photoUrl].
   final String? photoPath;
   final VoidCallback? onTap;
 
@@ -642,12 +663,8 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final path = photoPath;
-
     // The monogram is the base layer; when a stored photo resolves it covers
-    // the circle. Resolution is async (the media store maps the ref to a file),
-    // so we can't decide sync — the disc stays behind and the photo, when
-    // present, paints over it. A missing/stale ref falls back to the monogram.
+    // the circle. A missing/stale/failed avatar falls back to the monogram.
     final monogram = Text(
       _initials,
       style: TrainType.ui(
@@ -657,6 +674,31 @@ class _Avatar extends StatelessWidget {
         height: 1,
       ),
     );
+
+    // Prefer the Firebase Storage URL (syncs to every device); fall back to a
+    // legacy media-pipeline ref for users who still have one locally.
+    final Widget avatar;
+    if (photoUrl != null) {
+      avatar = Image.network(
+        photoUrl!,
+        fit: BoxFit.cover,
+        // While the bytes download, and if the load fails (offline, deleted),
+        // show the monogram rather than a broken-image glyph.
+        loadingBuilder: (context, child, progress) =>
+            progress == null ? child : Center(child: monogram),
+        errorBuilder: (context, _, _) => Center(child: monogram),
+      );
+    } else if (photoPath != null) {
+      avatar = MediaImage(
+        service: AppScope.of(context).requireMedia,
+        ref: photoPath,
+        fit: BoxFit.cover,
+        placeholder: Center(child: monogram),
+      );
+    } else {
+      avatar = monogram;
+    }
+
     final disc = Container(
       width: _size - _inset * 2,
       height: _size - _inset * 2,
@@ -666,16 +708,9 @@ class _Avatar extends StatelessWidget {
         shape: BoxShape.circle,
         color: TrainColors.glassStrong,
       ),
-      child: path == null
+      child: (photoUrl == null && photoPath == null)
           ? monogram
-          : SizedBox.expand(
-              child: MediaImage(
-                service: AppScope.of(context).requireMedia,
-                ref: path,
-                fit: BoxFit.cover,
-                placeholder: Center(child: monogram),
-              ),
-            ),
+          : SizedBox.expand(child: avatar),
     );
 
     return PressableScale(

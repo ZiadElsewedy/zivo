@@ -39,7 +39,8 @@ import '../../../../l10n/l10n.dart';
 /// This was the last workout screen on a Material `AppBar`, and it carried
 /// **three** trailing icon actions where [TrainPageHeader] carries one. That
 /// toolbar was also duplicate navigation: Splits, Analysis and History are all
-/// offered by [WorkoutProgressPage], the only page that pushes this one. They
+/// offered by [WorkoutAnalysisPage], which pushes this one via its "Go deeper"
+/// card. They
 /// keep their place here — as labelled rows at the foot of the scroll, which
 /// is the house drill-down pattern and the only version of them that says what
 /// the icons meant — and the header's single action is the plan editor the

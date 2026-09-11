@@ -23,6 +23,16 @@
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
 
+    <!-- Local reminders (lib/features/reminders, flutter_local_notifications).
+         POST_NOTIFICATIONS is the Android 13+ runtime grant, requested from the
+         Reminders page. RECEIVE_BOOT_COMPLETED lets the boot receiver below
+         re-arm scheduled reminders after a restart. Deliberately NO
+         SCHEDULE_EXACT_ALARM: scheduling is inexact (AndroidScheduleMode.
+         inexactAllowWhileIdle), so a meal/workout nudge needs no special-access
+         grant. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Health Connect resolves this to decide which apps can request health
          permissions at all; on Android 13 and below it also needs the
          queries entry so the client can see the Health Connect APK. -->
@@ -77,6 +87,22 @@
                 <data android:scheme="zivo" android:host="spotify-callback"/>
             </intent-filter>
         </activity>
+        <!-- flutter_local_notifications: the receiver that posts a scheduled
+             reminder, and the boot receiver that re-arms all scheduled
+             reminders after a device restart or app update. -->
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
         <!-- image_cropper (uCrop) — the native Android crop/rotate activity. -->
         <activity
             android:name="com.yalantis.ucrop.UCropActivity"

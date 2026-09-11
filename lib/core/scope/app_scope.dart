@@ -5,9 +5,13 @@ import '../theme/theme_controller.dart';
 import '../media/media_service.dart';
 import '../../features/ai/data/audio_recorder.dart';
 import '../../features/ai/domain/ai_repository.dart';
+import '../../features/auth/data/device_session_guard.dart';
 import '../../features/auth/domain/auth_activity_repository.dart';
 import '../../features/auth/domain/auth_repository.dart';
+import '../../features/profile/domain/avatar_storage.dart';
 import '../../features/profile/domain/profile_repository.dart';
+import '../../features/reminders/domain/notification_scheduler.dart';
+import '../../features/reminders/domain/reminders_repository.dart';
 import '../../features/sleep/domain/sleep_repository.dart';
 import '../../features/sleep/domain/sleep_service.dart';
 import '../../features/diet/domain/diet_repository.dart';
@@ -35,7 +39,9 @@ import '../../features/workout/domain/workout_settings_repository.dart';
 class AppScope extends InheritedWidget {
   const AppScope({
     required this.auth,
+    this.deviceSession,
     required this.profiles,
+    this.avatarStorage,
     this.activity,
     required this.expenses,
     this.wallet,
@@ -55,6 +61,8 @@ class AppScope extends InheritedWidget {
     this.stepCounter,
     this.sleep,
     this.sleepService,
+    this.reminders,
+    this.notifications,
     this.media,
     this.music,
     this.locale,
@@ -67,8 +75,24 @@ class AppScope extends InheritedWidget {
   /// identity (and the future Firestore ownership key).
   final AuthRepository auth;
 
+  /// Enforces one-account-one-active-device: it raises
+  /// [DeviceSessionGuard.signedOutElsewhere] when this device was signed out
+  /// because the account was claimed on another. Optional so the many widget
+  /// tests that never authenticate can omit it; production always wires one.
+  /// The login page reads it to explain the forced sign-out.
+  final DeviceSessionGuard? deviceSession;
+
   /// Persists the signed-in user's [UserProfile] (`users/{uid}` in Firestore).
   final ProfileRepository profiles;
+
+  /// Stores the profile avatar bytes in Firebase Storage (`avatars/{uid}`) and
+  /// returns the download URL persisted on the profile. Deliberately separate
+  /// from the [media] pipeline: the avatar is identity that must sync to every
+  /// device without a Google Drive connection, not a bulk moment (ADR-014).
+  /// Optional for the same reason [media] is — many widget tests never change
+  /// the avatar. Read it through [requireAvatarStorage] from the profile page;
+  /// production always wires one.
+  final AvatarStorage? avatarStorage;
 
   /// Records authentication activity (account metadata + the event log) for
   /// each successful sign-in/out. Optional so widget tests that never touch
@@ -152,6 +176,18 @@ class AppScope extends InheritedWidget {
   /// neither. Read it through [requireSleepService].
   final SleepService? sleepService;
 
+  /// The account's local reminders (meal/workout/activity notifications the
+  /// user set up). Optional for the same reason [workoutSettings] is: the many
+  /// widget tests that never open the Reminders page keep constructing a scope
+  /// without it. Production always wires one.
+  final RemindersRepository? reminders;
+
+  /// The local-notification scheduler behind the reminders feature — the seam
+  /// the Reminders page asks to request OS notification permission. Optional
+  /// for the same reason [reminders] is; production always wires one (a no-op
+  /// off Firestore).
+  final NotificationScheduler? notifications;
+
   /// The sleep repository, asserting it was provided. Use from the Sleep page
   /// and Today's sleep glance — production always wires it.
   SleepRepository get requireSleep {
@@ -194,6 +230,16 @@ class AppScope extends InheritedWidget {
   MediaService get requireMedia {
     assert(media != null, 'AppScope.media was not provided to this scope');
     return media!;
+  }
+
+  /// The avatar storage, asserting it was provided. Use from the profile page
+  /// when changing/removing the photo — production always wires it.
+  AvatarStorage get requireAvatarStorage {
+    assert(
+      avatarStorage != null,
+      'AppScope.avatarStorage was not provided to this scope',
+    );
+    return avatarStorage!;
   }
 
   /// The music/now-playing seam — a `FakeMusicController` by default, a real
@@ -313,7 +359,9 @@ class AppScope extends InheritedWidget {
   @override
   bool updateShouldNotify(AppScope oldWidget) =>
       auth != oldWidget.auth ||
+      deviceSession != oldWidget.deviceSession ||
       profiles != oldWidget.profiles ||
+      avatarStorage != oldWidget.avatarStorage ||
       activity != oldWidget.activity ||
       expenses != oldWidget.expenses ||
       wallet != oldWidget.wallet ||
@@ -333,6 +381,8 @@ class AppScope extends InheritedWidget {
       stepCounter != oldWidget.stepCounter ||
       sleep != oldWidget.sleep ||
       sleepService != oldWidget.sleepService ||
+      reminders != oldWidget.reminders ||
+      notifications != oldWidget.notifications ||
       media != oldWidget.media ||
       music != oldWidget.music ||
       locale != oldWidget.locale ||

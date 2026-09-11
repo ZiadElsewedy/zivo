@@ -8,6 +8,7 @@ class UserProfile {
     required this.uid,
     required this.name,
     required this.dateOfBirth,
+    this.photoUrl,
     this.photoPath,
     this.bio,
   });
@@ -17,11 +18,19 @@ class UserProfile {
   final String name;
   final DateTime dateOfBirth;
 
-  /// A *media-store reference* for the profile photo (a relative path owned by
-  /// the `core/media` [MediaStore]), mirroring `Moment.imagePath`'s convention.
-  /// The bytes are imported into durable local storage via `MediaService` and
-  /// resolved back for display; cloud backup of avatars rides the same media
-  /// pipeline as any other media. A legacy absolute path still resolves.
+  /// The HTTPS download URL of the avatar stored in Firebase Storage
+  /// (`avatars/{uid}`). This is the current avatar mechanism: unlike
+  /// [photoPath], the bytes live in a place every device can read the moment
+  /// the profile document syncs — no Google Drive connection required. See
+  /// [docs/DECISIONS/ADR-014](../../../../docs/DECISIONS/ADR-014-avatar-firebase-storage.md).
+  /// Preferred over [photoPath] wherever both are present.
+  final String? photoUrl;
+
+  /// **Legacy** avatar reference: a *media-store reference* (a relative path
+  /// owned by the `core/media` [MediaStore]) from before avatars moved to
+  /// Firebase Storage. Still rendered on the device that holds the local/Drive
+  /// copy so existing users don't lose their photo, but new uploads set
+  /// [photoUrl] and clear this. A legacy absolute path still resolves.
   final String? photoPath;
 
   /// A short "About me" line the person writes about themselves. Null/empty
@@ -34,11 +43,13 @@ class UserProfile {
       other.uid == uid &&
       other.name == name &&
       other.dateOfBirth == dateOfBirth &&
+      other.photoUrl == photoUrl &&
       other.photoPath == photoPath &&
       other.bio == bio;
 
   @override
-  int get hashCode => Object.hash(uid, name, dateOfBirth, photoPath, bio);
+  int get hashCode =>
+      Object.hash(uid, name, dateOfBirth, photoUrl, photoPath, bio);
 
   @override
   String toString() => 'UserProfile(uid: $uid, name: $name)';

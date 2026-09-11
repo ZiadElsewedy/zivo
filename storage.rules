@@ -1,0 +1,36 @@
+rules_version = '2';
+
+// Firebase Storage security rules for ZIVO.
+//
+// Deny-by-default, owner-scoped — the same posture as firestore.rules. The
+// ONLY thing in Storage is the profile avatar: bulk media (moments) is
+// deliberately kept out of Firebase and lives in each user's own Google Drive
+// (see docs/DECISIONS/ADR-014). If that ever changes, add a narrowly-scoped
+// match for it here rather than loosening this one.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Profile avatar: exactly one object per user at avatars/{uid}.
+    //
+    // Read is allowed to any signed-in user: an avatar is low-sensitivity, a
+    // getDownloadURL token already makes the bytes fetchable by URL, and this
+    // leaves room for showing a coach/teammate's avatar later without a rules
+    // change. Write is owner-only, must be an image, and is size-capped so a
+    // client cannot park arbitrary large blobs under its uid.
+    match /avatars/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      // Clearing the avatar is a delete with no new object, so it carries no
+      // request.resource — allow the owner to remove their own.
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Everything else: no access.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

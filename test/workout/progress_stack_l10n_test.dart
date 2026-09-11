@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/features/workout/presentation/pages/bodyweight_history_page.dart';
 import 'package:zivo/features/workout/presentation/pages/workout_analysis_page.dart';
 import 'package:zivo/features/workout/presentation/pages/workout_history_page.dart';
-import 'package:zivo/features/workout/presentation/pages/workout_progress_page.dart';
 import 'package:zivo/features/workout/presentation/widgets/progress_status_style.dart';
 import 'package:zivo/features/workout/domain/analytics/exercise_analysis.dart';
 import 'package:zivo/features/workout/domain/analytics/workout_analytics.dart';
@@ -51,7 +50,11 @@ const _englishCopy = <String>[
   'Recent PRs',
   'Focus next',
   'Training volume',
-  'All exercises',
+  'Exercises',
+  'Search exercises',
+  'Chest',
+  'Legs',
+  'Shoulders',
   'OVERALL',
   'THIS WEEK',
   'LAST WEEK',
@@ -71,12 +74,6 @@ void _expectNoEnglish(WidgetTester tester) {
 
 void main() {
   group('the progress stack renders in Arabic', () {
-    testWidgets('WorkoutProgressPage', (tester) async {
-      await _pumpArabic(tester, const WorkoutProgressPage());
-      _expectNoEnglish(tester);
-      expect(find.text('التقدم'), findsWidgets);
-    });
-
     testWidgets('WorkoutAnalysisPage', (tester) async {
       await _pumpArabic(tester, const WorkoutAnalysisPage());
       _expectNoEnglish(tester);
@@ -138,13 +135,13 @@ void main() {
   group('English is unchanged', () {
     testWidgets('the same surfaces still read English under Locale("en")', (tester) async {
       await tester.pumpWidget(
-        wrapWithScope(const WorkoutProgressPage(), locale: const Locale('en')),
+        wrapWithScope(const WorkoutAnalysisPage(), locale: const Locale('en')),
       );
       await tester.pump(const Duration(milliseconds: 400));
-      expect(find.text('Progress'), findsWidgets);
+      expect(find.text('Analysis'), findsWidgets);
       // The Arabic runs above assert the same surface, so this one only has to
       // prove the English side did not regress into Arabic (or into a key).
-      expect(find.text('التقدم'), findsNothing);
+      expect(find.text('التحليل'), findsNothing);
     });
   });
 }

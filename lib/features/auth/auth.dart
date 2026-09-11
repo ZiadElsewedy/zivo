@@ -27,6 +27,7 @@ library;
 
 // --- domain: what the app talks to ------------------------------------------
 export 'domain/account_auth_metadata.dart';
+export 'domain/active_session.dart';
 export 'domain/auth_activity_repository.dart';
 export 'domain/auth_event.dart';
 export 'domain/auth_event_type.dart';
@@ -35,12 +36,16 @@ export 'domain/auth_repository.dart';
 export 'domain/auth_result.dart';
 export 'domain/auth_state.dart';
 export 'domain/auth_user.dart';
+export 'domain/device_session_repository.dart';
 export 'domain/otp_result.dart';
 export 'domain/password_policy.dart';
 
 // --- data: the Firebase-backed implementation -------------------------------
 // Swapping backend means replacing these and nothing above.
 export 'data/auth_config.dart';
+export 'data/device_session_guard.dart';
 export 'data/firebase_auth_repository.dart';
 export 'data/firestore_auth_activity_repository.dart';
+export 'data/firestore_device_session_repository.dart';
+export 'data/in_memory_device_session_repository.dart';
 export 'data/noop_auth_activity_repository.dart';

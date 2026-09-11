@@ -1713,6 +1713,53 @@ class AppLocalizationsAr extends AppLocalizations {
   String get workoutTapToDrillIn => 'اضغط للتفاصيل';
 
   @override
+  String get workoutExercisesBrowse => 'التمارين';
+
+  @override
+  String get workoutSearchExercises => 'ابحث عن تمرين';
+
+  @override
+  String workoutNoMatches(String query) {
+    return 'لا تمارين تطابق «$query».';
+  }
+
+  @override
+  String workoutExerciseCountCaps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count تمرين',
+      many: '$count تمرينًا',
+      few: '$count تمارين',
+      two: 'تمرينان',
+      one: 'تمرين واحد',
+      zero: 'لا تمارين',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutMuscleChest => 'الصدر';
+
+  @override
+  String get workoutMuscleBack => 'الظهر';
+
+  @override
+  String get workoutMuscleLegs => 'الأرجل';
+
+  @override
+  String get workoutMuscleShoulders => 'الأكتاف';
+
+  @override
+  String get workoutMuscleArms => 'الذراعان';
+
+  @override
+  String get workoutMuscleCore => 'الجذع';
+
+  @override
+  String get workoutMuscleOther => 'أخرى';
+
+  @override
   String get workoutOverallCaps => 'الإجمالي';
 
   @override
@@ -3562,6 +3609,10 @@ class AppLocalizationsAr extends AppLocalizations {
       'تم تحديث كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.';
 
   @override
+  String get authSignedOutOtherDevice =>
+      'تم تسجيل الدخول إلى حسابك على جهاز آخر.';
+
+  @override
   String authShowField(String label) {
     return 'إظهار $label';
   }
@@ -5372,4 +5423,92 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get workoutSettingsSaveFailed => 'تعذّر حفظ هذا الإعداد.';
+
+  @override
+  String get remindersTitle => 'التذكيرات';
+
+  @override
+  String get remindersIntro =>
+      'احصل على إشعار عندما يحين وقت الأكل أو التمرين أو أي نشاط آخر تجدوله.';
+
+  @override
+  String get remindersEmpty => 'لا تذكيرات بعد';
+
+  @override
+  String get remindersEmptyBody =>
+      'أضِف تذكيرًا ليصلك في الوقت نفسه في الأيام التي تختارها.';
+
+  @override
+  String get remindersAdd => 'إضافة تذكير';
+
+  @override
+  String get remindersNewTitle => 'تذكير جديد';
+
+  @override
+  String get remindersEditTitle => 'تعديل التذكير';
+
+  @override
+  String get remindersLabelHint => 'الاسم (مثل: الفطور، يوم الأرجل)';
+
+  @override
+  String get remindersKindMeal => 'وجبة';
+
+  @override
+  String get remindersKindWorkout => 'تمرين';
+
+  @override
+  String get remindersKindGeneral => 'عام';
+
+  @override
+  String get remindersTimeLabel => 'الوقت';
+
+  @override
+  String get remindersRepeatLabel => 'التكرار';
+
+  @override
+  String get remindersEveryDay => 'كل يوم';
+
+  @override
+  String get remindersSave => 'حفظ';
+
+  @override
+  String get remindersDelete => 'حذف التذكير';
+
+  @override
+  String get remindersDeleteConfirm => 'حذف هذا التذكير؟';
+
+  @override
+  String get remindersSaveFailed => 'تعذّر حفظ هذا التذكير.';
+
+  @override
+  String get remindersPermissionDenied =>
+      'فعّل إشعارات ZIVO من إعدادات هاتفك لتصلك التذكيرات.';
+
+  @override
+  String get remindersSyncFromPlan => 'المزامنة من خطتك';
+
+  @override
+  String get remindersSyncWorkout => 'المزامنة مع خطتي';
+
+  @override
+  String get remindersSyncWorkoutHint =>
+      'يعرض تمرينك التالي المجدول ويبقيه محدّثًا.';
+
+  @override
+  String get remindersPickMeal => 'أي وجبة؟';
+
+  @override
+  String get remindersMealItems => 'العناصر';
+
+  @override
+  String get remindersAddItem => 'إضافة عنصر';
+
+  @override
+  String get remindersNoMealPlan => 'لا توجد خطة وجبات نشطة للمزامنة منها.';
+
+  @override
+  String get remindersNoWorkoutPlan => 'لا توجد خطة تمارين نشطة للمزامنة منها.';
+
+  @override
+  String get remindersSyncedBadge => 'مُزامَن';
 }

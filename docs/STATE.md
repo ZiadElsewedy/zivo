@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-10 · **Active branch:** `feature/theme-modes`
+**Last updated:** 2026-09-11 · **Active branch:** `feature/theme-modes`
 (cut from `feature/sleep`, which is 60 commits ahead of `version-1`)
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
@@ -27,7 +27,8 @@ Shell is a 4-tab
 `IndexedStack`: **Today · Hub · Ask · You** with a floating "island" bottom bar and a
 center capture FAB. Sign-in gate is [`AuthGate`](../lib/features/auth/presentation/auth_gate.dart).
 Live feature set: **workout, diet, expenses, moments, ai (Ask), music (Spotify companion),
-auth/profile, home/Today, hub, capture, device (steps)**.
+auth/profile, home/Today, hub, capture, device (steps), sleep, reminders (local
+notifications)**.
 
 ## Scope (standing decisions)
 
@@ -92,6 +93,112 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Reminders v2 — kinds, an iOS wheel picker, a de-purpled premium UI, and plan
+  sync** (2026-09-11, on `feature/reminders-sync`, cut from
+  `feature/workout-analysis-redesign`). Owner wanted the basic reminders feature to
+  feel premium and actually pull from the user's plans.
+  - **Kinds are now General · Meal · Workout** — `ReminderKind.other` → `general`
+    (reordered first). Legacy stored `"other"` folds into `general` on decode, so no
+    migration. Default new-reminder kind is `general`.
+  - **iPhone-style time wheel.** The Material `showTimePicker` dialog is replaced by
+    a `CupertinoDatePicker` wheel in a `showZivoSheet`, themed to both skins and
+    honouring the locale's 24h setting.
+  - **No more purple.** The whole area drops `violet`/`violetGlyph` for a monochrome
+    segmented look (solid ink-fill selected chips, hue-less `neutralMark` accents,
+    native adaptive switches, ember only on Save, neutral `hubTint` screen wash) —
+    respects ADR-006 hue discipline (no area invents a hue).
+  - **Sync.** New optional `ReminderSync` on a reminder (nullable, back-compatible
+    codec). **`MealSync`** — "Sync from your plan" pulls the meal scheduled for the
+    day from the active diet plan, the user picks which one, then adds/removes items;
+    stored as a snapshot and listed in the notification body. Editing there **never
+    touches the diet plan or food log.** **`WorkoutSync`** — a "Sync with my plan"
+    toggle links the reminder to the active plan; its notification text is
+    re-resolved to the current next-up rotation day (name + short exercise line)
+    every reschedule. `app.dart` now watches `workoutPlans.watchActivePlan()`
+    alongside `reminders.watch()` and passes a `ReminderContext`, with a **dedupe
+    guard** so unrelated plan writes don't churn the platform channel (also the main
+    perf win here). Notifications now carry a **body**, not just a title.
+  - **Honest caveat** (owner-chosen "smart/auto-refresh"): a `WorkoutSync`
+    notification's text is fresh as of the last reschedule (app open/resume or plan
+    change) — the OS fires pre-scheduled alarms and can't recompute the rotation at
+    fire time. [ADR-013](DECISIONS/ADR-013-local-notifications.md) unchanged (still
+    local-only, inexact).
+  - **Cover:** +9 reminders tests (sync codec + legacy-kind decode, meal/workout
+    body resolution via `ReminderContext`, the Cupertino wheel opening, a synced
+    row), whole suite **1548** green, `flutter analyze` clean, 10 new ARB keys in
+    both languages.
+  - **⚠ OWNER ACTIONS.** (1) ~10 new Arabic strings are mine, not a native
+    speaker's — worth a check. (2) On-device confirmation that reminders fire and
+    that a workout-synced reminder reflects the next-up day (unchanged from ADR-013).
+
+- **The profile avatar moved to Firebase Storage; moments stay on Drive**
+  (2026-09-11, on `feature/workout-analysis-redesign`). Owner report: an avatar
+  set on one device didn't appear on another. Root cause was structural — the
+  avatar rode the `core/media` local-first + Google Drive pipeline (like a
+  moment), so only its store *ref* synced (`UserProfile.photoPath`); the bytes
+  reached a second device only if the same Drive account was connected there.
+  Correct for a bulk moment, wrong for identity. **Decision
+  [ADR-014](DECISIONS/ADR-014-avatar-firebase-storage.md):** the avatar's bytes
+  now go to **Firebase Storage** at `avatars/{uid}`, with the download URL in
+  `users/{uid}.photoUrl` — syncs everywhere the profile doc does, no Drive
+  needed. **Moments are unchanged** and still live in each user's own Drive
+  (off ZIVO's bill). New seam `AvatarStorage` (`profile/domain`) +
+  `FirebaseAvatarStorage` (`profile/data`) + a fake, wired through
+  `AppScope.avatarStorage`. `UserProfile` gains `photoUrl`; legacy `photoPath`
+  still renders on a device that holds it but is cleared on the next avatar
+  change (old local/Drive copy deleted). New dep `firebase_storage: ^13`; new
+  `storage.rules` (owner-write, image + 5 MB cap, authed-read) wired into
+  `firebase.json`; `firestore.rules` `users/{uid}` now pins `photoUrl`
+  (+3 rules tests). `flutter analyze` clean, profile tests green. **⚠ OWNER
+  ACTIONS:** `flutter pub get`; iOS `pod install` (adds the `firebase_storage`
+  pod); and `firebase deploy --only firestore:rules,storage` — until the
+  storage rules deploy, avatar upload is denied and the original bug persists.
+
+- **Local reminders — the notification system** (2026-09-11, on
+  `feature/ask-elicitation`). The simplest practical version the owner asked
+  for: the user schedules a local notification for a meal, a workout, or any
+  other activity and the OS fires it at that time. **Local only** — no push, no
+  backend ([ADR-013](DECISIONS/ADR-013-local-notifications.md)). New
+  `features/reminders/`: one flat `Reminder` (`label · kind · time · repeat-days
+  · on/off`) covers all three cases; one **Reminders** page reached from
+  Settings; storage in one schema-free doc `users/{uid}/settings/reminders`
+  (`RemindersRepository`, Firestore/in-memory — **no rules change**); and a
+  `NotificationScheduler` seam (`flutter_local_notifications` +
+  `timezone`/`flutter_timezone`, or a no-op offline/in-tests). The OS's
+  scheduled set is a pure mirror of the stored reminders, kept in sync at app
+  root off `reminders.watch()`. Scheduling is **inexact** (no
+  `SCHEDULE_EXACT_ALARM`); permission is asked on first enable, not at launch.
+  Three new deps (justified in `pubspec.yaml` + the ADR). Platform config added
+  (`AndroidManifest`: POST_NOTIFICATIONS/RECEIVE_BOOT_COMPLETED + two receivers;
+  `AppDelegate.swift`: the `UNUserNotificationCenter` delegate); `minSdk` 26
+  already covers the plugin. Cover: 17 new reminders tests (codec/logic, repo,
+  the pure `reminderOccurrences` plan, page) + the 3 app-boot tests now inject
+  the no-op scheduler; whole suite **1539** green, analyze clean. **Owner
+  action: only a real device can confirm a reminder actually fires at its set
+  time and that the iOS/Android permission prompts appear.**
+
+- **Single-device session enforcement — one account = one active device**
+  (2026-09-10, on `feature/ask-elicitation`). The same account signed in on two
+  devices was corrupting Google Drive / Moments sync. Now a sign-in *or* app
+  launch/restore **claims** the account: `DeviceSessionGuard`
+  ([`lib/features/auth/data/device_session_guard.dart`](../lib/features/auth/data/device_session_guard.dart))
+  writes a fresh `sessionId` to the server-owned ledger
+  `users/{uid}/session/current` (an atomic replace, `DeviceSessionRepository` →
+  Firestore/in-memory) and watches that doc in real time. The moment the stored
+  `sessionId` is no longer this device's, the device signs out of Firebase Auth
+  (the gate returns to `AuthPage`) and shows *"Your account was signed in on
+  another device."* Firebase Auth alone can't do this — it keeps every device's
+  token valid independently — so the ledger is the source of truth; the realtime
+  listener is what makes the takeover immediate. Once signed out the stale device
+  is `request.auth == null` and fails `canWrite` on every collection, so it can no
+  longer touch account-level Drive/Moments data. Wired in
+  [`app.dart`](../lib/app/app.dart)'s `_authSub` (claim/teardown) and exposed via
+  `AppScope.deviceSession`. New `firestore.rules` block `users/{userId}/session/{docId}`
+  (owner-only, shape-pinned, `isOwner` not `canWrite` so unverified accounts are
+  still enforced); covered by `firestore-tests` (171 pass) and
+  `test/auth/device_session_guard_test.dart` (4 pass). **Owner action: rules deploy
+  — see below.**
 
 - **Bottom sheets are opaque again** (2026-09-10, on `feature/theme-modes`). Owner
   review: most sheets "looked transparent" — the launching screen showed straight
@@ -1648,6 +1755,14 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Owner action items (blockers only the owner can clear — not code bugs)
 
+- **Rules deploy for single-device sessions (2026-09-10):**
+  `firebase deploy --only firestore:rules` (owner creds). Until it ships, the
+  catch-all denies the new `users/{uid}/session/current` doc, so a device cannot
+  write its claim — the client-side realtime enforcement then silently no-ops
+  (the guard swallows the rejected write) and two devices can still both be
+  active. No functions change is required. Purely additive; safe to deploy with
+  or ahead of the client build.
+
 - **Rules deploy for the streak/session-duration work (2026-09-08):**
   `firebase deploy --only firestore:rules` (owner creds). Until it ships, the
   catch-all denies the new `users/{uid}/trainingDayMarks` collection, so a
@@ -1780,6 +1895,24 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-11 — **Workout Analysis redesign + Progress retired** (on
+  `feature/workout-analysis-redesign`, cut from `feature/ask-elicitation`; Dart/UI only, no
+  engine/repo/functions change). The Analysis hub (`workout_analysis_page.dart`) is reorganised
+  from verdict-grouped lists (going-well / getting-worse / stalled / all-exercises, where a lift
+  appeared twice) into a slim summary (verdict · volume · PRs · focus-next) over a **searchable,
+  muscle-category-grouped exercise browser** (`_ExerciseBrowser`, grouping on the engine's existing
+  `ExercisePerformance.muscleGroup` — no engine change) → the unchanged per-exercise drill-down.
+  The dashboard's bare top-right icon is now a labelled **"Analysis"** pill
+  (new `TrainHeaderTextAction`) that opens the Analysis hub **directly**. The separate
+  **`workout_progress_page.dart` landing was deleted** — its Plan/History/Splits links moved to
+  an always-present "Go deeper" card on Analysis, and its overview stats already live on the
+  dashboard tiles (so nothing was orphaned; the plan viewer `WorkoutPlanPage`, which only Progress
+  reached, is now reached from that card). Colour carries **status only** on these screens:
+  decorative green icon tiles are neutral ink, "focus next" is ember (the Now/Next colour). New
+  `AppIcons.search`, `muscleGroupLabel` in `workout_labels.dart`, muscle/search l10n keys in both
+  ARBs. Tests updated (Progress-nav tests repointed to Analysis, Progress-only tests removed) +
+  search/grouping coverage added; **full suite green (1537)**. Deferred: a global light-base
+  softening (whole-app palette, ADR-011) if light mode still reads harsh after the de-green.
 - 2026-09-10 — **Ask elicitation — audit fixes F1 + F2** (on `feature/ask-elicitation`;
   Dart-only, no functions redeploy). F1: `AskController.submitInput` now fires body-data
   persistence with `unawaited(...)`, so an un-acked Firestore write can't block the coach's

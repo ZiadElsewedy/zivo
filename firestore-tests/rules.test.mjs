@@ -51,6 +51,7 @@ const valid = {
   mediaTombstones: { driveFileId: 'f1', driveAccountKey: 'acc-1', deletedAt: ts(), schemaVersion: 1 },
   sleepSettings: { schemaVersion: 1, targets: { bedtimeMinutes: 1380, wakeMinutes: 420, durationMinutes: 480 } },
   trainingDayMarks: { dayKey: '2026-01-01', restored: true, reason: 'travel', createdAt: ts(), schemaVersion: 1 },
+  session: { sessionId: 's1', deviceId: 'd1', platform: 'ios', createdAt: ts(), lastSeenAt: ts() },
 };
 
 // Each violates exactly one validation clause of its collection's write rule.
@@ -72,6 +73,7 @@ const invalid = {
   mediaTombstones: { driveFileId: 123, schemaVersion: 1 }, // driveFileId not a string
   sleepSettings: { schemaVersion: 1, targets: 'nope' }, // targets not a map
   trainingDayMarks: { dayKey: '2026-01-01', restored: 'yes', createdAt: ts(), schemaVersion: 1 }, // restored not bool
+  session: { sessionId: 123, deviceId: 'd1', platform: 'ios', createdAt: ts(), lastSeenAt: ts() }, // sessionId not a string
 };
 
 const collections = Object.keys(valid);
@@ -151,6 +153,31 @@ describe('users/{uid} profile ownership', () => {
 
   it('unauthenticated cannot write the profile', async () => {
     await assertFails(setDoc(doc(anonDb(), `users/${OWNER}`), { name: 'Z' }));
+  });
+
+  it('owner can store a photoUrl (Firebase Storage avatar URL)', async () => {
+    const db = ownerDb();
+    await assertSucceeds(setDoc(doc(db, `users/${OWNER}`), {
+      name: 'Z',
+      dateOfBirth: ts(),
+      photoUrl: 'https://firebasestorage.googleapis.com/v0/b/x/o/avatars%2Fu?alt=media&token=abc',
+    }));
+  });
+
+  it('rejects a non-string photoUrl', async () => {
+    await assertFails(setDoc(doc(ownerDb(), `users/${OWNER}`), {
+      name: 'Z',
+      dateOfBirth: ts(),
+      photoUrl: 42,
+    }));
+  });
+
+  it('rejects an over-long photoUrl', async () => {
+    await assertFails(setDoc(doc(ownerDb(), `users/${OWNER}`), {
+      name: 'Z',
+      dateOfBirth: ts(),
+      photoUrl: 'x'.repeat(2001),
+    }));
   });
 });
 

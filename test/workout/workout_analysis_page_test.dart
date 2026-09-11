@@ -145,6 +145,44 @@ LiveSession _bench({
   );
 }
 
+/// A completed Back Squat session — a second movement in a different muscle
+/// category (Legs), so the browser has two groups to filter between.
+LiveSession _squat({
+  required String id,
+  required int daysAgo,
+  required double weight,
+  int reps = 8,
+}) {
+  final at = DateTime.now().subtract(Duration(days: daysAgo));
+  return LiveSession(
+    id: id,
+    planId: 'p1',
+    dayId: 'day-b',
+    dayLabel: 'Legs',
+    startedAt: at.subtract(const Duration(minutes: 40)),
+    completedAt: at,
+    status: SessionStatus.completed,
+    exercises: [
+      SessionExercise(
+        id: 'squat',
+        exerciseId: 'squat',
+        name: 'Back Squat',
+        muscleGroup: 'Legs',
+        restSeconds: 90,
+        sets: [
+          LoggedSet(
+            id: '$id-s0',
+            target: const RepTarget.range(6, 8),
+            actualReps: reps,
+            actualWeightKg: weight,
+            outcome: SetOutcome.completed,
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
 void main() {
   testWidgets('no completed sessions → the empty hint, no fake verdict',
       (tester) async {
@@ -170,9 +208,10 @@ void main() {
     await tester.pumpWidget(_wrap(sessions));
     await tester.pump();
 
-    // A thin-data lift isn't sorted into a coaching bucket — it's reachable in
-    // the full, drill-in-able "All exercises" index, marked Building.
-    expect(find.text('ALL EXERCISES'), findsOneWidget);
+    // A thin-data lift isn't given a direction — it's reachable in the
+    // searchable browser under its muscle category, marked Building.
+    expect(find.text('EXERCISES'), findsOneWidget);
+    expect(find.text('Chest'), findsOneWidget);
     expect(find.textContaining('Building'), findsOneWidget);
     expect(find.textContaining('Progressing'), findsNothing);
   });
@@ -193,9 +232,11 @@ void main() {
     expect(find.text('RECENT PRS'), findsOneWidget);
     expect(find.textContaining('Bench Press'), findsWidgets);
     expect(find.textContaining('Progressing'), findsWidgets);
-    // The improving lift is pulled into its own coaching section, too.
-    expect(find.text("WHAT'S GOING WELL"), findsOneWidget);
+    // The one next move stays surfaced; the lift itself lives in the browser
+    // under its muscle category rather than a duplicate "going well" list.
     expect(find.text('FOCUS NEXT'), findsOneWidget);
+    expect(find.text('EXERCISES'), findsOneWidget);
+    expect(find.text('Chest'), findsOneWidget);
   });
 
   testWidgets('a sustained decline reads as Trending down', (tester) async {
@@ -211,6 +252,42 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
 
     expect(find.textContaining('Trending down'), findsWidgets);
-    expect(find.text("WHAT'S GETTING WORSE"), findsOneWidget);
+    // No separate "getting worse" list any more — the declining lift carries
+    // its own status colour inside the browser.
+    expect(find.text('EXERCISES'), findsOneWidget);
+    expect(find.text('Chest'), findsOneWidget);
+  });
+
+  testWidgets('search filters the browser to matching movements',
+      (tester) async {
+    _useTallViewport(tester);
+    final sessions = InMemoryWorkoutSessionRepository(seed: [
+      _bench(id: 's1', daysAgo: 10, weight: 100),
+      _bench(id: 's2', daysAgo: 3, weight: 105),
+      _squat(id: 'q1', daysAgo: 9, weight: 140),
+      _squat(id: 'q2', daysAgo: 2, weight: 145),
+    ]);
+    await tester.pumpWidget(_wrap(sessions));
+    await tester.pump();
+
+    // Both movements + both categories are present unfiltered.
+    expect(find.text('Chest'), findsOneWidget);
+    expect(find.text('Legs'), findsOneWidget);
+    expect(find.textContaining('Bench Press'), findsWidgets);
+    expect(find.textContaining('Back Squat'), findsWidgets);
+
+    // Typing narrows the browser to the matching category and drops the other.
+    // (The highlight cards above the browser — PRs, focus-next — aren't search
+    // scoped, so we assert on the category headers the browser owns.)
+    await tester.enterText(find.byType(TextField), 'squat');
+    await tester.pump();
+
+    expect(find.text('Legs'), findsOneWidget);
+    expect(find.text('Chest'), findsNothing);
+
+    // A query that matches nothing shows the no-results hint.
+    await tester.enterText(find.byType(TextField), 'zzz');
+    await tester.pump();
+    expect(find.textContaining('No exercises match'), findsOneWidget);
   });
 }

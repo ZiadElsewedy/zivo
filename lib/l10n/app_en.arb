@@ -2401,6 +2401,52 @@
   "@workoutTapToDrillIn": {
       "description": "Hint beside the All exercises section."
   },
+  "workoutExercisesBrowse": "Exercises",
+  "@workoutExercisesBrowse": {
+      "description": "Section label over the searchable, category-grouped exercise browser on the Analysis page."
+  },
+  "workoutSearchExercises": "Search exercises",
+  "@workoutSearchExercises": {
+      "description": "Placeholder in the exercise search field on the Analysis page."
+  },
+  "workoutNoMatches": "No exercises match “{query}”.",
+  "@workoutNoMatches": {
+      "description": "Shown when the exercise search finds nothing.",
+      "placeholders": { "query": { "type": "String" } }
+  },
+  "workoutExerciseCountCaps": "{count, plural, =1{1 MOVEMENT} other{{count} MOVEMENTS}}",
+  "@workoutExerciseCountCaps": {
+      "description": "Caps count of movements beside a muscle-category header on the Analysis browser.",
+      "placeholders": { "count": { "type": "int" } }
+  },
+  "workoutMuscleChest": "Chest",
+  "@workoutMuscleChest": {
+      "description": "Muscle-group category header on the Analysis browser."
+  },
+  "workoutMuscleBack": "Back",
+  "@workoutMuscleBack": {
+      "description": "Muscle-group category header on the Analysis browser."
+  },
+  "workoutMuscleLegs": "Legs",
+  "@workoutMuscleLegs": {
+      "description": "Muscle-group category header on the Analysis browser."
+  },
+  "workoutMuscleShoulders": "Shoulders",
+  "@workoutMuscleShoulders": {
+      "description": "Muscle-group category header on the Analysis browser."
+  },
+  "workoutMuscleArms": "Arms",
+  "@workoutMuscleArms": {
+      "description": "Muscle-group category header on the Analysis browser."
+  },
+  "workoutMuscleCore": "Core",
+  "@workoutMuscleCore": {
+      "description": "Muscle-group category header on the Analysis browser."
+  },
+  "workoutMuscleOther": "Other",
+  "@workoutMuscleOther": {
+      "description": "Fallback category header for exercises with no recognised muscle group."
+  },
   "workoutOverallCaps": "OVERALL",
   "@workoutOverallCaps": {
       "description": "Caps label over the summary verdict card."
@@ -4938,6 +4984,10 @@
   "@authPasswordUpdatedSignIn": {
       "description": "Message on the sign-in screen after a password reset completes."
   },
+  "authSignedOutOtherDevice": "Your account was signed in on another device.",
+  "@authSignedOutOtherDevice": {
+      "description": "Message on the sign-in screen after this device was signed out because the account became active on another device (single-device session enforcement)."
+  },
   "authShowField": "Show {label}",
   "@authShowField": {
       "description": "Accessibility label on the reveal toggle of an obscured field.",
@@ -7360,5 +7410,117 @@
   "workoutSettingsSaveFailed": "Couldn't save that setting.",
   "@workoutSettingsSaveFailed": {
     "description": "Toast when a workout setting fails to save."
+  },
+  "remindersTitle": "Reminders",
+  "@remindersTitle": {
+    "description": "Title of the reminders page and its row on the Settings page."
+  },
+  "remindersIntro": "Get a notification when it's time to eat, train, or anything else you schedule.",
+  "@remindersIntro": {
+    "description": "One-line explanation under the reminders page header."
+  },
+  "remindersEmpty": "No reminders yet",
+  "@remindersEmpty": {
+    "description": "Empty-state title when the user has no reminders."
+  },
+  "remindersEmptyBody": "Add one to be reminded at the same time on the days you choose.",
+  "@remindersEmptyBody": {
+    "description": "Empty-state body under remindersEmpty."
+  },
+  "remindersAdd": "Add reminder",
+  "@remindersAdd": {
+    "description": "Button that opens the sheet to create a new reminder."
+  },
+  "remindersNewTitle": "New reminder",
+  "@remindersNewTitle": {
+    "description": "Title of the reminder sheet when creating a new one."
+  },
+  "remindersEditTitle": "Edit reminder",
+  "@remindersEditTitle": {
+    "description": "Title of the reminder sheet when editing an existing one."
+  },
+  "remindersLabelHint": "Name (e.g. Breakfast, Leg day)",
+  "@remindersLabelHint": {
+    "description": "Hint text for the reminder name field."
+  },
+  "remindersKindMeal": "Meal",
+  "@remindersKindMeal": {
+    "description": "Reminder kind label: a meal reminder."
+  },
+  "remindersKindWorkout": "Workout",
+  "@remindersKindWorkout": {
+    "description": "Reminder kind label: a workout reminder."
+  },
+  "remindersKindGeneral": "General",
+  "@remindersKindGeneral": {
+    "description": "Reminder kind label: a general reminder the user names themselves."
+  },
+  "remindersTimeLabel": "Time",
+  "@remindersTimeLabel": {
+    "description": "Label for the time picker in the reminder sheet."
+  },
+  "remindersRepeatLabel": "Repeat",
+  "@remindersRepeatLabel": {
+    "description": "Label for the day-of-week chooser in the reminder sheet."
+  },
+  "remindersEveryDay": "Every day",
+  "@remindersEveryDay": {
+    "description": "Repeat value shown when a reminder fires on all seven days."
+  },
+  "remindersSave": "Save",
+  "@remindersSave": {
+    "description": "Confirms and saves the reminder in the sheet."
+  },
+  "remindersDelete": "Delete reminder",
+  "@remindersDelete": {
+    "description": "Deletes the reminder being edited."
+  },
+  "remindersDeleteConfirm": "Delete this reminder?",
+  "@remindersDeleteConfirm": {
+    "description": "Confirmation prompt before deleting a reminder."
+  },
+  "remindersSaveFailed": "Couldn't save that reminder.",
+  "@remindersSaveFailed": {
+    "description": "Toast when saving a reminder fails."
+  },
+  "remindersPermissionDenied": "Turn on notifications for ZIVO in your phone's settings to get reminders.",
+  "@remindersPermissionDenied": {
+    "description": "Note shown when the OS notification permission was denied."
+  },
+  "remindersSyncFromPlan": "Sync from your plan",
+  "@remindersSyncFromPlan": {
+    "description": "Button on a meal reminder that loads the meal scheduled in the active diet plan."
+  },
+  "remindersSyncWorkout": "Sync with my plan",
+  "@remindersSyncWorkout": {
+    "description": "Toggle on a workout reminder that links it to the active workout plan so it shows the next scheduled workout."
+  },
+  "remindersSyncWorkoutHint": "Shows your next scheduled workout, and keeps it up to date.",
+  "@remindersSyncWorkoutHint": {
+    "description": "Explanation under the workout-sync toggle."
+  },
+  "remindersPickMeal": "Which meal?",
+  "@remindersPickMeal": {
+    "description": "Title of the sheet that lists the meals in the plan to pick one for a reminder."
+  },
+  "remindersMealItems": "Items",
+  "@remindersMealItems": {
+    "description": "Section label above the editable list of food items on a synced meal reminder."
+  },
+  "remindersAddItem": "Add item",
+  "@remindersAddItem": {
+    "description": "Hint on the field for adding a custom food item to a synced meal reminder."
+  },
+  "remindersNoMealPlan": "No active meal plan to sync from.",
+  "@remindersNoMealPlan": {
+    "description": "Shown when a meal reminder is asked to sync but there is no active diet plan."
+  },
+  "remindersNoWorkoutPlan": "No active workout plan to sync from.",
+  "@remindersNoWorkoutPlan": {
+    "description": "Shown when a workout reminder is asked to sync but there is no active workout plan."
+  },
+  "remindersSyncedBadge": "Synced",
+  "@remindersSyncedBadge": {
+    "description": "Small badge on a reminder row indicating it is linked to a plan."
   }
 }

@@ -76,6 +76,24 @@ List<String> collapsedSetSummaryTexts(
     ].join(' · '),
 ];
 
+/// A localized label for one of the six normalized muscle buckets that
+/// [normalizeMuscleGroup] emits ('Chest', 'Back', 'Legs', 'Shoulders', 'Arms',
+/// 'Core'), or the "Other" fallback when the bucket is null/unrecognised.
+///
+/// The engine deals in fixed English ids (they are keys, not copy — same rule
+/// as a persisted enum's `name`); this is the one place they become a word a
+/// reader sees, so the Analysis browser never hard-codes 'Chest'.
+String muscleGroupLabel(BuildContext context, String? bucket) =>
+    switch (bucket) {
+      'Chest' => l(context).workoutMuscleChest,
+      'Back' => l(context).workoutMuscleBack,
+      'Legs' => l(context).workoutMuscleLegs,
+      'Shoulders' => l(context).workoutMuscleShoulders,
+      'Arms' => l(context).workoutMuscleArms,
+      'Core' => l(context).workoutMuscleCore,
+      _ => l(context).workoutMuscleOther,
+    };
+
 /// "4 sets · Chest" — the muscle group dropped when unset.
 String plannedExerciseMetaText(BuildContext context, PlannedExercise e) {
   final sets = l(context).workoutSetCount(e.setCount);

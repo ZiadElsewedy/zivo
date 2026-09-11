@@ -16,12 +16,13 @@ abstract interface class ProfileRepository {
   Future<UserProfile?> fetchProfile(String uid);
 
   /// Creates or updates the profile for [uid]. Callers always pass the full,
-  /// current [photoPath]/[bio] (including unchanged) — this is a plain
-  /// overwrite, not a partial patch, so omitting either clears it.
+  /// current [photoUrl]/[photoPath]/[bio] (including unchanged) — this is a
+  /// plain overwrite, not a partial patch, so omitting any of them clears it.
   Future<void> saveProfile({
     required String uid,
     required String name,
     required DateTime dateOfBirth,
+    String? photoUrl,
     String? photoPath,
     String? bio,
   });

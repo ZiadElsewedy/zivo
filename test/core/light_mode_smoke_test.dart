@@ -4,7 +4,7 @@ import 'package:zivo/core/theme/zivo_palette.dart';
 import 'package:zivo/features/auth/presentation/pages/settings_page.dart';
 import 'package:zivo/features/hub/presentation/hub_page.dart';
 import 'package:zivo/features/moments/presentation/pages/moments_timeline_page.dart';
-import 'package:zivo/features/workout/presentation/pages/workout_progress_page.dart';
+import 'package:zivo/features/workout/presentation/pages/workout_analysis_page.dart';
 import 'package:zivo/features/workout/presentation/widgets/live_session/rest_ring.dart';
 
 import '../support/skin_contrast.dart';
@@ -68,12 +68,12 @@ void main() {
   testWidgets('a chart screen reads on paper', (tester) async {
     // Charts are where a skin usually breaks first: axis labels and grid
     // rules are the quietest ink on any screen.
-    await pumpThenFlipToLight(tester, const WorkoutProgressPage());
+    await pumpThenFlipToLight(tester, const WorkoutAnalysisPage());
     expect(tester.takeException(), isNull);
     expectNothingVanishes(
       tester,
       ground: ground.base,
-      screen: 'Workout progress',
+      screen: 'Workout analysis',
     );
   });
 

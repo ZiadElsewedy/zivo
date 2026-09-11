@@ -30,12 +30,14 @@ class FirestoreProfileRepository implements ProfileRepository {
     required String uid,
     required String name,
     required DateTime dateOfBirth,
+    String? photoUrl,
     String? photoPath,
     String? bio,
   }) {
     return _users.doc(uid).set({
       'name': name,
       'dateOfBirth': Timestamp.fromDate(dateOfBirth),
+      'photoUrl': photoUrl,
       'photoPath': photoPath,
       'bio': bio,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -48,6 +50,7 @@ class FirestoreProfileRepository implements ProfileRepository {
     if (data == null) return null;
     final name = data['name'];
     final dateOfBirth = data['dateOfBirth'];
+    final photoUrl = data['photoUrl'];
     final photoPath = data['photoPath'];
     final bio = data['bio'];
     if (name is! String || name.isEmpty) return null;
@@ -56,6 +59,7 @@ class FirestoreProfileRepository implements ProfileRepository {
       uid: snap.id,
       name: name,
       dateOfBirth: dateOfBirth.toDate(),
+      photoUrl: photoUrl is String ? photoUrl : null,
       photoPath: photoPath is String ? photoPath : null,
       bio: bio is String ? bio : null,
     );

@@ -50,6 +50,18 @@ policy — **no profile knowledge**), `AuthResult`/`AuthFailure`, `OtpSendResult
 `OtpVerifyResult`, `PasswordPolicy`, and the activity models (`AuthEvent`,
 `AuthEventType`, `AccountAuthMetadata`).
 
+**Single-device session** (one account = one active device) is a fifth,
+self-contained concern: `ActiveSession` + `DeviceSessionRepository`
+(`domain/`) with Firestore and in-memory impls (`data/`), driven by
+**`DeviceSessionGuard`** (`data/device_session_guard.dart`, `AppScope.deviceSession`).
+On sign-in/launch the guard claims the account — writes a fresh `sessionId` to
+`users/{uid}/session/current` (atomic replace) — and watches that doc; when the
+stored id is no longer this device's, it signs out of Firebase Auth and raises
+`signedOutElsewhere` (the `AuthPage` shows the reason). Wired in `app.dart`'s
+`_authSub`. Firebase Auth can't log a device out cross-device, so this
+server-owned ledger is the source of truth. See `docs/AUTH.md` boundary — this
+stays free of ZIVO concepts, so it ports with the module.
+
 **`AuthActivityRepository`** (`AppScope.activity`, nullable) is separate on purpose:
 bookkeeping must never be able to fail a sign-in, which is a different contract.
 `firestore_auth_activity_repository.dart` (real) vs `noop_auth_activity_repository.dart`
