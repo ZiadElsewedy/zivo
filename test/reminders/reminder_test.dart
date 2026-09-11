@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/features/reminders/domain/reminder.dart';
 import 'package:zivo/features/reminders/domain/reminder_sync.dart';
+import 'package:zivo/features/reminders/domain/workout_motivations.dart';
 
 void main() {
   group('Reminder', () {
@@ -123,6 +124,49 @@ void main() {
       final decoded = Reminder.fromMap(reminder.toMap());
       expect(decoded, reminder);
       expect((decoded!.sync as WorkoutSync).motivational, isTrue);
+      // Absent tone decodes as the default.
+      expect((decoded.sync as WorkoutSync).tone, MotivationTone.gentle);
+    });
+
+    test('a motivational sync round-trips its non-default tone', () {
+      const reminder = Reminder(
+        id: 'r3t',
+        label: 'Train',
+        kind: ReminderKind.workout,
+        hour: 18,
+        minute: 30,
+        sync: WorkoutSync(motivational: true, tone: MotivationTone.toughLove),
+      );
+      final decoded = Reminder.fromMap(reminder.toMap());
+      expect(decoded, reminder);
+      expect((decoded!.sync as WorkoutSync).tone, MotivationTone.toughLove);
+    });
+
+    test('an emoji round-trips through the codec', () {
+      const reminder = Reminder(
+        id: 'r5',
+        label: 'Leg day',
+        kind: ReminderKind.workout,
+        hour: 18,
+        minute: 0,
+        emoji: '💪',
+      );
+      final decoded = Reminder.fromMap(reminder.toMap());
+      expect(decoded, reminder);
+      expect(decoded!.emoji, '💪');
+    });
+
+    test('a blank emoji normalises to null', () {
+      final reminder = Reminder.clamped(
+        id: 'r6',
+        label: 'x',
+        kind: ReminderKind.general,
+        hour: 8,
+        minute: 0,
+        emoji: '   ',
+      );
+      expect(reminder.emoji, isNull);
+      expect(reminder.toMap().containsKey('emoji'), isFalse);
     });
 
     test('an unrecognised stored sync degrades to a plain reminder', () {

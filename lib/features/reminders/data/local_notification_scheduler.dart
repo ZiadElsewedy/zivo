@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
@@ -5,7 +7,107 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../domain/notification_scheduler.dart';
 import '../domain/reminder.dart';
-import '../domain/reminder_sync.dart';
+import '../domain/reminder_notification_text.dart';
+
+/// The action button ids and the snooze delay, shared by the scheduler and its
+/// background tap handler.
+const String _snoozeActionId = 'zivo_snooze';
+const String _reminderCategoryId = 'zivo_reminder';
+const Duration _snoozeDelay = Duration(minutes: 10);
+
+/// Snoozed re-posts are scheduled with ids from this base up, well clear of the
+/// mirror's `0..N` ids so a snooze never collides with a scheduled reminder.
+const int _snoozeIdBase = 900000;
+
+/// The Android channel a snoozed re-post reuses (same as the scheduled one).
+const String _channelId = 'zivo_reminders';
+const String _channelName = 'Reminders';
+const String _channelDescription = 'Meal, workout and activity reminders.';
+
+/// The user-facing label on the Snooze action button. Hardcoded English, the
+/// same trade the channel name makes — localising notification chrome would mean
+/// threading the current locale down to this repository-free layer. Tracked as a
+/// follow-up.
+const String _snoozeLabel = 'Snooze';
+
+/// Handles a tap on the **Snooze** action from a *background* isolate — the case
+/// where the OS posted the notification while ZIVO was terminated. It must be a
+/// top-level, `vm:entry-point` function: the plugin spins up a fresh isolate
+/// with none of the app's state, so this re-creates its own plugin + timezone
+/// and re-posts the reminder [_snoozeDelay] later. Best-effort and fully
+/// guarded — a failure here must never crash the isolate.
+@pragma('vm:entry-point')
+void notificationSnoozeBackgroundHandler(NotificationResponse response) {
+  if (response.actionId != _snoozeActionId) return;
+  // Fire-and-forget: the isolate is torn down after this returns, so we just
+  // kick off the async re-post and let it run.
+  _postSnooze(FlutterLocalNotificationsPlugin(), response.payload);
+}
+
+/// Re-posts a snoozed reminder [_snoozeDelay] from now, reading the title/body
+/// back out of the notification's [payload]. Shared by the foreground and
+/// background handlers. Any failure is swallowed — a snooze that silently
+/// doesn't fire is far better than a crash.
+Future<void> _postSnooze(
+  FlutterLocalNotificationsPlugin plugin,
+  String? payload,
+) async {
+  try {
+    final decoded = payload == null ? null : jsonDecode(payload);
+    if (decoded is! Map) return;
+    final title = decoded['t'];
+    if (title is! String || title.isEmpty) return;
+    final body = decoded['b'] is String ? decoded['b'] as String : null;
+
+    // The background isolate has no timezone data loaded; the foreground one
+    // already does, but re-initialising is cheap and idempotent.
+    tz_data.initializeTimeZones();
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(info.identifier));
+    } catch (_) {
+      // Fall back to the package default zone rather than dropping the snooze.
+    }
+
+    final when = tz.TZDateTime.now(tz.local).add(_snoozeDelay);
+    await plugin.zonedSchedule(
+      // A distinct id per snooze so two snoozes don't overwrite each other.
+      id: _snoozeIdBase + DateTime.now().millisecondsSinceEpoch.remainder(90000),
+      title: title,
+      body: body,
+      scheduledDate: when,
+      notificationDetails: _notificationDetails(payload: payload),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      payload: payload,
+    );
+  } catch (_) {
+    // Never let a malformed payload or a platform hiccup take down the isolate.
+  }
+}
+
+/// The notification presentation shared by scheduled reminders and snoozed
+/// re-posts: high-importance, with a **Snooze** action on both platforms. The
+/// [payload] rides along so a later Snooze tap can re-post the same content.
+NotificationDetails _notificationDetails({String? payload}) => NotificationDetails(
+  android: AndroidNotificationDetails(
+    _channelId,
+    _channelName,
+    channelDescription: _channelDescription,
+    importance: Importance.high,
+    priority: Priority.high,
+    actions: const [
+      // showsUserInterface:false → handled in the background without opening the
+      // app; cancelNotification:true → the tapped banner clears on snooze.
+      AndroidNotificationAction(
+        _snoozeActionId,
+        _snoozeLabel,
+        showsUserInterface: false,
+        cancelNotification: true,
+      ),
+    ],
+  ),
+  iOS: DarwinNotificationDetails(categoryIdentifier: _reminderCategoryId),
+);
 
 /// One notification to schedule: [title] (with an optional [body]) at
 /// [hour]:[minute], on [weekday] (1..7) or every day when [weekday] is null. The
@@ -18,64 +120,6 @@ typedef ReminderOccurrence = ({
   int minute,
   int? weekday,
 });
-
-/// Resolves a reminder's notification title and body, folding in its sync:
-/// a [MealSync] lists its customised items in the body; a [WorkoutSync] takes
-/// the live next-up workout from [context] (and falls back to the reminder's own
-/// label when no plan is resolved); a plain reminder is title-only, as before.
-///
-/// A [WorkoutSync] with `motivational` on is the exception: it names the day but
-/// swaps the exercise list for [ReminderContext.workoutMotivation] — one short
-/// line of encouragement, never the lift details.
-({String title, String? body}) resolveReminderText(
-  Reminder reminder, {
-  required String fallbackTitle,
-  ReminderContext context = ReminderContext.empty,
-}) {
-  final labelled = reminder.label.trim();
-  switch (reminder.sync) {
-    case MealSync m:
-      final title = labelled.isNotEmpty
-          ? labelled
-          : (m.mealLabel.isNotEmpty ? m.mealLabel : fallbackTitle);
-      return (title: title, body: m.items.isEmpty ? null : m.items.join(' · '));
-    case WorkoutSync w:
-      final day = context.workoutTitle;
-      if (w.motivational) {
-        // Motivational mode: encouragement, not the exercise list. The day still
-        // shows so the reminder is grounded ("Arm Day · Keep going"); with no day
-        // resolved it is the motivational line alone.
-        final motivation = context.workoutMotivation?.trim();
-        final title = labelled.isNotEmpty ? labelled : (day ?? fallbackTitle);
-        // What the body should carry, in order of preference: the motivational
-        // line (prefixed with the day when the title isn't already the day), the
-        // day on its own, or nothing.
-        final String? body;
-        if (motivation != null && motivation.isNotEmpty) {
-          body = (day != null && labelled.isNotEmpty)
-              ? '$day · $motivation'
-              : motivation;
-        } else {
-          body = labelled.isNotEmpty ? day : null;
-        }
-        return (title: title, body: body);
-      }
-      if (day == null) {
-        // No active plan / no next day resolved — behave like a plain reminder.
-        return (
-          title: labelled.isNotEmpty ? labelled : fallbackTitle,
-          body: null,
-        );
-      }
-      if (labelled.isNotEmpty) {
-        final detail = context.workoutBody;
-        return (title: labelled, body: detail == null ? day : '$day — $detail');
-      }
-      return (title: day, body: context.workoutBody);
-    case null:
-      return (title: labelled.isNotEmpty ? labelled : fallbackTitle, body: null);
-  }
-}
 
 /// Expands enabled reminders into the concrete notifications to schedule: one
 /// per every-day reminder, one per chosen weekday otherwise. Disabled reminders
@@ -135,12 +179,6 @@ class LocalNotificationScheduler implements NotificationScheduler {
 
   bool _initialised = false;
 
-  /// The Android channel reminders are posted on. Created lazily by the plugin
-  /// on the first schedule.
-  static const _channelId = 'zivo_reminders';
-  static const _channelName = 'Reminders';
-  static const _channelDescription = 'Meal, workout and activity reminders.';
-
   @override
   Future<void> init() async {
     if (_initialised) return;
@@ -151,16 +189,41 @@ class LocalNotificationScheduler implements NotificationScheduler {
 
     // No permission is requested here — the Darwin flags are all false so
     // launching the app never prompts. Permission is asked the first time the
-    // user enables a reminder, in [requestPermission].
-    const settings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    // user enables a reminder, in [requestPermission]. The iOS category carries
+    // the Snooze action; its Android twin is attached per-notification instead.
+    // Not const: DarwinNotificationAction.plain is a factory, not a const ctor.
+    final settings = InitializationSettings(
+      android: const AndroidInitializationSettings('@mipmap/ic_launcher'),
       iOS: DarwinInitializationSettings(
         requestAlertPermission: false,
         requestBadgePermission: false,
         requestSoundPermission: false,
+        notificationCategories: [
+          DarwinNotificationCategory(
+            _reminderCategoryId,
+            actions: [
+              DarwinNotificationAction.plain(_snoozeActionId, _snoozeLabel),
+            ],
+          ),
+        ],
       ),
     );
-    await _plugin.initialize(settings: settings);
+    await _plugin.initialize(
+      settings: settings,
+      // A Snooze tap while the app is alive lands here; one while it is
+      // terminated lands in the top-level background handler.
+      onDidReceiveNotificationResponse: _onNotificationResponse,
+      onDidReceiveBackgroundNotificationResponse:
+          notificationSnoozeBackgroundHandler,
+    );
+  }
+
+  /// Foreground/background-alive tap handling: a Snooze action re-posts the
+  /// reminder; a plain tap is left to the OS's default (open the app).
+  void _onNotificationResponse(NotificationResponse response) {
+    if (response.actionId == _snoozeActionId) {
+      _postSnooze(_plugin, response.payload);
+    }
   }
 
   Future<void> _setLocalLocation() async {
@@ -208,19 +271,10 @@ class LocalNotificationScheduler implements NotificationScheduler {
     await init();
     // The stored reminders are the source of truth; the OS's scheduled set is a
     // pure mirror of them. Wiping and re-adding keeps it exact with no diffing,
-    // and the ids below are only ever unique *within* one reschedule.
+    // and the ids below are only ever unique *within* one reschedule. (A pending
+    // snooze is wiped too — an acceptable edge, since a reschedule means the
+    // reminders or plan just changed.)
     await _plugin.cancelAll();
-
-    const details = NotificationDetails(
-      android: AndroidNotificationDetails(
-        _channelId,
-        _channelName,
-        channelDescription: _channelDescription,
-        importance: Importance.high,
-        priority: Priority.high,
-      ),
-      iOS: DarwinNotificationDetails(),
-    );
 
     final occurrences = reminderOccurrences(
       reminders,
@@ -242,7 +296,6 @@ class LocalNotificationScheduler implements NotificationScheduler {
         match: occ.weekday == null
             ? DateTimeComponents.time
             : DateTimeComponents.dayOfWeekAndTime,
-        details: details,
       );
     }
   }
@@ -253,16 +306,22 @@ class LocalNotificationScheduler implements NotificationScheduler {
     required String? body,
     required tz.TZDateTime when,
     required DateTimeComponents match,
-    required NotificationDetails details,
-  }) => _plugin.zonedSchedule(
-    id: id,
-    title: title,
-    body: body,
-    scheduledDate: when,
-    notificationDetails: details,
-    androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-    matchDateTimeComponents: match,
-  );
+  }) {
+    // The payload carries the resolved text so a Snooze tap can re-post it.
+    final fields = <String, String>{'t': title};
+    if (body != null) fields['b'] = body;
+    final payload = jsonEncode(fields);
+    return _plugin.zonedSchedule(
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: when,
+      notificationDetails: _notificationDetails(payload: payload),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      matchDateTimeComponents: match,
+      payload: payload,
+    );
+  }
 
   /// The next time [hour]:[minute] occurs in the device's zone — today if it is
   /// still ahead, tomorrow otherwise.

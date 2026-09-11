@@ -11,10 +11,8 @@ void main() {
     });
 
     test('rotates from one seed to the next', () {
-      // Consecutive days should not all land on the same line.
       final lines = {
-        for (var seed = 0; seed < kWorkoutMotivationsEn.length; seed++)
-          pickWorkoutMotivation(seed: seed),
+        for (var seed = 0; seed < 8; seed++) pickWorkoutMotivation(seed: seed),
       };
       expect(lines.length, greaterThan(1));
     });
@@ -22,19 +20,41 @@ void main() {
     test('a negative seed still resolves to a real line', () {
       // A hash code can be negative; the pick must stay in range.
       final line = pickWorkoutMotivation(seed: -13);
-      expect(kWorkoutMotivationsEn, contains(line));
+      expect(workoutMotivationsFor(MotivationTone.gentle, 'en'), contains(line));
     });
 
-    test('picks the Arabic line for an ar locale, index-aligned with English', () {
-      const seed = 4;
-      final en = pickWorkoutMotivation(seed: seed, languageCode: 'en');
-      final ar = pickWorkoutMotivation(seed: seed, languageCode: 'ar');
-      final enIndex = kWorkoutMotivationsEn.indexOf(en);
-      expect(ar, kWorkoutMotivationsAr[enIndex]);
+    test('the tone selects its own list', () {
+      const seed = 3;
+      final gentle = pickWorkoutMotivation(seed: seed, tone: MotivationTone.gentle);
+      final tough = pickWorkoutMotivation(seed: seed, tone: MotivationTone.toughLove);
+      expect(workoutMotivationsFor(MotivationTone.gentle, 'en'), contains(gentle));
+      expect(workoutMotivationsFor(MotivationTone.toughLove, 'en'), contains(tough));
     });
 
-    test('the two language lists stay index-aligned', () {
-      expect(kWorkoutMotivationsEn, hasLength(kWorkoutMotivationsAr.length));
+    test('picks the Arabic line for an ar locale, aligned with English', () {
+      for (final tone in MotivationTone.values) {
+        const seed = 4;
+        final en = pickWorkoutMotivation(seed: seed, languageCode: 'en', tone: tone);
+        final ar = pickWorkoutMotivation(seed: seed, languageCode: 'ar', tone: tone);
+        final enIndex = workoutMotivationsFor(tone, 'en').indexOf(en);
+        expect(ar, workoutMotivationsFor(tone, 'ar')[enIndex]);
+      }
+    });
+
+    test('every tone keeps its two language lists index-aligned', () {
+      for (final tone in MotivationTone.values) {
+        expect(
+          workoutMotivationsFor(tone, 'en'),
+          hasLength(workoutMotivationsFor(tone, 'ar').length),
+          reason: 'tone $tone must have matching en/ar list lengths',
+        );
+      }
+    });
+
+    test('MotivationTone.fromName falls back to gentle for the unknown', () {
+      expect(MotivationTone.fromName('hype'), MotivationTone.hype);
+      expect(MotivationTone.fromName('mystery'), MotivationTone.gentle);
+      expect(MotivationTone.fromName(null), MotivationTone.gentle);
     });
   });
 }

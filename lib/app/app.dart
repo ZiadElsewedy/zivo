@@ -65,6 +65,7 @@ import '../features/reminders/domain/reminder.dart';
 import '../features/reminders/domain/reminder_sync.dart';
 import '../features/reminders/domain/reminders_repository.dart';
 import '../features/reminders/domain/workout_motivations.dart';
+import '../features/reminders/presentation/workout_reminder_context.dart';
 import '../features/workout/domain/workout_plan.dart';
 import '../features/expenses/data/firestore_category_repository.dart';
 import '../features/expenses/data/firestore_expense_repository.dart';
@@ -470,9 +471,9 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       (r) => (r.sync as WorkoutSync).motivational,
     );
     final context = needsPlan
-        ? _workoutContext(
+        ? workoutReminderContext(
             _latestPlan,
-            motivation: needsMotivation ? _pickMotivation() : null,
+            motivations: needsMotivation ? _pickMotivations() : const {},
           )
         : ReminderContext.empty;
     if (_lastScheduledReminders != null &&
@@ -485,13 +486,14 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     unawaited(_notifications.reschedule(_latestReminders, context: context));
   }
 
-  /// One motivational line for today, in the app's language.
+  /// Today's motivational line for every [MotivationTone], in the app's
+  /// language — so the pure resolver can pick by each reminder's own tone.
   ///
-  /// Seeded by the calendar day (plus a fixed salt) so it is **stable across a
-  /// reschedule** — two reschedules on the same day pick the same line, so the
-  /// dedupe in [_rescheduleNotifications] still holds and the platform channel
-  /// isn't churned — while rotating from one day to the next.
-  String _pickMotivation() {
+  /// Seeded by the calendar day so the choice is **stable across a reschedule**
+  /// — two reschedules on the same day pick the same lines, so the dedupe in
+  /// [_rescheduleNotifications] still holds and the platform channel isn't
+  /// churned — while rotating from one day to the next.
+  Map<MotivationTone, String> _pickMotivations() {
     final now = DateTime.now();
     final epochDay = DateTime(now.year, now.month, now.day)
         .difference(DateTime(2020))
@@ -499,38 +501,14 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     final language =
         _locale.locale.value?.languageCode ??
         WidgetsBinding.instance.platformDispatcher.locale.languageCode;
-    return pickWorkoutMotivation(seed: epochDay, languageCode: language);
-  }
-
-  /// The live text a workout-synced reminder should carry: the active plan's
-  /// next-up day name and a short list of its exercises, plus the day's
-  /// [motivation] line for reminders in motivational mode. The day text is empty
-  /// when there is no plan or no next day (a synced reminder then falls back to
-  /// its own label), but [motivation] is still carried so a motivational
-  /// reminder shows encouragement even before a plan resolves.
-  ReminderContext _workoutContext(WorkoutPlan? plan, {String? motivation}) {
-    final day = plan?.nextDay;
-    if (day == null) {
-      return ReminderContext(workoutMotivation: motivation);
-    }
-    final names = [
-      for (final e in (day.exercises.toList()
-            ..sort((a, b) => a.order.compareTo(b.order))))
-        if (e.name.trim().isNotEmpty) e.name.trim(),
-    ];
-    const maxNames = 3;
-    String? body;
-    if (names.length <= maxNames) {
-      body = names.isEmpty ? null : names.join(' · ');
-    } else {
-      body = '${names.take(maxNames).join(' · ')} +${names.length - maxNames}';
-    }
-    final label = day.label.trim();
-    return ReminderContext(
-      workoutTitle: label.isEmpty ? null : label,
-      workoutBody: body,
-      workoutMotivation: motivation,
-    );
+    return {
+      for (final tone in MotivationTone.values)
+        tone: pickWorkoutMotivation(
+          seed: epochDay,
+          languageCode: language,
+          tone: tone,
+        ),
+    };
   }
 
   @override

@@ -1895,6 +1895,40 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-11 — **Reminder enrichments: emoji · motivational tone · Snooze action** (on
+  `feature/reminders-sync`; Dart + l10n + AndroidManifest). Three additions on top of the
+  editor work below. **(1) Per-reminder emoji** — `Reminder.emoji`, a curated `_EmojiPicker`
+  in the sheet; the emoji leads the list row (swapping the kind icon) and the notification
+  title (prefixed in `resolveReminderText`). **(2) Motivational tone** — `MotivationTone`
+  (gentle / tough-love / hype); `workout_motivations.dart` restructured into three EN+AR sets
+(**34 lines each — ~100 English encouragements**, index-aligned per tone),
+  `WorkoutSync.tone` persisted, a tone selector under the Motivational toggle. `ReminderContext`
+  now carries a **tone→line map** (`workoutMotivations`) since tone is per-reminder while the
+  context is shared; the app root picks one line per tone per day. **(3) Snooze action** — every
+  notification carries a Snooze button (Android action + iOS `zivo_reminder` category) and a JSON
+  title/body payload; a tap re-posts 10 min later via `_onNotificationResponse` (app alive) or the
+  top-level `notificationSnoozeBackgroundHandler` (terminated). Added `ActionBroadcastReceiver` to
+  AndroidManifest. **Snooze label is hardcoded English** (like the channel name) — localisation is
+  a tracked follow-up; **the action fires can only be verified on a real device.** New l10n:
+  emoji, three tones (en + ar). Tests: emoji round-trip/normalise + emoji-in-title, tone
+  round-trip + tone-selection occurrence, tone-based `workout_motivations` suite. `flutter test`
+  green (1566).
+- 2026-09-11 — **Reminder editor: close button + live notification preview** (on
+  `feature/reminders-sync`; Dart + l10n). Fixed a real dismissal trap — a tall, keyboard-lifted
+  edit sheet left no scrim to tap, so it added an explicit header **close button**
+  (`_SheetCloseButton`, Semantics-labelled). Added a **live notification preview** — a
+  lock-screen banner mock (`_NotificationPreview`) above the time field that updates as you
+  type/toggle and shows the exact title/body that will fire (today's motivational line
+  included). To do it without a layering break, the pure `resolveReminderText` was promoted to
+  `domain/reminder_notification_text.dart` (both the scheduler and the preview call it), and the
+  workout-context builder was extracted to `presentation/workout_reminder_context.dart`
+  (`workoutReminderContext`, shared by the app root and the preview — app.dart's private
+  `_workoutContext` deleted, no behaviour change). New `remindersPreview`/`…PreviewEmptyBody`
+  l10n (en + ar). Tests: close-dismiss + preview-reflects-name; the wheel-picker test now
+  disambiguates the duplicated time. `flutter test` green (1559). **Also this session:** reverted
+  an accidental `pub upgrade` that rode in on the reminders commit — file_picker 8→12,
+  package_info_plus 8→10, googleapis 14→17 (+ Firebase iOS 12.17→12.18) all pinned back to
+  pre-upgrade; `pubspec.*` now byte-identical to `f792ad1`.
 - 2026-09-11 — **Motivational workout reminders** (on `feature/reminders-sync`; Dart + l10n,
   no repo/rules change). A synced workout reminder can now be flipped to **motivational**: a
   nested "Motivational message" toggle on the edit sheet (shown only once "Sync with my plan"

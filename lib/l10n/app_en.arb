@@ -7507,6 +7507,30 @@
   "@remindersMotivationalHint": {
     "description": "Explanation under the motivational-message toggle on a workout reminder."
   },
+  "remindersEmoji": "Emoji",
+  "@remindersEmoji": {
+    "description": "Label above the optional emoji picker for a reminder."
+  },
+  "remindersToneGentle": "Gentle",
+  "@remindersToneGentle": {
+    "description": "A motivational-message tone: kind and encouraging."
+  },
+  "remindersToneToughLove": "Tough love",
+  "@remindersToneToughLove": {
+    "description": "A motivational-message tone: blunt, no-excuses."
+  },
+  "remindersToneHype": "Hype",
+  "@remindersToneHype": {
+    "description": "A motivational-message tone: high-energy and exclamatory."
+  },
+  "remindersPreview": "Preview",
+  "@remindersPreview": {
+    "description": "Label above a live preview of what the reminder's notification will say."
+  },
+  "remindersPreviewEmptyBody": "Your reminder — no extra line.",
+  "@remindersPreviewEmptyBody": {
+    "description": "Placeholder body shown in the notification preview when the reminder has only a title and no second line."
+  },
   "remindersPickMeal": "Which meal?",
   "@remindersPickMeal": {
     "description": "Title of the sheet that lists the meals in the plan to pick one for a reminder."

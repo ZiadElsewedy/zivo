@@ -8946,6 +8946,42 @@ abstract class AppLocalizations {
   /// **'Names today\'s workout and adds a line to keep you going, instead of the exercise list.'**
   String get remindersMotivationalHint;
 
+  /// Label above the optional emoji picker for a reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Emoji'**
+  String get remindersEmoji;
+
+  /// A motivational-message tone: kind and encouraging.
+  ///
+  /// In en, this message translates to:
+  /// **'Gentle'**
+  String get remindersToneGentle;
+
+  /// A motivational-message tone: blunt, no-excuses.
+  ///
+  /// In en, this message translates to:
+  /// **'Tough love'**
+  String get remindersToneToughLove;
+
+  /// A motivational-message tone: high-energy and exclamatory.
+  ///
+  /// In en, this message translates to:
+  /// **'Hype'**
+  String get remindersToneHype;
+
+  /// Label above a live preview of what the reminder's notification will say.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get remindersPreview;
+
+  /// Placeholder body shown in the notification preview when the reminder has only a title and no second line.
+  ///
+  /// In en, this message translates to:
+  /// **'Your reminder — no extra line.'**
+  String get remindersPreviewEmptyBody;
+
   /// Title of the sheet that lists the meals in the plan to pick one for a reminder.
   ///
   /// In en, this message translates to:

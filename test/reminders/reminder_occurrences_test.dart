@@ -3,6 +3,7 @@ import 'package:zivo/features/reminders/data/local_notification_scheduler.dart';
 import 'package:zivo/features/reminders/domain/notification_scheduler.dart';
 import 'package:zivo/features/reminders/domain/reminder.dart';
 import 'package:zivo/features/reminders/domain/reminder_sync.dart';
+import 'package:zivo/features/reminders/domain/workout_motivations.dart';
 
 void main() {
   group('reminderOccurrences', () {
@@ -146,7 +147,9 @@ void main() {
         context: const ReminderContext(
           workoutTitle: 'Arm Day',
           workoutBody: 'Curl · Press · Dips +2',
-          workoutMotivation: "Keep going — you've got this.",
+          workoutMotivations: {
+            MotivationTone.gentle: "Keep going — you've got this.",
+          },
         ),
       );
       // The day is the title; the body is the motivation, never the exercises.
@@ -170,11 +173,48 @@ void main() {
         context: const ReminderContext(
           workoutTitle: 'Arm Day',
           workoutBody: 'Curl · Press',
-          workoutMotivation: "Don't skip it.",
+          workoutMotivations: {MotivationTone.gentle: "Don't skip it."},
         ),
       );
       expect(occ.single.title, 'Tamreen time');
       expect(occ.single.body, "Arm Day · Don't skip it.");
+    });
+
+    test('a motivational sync picks the line for its own tone', () {
+      const r = Reminder(
+        id: 'a',
+        label: '',
+        kind: ReminderKind.workout,
+        hour: 18,
+        minute: 0,
+        sync: WorkoutSync(motivational: true, tone: MotivationTone.toughLove),
+      );
+      final occ = reminderOccurrences(
+        const [r],
+        fallbackTitle: 'Reminder',
+        context: const ReminderContext(
+          workoutTitle: 'Arm Day',
+          workoutMotivations: {
+            MotivationTone.gentle: 'You got this.',
+            MotivationTone.toughLove: "Don't skip leg day.",
+          },
+        ),
+      );
+      // Tough-love was chosen, so its line is what shows — not the gentle one.
+      expect(occ.single.body, "Don't skip leg day.");
+    });
+
+    test('an emoji leads the notification title', () {
+      const r = Reminder(
+        id: 'a',
+        label: 'Leg day',
+        kind: ReminderKind.workout,
+        hour: 18,
+        minute: 0,
+        emoji: '💪',
+      );
+      final occ = reminderOccurrences(const [r], fallbackTitle: 'Reminder');
+      expect(occ.single.title, '💪 Leg day');
     });
 
     test('a motivational sync still encourages when no plan day is resolved', () {
@@ -190,7 +230,9 @@ void main() {
         const [r],
         fallbackTitle: 'Reminder',
         context: const ReminderContext(
-          workoutMotivation: 'Show up for yourself today.',
+          workoutMotivations: {
+            MotivationTone.gentle: 'Show up for yourself today.',
+          },
         ),
       );
       // No day resolved: the fallback titles it, the motivation is the body.

@@ -5394,6 +5394,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'Names today\'s workout and adds a line to keep you going, instead of the exercise list.';
 
   @override
+  String get remindersEmoji => 'Emoji';
+
+  @override
+  String get remindersToneGentle => 'Gentle';
+
+  @override
+  String get remindersToneToughLove => 'Tough love';
+
+  @override
+  String get remindersToneHype => 'Hype';
+
+  @override
+  String get remindersPreview => 'Preview';
+
+  @override
+  String get remindersPreviewEmptyBody => 'Your reminder — no extra line.';
+
+  @override
   String get remindersPickMeal => 'Which meal?';
 
   @override

@@ -5,6 +5,7 @@ import '../../../core/util/date_format.dart';
 import '../../../l10n/l10n.dart';
 import '../domain/reminder.dart';
 import '../domain/reminder_sync.dart';
+import '../domain/workout_motivations.dart';
 
 /// The presentation half of [ReminderKind] and the reminder's repeat schedule.
 ///
@@ -17,6 +18,15 @@ String reminderKindLabel(BuildContext context, ReminderKind kind) =>
       ReminderKind.general => l(context).remindersKindGeneral,
       ReminderKind.meal => l(context).remindersKindMeal,
       ReminderKind.workout => l(context).remindersKindWorkout,
+    };
+
+/// The voice a motivational workout reminder speaks in. [MotivationTone] is a
+/// persisted id and carries no copy, so its labels live here.
+String motivationToneLabel(BuildContext context, MotivationTone tone) =>
+    switch (tone) {
+      MotivationTone.gentle => l(context).remindersToneGentle,
+      MotivationTone.toughLove => l(context).remindersToneToughLove,
+      MotivationTone.hype => l(context).remindersToneHype,
     };
 
 IconData reminderKindIcon(ReminderKind kind) => switch (kind) {

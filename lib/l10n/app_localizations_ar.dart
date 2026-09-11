@@ -5502,6 +5502,24 @@ class AppLocalizationsAr extends AppLocalizations {
       'يذكر تمرين اليوم ويضيف عبارة تشجّعك على الاستمرار، بدلًا من قائمة التمارين.';
 
   @override
+  String get remindersEmoji => 'إيموجي';
+
+  @override
+  String get remindersToneGentle => 'لطيف';
+
+  @override
+  String get remindersToneToughLove => 'حازم';
+
+  @override
+  String get remindersToneHype => 'حماسي';
+
+  @override
+  String get remindersPreview => 'معاينة';
+
+  @override
+  String get remindersPreviewEmptyBody => 'تذكيرك — بدون سطر إضافي.';
+
+  @override
   String get remindersPickMeal => 'أي وجبة؟';
 
   @override
