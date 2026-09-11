@@ -1,24 +1,27 @@
 import 'package:flutter/foundation.dart';
 
-/// What a reminder is about — meal, workout, or anything else. This decides
-/// only the row's default icon and, for a reminder the user never renamed, its
-/// fallback label. It is persisted to Firestore **by `name`**, so it is an id
-/// and carries no copy: its labels live in `presentation/reminder_labels.dart`
-/// (the same domain-enum-no-copy rule `diet_labels.dart` and `workout_labels.dart`
-/// follow).
-enum ReminderKind {
-  meal,
-  workout,
-  other;
+import 'reminder_sync.dart';
 
-  /// Decodes a stored kind, falling back to [other] for anything missing or
-  /// unrecognised — a value written by a newer build must never leave an old
-  /// one unable to read its own reminders.
+/// What a reminder is about — general, a meal, or a workout. This decides the
+/// row's default icon, the fallback label for a reminder the user never renamed,
+/// and which sync affordance the edit sheet offers. It is persisted to Firestore
+/// **by `name`**, so it is an id and carries no copy: its labels live in
+/// `presentation/reminder_labels.dart` (the same domain-enum-no-copy rule
+/// `diet_labels.dart` and `workout_labels.dart` follow).
+enum ReminderKind {
+  general,
+  meal,
+  workout;
+
+  /// Decodes a stored kind, falling back to [general] for anything missing or
+  /// unrecognised — a value written by a newer build must never leave an old one
+  /// unable to read its own reminders. The legacy `"other"` kind has no match
+  /// here and so folds into [general], which replaced it.
   static ReminderKind fromName(Object? raw) {
     for (final kind in ReminderKind.values) {
       if (kind.name == raw) return kind;
     }
-    return ReminderKind.other;
+    return ReminderKind.general;
   }
 }
 
@@ -39,6 +42,7 @@ class Reminder {
     required this.minute,
     this.weekdays = const {},
     this.enabled = true,
+    this.sync,
   });
 
   /// A stable id, minted once when the reminder is created. Used as the seed
@@ -61,6 +65,10 @@ class Reminder {
 
   final bool enabled;
 
+  /// An optional link to the user's plans (see [ReminderSync]). `null` is a plain
+  /// reminder — the original shape, and what older stored reminders carry.
+  final ReminderSync? sync;
+
   /// True when this reminder fires every day — an empty [weekdays] set, or one
   /// that happens to hold all seven.
   bool get isEveryDay => weekdays.isEmpty || weekdays.length == 7;
@@ -77,6 +85,8 @@ class Reminder {
     int? minute,
     Set<int>? weekdays,
     bool? enabled,
+    ReminderSync? sync,
+    bool clearSync = false,
   }) => Reminder.clamped(
     id: id,
     label: label ?? this.label,
@@ -85,6 +95,7 @@ class Reminder {
     minute: minute ?? this.minute,
     weekdays: weekdays ?? this.weekdays,
     enabled: enabled ?? this.enabled,
+    sync: clearSync ? null : (sync ?? this.sync),
   );
 
   /// Builds a reminder with [hour]/[minute]/[weekdays] forced into range, so a
@@ -97,6 +108,7 @@ class Reminder {
     required int minute,
     Set<int> weekdays = const {},
     bool enabled = true,
+    ReminderSync? sync,
   }) => Reminder(
     id: id,
     label: label.trim(),
@@ -108,6 +120,7 @@ class Reminder {
         if (d >= DateTime.monday && d <= DateTime.sunday) d,
     },
     enabled: enabled,
+    sync: sync,
   );
 
   Map<String, dynamic> toMap() => {
@@ -120,6 +133,7 @@ class Reminder {
     // makes round-trip equality and diffing predictable.
     'weekdays': (weekdays.toList()..sort()),
     'enabled': enabled,
+    if (sync != null) 'sync': sync!.toMap(),
   };
 
   /// Decodes a stored reminder, tolerant of missing or malformed fields (like
@@ -140,6 +154,7 @@ class Reminder {
           if (d is num) d.toInt(),
       },
       enabled: raw['enabled'] is bool ? raw['enabled'] as bool : true,
+      sync: ReminderSync.fromMap(raw['sync']),
     );
   }
 
@@ -152,7 +167,8 @@ class Reminder {
       other.hour == hour &&
       other.minute == minute &&
       setEquals(other.weekdays, weekdays) &&
-      other.enabled == enabled;
+      other.enabled == enabled &&
+      other.sync == sync;
 
   @override
   int get hashCode => Object.hash(
@@ -163,6 +179,7 @@ class Reminder {
     minute,
     Object.hashAllUnordered(weekdays),
     enabled,
+    sync,
   );
 }
 

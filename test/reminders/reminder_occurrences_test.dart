@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/features/reminders/data/local_notification_scheduler.dart';
+import 'package:zivo/features/reminders/domain/notification_scheduler.dart';
 import 'package:zivo/features/reminders/domain/reminder.dart';
+import 'package:zivo/features/reminders/domain/reminder_sync.dart';
 
 void main() {
   group('reminderOccurrences', () {
@@ -37,7 +39,7 @@ void main() {
       const r = Reminder(
         id: 'a',
         label: 'Off',
-        kind: ReminderKind.other,
+        kind: ReminderKind.general,
         hour: 9,
         minute: 0,
         enabled: false,
@@ -45,16 +47,87 @@ void main() {
       expect(reminderOccurrences(const [r], fallbackTitle: 'Reminder'), isEmpty);
     });
 
-    test('an unlabelled reminder uses the fallback title', () {
+    test('an unlabelled reminder uses the fallback title and no body', () {
       const r = Reminder(
         id: 'a',
         label: '',
-        kind: ReminderKind.other,
+        kind: ReminderKind.general,
         hour: 9,
         minute: 0,
       );
       final occ = reminderOccurrences(const [r], fallbackTitle: 'Reminder');
       expect(occ.single.title, 'Reminder');
+      expect(occ.single.body, isNull);
+    });
+
+    test('a meal sync lists its items in the body', () {
+      const r = Reminder(
+        id: 'a',
+        label: '',
+        kind: ReminderKind.meal,
+        hour: 13,
+        minute: 0,
+        sync: MealSync(mealLabel: 'Lunch', items: ['Chicken 200 g', 'Rice']),
+      );
+      final occ = reminderOccurrences(const [r], fallbackTitle: 'Reminder');
+      expect(occ.single.title, 'Lunch');
+      expect(occ.single.body, 'Chicken 200 g · Rice');
+    });
+
+    test('a workout sync takes its text from the context', () {
+      const r = Reminder(
+        id: 'a',
+        label: '',
+        kind: ReminderKind.workout,
+        hour: 18,
+        minute: 0,
+        sync: WorkoutSync(),
+      );
+      final occ = reminderOccurrences(
+        const [r],
+        fallbackTitle: 'Reminder',
+        context: const ReminderContext(
+          workoutTitle: 'Push Day',
+          workoutBody: 'Bench · OHP +2',
+        ),
+      );
+      expect(occ.single.title, 'Push Day');
+      expect(occ.single.body, 'Bench · OHP +2');
+    });
+
+    test('a labelled workout sync keeps its label and shows the day in the body', () {
+      const r = Reminder(
+        id: 'a',
+        label: 'Time to lift',
+        kind: ReminderKind.workout,
+        hour: 18,
+        minute: 0,
+        sync: WorkoutSync(),
+      );
+      final occ = reminderOccurrences(
+        const [r],
+        fallbackTitle: 'Reminder',
+        context: const ReminderContext(
+          workoutTitle: 'Push Day',
+          workoutBody: 'Bench · OHP',
+        ),
+      );
+      expect(occ.single.title, 'Time to lift');
+      expect(occ.single.body, 'Push Day — Bench · OHP');
+    });
+
+    test('a workout sync with no resolved plan falls back to its label', () {
+      const r = Reminder(
+        id: 'a',
+        label: 'Workout',
+        kind: ReminderKind.workout,
+        hour: 18,
+        minute: 0,
+        sync: WorkoutSync(),
+      );
+      final occ = reminderOccurrences(const [r], fallbackTitle: 'Reminder');
+      expect(occ.single.title, 'Workout');
+      expect(occ.single.body, isNull);
     });
   });
 }

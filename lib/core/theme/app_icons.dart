@@ -84,11 +84,13 @@ class AppIcons {
   static const pause = PhosphorIconsRegular.pause;
 
   // Reminders (local notifications). `bell` is the feature's mark; meal/workout
-  // reuse the diet/workout module glyphs, and `other` gets a plain clock.
+  // reuse the diet/workout module glyphs, and `general` gets a plain clock.
+  // `reminderSync` marks a reminder linked to a meal/workout plan.
   static const reminders = PhosphorIconsRegular.bell;
   static const reminderMeal = PhosphorIconsRegular.forkKnife;
   static const reminderWorkout = PhosphorIconsRegular.barbell;
-  static const reminderOther = PhosphorIconsRegular.clock;
+  static const reminderGeneral = PhosphorIconsRegular.clock;
+  static const reminderSync = PhosphorIconsRegular.arrowsClockwise;
 
   // Common actions / affordances.
   static const add = PhosphorIconsRegular.plus;

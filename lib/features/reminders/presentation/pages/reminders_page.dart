@@ -93,7 +93,7 @@ class RemindersPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final repo = _repo(context);
     return TrainScreen(
-      tint: TrainColors.settingsTint,
+      tint: TrainColors.hubTint,
       child: StreamBuilder<List<Reminder>>(
         stream: repo?.watch() ?? const Stream.empty(),
         initialData: repo?.current ?? const [],
@@ -113,7 +113,7 @@ class RemindersPage extends StatelessWidget {
                     ? null
                     : TrainHeaderAction(
                         icon: AppIcons.add,
-                        accent: TrainColors.violet,
+                        accent: TrainColors.neutralMark,
                         semanticLabel: l(context).remindersAdd,
                         onTap: () => _add(context, reminders),
                       ),
@@ -170,6 +170,7 @@ class _ReminderRow extends StatelessWidget {
     final meta =
         '${ltrFor(context, reminderTimeLabel(context, reminder))}  ·  '
         '${reminderRepeatSummary(context, reminder)}';
+    final syncSummary = reminderSyncSummary(context, reminder);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -181,7 +182,7 @@ class _ReminderRow extends StatelessWidget {
               TrainIconTile(
                 icon: reminderKindIcon(reminder.kind),
                 accent: reminder.enabled
-                    ? TrainColors.violetGlyph
+                    ? TrainColors.neutralMark
                     : TrainColors.inkAt(0.35),
               ),
               const SizedBox(width: 14),
@@ -209,13 +210,40 @@ class _ReminderRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: AppText.meta.copyWith(color: TrainColors.ink3),
                     ),
+                    if (syncSummary != null) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            AppIcons.reminderSync,
+                            size: 12,
+                            color: reminder.enabled
+                                ? TrainColors.neutralMark
+                                : TrainColors.inkAt(0.35),
+                          ),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              isolate(syncSummary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.meta.copyWith(
+                                color: reminder.enabled
+                                    ? TrainColors.inkAt(0.6)
+                                    : TrainColors.ink3,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
               const SizedBox(width: 8),
               Switch.adaptive(
                 value: reminder.enabled,
-                activeThumbColor: TrainColors.violet,
                 onChanged: onToggle,
               ),
             ],
@@ -257,10 +285,10 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 18),
             TextButton.icon(
               onPressed: onAdd,
-              icon: Icon(AppIcons.add, size: 18, color: TrainColors.violet),
+              icon: Icon(AppIcons.add, size: 18, color: TrainColors.inkPlain),
               label: Text(
                 l(context).remindersAdd,
-                style: AppText.button.copyWith(color: TrainColors.violet),
+                style: AppText.button.copyWith(color: TrainColors.inkPlain),
               ),
             ),
           ],

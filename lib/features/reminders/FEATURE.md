@@ -1,19 +1,28 @@
 # reminders — feature map
 
-> Simple, customizable **local** reminders: the user schedules a notification for
-> a meal, a workout, or any other activity, and the OS fires it at that time. No
+> Customizable **local** reminders: the user schedules a notification for a
+> general activity, a meal, or a workout, and the OS fires it at that time. No
 > push, no backend, no server (see [ADR-013](../../../docs/DECISIONS/ADR-013-local-notifications.md)).
+> A meal or workout reminder can be **synced** to the user's plan — see below.
 
 ## Start here
 
 - `domain/reminder.dart` — the `Reminder` entity (`label · kind · hour · minute ·
-  weekdays · enabled`) and `ReminderKind` (meal/workout/other, a persisted id with
-  no copy). `weekdays` empty = every day. Map codec + `remindersFromStored`.
+  weekdays · enabled · sync?`) and `ReminderKind` (general/meal/workout, a persisted
+  id with no copy; the retired `other` folds into `general` on decode). `weekdays`
+  empty = every day. Map codec + `remindersFromStored`.
+- `domain/reminder_sync.dart` — the optional plan link (`ReminderSync?` on a
+  reminder; `null` = plain). Sealed: **`MealSync`** (a snapshot — which plan meal +
+  the customised item lines shown in the notification body) and **`WorkoutSync`** (a
+  live link — text is re-resolved from the active plan's next-up day at reschedule
+  time; `cachedDayLabel` is only for the row).
 - `domain/reminders_repository.dart` — the storage seam (`current`/`watch`/`save`),
   same shape as `WorkoutSettingsRepository`.
 - `domain/notification_scheduler.dart` — the platform seam (`init`/
-  `requestPermission`/`reschedule`) with `NoOpNotificationScheduler` for
-  offline/tests.
+  `requestPermission`/`reschedule(reminders, {context})`) with
+  `NoOpNotificationScheduler` for offline/tests. **`ReminderContext`** carries the
+  live next-up workout text a `WorkoutSync` needs, resolved by the app root so this
+  layer depends on no repository.
 - `presentation/pages/reminders_page.dart` — the one screen, reached from Settings.
 - `presentation/widgets/edit_reminder_sheet.dart` — create/edit sheet.
 - `presentation/reminder_labels.dart` — the domain→presentation label split for

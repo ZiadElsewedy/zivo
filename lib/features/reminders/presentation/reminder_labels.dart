@@ -4,6 +4,7 @@ import '../../../core/theme/app_icons.dart';
 import '../../../core/util/date_format.dart';
 import '../../../l10n/l10n.dart';
 import '../domain/reminder.dart';
+import '../domain/reminder_sync.dart';
 
 /// The presentation half of [ReminderKind] and the reminder's repeat schedule.
 ///
@@ -13,15 +14,15 @@ import '../domain/reminder.dart';
 
 String reminderKindLabel(BuildContext context, ReminderKind kind) =>
     switch (kind) {
+      ReminderKind.general => l(context).remindersKindGeneral,
       ReminderKind.meal => l(context).remindersKindMeal,
       ReminderKind.workout => l(context).remindersKindWorkout,
-      ReminderKind.other => l(context).remindersKindOther,
     };
 
 IconData reminderKindIcon(ReminderKind kind) => switch (kind) {
+  ReminderKind.general => AppIcons.reminderGeneral,
   ReminderKind.meal => AppIcons.reminderMeal,
   ReminderKind.workout => AppIcons.reminderWorkout,
-  ReminderKind.other => AppIcons.reminderOther,
 };
 
 /// What a reminder's row leads with: the name the user typed, or the kind's
@@ -45,6 +46,20 @@ String reminderRepeatSummary(BuildContext context, Reminder reminder) {
   final days = reminder.effectiveWeekdays.toList()..sort();
   return days.map((d) => weekdayShortLabel(context, d)).join(', ');
 }
+
+/// A one-line description of a reminder's plan link for the row, or null for a
+/// plain reminder: the synced meal's name, or the linked workout's next-up day
+/// (falling back to a generic "synced" line when no day has been resolved yet).
+String? reminderSyncSummary(BuildContext context, Reminder reminder) =>
+    switch (reminder.sync) {
+      MealSync m =>
+        m.mealLabel.isNotEmpty ? m.mealLabel : l(context).remindersSyncedBadge,
+      WorkoutSync w =>
+        w.cachedDayLabel?.trim().isNotEmpty ?? false
+            ? w.cachedDayLabel!.trim()
+            : l(context).remindersSyncWorkout,
+      null => null,
+    };
 
 /// A [DateTime] whose weekday is [weekday] (1..7), for formatting a weekday
 /// name. 2024-01-01 was a Monday, so day (weekday) lands on the right one.

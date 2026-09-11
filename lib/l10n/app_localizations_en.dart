@@ -5349,7 +5349,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get remindersKindWorkout => 'Workout';
 
   @override
-  String get remindersKindOther => 'Other';
+  String get remindersKindGeneral => 'General';
 
   @override
   String get remindersTimeLabel => 'Time';
@@ -5375,4 +5375,32 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get remindersPermissionDenied =>
       'Turn on notifications for ZIVO in your phone\'s settings to get reminders.';
+
+  @override
+  String get remindersSyncFromPlan => 'Sync from your plan';
+
+  @override
+  String get remindersSyncWorkout => 'Sync with my plan';
+
+  @override
+  String get remindersSyncWorkoutHint =>
+      'Shows your next scheduled workout, and keeps it up to date.';
+
+  @override
+  String get remindersPickMeal => 'Which meal?';
+
+  @override
+  String get remindersMealItems => 'Items';
+
+  @override
+  String get remindersAddItem => 'Add item';
+
+  @override
+  String get remindersNoMealPlan => 'No active meal plan to sync from.';
+
+  @override
+  String get remindersNoWorkoutPlan => 'No active workout plan to sync from.';
+
+  @override
+  String get remindersSyncedBadge => 'Synced';
 }

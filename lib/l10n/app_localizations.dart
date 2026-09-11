@@ -8862,11 +8862,11 @@ abstract class AppLocalizations {
   /// **'Workout'**
   String get remindersKindWorkout;
 
-  /// Reminder kind label: any other scheduled activity.
+  /// Reminder kind label: a general reminder the user names themselves.
   ///
   /// In en, this message translates to:
-  /// **'Other'**
-  String get remindersKindOther;
+  /// **'General'**
+  String get remindersKindGeneral;
 
   /// Label for the time picker in the reminder sheet.
   ///
@@ -8915,6 +8915,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Turn on notifications for ZIVO in your phone\'s settings to get reminders.'**
   String get remindersPermissionDenied;
+
+  /// Button on a meal reminder that loads the meal scheduled in the active diet plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync from your plan'**
+  String get remindersSyncFromPlan;
+
+  /// Toggle on a workout reminder that links it to the active workout plan so it shows the next scheduled workout.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync with my plan'**
+  String get remindersSyncWorkout;
+
+  /// Explanation under the workout-sync toggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows your next scheduled workout, and keeps it up to date.'**
+  String get remindersSyncWorkoutHint;
+
+  /// Title of the sheet that lists the meals in the plan to pick one for a reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Which meal?'**
+  String get remindersPickMeal;
+
+  /// Section label above the editable list of food items on a synced meal reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Items'**
+  String get remindersMealItems;
+
+  /// Hint on the field for adding a custom food item to a synced meal reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Add item'**
+  String get remindersAddItem;
+
+  /// Shown when a meal reminder is asked to sync but there is no active diet plan.
+  ///
+  /// In en, this message translates to:
+  /// **'No active meal plan to sync from.'**
+  String get remindersNoMealPlan;
+
+  /// Shown when a workout reminder is asked to sync but there is no active workout plan.
+  ///
+  /// In en, this message translates to:
+  /// **'No active workout plan to sync from.'**
+  String get remindersNoWorkoutPlan;
+
+  /// Small badge on a reminder row indicating it is linked to a plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Synced'**
+  String get remindersSyncedBadge;
 }
 
 class _AppLocalizationsDelegate

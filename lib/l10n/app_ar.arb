@@ -1460,7 +1460,7 @@
   "remindersLabelHint": "الاسم (مثل: الفطور، يوم الأرجل)",
   "remindersKindMeal": "وجبة",
   "remindersKindWorkout": "تمرين",
-  "remindersKindOther": "أخرى",
+  "remindersKindGeneral": "عام",
   "remindersTimeLabel": "الوقت",
   "remindersRepeatLabel": "التكرار",
   "remindersEveryDay": "كل يوم",
@@ -1468,5 +1468,14 @@
   "remindersDelete": "حذف التذكير",
   "remindersDeleteConfirm": "حذف هذا التذكير؟",
   "remindersSaveFailed": "تعذّر حفظ هذا التذكير.",
-  "remindersPermissionDenied": "فعّل إشعارات ZIVO من إعدادات هاتفك لتصلك التذكيرات."
+  "remindersPermissionDenied": "فعّل إشعارات ZIVO من إعدادات هاتفك لتصلك التذكيرات.",
+  "remindersSyncFromPlan": "المزامنة من خطتك",
+  "remindersSyncWorkout": "المزامنة مع خطتي",
+  "remindersSyncWorkoutHint": "يعرض تمرينك التالي المجدول ويبقيه محدّثًا.",
+  "remindersPickMeal": "أي وجبة؟",
+  "remindersMealItems": "العناصر",
+  "remindersAddItem": "إضافة عنصر",
+  "remindersNoMealPlan": "لا توجد خطة وجبات نشطة للمزامنة منها.",
+  "remindersNoWorkoutPlan": "لا توجد خطة تمارين نشطة للمزامنة منها.",
+  "remindersSyncedBadge": "مُزامَن"
 }

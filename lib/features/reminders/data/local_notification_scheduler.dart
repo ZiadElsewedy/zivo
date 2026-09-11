@@ -5,32 +5,76 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../domain/notification_scheduler.dart';
 import '../domain/reminder.dart';
+import '../domain/reminder_sync.dart';
 
-/// One notification to schedule: [title] at [hour]:[minute], on [weekday]
-/// (1..7) or every day when [weekday] is null. The pure plan the scheduler
-/// hands to the OS — extracted so the "how many alarms, on which days" decision
-/// is testable without a platform channel.
+/// One notification to schedule: [title] (with an optional [body]) at
+/// [hour]:[minute], on [weekday] (1..7) or every day when [weekday] is null. The
+/// pure plan the scheduler hands to the OS — extracted so the "how many alarms,
+/// on which days, saying what" decision is testable without a platform channel.
 typedef ReminderOccurrence = ({
   String title,
+  String? body,
   int hour,
   int minute,
   int? weekday,
 });
 
+/// Resolves a reminder's notification title and body, folding in its sync:
+/// a [MealSync] lists its customised items in the body; a [WorkoutSync] takes
+/// the live next-up workout from [context] (and falls back to the reminder's own
+/// label when no plan is resolved); a plain reminder is title-only, as before.
+({String title, String? body}) resolveReminderText(
+  Reminder reminder, {
+  required String fallbackTitle,
+  ReminderContext context = ReminderContext.empty,
+}) {
+  final labelled = reminder.label.trim();
+  switch (reminder.sync) {
+    case MealSync m:
+      final title = labelled.isNotEmpty
+          ? labelled
+          : (m.mealLabel.isNotEmpty ? m.mealLabel : fallbackTitle);
+      return (title: title, body: m.items.isEmpty ? null : m.items.join(' · '));
+    case WorkoutSync _:
+      final day = context.workoutTitle;
+      if (day == null) {
+        // No active plan / no next day resolved — behave like a plain reminder.
+        return (
+          title: labelled.isNotEmpty ? labelled : fallbackTitle,
+          body: null,
+        );
+      }
+      if (labelled.isNotEmpty) {
+        final detail = context.workoutBody;
+        return (title: labelled, body: detail == null ? day : '$day — $detail');
+      }
+      return (title: day, body: context.workoutBody);
+    case null:
+      return (title: labelled.isNotEmpty ? labelled : fallbackTitle, body: null);
+  }
+}
+
 /// Expands enabled reminders into the concrete notifications to schedule: one
 /// per every-day reminder, one per chosen weekday otherwise. Disabled reminders
-/// produce nothing. [fallbackTitle] names a reminder the user left unlabelled.
+/// produce nothing. [fallbackTitle] names a reminder the user left unlabelled;
+/// [context] carries the live text for synced reminders.
 List<ReminderOccurrence> reminderOccurrences(
   List<Reminder> reminders, {
   required String fallbackTitle,
+  ReminderContext context = ReminderContext.empty,
 }) {
   final occurrences = <ReminderOccurrence>[];
   for (final reminder in reminders) {
     if (!reminder.enabled) continue;
-    final title = reminder.label.isNotEmpty ? reminder.label : fallbackTitle;
+    final text = resolveReminderText(
+      reminder,
+      fallbackTitle: fallbackTitle,
+      context: context,
+    );
     if (reminder.isEveryDay) {
       occurrences.add((
-        title: title,
+        title: text.title,
+        body: text.body,
         hour: reminder.hour,
         minute: reminder.minute,
         weekday: null,
@@ -38,7 +82,8 @@ List<ReminderOccurrence> reminderOccurrences(
     } else {
       for (final weekday in reminder.effectiveWeekdays) {
         occurrences.add((
-          title: title,
+          title: text.title,
+          body: text.body,
           hour: reminder.hour,
           minute: reminder.minute,
           weekday: weekday,
@@ -133,7 +178,10 @@ class LocalNotificationScheduler implements NotificationScheduler {
   }
 
   @override
-  Future<void> reschedule(List<Reminder> reminders) async {
+  Future<void> reschedule(
+    List<Reminder> reminders, {
+    ReminderContext context = ReminderContext.empty,
+  }) async {
     await init();
     // The stored reminders are the source of truth; the OS's scheduled set is a
     // pure mirror of them. Wiping and re-adding keeps it exact with no diffing,
@@ -154,6 +202,7 @@ class LocalNotificationScheduler implements NotificationScheduler {
     final occurrences = reminderOccurrences(
       reminders,
       fallbackTitle: _channelName,
+      context: context,
     );
     var id = 0;
     for (final occ in occurrences) {
@@ -165,6 +214,7 @@ class LocalNotificationScheduler implements NotificationScheduler {
       await _schedule(
         id: id++,
         title: occ.title,
+        body: occ.body,
         when: when,
         match: occ.weekday == null
             ? DateTimeComponents.time
@@ -177,12 +227,14 @@ class LocalNotificationScheduler implements NotificationScheduler {
   Future<void> _schedule({
     required int id,
     required String title,
+    required String? body,
     required tz.TZDateTime when,
     required DateTimeComponents match,
     required NotificationDetails details,
   }) => _plugin.zonedSchedule(
     id: id,
     title: title,
+    body: body,
     scheduledDate: when,
     notificationDetails: details,
     androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

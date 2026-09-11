@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
@@ -9,11 +10,13 @@ import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/reminders/data/in_memory_reminders_repository.dart';
 import 'package:zivo/features/reminders/domain/notification_scheduler.dart';
 import 'package:zivo/features/reminders/domain/reminder.dart';
+import 'package:zivo/features/reminders/domain/reminder_sync.dart';
 import 'package:zivo/features/reminders/presentation/pages/reminders_page.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 
+import '../support/bidi_finders.dart';
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 
@@ -100,5 +103,38 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('New reminder'), findsOneWidget);
+  });
+
+  testWidgets('the time field opens a Cupertino wheel picker', (tester) async {
+    await tester.pumpWidget(host(InMemoryRemindersRepository()));
+    await tester.pump();
+    await tester.tap(find.text('Add reminder'));
+    await tester.pumpAndSettle();
+
+    // Default new-reminder time is 8:00 AM; tapping it opens the wheel.
+    await tester.tap(find.text('8:00 AM'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CupertinoDatePicker), findsOneWidget);
+  });
+
+  testWidgets('a synced workout reminder shows its linked day', (tester) async {
+    final repo = InMemoryRemindersRepository(
+      initial: const [
+        Reminder(
+          id: 'r1',
+          label: 'Train',
+          kind: ReminderKind.workout,
+          hour: 18,
+          minute: 0,
+          sync: WorkoutSync(cachedDayLabel: 'Push Day'),
+        ),
+      ],
+    );
+    addTearDown(repo.dispose);
+    await tester.pumpWidget(host(repo));
+    await tester.pump();
+
+    expect(findTextIgnoringBidi('Push Day'), findsOneWidget);
   });
 }

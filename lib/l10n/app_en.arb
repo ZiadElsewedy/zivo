@@ -7451,9 +7451,9 @@
   "@remindersKindWorkout": {
     "description": "Reminder kind label: a workout reminder."
   },
-  "remindersKindOther": "Other",
-  "@remindersKindOther": {
-    "description": "Reminder kind label: any other scheduled activity."
+  "remindersKindGeneral": "General",
+  "@remindersKindGeneral": {
+    "description": "Reminder kind label: a general reminder the user names themselves."
   },
   "remindersTimeLabel": "Time",
   "@remindersTimeLabel": {
@@ -7486,5 +7486,41 @@
   "remindersPermissionDenied": "Turn on notifications for ZIVO in your phone's settings to get reminders.",
   "@remindersPermissionDenied": {
     "description": "Note shown when the OS notification permission was denied."
+  },
+  "remindersSyncFromPlan": "Sync from your plan",
+  "@remindersSyncFromPlan": {
+    "description": "Button on a meal reminder that loads the meal scheduled in the active diet plan."
+  },
+  "remindersSyncWorkout": "Sync with my plan",
+  "@remindersSyncWorkout": {
+    "description": "Toggle on a workout reminder that links it to the active workout plan so it shows the next scheduled workout."
+  },
+  "remindersSyncWorkoutHint": "Shows your next scheduled workout, and keeps it up to date.",
+  "@remindersSyncWorkoutHint": {
+    "description": "Explanation under the workout-sync toggle."
+  },
+  "remindersPickMeal": "Which meal?",
+  "@remindersPickMeal": {
+    "description": "Title of the sheet that lists the meals in the plan to pick one for a reminder."
+  },
+  "remindersMealItems": "Items",
+  "@remindersMealItems": {
+    "description": "Section label above the editable list of food items on a synced meal reminder."
+  },
+  "remindersAddItem": "Add item",
+  "@remindersAddItem": {
+    "description": "Hint on the field for adding a custom food item to a synced meal reminder."
+  },
+  "remindersNoMealPlan": "No active meal plan to sync from.",
+  "@remindersNoMealPlan": {
+    "description": "Shown when a meal reminder is asked to sync but there is no active diet plan."
+  },
+  "remindersNoWorkoutPlan": "No active workout plan to sync from.",
+  "@remindersNoWorkoutPlan": {
+    "description": "Shown when a workout reminder is asked to sync but there is no active workout plan."
+  },
+  "remindersSyncedBadge": "Synced",
+  "@remindersSyncedBadge": {
+    "description": "Small badge on a reminder row indicating it is linked to a plan."
   }
 }

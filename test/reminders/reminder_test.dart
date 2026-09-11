@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/features/reminders/domain/reminder.dart';
+import 'package:zivo/features/reminders/domain/reminder_sync.dart';
 
 void main() {
   group('Reminder', () {
@@ -35,14 +36,14 @@ void main() {
       const empty = Reminder(
         id: 'a',
         label: '',
-        kind: ReminderKind.other,
+        kind: ReminderKind.general,
         hour: 8,
         minute: 0,
       );
       const full = Reminder(
         id: 'b',
         label: '',
-        kind: ReminderKind.other,
+        kind: ReminderKind.general,
         hour: 8,
         minute: 0,
         weekdays: {1, 2, 3, 4, 5, 6, 7},
@@ -58,10 +59,79 @@ void main() {
       expect(Reminder.fromMap('not a map'), isNull);
     });
 
-    test('unknown kind decodes as other', () {
-      expect(ReminderKind.fromName('nope'), ReminderKind.other);
-      expect(ReminderKind.fromName(null), ReminderKind.other);
+    test('unknown or legacy kind decodes as general', () {
+      expect(ReminderKind.fromName('nope'), ReminderKind.general);
+      expect(ReminderKind.fromName(null), ReminderKind.general);
+      // The retired "other" kind folds into its replacement, general.
+      expect(ReminderKind.fromName('other'), ReminderKind.general);
       expect(ReminderKind.fromName('workout'), ReminderKind.workout);
+      expect(ReminderKind.fromName('general'), ReminderKind.general);
+    });
+
+    test('a plain reminder has no sync and round-trips without one', () {
+      const reminder = Reminder(
+        id: 'r1',
+        label: 'Stretch',
+        kind: ReminderKind.general,
+        hour: 9,
+        minute: 0,
+      );
+      final map = reminder.toMap();
+      expect(map.containsKey('sync'), isFalse);
+      expect(Reminder.fromMap(map)?.sync, isNull);
+    });
+
+    test('a meal sync round-trips through the codec', () {
+      const reminder = Reminder(
+        id: 'r2',
+        label: '',
+        kind: ReminderKind.meal,
+        hour: 13,
+        minute: 0,
+        sync: MealSync(mealLabel: 'Lunch', items: ['Chicken 200 g', 'Rice 150 g']),
+      );
+      final decoded = Reminder.fromMap(reminder.toMap());
+      expect(decoded, reminder);
+      expect((decoded!.sync as MealSync).items, ['Chicken 200 g', 'Rice 150 g']);
+    });
+
+    test('a workout sync round-trips through the codec', () {
+      const reminder = Reminder(
+        id: 'r3',
+        label: 'Train',
+        kind: ReminderKind.workout,
+        hour: 18,
+        minute: 30,
+        sync: WorkoutSync(cachedDayLabel: 'Push Day'),
+      );
+      final decoded = Reminder.fromMap(reminder.toMap());
+      expect(decoded, reminder);
+      expect((decoded!.sync as WorkoutSync).cachedDayLabel, 'Push Day');
+    });
+
+    test('an unrecognised stored sync degrades to a plain reminder', () {
+      final decoded = Reminder.fromMap({
+        'id': 'r4',
+        'label': 'x',
+        'kind': 'meal',
+        'hour': 8,
+        'minute': 0,
+        'sync': {'type': 'mystery'},
+      });
+      expect(decoded?.sync, isNull);
+    });
+
+    test('copyWith preserves sync but can clear it', () {
+      const reminder = Reminder(
+        id: 'r5',
+        label: 'Lunch',
+        kind: ReminderKind.meal,
+        hour: 12,
+        minute: 0,
+        sync: MealSync(mealLabel: 'Lunch', items: ['Soup']),
+      );
+      expect(reminder.copyWith(enabled: false).sync, reminder.sync);
+      expect(reminder.copyWith(clearSync: true).sync, isNull);
     });
 
     test('remindersFromStored drops unreadable entries', () {

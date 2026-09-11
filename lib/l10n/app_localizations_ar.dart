@@ -5457,7 +5457,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get remindersKindWorkout => 'تمرين';
 
   @override
-  String get remindersKindOther => 'أخرى';
+  String get remindersKindGeneral => 'عام';
 
   @override
   String get remindersTimeLabel => 'الوقت';
@@ -5483,4 +5483,32 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get remindersPermissionDenied =>
       'فعّل إشعارات ZIVO من إعدادات هاتفك لتصلك التذكيرات.';
+
+  @override
+  String get remindersSyncFromPlan => 'المزامنة من خطتك';
+
+  @override
+  String get remindersSyncWorkout => 'المزامنة مع خطتي';
+
+  @override
+  String get remindersSyncWorkoutHint =>
+      'يعرض تمرينك التالي المجدول ويبقيه محدّثًا.';
+
+  @override
+  String get remindersPickMeal => 'أي وجبة؟';
+
+  @override
+  String get remindersMealItems => 'العناصر';
+
+  @override
+  String get remindersAddItem => 'إضافة عنصر';
+
+  @override
+  String get remindersNoMealPlan => 'لا توجد خطة وجبات نشطة للمزامنة منها.';
+
+  @override
+  String get remindersNoWorkoutPlan => 'لا توجد خطة تمارين نشطة للمزامنة منها.';
+
+  @override
+  String get remindersSyncedBadge => 'مُزامَن';
 }
