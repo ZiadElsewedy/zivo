@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-10 · **Active branch:** `feature/theme-modes`
+**Last updated:** 2026-09-11 · **Active branch:** `feature/theme-modes`
 (cut from `feature/sleep`, which is 60 commits ahead of `version-1`)
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
@@ -93,6 +93,29 @@ notifications)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **The profile avatar moved to Firebase Storage; moments stay on Drive**
+  (2026-09-11, on `feature/workout-analysis-redesign`). Owner report: an avatar
+  set on one device didn't appear on another. Root cause was structural — the
+  avatar rode the `core/media` local-first + Google Drive pipeline (like a
+  moment), so only its store *ref* synced (`UserProfile.photoPath`); the bytes
+  reached a second device only if the same Drive account was connected there.
+  Correct for a bulk moment, wrong for identity. **Decision
+  [ADR-014](DECISIONS/ADR-014-avatar-firebase-storage.md):** the avatar's bytes
+  now go to **Firebase Storage** at `avatars/{uid}`, with the download URL in
+  `users/{uid}.photoUrl` — syncs everywhere the profile doc does, no Drive
+  needed. **Moments are unchanged** and still live in each user's own Drive
+  (off ZIVO's bill). New seam `AvatarStorage` (`profile/domain`) +
+  `FirebaseAvatarStorage` (`profile/data`) + a fake, wired through
+  `AppScope.avatarStorage`. `UserProfile` gains `photoUrl`; legacy `photoPath`
+  still renders on a device that holds it but is cleared on the next avatar
+  change (old local/Drive copy deleted). New dep `firebase_storage: ^13`; new
+  `storage.rules` (owner-write, image + 5 MB cap, authed-read) wired into
+  `firebase.json`; `firestore.rules` `users/{uid}` now pins `photoUrl`
+  (+3 rules tests). `flutter analyze` clean, profile tests green. **⚠ OWNER
+  ACTIONS:** `flutter pub get`; iOS `pod install` (adds the `firebase_storage`
+  pod); and `firebase deploy --only firestore:rules,storage` — until the
+  storage rules deploy, avatar upload is denied and the original bug persists.
 
 - **Local reminders — the notification system** (2026-09-11, on
   `feature/ask-elicitation`). The simplest practical version the owner asked

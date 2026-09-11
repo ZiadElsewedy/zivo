@@ -13,7 +13,9 @@
 
 - **[`profile.dart`](profile.dart)** — the barrel.
 - `domain/user_profile.dart` — `UserProfile` (name · date of birth · photo · bio) and
-  `isProfileComplete`. Stored at `users/{uid}` — the same document whose
+  `isProfileComplete`. The photo is **`photoUrl`** (a Firebase Storage download URL);
+  **`photoPath`** is the legacy local/Drive media-pipeline ref, still displayed on a
+  device that holds it but superseded on the next avatar change. Stored at `users/{uid}` — the same document whose
   *subcollections* hold every feature's data. Fields and subcollections are
   independent in Firestore, which is why the rule can pin this shape with `hasOnly`
   without touching anything nested beneath it.
@@ -23,6 +25,13 @@
   opens* is an application decision — see `docs/AUTH.md` §2.
 - `domain/profile_repository.dart` / `data/firestore_profile_repository.dart` —
   `AppScope.profiles`.
+- `domain/avatar_storage.dart` / `data/firebase_avatar_storage.dart` —
+  `AppScope.avatarStorage` (read via `requireAvatarStorage`). Uploads the avatar
+  bytes to Firebase Storage (`avatars/{uid}`) and returns the URL saved as
+  `photoUrl`. **Deliberately separate from the `core/media` Drive pipeline** —
+  the avatar is identity that must sync to every device without connecting
+  Drive; moments stay on Drive. See
+  [`docs/DECISIONS/ADR-014`](../../../docs/DECISIONS/ADR-014-avatar-firebase-storage.md).
 - `presentation/pages/profile_page.dart` — the **"You"** tab (not a shell page).
 - `presentation/pages/profile_completion_page.dart` — first-run onboarding.
 - `presentation/widgets/dob_picker_sheet.dart` — the shared DOB wheel, used by both

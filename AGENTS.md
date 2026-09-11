@@ -101,7 +101,7 @@ repos, provides `AppScope`, a `MaterialApp` on the chosen skin, `home: AuthGate`
 | **diet** | Meal plans, daily ledger, PDF import, AI kcal — training fuel | [`lib/features/diet/`](lib/features/diet/FEATURE.md) | — |
 | **music** | Training-anchored Spotify now-playing + color-adaptive Now Playing screen | [`lib/features/music/`](lib/features/music/FEATURE.md) | — |
 | **auth** | Email-OTP + Apple/Google/password, verify, session, account lifecycle — **portable module** | [`lib/features/auth/`](lib/features/auth/FEATURE.md) | [AUTH.md](docs/AUTH.md) |
-| **profile** | The app's own user record (name · DOB · photo · bio) + `SessionState` — app-specific half of auth | [`lib/features/profile/`](lib/features/profile/FEATURE.md) | [AUTH.md](docs/AUTH.md) |
+| **profile** | The app's own user record (name · DOB · photo · bio) + `SessionState` — app-specific half of auth | [`lib/features/profile/`](lib/features/profile/FEATURE.md) | [AUTH.md](docs/AUTH.md), [ADR-014](docs/DECISIONS/ADR-014-avatar-firebase-storage.md) |
 | **expenses** | Append-only spend log, wallet balance, categories | [`lib/features/expenses/`](lib/features/expenses/FEATURE.md) | — |
 | **moments** | Local-first photo memories, timeline, viewer | [`lib/features/moments/`](lib/features/moments/FEATURE.md) | — |
 | **home** | Today surface (reactive glances: training, diet, spend, move ring) | [`lib/features/home/`](lib/features/home/FEATURE.md) | [UX_BLUEPRINT.md](docs/UX_BLUEPRINT.md) |
@@ -202,4 +202,5 @@ launcher file; those are kept to a one-line pointer here so there is a single so
 | [`docs/DECISIONS/ADR-011-light-mode.md`](docs/DECISIONS/ADR-011-light-mode.md) | **Two skins on one system — how a token resolves, and why you must never cache one** | reference |
 | [`docs/DECISIONS/ADR-012-streaks-and-session-duration.md`](docs/DECISIONS/ADR-012-streaks-and-session-duration.md) | **What a streak means, why calendar maths never uses `Duration`, and why a session's duration is measured rather than capped** | reference |
 | [`docs/DECISIONS/ADR-013-local-notifications.md`](docs/DECISIONS/ADR-013-local-notifications.md) | **Reminders: local-only notifications, the three deps, and why scheduling is inexact** | reference |
+| [`docs/DECISIONS/ADR-014-avatar-firebase-storage.md`](docs/DECISIONS/ADR-014-avatar-firebase-storage.md) | **Why the profile avatar is in Firebase Storage while moments stay on Google Drive** | reference |
 | [`docs/build_configurations.md`](docs/build_configurations.md) | Build configs + dart-defines | reference |

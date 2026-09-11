@@ -99,12 +99,18 @@ service cloud.firestore {
       allow read: if isOwner(userId);
       allow write: if canWrite(userId)
         && request.resource.data.keys().hasOnly(
-             ['name', 'dateOfBirth', 'photoPath', 'bio', 'updatedAt',
-              'schemaVersion'])
+             ['name', 'dateOfBirth', 'photoUrl', 'photoPath', 'bio',
+              'updatedAt', 'schemaVersion'])
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.name.size() <= 120
         && request.resource.data.dateOfBirth is timestamp
+        // photoUrl: the Firebase Storage download URL for the avatar (avatars/{uid}).
+        // The bytes are guarded by storage.rules; here we only bound the string.
+        && (!('photoUrl' in request.resource.data)
+            || request.resource.data.photoUrl == null
+            || (request.resource.data.photoUrl is string
+                && request.resource.data.photoUrl.size() <= 2000))
         && (!('photoPath' in request.resource.data)
             || request.resource.data.photoPath == null
             || (request.resource.data.photoPath is string

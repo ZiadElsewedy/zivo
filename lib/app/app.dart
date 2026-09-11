@@ -34,11 +34,13 @@ import '../features/auth/data/firebase_auth_repository.dart';
 import '../features/auth/data/firestore_auth_activity_repository.dart';
 import '../features/auth/data/firestore_device_session_repository.dart';
 import '../features/auth/data/in_memory_device_session_repository.dart';
+import '../features/profile/data/firebase_avatar_storage.dart';
 import '../features/profile/data/firestore_profile_repository.dart';
 import '../features/auth/data/noop_auth_activity_repository.dart';
 import '../features/auth/domain/auth_activity_repository.dart';
 import '../features/auth/domain/auth_repository.dart';
 import '../features/auth/domain/auth_state.dart';
+import '../features/profile/domain/avatar_storage.dart';
 import '../features/profile/domain/profile_repository.dart';
 import '../features/auth/presentation/auth_gate.dart';
 import '../features/diet/data/firestore_diet_repository.dart';
@@ -117,6 +119,7 @@ class ZivoApp extends StatefulWidget {
     this.auth,
     this.deviceSession,
     this.profiles,
+    this.avatarStorage,
     this.activity,
     this.expenses,
     this.stepCounter,
@@ -148,6 +151,7 @@ class ZivoApp extends StatefulWidget {
   final AuthRepository? auth;
   final DeviceSessionGuard? deviceSession;
   final ProfileRepository? profiles;
+  final AvatarStorage? avatarStorage;
   final AuthActivityRepository? activity;
   final ExpenseRepository? expenses;
   final WalletRepository? wallet;
@@ -214,6 +218,11 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       );
   late final ProfileRepository _profiles =
       widget.profiles ?? FirestoreProfileRepository();
+  // The avatar lives in Firebase Storage (ADR-014). Constructed lazily like
+  // the profile repo — Firebase core is already initialized wherever a real
+  // backend is used; tests inject a fake.
+  late final AvatarStorage _avatarStorage =
+      widget.avatarStorage ?? FirebaseAvatarStorage();
   // Auth bookkeeping (account metadata + event log) follows the Firestore
   // flag: a real recorder against the live backend, a silent no-op offline.
   late final AuthActivityRepository _activity =
@@ -540,6 +549,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       auth: _auth,
       deviceSession: _deviceSession,
       profiles: _profiles,
+      avatarStorage: _avatarStorage,
       activity: _activity,
       expenses: _expenses,
       wallet: _wallet,

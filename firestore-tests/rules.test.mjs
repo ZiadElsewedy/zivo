@@ -154,6 +154,31 @@ describe('users/{uid} profile ownership', () => {
   it('unauthenticated cannot write the profile', async () => {
     await assertFails(setDoc(doc(anonDb(), `users/${OWNER}`), { name: 'Z' }));
   });
+
+  it('owner can store a photoUrl (Firebase Storage avatar URL)', async () => {
+    const db = ownerDb();
+    await assertSucceeds(setDoc(doc(db, `users/${OWNER}`), {
+      name: 'Z',
+      dateOfBirth: ts(),
+      photoUrl: 'https://firebasestorage.googleapis.com/v0/b/x/o/avatars%2Fu?alt=media&token=abc',
+    }));
+  });
+
+  it('rejects a non-string photoUrl', async () => {
+    await assertFails(setDoc(doc(ownerDb(), `users/${OWNER}`), {
+      name: 'Z',
+      dateOfBirth: ts(),
+      photoUrl: 42,
+    }));
+  });
+
+  it('rejects an over-long photoUrl', async () => {
+    await assertFails(setDoc(doc(ownerDb(), `users/${OWNER}`), {
+      name: 'Z',
+      dateOfBirth: ts(),
+      photoUrl: 'x'.repeat(2001),
+    }));
+  });
 });
 
 for (const coll of collections) {

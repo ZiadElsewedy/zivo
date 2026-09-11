@@ -8,6 +8,7 @@ import '../../features/ai/domain/ai_repository.dart';
 import '../../features/auth/data/device_session_guard.dart';
 import '../../features/auth/domain/auth_activity_repository.dart';
 import '../../features/auth/domain/auth_repository.dart';
+import '../../features/profile/domain/avatar_storage.dart';
 import '../../features/profile/domain/profile_repository.dart';
 import '../../features/reminders/domain/notification_scheduler.dart';
 import '../../features/reminders/domain/reminders_repository.dart';
@@ -40,6 +41,7 @@ class AppScope extends InheritedWidget {
     required this.auth,
     this.deviceSession,
     required this.profiles,
+    this.avatarStorage,
     this.activity,
     required this.expenses,
     this.wallet,
@@ -82,6 +84,15 @@ class AppScope extends InheritedWidget {
 
   /// Persists the signed-in user's [UserProfile] (`users/{uid}` in Firestore).
   final ProfileRepository profiles;
+
+  /// Stores the profile avatar bytes in Firebase Storage (`avatars/{uid}`) and
+  /// returns the download URL persisted on the profile. Deliberately separate
+  /// from the [media] pipeline: the avatar is identity that must sync to every
+  /// device without a Google Drive connection, not a bulk moment (ADR-014).
+  /// Optional for the same reason [media] is — many widget tests never change
+  /// the avatar. Read it through [requireAvatarStorage] from the profile page;
+  /// production always wires one.
+  final AvatarStorage? avatarStorage;
 
   /// Records authentication activity (account metadata + the event log) for
   /// each successful sign-in/out. Optional so widget tests that never touch
@@ -221,6 +232,16 @@ class AppScope extends InheritedWidget {
     return media!;
   }
 
+  /// The avatar storage, asserting it was provided. Use from the profile page
+  /// when changing/removing the photo — production always wires it.
+  AvatarStorage get requireAvatarStorage {
+    assert(
+      avatarStorage != null,
+      'AppScope.avatarStorage was not provided to this scope',
+    );
+    return avatarStorage!;
+  }
+
   /// The music/now-playing seam — a `FakeMusicController` by default, a real
   /// `SpotifyMusicController` only once `music_config.dart`'s
   /// `kMusicEnabled`/`spotifyClientId` are set (see `app.dart`). Bound
@@ -340,6 +361,7 @@ class AppScope extends InheritedWidget {
       auth != oldWidget.auth ||
       deviceSession != oldWidget.deviceSession ||
       profiles != oldWidget.profiles ||
+      avatarStorage != oldWidget.avatarStorage ||
       activity != oldWidget.activity ||
       expenses != oldWidget.expenses ||
       wallet != oldWidget.wallet ||
