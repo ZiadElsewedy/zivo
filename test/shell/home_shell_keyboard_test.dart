@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/app/app.dart';
 import 'package:zivo/features/sleep/data/health_sleep_source.dart';
 import 'package:zivo/features/sleep/data/in_memory_sleep_repository.dart';
+import 'package:zivo/features/device/steps/data/in_memory_step_day_repository.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/ai/presentation/widgets/voice_composer.dart';
 import 'package:zivo/features/auth/domain/auth_state.dart';
@@ -56,6 +57,7 @@ void main() {
         // none.
         sleep: InMemorySleepRepository(),
         sleepSource: const UnsupportedSleepSource(),
+        stepDays: InMemoryStepDayRepository(),
         auth: FakeAuthRepository(
           initial: const Authenticated(AuthUser(uid: 'test-uid')),
         ),
@@ -68,10 +70,10 @@ void main() {
         workouts: InMemoryWorkoutRepository(),
         workoutPlans: InMemoryWorkoutPlanRepository(),
         workoutSessions: InMemoryWorkoutSessionRepository(),
-          workoutSettings: InMemoryWorkoutSettingsRepository(),
-          reminders: InMemoryRemindersRepository(),
-          notifications: const NoOpNotificationScheduler(),
-          trainingDayMarks: InMemoryTrainingDayMarkRepository(),
+        workoutSettings: InMemoryWorkoutSettingsRepository(),
+        reminders: InMemoryRemindersRepository(),
+        notifications: const NoOpNotificationScheduler(),
+        trainingDayMarks: InMemoryTrainingDayMarkRepository(),
         bodyWeight: InMemoryBodyWeightRepository(),
         diet: InMemoryDietRepository(),
         ai: FakeAiRepository(),

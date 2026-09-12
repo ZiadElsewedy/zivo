@@ -48,7 +48,9 @@ const {
   isoWeekday,
   localHourAt,
   resolveDietDay,
+  startOfDay,
 } = require("./dates");
+const {readinessFromSignals} = require("./readiness");
 const {buildDietState, summariseHistory} = require("../diet/state");
 const {calibrateMaintenance, energyFor, ageFrom} = require("../diet/energy");
 const {coachingFindings} = require("../diet/rules");
@@ -1007,6 +1009,97 @@ const SUMMARIZE_WEEK_TOOL = {
   },
 };
 
+const READINESS_TOOL = {
+  name: "get_readiness",
+  description:
+    "ZIVO's Daily Readiness call — the SAME train-hard / go-light / rest " +
+    "recommendation the Today screen shows, fused deterministically from last " +
+    "night's sleep, the training stall/deload signal, how recently the user " +
+    "trained, and their body-weight trend. Use it for 'how am I today', 'should " +
+    "I train hard', 'what should I do today' and anything about recovery. " +
+    "Returns `available:false` when there is not enough data for a call. " +
+    "Otherwise returns `verdict` (trainHard | goLight | rest) and `factors` — " +
+    "each with the number behind it: `sleep` (sleepDurationMinutes, " +
+    "sleepDeltaMinutes vs target), `deload` (deloadExerciseCount stalled lifts), " +
+    "`recentLoad` (restDays since last session), `bodyWeight` (weightChangeKg " +
+    "over ~30 days) — and a `direction` of supports / caution / limits. LEAD " +
+    "with the verdict and cite the factors; these are FACTS — never invent a " +
+    "readiness number or overturn the call. It is a training guide, not a " +
+    "medical or HRV score.",
+  inputSchema: {type: "object", properties: {}},
+  /**
+   * @param {!Object} store
+   * @param {string} uid
+   * @param {!Object} input
+   * @param {Date} now
+   * @param {number=} offsetMinutes
+   * @return {!Promise<!Object>}
+   */
+  async execute(store, uid, input, now, offsetMinutes) {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const todayStart = startOfDay(now, offsetMinutes).getTime();
+    const daysAgo = (ms) =>
+      Math.round((todayStart - startOfDay(new Date(ms), offsetMinutes).getTime()) / dayMs);
+
+    // Training — the deload signal and how recently they trained.
+    const sessions = await store.listWorkoutSessions(uid);
+    const analysis = analyzeTraining({sessions, now});
+    let lastSessionMs = null;
+    for (const s of sessions) {
+      if (s.status !== "completed") continue;
+      const at = s.completedAt || s.startedAt;
+      const ms = at ? at.getTime() : null;
+      if (ms !== null && (lastSessionMs === null || ms > lastSessionMs)) {
+        lastSessionMs = ms;
+      }
+    }
+    const lastSessionDaysAgo =
+      lastSessionMs === null ? null : daysAgo(lastSessionMs);
+
+    // Sleep — only the newest night, and only if it is genuinely recent.
+    const nights = store.listSleepNights ?
+      await store.listSleepNights(uid) : [];
+    let sleepDurationMinutes = null;
+    let sleepTargetMinutes = null;
+    const latestNight = nights[0]; // newest first, already has data
+    if (latestNight && daysAgo(latestNight.sleepDayMs) <= 1) {
+      sleepDurationMinutes = latestNight.asleepMinutes;
+      sleepTargetMinutes = latestNight.targetDurationMinutes;
+    }
+
+    // Body weight — signed change over the trailing 30 days (mirrors
+    // `computeWeightTrend`). `listBodyWeights` is oldest→newest.
+    const weights = store.listBodyWeights ?
+      await store.listBodyWeights(uid) : [];
+    const hasWeighIn = weights.length > 0;
+    let weightChangeKg = null;
+    const cutoff = now.getTime() - 30 * dayMs;
+    const inWindow = weights.filter((w) => w.loggedAtMs >= cutoff);
+    if (inWindow.length >= 2) {
+      weightChangeKg =
+        inWindow[inWindow.length - 1].weightKg - inWindow[0].weightKg;
+    }
+
+    const readiness = readinessFromSignals({
+      sleepDurationMinutes,
+      sleepTargetMinutes,
+      stalledCount: analysis.needsAttention.length,
+      overallStatusRegressing: analysis.overallStatus === "regressing",
+      lastSessionDaysAgo,
+      weightChangeKg,
+      hasWeighIn,
+    });
+    if (readiness === null) {
+      return {
+        date: dayKeyFor(now, offsetMinutes),
+        available: false,
+        reason: "Not enough data yet — no recent sleep, training, or weigh-in.",
+      };
+    }
+    return {date: dayKeyFor(now, offsetMinutes), available: true, ...readiness};
+  },
+};
+
 // Read tools, in the order the model sees them. `get_tasks`, `get_schedule`,
 // `get_university` and `search_notes` were removed in 2026-08 together with
 // the Schedule/Tasks/University/Notes features themselves (ADR-004): they
@@ -1019,6 +1112,7 @@ const tools = [
   WORKOUTS_TOOL,
   TRAINING_ANALYSIS_TOOL,
   EXERCISE_ANALYSIS_TOOL,
+  READINESS_TOOL,
   DIET_TOOL,
   RESOLVE_FOOD_TOOL,
   CALCULATE_MEAL_TOOL,

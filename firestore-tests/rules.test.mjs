@@ -283,6 +283,50 @@ describe('users/{uid}/sleepNights ownership + validation', () => {
   });
 });
 
+describe('users/{uid}/stepDays ownership + validation', () => {
+  const snapshot = () => ({ steps: 8421, updatedAt: serverTimestamp() });
+  const path = (uid, id = '2026-01-01') => `users/${uid}/stepDays/${id}`;
+
+  it('owner can record a day and read it back', async () => {
+    const db = ownerDb();
+    await assertSucceeds(setDoc(doc(db, path(OWNER)), snapshot()));
+    await assertSucceeds(getDoc(doc(db, path(OWNER))));
+  });
+
+  it('a random or malformed document id is rejected', async () => {
+    // A derived `yyyy-MM-dd` key keeps two devices converging on one doc.
+    await assertFails(setDoc(doc(ownerDb(), path(OWNER, 'doc1')), snapshot()));
+    await assertFails(setDoc(doc(ownerDb(), path(OWNER, '2026-1-1')), snapshot()));
+  });
+
+  it('owner cannot write a malformed snapshot', async () => {
+    await assertFails(
+      setDoc(doc(ownerDb(), path(OWNER)), { steps: -1, updatedAt: serverTimestamp() }),
+    );
+    await assertFails(
+      setDoc(doc(ownerDb(), path(OWNER)), { steps: '8421', updatedAt: serverTimestamp() }),
+    );
+    await assertFails(
+      setDoc(doc(ownerDb(), path(OWNER)), { steps: 8421 }),
+    );
+  });
+
+  it('a different signed-in user cannot read or write it', async () => {
+    await seed(path(OWNER), snapshot());
+    await assertFails(getDoc(doc(otherDb(), path(OWNER))));
+    await assertFails(setDoc(doc(otherDb(), path(OWNER)), snapshot()));
+  });
+
+  it('unauthenticated cannot write it', async () => {
+    await assertFails(setDoc(doc(anonDb(), path(OWNER)), snapshot()));
+  });
+
+  it('owner can delete a snapshot', async () => {
+    await seed(path(OWNER), snapshot());
+    await assertSucceeds(deleteDoc(doc(ownerDb(), path(OWNER))));
+  });
+});
+
 describe('users/{uid}/sleepSettings holds targets and the open mark', () => {
   const path = `users/${OWNER}/sleepSettings/main`;
 

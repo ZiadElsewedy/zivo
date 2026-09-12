@@ -5428,4 +5428,88 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get remindersSyncedBadge => 'Synced';
+
+  @override
+  String get readinessTitle => 'Readiness';
+
+  @override
+  String get readinessTrainHard => 'Train hard';
+
+  @override
+  String get readinessGoLight => 'Go light';
+
+  @override
+  String get readinessRest => 'Rest';
+
+  @override
+  String get readinessTrainHardBlurb =>
+      'Recovered and nothing\'s flagging — push today.';
+
+  @override
+  String get readinessGoLightBlurb => 'A couple of signals say ease off today.';
+
+  @override
+  String get readinessRestBlurb =>
+      'Recovery signals are stacking up — back off today.';
+
+  @override
+  String get readinessWhyCall => 'Why this call';
+
+  @override
+  String get readinessAsk => 'Ask ZIVO about this';
+
+  @override
+  String get readinessSleptWell => 'Slept well';
+
+  @override
+  String get readinessSleepShort => 'Short on sleep';
+
+  @override
+  String get readinessDeloadDueTitle => 'Deload due';
+
+  @override
+  String readinessDeloadDetail(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lifts stalled',
+      one: '1 lift stalled',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get readinessRecoveredTitle => 'Recovered';
+
+  @override
+  String readinessRestDaysDetail(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days since training',
+      one: '1 day since training',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get readinessTrainedTodayTitle => 'Trained today already';
+
+  @override
+  String get readinessWeightDropTitle => 'Dropping weight fast';
+
+  @override
+  String readinessWeightDropDetail(String kg) {
+    return 'Down $kg kg';
+  }
+
+  @override
+  String get readinessDetailTitle => 'Today\'s readiness';
+
+  @override
+  String get readinessHowTitle => 'How this is worked out';
+
+  @override
+  String get readinessHowBody =>
+      'ZIVO fuses last night\'s sleep, how your training is trending, how recently you trained, and your body-weight trend into one call. It only uses what it can source — a missing signal is left out, never guessed — and it is a training guide, not a medical or HRV score.';
 }

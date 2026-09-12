@@ -14,6 +14,7 @@ import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../../core/widgets/train_chrome.dart';
 import '../../../profile/domain/user_profile.dart';
+import '../../../readiness/presentation/widgets/readiness_glance.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../diet/domain/diet_plan.dart';
 import '../../../diet/domain/diet_summary.dart';
@@ -155,6 +156,16 @@ class _TodayPageState extends State<TodayPage> {
                   RiseIn(
                     delay: const Duration(milliseconds: 70),
                     child: TodayPulseSection(now: widget.now),
+                  ),
+                  // The day's call — train hard / go light / rest — fused from
+                  // sleep, training load, recovery and weight. Hides itself
+                  // when there is nothing to base a call on.
+                  RiseIn(
+                    delay: const Duration(milliseconds: 105),
+                    child: ReadinessSection(
+                      onOpenAsk: widget.onOpenAsk,
+                      now: widget.now,
+                    ),
                   ),
                   // The day's training, full-weight card.
                   const RiseIn(

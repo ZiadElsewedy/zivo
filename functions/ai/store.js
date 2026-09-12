@@ -341,6 +341,53 @@ class FirestoreStore {
   }
 
   /**
+   * The user's sleep nights (`sleepNights/{yyyy-MM-dd}`), each reduced to what
+   * the readiness call needs: the sleep-day, asleep minutes (main span less its
+   * interruptions — mirrors `SleepSession.asleepDuration`), and the night's
+   * snapshotted target duration. Nights with no `main` are dropped (no data).
+   * Newest first. Read-only; only `get_readiness` uses it today.
+   * @param {string} uid
+   * @return {!Promise<!Array<{sleepDayMs: number, asleepMinutes: number,
+   *   targetDurationMinutes: (number|null)}>>}
+   */
+  async listSleepNights(uid) {
+    const snap = await this._user(uid).collection("sleepNights").get();
+    const spanMinutes = (map) => {
+      const start = toDate(map.startAt);
+      const end = toDate(map.endAt);
+      if (!start || !end) return null;
+      let ms = end.getTime() - start.getTime();
+      for (const raw of Array.isArray(map.interruptions) ?
+        map.interruptions : []) {
+        const iStart = toDate(raw.startAt);
+        const iEnd = toDate(raw.endAt);
+        if (iStart && iEnd) ms -= (iEnd.getTime() - iStart.getTime());
+      }
+      return ms <= 0 ? 0 : Math.round(ms / 60000);
+    };
+    return snap.docs
+        .map((doc) => {
+          const d = doc.data() || {};
+          const main = d.main;
+          if (!main || typeof main !== "object") return null;
+          const asleepMinutes = spanMinutes(main);
+          if (asleepMinutes === null) return null;
+          const sleepDay = toDate(d.sleepDay);
+          const targets = d.targets;
+          const targetDurationMinutes = targets &&
+            typeof targets.durationMinutes === "number" ?
+            targets.durationMinutes : null;
+          return {
+            sleepDayMs: sleepDay ? sleepDay.getTime() : null,
+            asleepMinutes,
+            targetDurationMinutes,
+          };
+        })
+        .filter((n) => n && n.sleepDayMs !== null)
+        .sort((a, b) => b.sleepDayMs - a.sleepDayMs);
+  }
+
+  /**
    * The account profile's date of birth in ms, or null. Age is derived from
    * it at the moment of use — a stored integer age is wrong within a year of
    * being written.

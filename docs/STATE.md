@@ -7,8 +7,8 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-11 · **Active branch:** `feature/theme-modes`
-(cut from `feature/sleep`, which is 60 commits ahead of `version-1`)
+**Last updated:** 2026-09-12 · **Active branch:** `feature/readiness`
+(cut from `feature/reminders-sync`)
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -93,6 +93,49 @@ notifications)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Recovery & Readiness — the Daily Readiness call (v1 spine)** (2026-09-12, on
+  `feature/readiness`, cut from `feature/reminders-sync`). The first of
+  `PRODUCT.md`'s "readiness signals" wedge, per
+  [ADR-015](DECISIONS/ADR-015-readiness.md). One deterministic **train hard /
+  go light / rest** call on Today, fused from data ZIVO already holds — last
+  night's sleep, the workout analytics stall/**deload** signal, how recently you
+  trained, and your body-weight trend — each factor citing its number.
+  - **Derived, never stored.** Computed on the client from existing streams
+    (`domain/readiness.dart`), and the Today card **hides** when the gate returns
+    null (no recent sleep, no training, no weigh-in) — the sleep-glance rule. It
+    **fuses** other engines' verdicts (`analyzeTraining`, `computeWeightTrend`,
+    `SleepNight`/`SleepTargets`); it never re-derives them.
+  - **Auto-deload folded in** as a readiness factor (≥2 stalled/regressing lifts,
+    or an overall regression), not a standalone surface. Colour carries status
+    (green/amber/ember), no new hue (ADR-006).
+  - **Surface:** `ReadinessSection` on Today (after the pulse, before training) +
+    a `ReadinessPage` detail (every factor with its number, a "how it's worked
+    out / not an HRV score" note, and an "Ask ZIVO about this" route into the
+    coach). New `features/readiness/`.
+  - **Coach — staged, not live.** `functions/ai/readiness.js` (Node mirror of the
+    pure combination layer, pinned to Dart by
+    `test/fixtures/readiness_vectors.json`, BOTH suites run it), a `get_readiness`
+    read tool, and a `training.js` prompt note. Committed + offline-tested but
+    inert until `firebase deploy --only functions`.
+  - **Steps deferred, snapshots started.** The sensor only exposes today's live
+    count, so v1 fuses sleep+training+weight; a new `StepDayRepository` writes
+    `users/{uid}/stepDays/{yyyy-MM-dd}` from a throttled app-root writer so a
+    step history accrues for a later input. **Not read by readiness yet.** New
+    `firestore.rules` block + rules test.
+  - **Cover:** +20 readiness tests (engine gating→null / three verdicts / factor
+    provenance / deload predicate / stale-sleep discount / shared golden vectors,
+    the Today section show/hide, the detail page), the 3 app-boot tests now inject
+    the in-memory step store, whole Flutter suite **1583** green, analyze clean.
+    Functions **466** green (readiness vectors + `get_readiness` + prompt pin).
+    New `stepDays` rules test added to `firestore-tests`.
+  - **⚠ OWNER ACTIONS.** (1) `firebase deploy --only firestore:rules` — the new
+    `stepDays` block is denied by the catch-all until deployed (step snapshots
+    fail to save on device). (2) `firebase deploy --only functions` — activates
+    `get_readiness` + the prompt; until then the card works standalone and the
+    coach doesn't cite it. (3) ~24 new Arabic strings are mine, not a native
+    speaker's. (4) On-device sanity check across a low-sleep vs well-rested
+    morning.
 
 - **Reminders v2 — kinds, an iOS wheel picker, a de-purpled premium UI, and plan
   sync** (2026-09-11, on `feature/reminders-sync`, cut from

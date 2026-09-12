@@ -472,6 +472,17 @@ test("the system prompt forbids inventing nutrition figures", async () => {
   assert.match(SYSTEM_PROMPT, /say you don't have it/i);
 });
 
+test("the system prompt points the coach at the readiness call", async () => {
+  // The coach must lead with ZIVO's deterministic readiness verdict and never
+  // invent or overturn it — the training-section counterpart of the NUMBERS
+  // rule, so the card and the coach can't disagree about today's call.
+  assert.match(SYSTEM_PROMPT, /get_readiness/);
+  assert.match(SYSTEM_PROMPT, /Daily Readiness call/i);
+  // Same discipline as NUMBERS: lead with the deterministic verdict, don't
+  // invent or overturn it.
+  assert.match(SYSTEM_PROMPT, /never invent a readiness call/i);
+});
+
 test("the system prompt keeps the user's goal separate from the plan's sum",
     async () => {
       // The one confusion that would undo Phase 1: "targets" is what the user

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../core/env/app_environment.dart';
 import '../core/firebase/uid_source.dart';
+import '../core/util/calendar.dart';
 import '../core/l10n/locale_controller.dart';
 import '../core/media/data/device_gallery_target.dart';
 import '../core/media/data/firestore_media_preferences_repository.dart';
@@ -51,6 +52,9 @@ import '../features/diet/domain/diet_repository.dart';
 import '../features/diet/domain/nutrition/composite_food_resolver.dart';
 import '../features/diet/domain/nutrition/food_resolver.dart';
 import '../features/device/steps/step_counter.dart';
+import '../features/device/steps/step_day_repository.dart';
+import '../features/device/steps/data/firestore_step_day_repository.dart';
+import '../features/device/steps/data/in_memory_step_day_repository.dart';
 import '../features/sleep/data/firestore_sleep_repository.dart';
 import '../features/sleep/data/health_sleep_source.dart';
 import '../features/sleep/data/in_memory_sleep_repository.dart';
@@ -128,6 +132,7 @@ class ZivoApp extends StatefulWidget {
     this.activity,
     this.expenses,
     this.stepCounter,
+    this.stepDays,
     this.sleep,
     this.sleepSource,
     this.reminders,
@@ -176,6 +181,10 @@ class ZivoApp extends StatefulWidget {
   final AiRepository? ai;
   final AudioRecorderService? recorder;
   final StepCounterService? stepCounter;
+
+  /// Overridable so app-boot tests inject an in-memory step-snapshot store
+  /// instead of the Firestore-backed default, which reaches Firebase.
+  final StepDayRepository? stepDays;
 
   /// Overridable so tests can drive Sleep without Firestore.
   final SleepRepository? sleep;
@@ -285,6 +294,22 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   late final StepCounterService? _stepCounter =
       widget.stepCounter ??
       (deviceHasStepSensor ? PedometerStepCounterService() : null);
+
+  /// Per-day step snapshots — groundwork for a future readiness input (the
+  /// sensor only exposes today's live count). Firestore-backed in production,
+  /// in-memory offline/in tests. Fed by [_startStepSnapshots] while signed in.
+  late final StepDayRepository _stepDays =
+      widget.stepDays ?? _defaultStepDays();
+  StepDayRepository _defaultStepDays() => _useFirestore
+      ? FirestoreStepDayRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryStepDayRepository();
+
+  // The step-snapshot writer. A single subscription (shared with Today's Move
+  // ring — the counter's stream is broadcast) records today's total, throttled
+  // so a busy sensor doesn't churn writes.
+  StreamSubscription<int>? _stepsSub;
+  DateTime? _lastStepWriteAt;
+  static const _stepSnapshotThrottle = Duration(minutes: 10);
 
   late final SleepRepository _sleep = widget.sleep ?? _defaultSleep();
 
@@ -400,7 +425,50 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       // *only* automatic sleep read at launch — see [_syncSleep].
       if (uid != null) _syncSleep();
       if (uid != null) _sweepStaleSessions();
+      // Accrue a step history from now on (see [_startStepSnapshots]). Signed
+      // out, the writer stops — its writes would be denied anyway.
+      if (uid != null) {
+        _startStepSnapshots();
+      } else {
+        _stopStepSnapshots();
+      }
     });
+  }
+
+  /// Begin recording a daily step snapshot while signed in. Idempotent: a
+  /// second call while already subscribed is a no-op. Shares the counter's
+  /// broadcast stream with Today's Move ring, so it adds no second sensor
+  /// subscription and no extra permission prompt.
+  void _startStepSnapshots() {
+    if (_stepsSub != null) return;
+    final counter = _stepCounter;
+    if (counter == null) return;
+    _stepsSub = counter.watchStepsToday().listen(
+      _maybeWriteStepSnapshot,
+      // Sensor hiccups are not data — the last snapshot stands.
+      onError: (Object _) {},
+    );
+  }
+
+  void _stopStepSnapshots() {
+    _stepsSub?.cancel();
+    _stepsSub = null;
+  }
+
+  /// Persist today's total, throttled — the sensor emits far more often than a
+  /// once-a-day snapshot needs, and a new day always writes immediately.
+  void _maybeWriteStepSnapshot(int steps) {
+    final now = DateTime.now();
+    final last = _lastStepWriteAt;
+    // Skip only within the throttle window on the same day; a new day (or the
+    // first write of the run) always records immediately.
+    if (last != null &&
+        isSameCalendarDay(last, now) &&
+        now.difference(last) < _stepSnapshotThrottle) {
+      return;
+    }
+    _lastStepWriteAt = now;
+    unawaited(_stepDays.record(now, steps));
   }
 
   /// Read the health store, throttled, whenever the app has reason to think
@@ -495,9 +563,11 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   /// churned — while rotating from one day to the next.
   Map<MotivationTone, String> _pickMotivations() {
     final now = DateTime.now();
-    final epochDay = DateTime(now.year, now.month, now.day)
-        .difference(DateTime(2020))
-        .inDays;
+    final epochDay = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).difference(DateTime(2020)).inDays;
     final language =
         _locale.locale.value?.languageCode ??
         WidgetsBinding.instance.platformDispatcher.locale.languageCode;
@@ -517,6 +587,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     _authSub?.cancel();
     _remindersSub?.cancel();
     _workoutPlanSub?.cancel();
+    _stepsSub?.cancel();
     // Only when we own it (the default) — a test-supplied guard stays theirs.
     if (widget.deviceSession == null) _deviceSession.dispose();
     // Only when we own it (the default) — a caller-supplied controller
@@ -537,8 +608,9 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
 
   // Real scheduler only on a Firestore (device) run; offline/dev and tests get
   // the no-op so nothing reaches a platform channel.
-  NotificationScheduler _defaultNotifications() =>
-      _useFirestore ? LocalNotificationScheduler() : NoOpNotificationScheduler();
+  NotificationScheduler _defaultNotifications() => _useFirestore
+      ? LocalNotificationScheduler()
+      : NoOpNotificationScheduler();
 
   TrainingDayMarkRepository _defaultTrainingDayMarks() => _useFirestore
       ? FirestoreTrainingDayMarkRepository(uidSource: UidSource.firebaseAuth())
@@ -647,6 +719,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       ai: _ai,
       recorder: _recorder,
       stepCounter: _stepCounter,
+      stepDays: _stepDays,
       sleep: _sleep,
       sleepService: _sleepService,
       reminders: _reminders,

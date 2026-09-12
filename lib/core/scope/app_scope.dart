@@ -17,6 +17,7 @@ import '../../features/sleep/domain/sleep_service.dart';
 import '../../features/diet/domain/diet_repository.dart';
 import '../../features/diet/domain/nutrition/food_resolver.dart';
 import '../../features/device/steps/step_counter.dart';
+import '../../features/device/steps/step_day_repository.dart';
 import '../../features/expenses/domain/category_repository.dart';
 import '../../features/expenses/domain/expense_repository.dart';
 import '../../features/expenses/domain/expenses_service.dart';
@@ -59,6 +60,7 @@ class AppScope extends InheritedWidget {
     required this.ai,
     this.recorder,
     this.stepCounter,
+    this.stepDays,
     this.sleep,
     this.sleepService,
     this.reminders,
@@ -166,6 +168,12 @@ class AppScope extends InheritedWidget {
   /// a step sensor. Optional for the same reason [recorder] is: tests that
   /// don't exercise the dashboard shouldn't need one.
   final StepCounterService? stepCounter;
+
+  /// Per-day step snapshots (`users/{uid}/stepDays`). Groundwork for a later
+  /// readiness input — the step sensor only exposes *today's* count, so this
+  /// accrues a history from now on; nothing reads it back yet. Optional for the
+  /// same reason [stepCounter] is.
+  final StepDayRepository? stepDays;
 
   /// Sleep nights + targets. Optional for the same reason [bodyWeight] is:
   /// most widget tests never open Sleep. Read it through [requireSleep].
@@ -379,6 +387,7 @@ class AppScope extends InheritedWidget {
       ai != oldWidget.ai ||
       recorder != oldWidget.recorder ||
       stepCounter != oldWidget.stepCounter ||
+      stepDays != oldWidget.stepDays ||
       sleep != oldWidget.sleep ||
       sleepService != oldWidget.sleepService ||
       reminders != oldWidget.reminders ||

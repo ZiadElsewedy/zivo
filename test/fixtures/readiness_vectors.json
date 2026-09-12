@@ -1,0 +1,120 @@
+{
+  "_comment": "Shared golden vectors for the Daily Readiness engine, run by BOTH test/readiness/readiness_vectors_test.dart (readinessFromSignals) and functions/ai/readiness.test.js (readinessFromSignals). Each case feeds primitive signals and pins the exact verdict + factor list, so the Today card and the AI coach can never phrase the same call two different ways. `expected` is null when the gate fires. Keep the two engines identical: change here, and both suites must stay green.",
+  "cases": [
+    {
+      "name": "gate: nothing to stand on",
+      "input": {},
+      "expected": null
+    },
+    {
+      "name": "well rested and recovered reads train hard",
+      "input": {
+        "sleepDurationMinutes": 480,
+        "sleepTargetMinutes": 480,
+        "lastSessionDaysAgo": 3
+      },
+      "expected": {
+        "verdict": "trainHard",
+        "factors": [
+          {"kind": "sleep", "direction": "supports", "sleepDurationMinutes": 480, "sleepDeltaMinutes": 0},
+          {"kind": "recentLoad", "direction": "supports", "restDays": 3}
+        ]
+      }
+    },
+    {
+      "name": "a mildly short night eases off to go light",
+      "input": {
+        "sleepDurationMinutes": 450,
+        "sleepTargetMinutes": 480
+      },
+      "expected": {
+        "verdict": "goLight",
+        "factors": [
+          {"kind": "sleep", "direction": "caution", "sleepDurationMinutes": 450, "sleepDeltaMinutes": -30}
+        ]
+      }
+    },
+    {
+      "name": "a severely short night alone still only reaches go light",
+      "input": {
+        "sleepDurationMinutes": 360,
+        "sleepTargetMinutes": 480
+      },
+      "expected": {
+        "verdict": "goLight",
+        "factors": [
+          {"kind": "sleep", "direction": "limits", "sleepDurationMinutes": 360, "sleepDeltaMinutes": -120}
+        ]
+      }
+    },
+    {
+      "name": "severe short sleep and already trained today compounds to rest",
+      "input": {
+        "sleepDurationMinutes": 360,
+        "sleepTargetMinutes": 480,
+        "lastSessionDaysAgo": 0
+      },
+      "expected": {
+        "verdict": "rest",
+        "factors": [
+          {"kind": "sleep", "direction": "limits", "sleepDurationMinutes": 360, "sleepDeltaMinutes": -120},
+          {"kind": "recentLoad", "direction": "caution", "restDays": 0}
+        ]
+      }
+    },
+    {
+      "name": "a cluster of stalled lifts raises a deload caution",
+      "input": {
+        "stalledCount": 2,
+        "lastSessionDaysAgo": 1
+      },
+      "expected": {
+        "verdict": "goLight",
+        "factors": [
+          {"kind": "deload", "direction": "caution", "deloadExerciseCount": 2}
+        ]
+      }
+    },
+    {
+      "name": "an overall regression is a deload even with no single stalled lift",
+      "input": {
+        "overallStatusRegressing": true,
+        "lastSessionDaysAgo": 2
+      },
+      "expected": {
+        "verdict": "goLight",
+        "factors": [
+          {"kind": "deload", "direction": "caution", "deloadExerciseCount": 0},
+          {"kind": "recentLoad", "direction": "supports", "restDays": 2}
+        ]
+      }
+    },
+    {
+      "name": "a rapid weight loss is a soft caution over good sleep",
+      "input": {
+        "sleepDurationMinutes": 480,
+        "sleepTargetMinutes": 480,
+        "weightChangeKg": -2.4,
+        "hasWeighIn": true
+      },
+      "expected": {
+        "verdict": "goLight",
+        "factors": [
+          {"kind": "bodyWeight", "direction": "caution", "weightChangeKg": -2.4},
+          {"kind": "sleep", "direction": "supports", "sleepDurationMinutes": 480, "sleepDeltaMinutes": 0}
+        ]
+      }
+    },
+    {
+      "name": "a weigh-in alone renders a cautious call with no factors",
+      "input": {
+        "weightChangeKg": -0.2,
+        "hasWeighIn": true
+      },
+      "expected": {
+        "verdict": "goLight",
+        "factors": []
+      }
+    }
+  ]
+}

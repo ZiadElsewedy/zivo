@@ -9017,6 +9017,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Synced'**
   String get remindersSyncedBadge;
+
+  /// Section label above the Daily Readiness card on Today.
+  ///
+  /// In en, this message translates to:
+  /// **'Readiness'**
+  String get readinessTitle;
+
+  /// Readiness verdict: recovered, push today.
+  ///
+  /// In en, this message translates to:
+  /// **'Train hard'**
+  String get readinessTrainHard;
+
+  /// Readiness verdict: ease off, train but not to the limit.
+  ///
+  /// In en, this message translates to:
+  /// **'Go light'**
+  String get readinessGoLight;
+
+  /// Readiness verdict: recovery debt is high, back off today.
+  ///
+  /// In en, this message translates to:
+  /// **'Rest'**
+  String get readinessRest;
+
+  /// One-line explanation under the Train hard verdict.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovered and nothing\'s flagging — push today.'**
+  String get readinessTrainHardBlurb;
+
+  /// One-line explanation under the Go light verdict.
+  ///
+  /// In en, this message translates to:
+  /// **'A couple of signals say ease off today.'**
+  String get readinessGoLightBlurb;
+
+  /// One-line explanation under the Rest verdict.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery signals are stacking up — back off today.'**
+  String get readinessRestBlurb;
+
+  /// Affordance on the readiness card that opens the detail page explaining the factors.
+  ///
+  /// In en, this message translates to:
+  /// **'Why this call'**
+  String get readinessWhyCall;
+
+  /// Button on the readiness detail page that opens the AI coach to discuss today's readiness.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask ZIVO about this'**
+  String get readinessAsk;
+
+  /// Readiness factor title when last night's sleep supports training.
+  ///
+  /// In en, this message translates to:
+  /// **'Slept well'**
+  String get readinessSleptWell;
+
+  /// Readiness factor title when last night's sleep was below target.
+  ///
+  /// In en, this message translates to:
+  /// **'Short on sleep'**
+  String get readinessSleepShort;
+
+  /// Readiness factor title when the workout analysis shows stalled lifts.
+  ///
+  /// In en, this message translates to:
+  /// **'Deload due'**
+  String get readinessDeloadDueTitle;
+
+  /// Readiness deload factor detail: how many working lifts are stalled or regressing.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 lift stalled} other{{count} lifts stalled}}'**
+  String readinessDeloadDetail(int count);
+
+  /// Readiness factor title when enough rest days have passed since the last session.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovered'**
+  String get readinessRecoveredTitle;
+
+  /// Readiness recovery factor detail: calendar days since the last completed session.
+  ///
+  /// In en, this message translates to:
+  /// **'{days, plural, =1{1 day since training} other{{days} days since training}}'**
+  String readinessRestDaysDetail(int days);
+
+  /// Readiness factor title when a session was already completed today.
+  ///
+  /// In en, this message translates to:
+  /// **'Trained today already'**
+  String get readinessTrainedTodayTitle;
+
+  /// Readiness factor title when body weight is falling quickly over the trend window.
+  ///
+  /// In en, this message translates to:
+  /// **'Dropping weight fast'**
+  String get readinessWeightDropTitle;
+
+  /// Readiness body-weight factor detail: how many kg lost over the trend window.
+  ///
+  /// In en, this message translates to:
+  /// **'Down {kg} kg'**
+  String readinessWeightDropDetail(String kg);
+
+  /// Title of the readiness detail page.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s readiness'**
+  String get readinessDetailTitle;
+
+  /// Heading of the explanation section on the readiness detail page.
+  ///
+  /// In en, this message translates to:
+  /// **'How this is worked out'**
+  String get readinessHowTitle;
+
+  /// Body text explaining how the readiness call is computed and its limits.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO fuses last night\'s sleep, how your training is trending, how recently you trained, and your body-weight trend into one call. It only uses what it can source — a missing signal is left out, never guessed — and it is a training guide, not a medical or HRV score.'**
+  String get readinessHowBody;
 }
 
 class _AppLocalizationsDelegate

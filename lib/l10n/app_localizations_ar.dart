@@ -5536,4 +5536,96 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get remindersSyncedBadge => 'مُزامَن';
+
+  @override
+  String get readinessTitle => 'الجاهزية';
+
+  @override
+  String get readinessTrainHard => 'تدرّب بقوة';
+
+  @override
+  String get readinessGoLight => 'خفّف اليوم';
+
+  @override
+  String get readinessRest => 'استرح';
+
+  @override
+  String get readinessTrainHardBlurb =>
+      'تعافيت ولا شيء يدعو للقلق — تدرّب بقوة اليوم.';
+
+  @override
+  String get readinessGoLightBlurb => 'بعض المؤشّرات تنصح بالتخفيف اليوم.';
+
+  @override
+  String get readinessRestBlurb =>
+      'مؤشّرات التعافي تتراكم — خفّف الحِمل اليوم.';
+
+  @override
+  String get readinessWhyCall => 'لماذا هذا التقييم';
+
+  @override
+  String get readinessAsk => 'اسأل ZIVO عن هذا';
+
+  @override
+  String get readinessSleptWell => 'نوم جيّد';
+
+  @override
+  String get readinessSleepShort => 'نوم غير كافٍ';
+
+  @override
+  String get readinessDeloadDueTitle => 'حان وقت التخفيف';
+
+  @override
+  String readinessDeloadDetail(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count تمرين متوقّف',
+      many: '$count تمرينًا متوقّفًا',
+      few: '$count تمارين متوقّفة',
+      two: 'تمرينان متوقّفان',
+      one: 'تمرين واحد متوقّف',
+      zero: 'لا تمارين متوقّفة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get readinessRecoveredTitle => 'متعافٍ';
+
+  @override
+  String readinessRestDaysDetail(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days يوم منذ التمرين',
+      many: '$days يومًا منذ التمرين',
+      few: '$days أيام منذ التمرين',
+      two: 'يومان منذ التمرين',
+      one: 'يوم واحد منذ التمرين',
+      zero: 'لا أيام منذ التمرين',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get readinessTrainedTodayTitle => 'تدرّبت اليوم بالفعل';
+
+  @override
+  String get readinessWeightDropTitle => 'انخفاض سريع في الوزن';
+
+  @override
+  String readinessWeightDropDetail(String kg) {
+    return 'نزول $kg كجم';
+  }
+
+  @override
+  String get readinessDetailTitle => 'جاهزية اليوم';
+
+  @override
+  String get readinessHowTitle => 'كيف يُحتسب هذا';
+
+  @override
+  String get readinessHowBody =>
+      'يجمع ZIVO نوم الليلة الماضية، واتجاه تدريبك، وقرب آخر تمرين، واتجاه وزنك في تقييم واحد. لا يستخدم إلا ما يمكنه التحقق منه — والمؤشّر الغائب يُترك ولا يُخمَّن — وهو دليل تدريبي، لا تقييم طبّي أو تقييم لتغيّر معدّل ضربات القلب.';
 }

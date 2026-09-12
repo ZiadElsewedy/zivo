@@ -294,6 +294,46 @@ test("get_training_analysis returns deterministic findings, never raw math",
       assert.ok(result.findings.every((f) => ["fact", "interpretation"].includes(f.confidence)));
     });
 
+test("get_readiness: a recovered week with no flags reads Train hard",
+    async () => {
+      const tool = toolsByName.get("get_readiness");
+      const day = 24 * 60 * 60 * 1000;
+      const store = {
+        // Trained 3 calendar days ago ⇒ recovered ⇒ Train hard.
+        listWorkoutSessions: async () => [{
+          id: "s1", dayLabel: "Push", status: "completed",
+          startedAt: new Date(NOW.getTime() - 3 * day),
+          completedAt: new Date(NOW.getTime() - 3 * day),
+          exercises: [{
+            name: "Bench", exerciseId: "bench", muscleGroup: "Chest",
+            sets: [{actualReps: 5, actualWeightKg: 100, type: "working",
+              outcome: "completed"}],
+          }],
+        }],
+        listSleepNights: async () => [],
+        listBodyWeights: async () => [],
+      };
+
+      const result = await tool.execute(store, UID, {}, NOW, 0);
+      assert.equal(result.available, true);
+      assert.equal(result.verdict, "trainHard");
+      const recovered = result.factors.find((f) => f.kind === "recentLoad");
+      assert.equal(recovered.direction, "supports");
+      assert.equal(recovered.restDays, 3);
+    });
+
+test("get_readiness: no data at all returns available:false, never a guess",
+    async () => {
+      const tool = toolsByName.get("get_readiness");
+      const store = {
+        listWorkoutSessions: async () => [],
+        listSleepNights: async () => [],
+        listBodyWeights: async () => [],
+      };
+      const result = await tool.execute(store, UID, {}, NOW, 0);
+      assert.equal(result.available, false);
+    });
+
 // ---- Per-exercise drill-down + adherence for the coach --------------------
 
 const DAY = 24 * 60 * 60 * 1000;

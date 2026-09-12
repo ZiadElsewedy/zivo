@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/app/app.dart';
 import 'package:zivo/features/sleep/data/health_sleep_source.dart';
 import 'package:zivo/features/sleep/data/in_memory_sleep_repository.dart';
+import 'package:zivo/features/device/steps/data/in_memory_step_day_repository.dart';
 import 'package:zivo/core/l10n/locale_controller.dart';
 import 'package:zivo/core/theme/app_icons.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
@@ -59,9 +60,8 @@ void main() {
       // so one run reports every screen that is broken rather than the first.
       final errors = <String>[];
       final priorOnError = FlutterError.onError;
-      FlutterError.onError = (details) => errors.add(
-        details.exceptionAsString().split('\n').first,
-      );
+      FlutterError.onError = (details) =>
+          errors.add(details.exceptionAsString().split('\n').first);
       addTearDown(() => FlutterError.onError = priorOnError);
 
       await tester.pumpWidget(
@@ -73,6 +73,7 @@ void main() {
           // none.
           sleep: InMemorySleepRepository(),
           sleepSource: const UnsupportedSleepSource(),
+          stepDays: InMemoryStepDayRepository(),
           locale: LocaleController(initial: Locale(lang)),
           auth: FakeAuthRepository(
             initial: const Authenticated(
@@ -118,7 +119,8 @@ void main() {
       expect(
         errors,
         isEmpty,
-        reason: 'layout errors while walking the shell in $lang:\n'
+        reason:
+            'layout errors while walking the shell in $lang:\n'
             '${errors.join('\n')}',
       );
     });

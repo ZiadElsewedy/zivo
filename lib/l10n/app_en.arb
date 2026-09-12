@@ -7554,5 +7554,104 @@
   "remindersSyncedBadge": "Synced",
   "@remindersSyncedBadge": {
     "description": "Small badge on a reminder row indicating it is linked to a plan."
+  },
+  "readinessTitle": "Readiness",
+  "@readinessTitle": {
+    "description": "Section label above the Daily Readiness card on Today."
+  },
+  "readinessTrainHard": "Train hard",
+  "@readinessTrainHard": {
+    "description": "Readiness verdict: recovered, push today."
+  },
+  "readinessGoLight": "Go light",
+  "@readinessGoLight": {
+    "description": "Readiness verdict: ease off, train but not to the limit."
+  },
+  "readinessRest": "Rest",
+  "@readinessRest": {
+    "description": "Readiness verdict: recovery debt is high, back off today."
+  },
+  "readinessTrainHardBlurb": "Recovered and nothing's flagging — push today.",
+  "@readinessTrainHardBlurb": {
+    "description": "One-line explanation under the Train hard verdict."
+  },
+  "readinessGoLightBlurb": "A couple of signals say ease off today.",
+  "@readinessGoLightBlurb": {
+    "description": "One-line explanation under the Go light verdict."
+  },
+  "readinessRestBlurb": "Recovery signals are stacking up — back off today.",
+  "@readinessRestBlurb": {
+    "description": "One-line explanation under the Rest verdict."
+  },
+  "readinessWhyCall": "Why this call",
+  "@readinessWhyCall": {
+    "description": "Affordance on the readiness card that opens the detail page explaining the factors."
+  },
+  "readinessAsk": "Ask ZIVO about this",
+  "@readinessAsk": {
+    "description": "Button on the readiness detail page that opens the AI coach to discuss today's readiness."
+  },
+  "readinessSleptWell": "Slept well",
+  "@readinessSleptWell": {
+    "description": "Readiness factor title when last night's sleep supports training."
+  },
+  "readinessSleepShort": "Short on sleep",
+  "@readinessSleepShort": {
+    "description": "Readiness factor title when last night's sleep was below target."
+  },
+  "readinessDeloadDueTitle": "Deload due",
+  "@readinessDeloadDueTitle": {
+    "description": "Readiness factor title when the workout analysis shows stalled lifts."
+  },
+  "readinessDeloadDetail": "{count, plural, =1{1 lift stalled} other{{count} lifts stalled}}",
+  "@readinessDeloadDetail": {
+    "description": "Readiness deload factor detail: how many working lifts are stalled or regressing.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "readinessRecoveredTitle": "Recovered",
+  "@readinessRecoveredTitle": {
+    "description": "Readiness factor title when enough rest days have passed since the last session."
+  },
+  "readinessRestDaysDetail": "{days, plural, =1{1 day since training} other{{days} days since training}}",
+  "@readinessRestDaysDetail": {
+    "description": "Readiness recovery factor detail: calendar days since the last completed session.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "readinessTrainedTodayTitle": "Trained today already",
+  "@readinessTrainedTodayTitle": {
+    "description": "Readiness factor title when a session was already completed today."
+  },
+  "readinessWeightDropTitle": "Dropping weight fast",
+  "@readinessWeightDropTitle": {
+    "description": "Readiness factor title when body weight is falling quickly over the trend window."
+  },
+  "readinessWeightDropDetail": "Down {kg} kg",
+  "@readinessWeightDropDetail": {
+    "description": "Readiness body-weight factor detail: how many kg lost over the trend window.",
+    "placeholders": {
+      "kg": {
+        "type": "String"
+      }
+    }
+  },
+  "readinessDetailTitle": "Today's readiness",
+  "@readinessDetailTitle": {
+    "description": "Title of the readiness detail page."
+  },
+  "readinessHowTitle": "How this is worked out",
+  "@readinessHowTitle": {
+    "description": "Heading of the explanation section on the readiness detail page."
+  },
+  "readinessHowBody": "ZIVO fuses last night's sleep, how your training is trending, how recently you trained, and your body-weight trend into one call. It only uses what it can source — a missing signal is left out, never guessed — and it is a training guide, not a medical or HRV score.",
+  "@readinessHowBody": {
+    "description": "Body text explaining how the readiness call is computed and its limits."
   }
 }

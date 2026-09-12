@@ -83,6 +83,11 @@ class AppIcons {
   static const duplicate = PhosphorIconsRegular.copy;
   static const pause = PhosphorIconsRegular.pause;
 
+  // Readiness — the recovery/"what to train today" call. `pulse` reads as a
+  // vital sign, which is what readiness fuses; per-factor rows reuse the
+  // sleep/workout/timer/scale glyphs of the input they cite.
+  static const readiness = PhosphorIconsRegular.pulse;
+
   // Reminders (local notifications). `bell` is the feature's mark; meal/workout
   // reuse the diet/workout module glyphs, and `general` gets a plain clock.
   // `reminderSync` marks a reminder linked to a meal/workout plan.
