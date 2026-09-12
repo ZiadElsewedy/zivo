@@ -9,8 +9,9 @@
 
 Readiness is **derived, never stored**, and the gate returns null. It is
 computed on the client from existing streams (like the sleep glance), and when
-there is nothing to stand on — no recent sleep, no training, no weigh-in — the
-engine returns null and the Today card hides. A fabricated call is a statement
+no signal is notable enough to cite a number — nothing to explain the call —
+the engine returns null and the Today card hides. A call with a verdict but no
+factor would break the feature's own rule; a fabricated call is a statement
 about the user that isn't true.
 
 ## Start here

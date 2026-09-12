@@ -42,17 +42,26 @@ void main() {
       expect(computeReadiness(now: _now, sessions: const []), isNull);
     });
 
-    test(
-      'a single weigh-in alone is enough to render (no call, but not null)',
-      () {
-        final r = computeReadiness(
-          now: _now,
-          sessions: const [],
-          weight: _weight(-0.2),
-        );
-        expect(r, isNotNull);
-      },
-    );
+    test('a stable weigh-in with nothing notable makes no call', () {
+      // A weigh-in exists, but a −0.2 kg drift raises no factor — and a call
+      // with nothing to cite would break the feature's own rule, so it hides.
+      final r = computeReadiness(
+        now: _now,
+        sessions: const [],
+        weight: _weight(-0.2),
+      );
+      expect(r, isNull);
+    });
+
+    test('a rapid weight loss alone is enough to raise a call', () {
+      final r = computeReadiness(
+        now: _now,
+        sessions: const [],
+        weight: _weight(-2.4),
+      );
+      expect(r, isNotNull);
+      expect(r!.factors.single.kind, ReadinessFactorKind.bodyWeight);
+    });
   });
 
   group('sleep drives the call', () {
@@ -99,9 +108,9 @@ void main() {
         final r = computeReadiness(
           now: _now,
           lastNight: _night(DateTime(2026, 9, 8), 5), // 4 days old
-          // Give it a reason to still render so we can inspect the factors.
-          weight: _weight(-0.1),
-          sessions: const [],
+          // A recovered session gives it a reason to still render, so we can
+          // check the stale night contributed no sleep factor.
+          sessions: [session(id: 's', startedAt: DateTime(2026, 9, 9))],
         );
         expect(
           r!.factors.where((f) => f.kind == ReadinessFactorKind.sleep),

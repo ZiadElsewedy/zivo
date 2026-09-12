@@ -1071,7 +1071,6 @@ const READINESS_TOOL = {
     // `computeWeightTrend`). `listBodyWeights` is oldest→newest.
     const weights = store.listBodyWeights ?
       await store.listBodyWeights(uid) : [];
-    const hasWeighIn = weights.length > 0;
     let weightChangeKg = null;
     const cutoff = now.getTime() - 30 * dayMs;
     const inWindow = weights.filter((w) => w.loggedAtMs >= cutoff);
@@ -1087,7 +1086,6 @@ const READINESS_TOOL = {
       overallStatusRegressing: analysis.overallStatus === "regressing",
       lastSessionDaysAgo,
       weightChangeKg,
-      hasWeighIn,
     });
     if (readiness === null) {
       return {

@@ -48,7 +48,6 @@ const PULL = {limits: 2, caution: 1, supports: 0};
  *   overallStatusRegressing?: boolean,
  *   lastSessionDaysAgo?: (number|null),
  *   weightChangeKg?: (number|null),
- *   hasWeighIn?: boolean,
  * }} signals
  * @return {?{verdict: string, factors: !Array<!Object>}}
  */
@@ -59,7 +58,6 @@ function readinessFromSignals(signals) {
   const overallStatusRegressing = signals.overallStatusRegressing ?? false;
   const lastSessionDaysAgo = signals.lastSessionDaysAgo ?? null;
   const weightChangeKg = signals.weightChangeKg ?? null;
-  const hasWeighIn = signals.hasWeighIn ?? false;
 
   const factors = [];
 
@@ -114,10 +112,8 @@ function readinessFromSignals(signals) {
     });
   }
 
-  // Gate.
-  const haveSleep = sleepDurationMinutes !== null;
-  const haveTraining = lastSessionDaysAgo !== null;
-  if (!haveSleep && !haveTraining && !hasWeighIn) return null;
+  // Gate: no notable signal ⇒ no call (nothing to cite).
+  if (factors.length === 0) return null;
 
   // Combine.
   let limits = 0;

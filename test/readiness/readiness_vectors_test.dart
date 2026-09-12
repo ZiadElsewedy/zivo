@@ -52,7 +52,6 @@ void main() {
             (input['overallStatusRegressing'] as bool?) ?? false,
         lastSessionDaysAgo: input['lastSessionDaysAgo'] as int?,
         weightChangeKg: (input['weightChangeKg'] as num?)?.toDouble(),
-        hasWeighIn: (input['hasWeighIn'] as bool?) ?? false,
       );
 
       final expected = vec['expected'];

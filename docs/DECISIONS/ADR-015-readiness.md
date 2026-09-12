@@ -43,11 +43,13 @@ coach follows, and it is why the card and the Workout screens can't disagree.
 
 ### The gate returns null
 
-With nothing to stand on — no recent sleep, no training, no weigh-in —
+When no signal is notable enough to cite a number — no recent sleep, no
+recovered/trained-today recency, no stall, no rapid weight change —
 `computeReadiness` returns null and the Today card **hides**, like the sleep
-glance. A fabricated call or a zero would be a statement about the user that
-isn't true. Sleep is only used when the night is genuinely recent (age ≤ 1);
-an old night is never dressed up as "last night".
+glance. A call with a verdict but nothing to cite would break the feature's own
+rule (every call names a number), and a fabricated call or a zero would be a
+statement about the user that isn't true. Sleep is only used when the night is
+genuinely recent (age ≤ 1); an old night is never dressed up as "last night".
 
 ### How the call is made (deterministic, documented)
 

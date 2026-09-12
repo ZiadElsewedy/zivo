@@ -94,8 +94,7 @@
       "input": {
         "sleepDurationMinutes": 480,
         "sleepTargetMinutes": 480,
-        "weightChangeKg": -2.4,
-        "hasWeighIn": true
+        "weightChangeKg": -2.4
       },
       "expected": {
         "verdict": "goLight",
@@ -106,15 +105,12 @@
       }
     },
     {
-      "name": "a weigh-in alone renders a cautious call with no factors",
+      "name": "a stable weigh-in and a rest day raise no factor, so there is no call",
       "input": {
         "weightChangeKg": -0.2,
-        "hasWeighIn": true
+        "lastSessionDaysAgo": 1
       },
-      "expected": {
-        "verdict": "goLight",
-        "factors": []
-      }
+      "expected": null
     }
   ]
 }

@@ -181,7 +181,6 @@ Readiness? computeReadiness({
         training.overallStatus == ProgressStatus.regressing,
     lastSessionDaysAgo: lastSessionDaysAgo,
     weightChangeKg: weight?.changeKgOverWindow,
-    hasWeighIn: weight?.latest != null,
   );
 }
 
@@ -190,7 +189,8 @@ Readiness? computeReadiness({
 /// (`functions/ai/readiness.js`) by the shared golden vectors, so the card and
 /// the coach can never phrase the same call two different ways.
 ///
-/// Returns null on the gate: no recent sleep, no training, and no weigh-in.
+/// Returns null when no notable signal fires — there is nothing to cite, so
+/// there is no call.
 Readiness? readinessFromSignals({
   int? sleepDurationMinutes,
   int? sleepTargetMinutes,
@@ -198,7 +198,6 @@ Readiness? readinessFromSignals({
   bool overallStatusRegressing = false,
   int? lastSessionDaysAgo,
   double? weightChangeKg,
-  bool hasWeighIn = false,
 }) {
   final factors = <ReadinessFactor>[];
 
@@ -269,10 +268,10 @@ Readiness? readinessFromSignals({
     );
   }
 
-  // Gate: nothing to stand on ⇒ no call at all.
-  final haveSleep = sleepDurationMinutes != null;
-  final haveTraining = lastSessionDaysAgo != null;
-  if (!haveSleep && !haveTraining && !hasWeighIn) return null;
+  // Gate: no notable signal ⇒ no call. A card with a verdict but nothing to
+  // cite would break the feature's own rule (every call names a number), so an
+  // absent card is the honest state — the same choice the sleep glance makes.
+  if (factors.isEmpty) return null;
 
   // Combine into one call.
   var limits = 0;
