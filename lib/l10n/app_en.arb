@@ -2889,13 +2889,61 @@
   "@askReplyStyleConcise": {
       "description": "Reply-style option: short, to-the-point answers."
   },
+  "askReplyStyleConciseDesc": "Short, to-the-point answers.",
+  "@askReplyStyleConciseDesc": {
+      "description": "One-line description of the Concise reply-style option."
+  },
   "askReplyStyleBalanced": "Balanced",
   "@askReplyStyleBalanced": {
       "description": "Reply-style option: the default reply length."
   },
+  "askReplyStyleBalancedDesc": "The default — a bit of context.",
+  "@askReplyStyleBalancedDesc": {
+      "description": "One-line description of the Balanced reply-style option."
+  },
   "askReplyStyleDetailed": "Detailed",
   "@askReplyStyleDetailed": {
       "description": "Reply-style option: longer, fuller answers."
+  },
+  "askReplyStyleDetailedDesc": "Longer, fuller explanations.",
+  "@askReplyStyleDetailedDesc": {
+      "description": "One-line description of the Detailed reply-style option."
+  },
+  "askSettings": "Ask settings",
+  "@askSettings": {
+      "description": "Tooltip/title for the Ask settings sheet (model + reply style)."
+  },
+  "askModel": "Model",
+  "@askModel": {
+      "description": "Section header for the model choice in the Ask settings sheet."
+  },
+  "askModelSheetSubtitle": "Choose which AI answers your questions.",
+  "@askModelSheetSubtitle": {
+      "description": "Subtitle under the Model section header in the settings sheet."
+  },
+  "askModelAuto": "Auto",
+  "@askModelAuto": {
+      "description": "Model option: automatically pick the best model (Claude, with a Gemini fallback)."
+  },
+  "askModelAutoDesc": "Best available — Claude, with Gemini as backup.",
+  "@askModelAutoDesc": {
+      "description": "One-line description of the Auto model option."
+  },
+  "askModelClaude": "Claude",
+  "@askModelClaude": {
+      "description": "Model option: always use Claude (Anthropic). A product name — keep as-is in every language."
+  },
+  "askModelClaudeDesc": "Always answer with Claude (Anthropic).",
+  "@askModelClaudeDesc": {
+      "description": "One-line description of the Claude model option."
+  },
+  "askModelGemini": "Gemini",
+  "@askModelGemini": {
+      "description": "Model option: always use Gemini (Google). A product name — keep as-is in every language."
+  },
+  "askModelGeminiDesc": "Always answer with Gemini (Google).",
+  "@askModelGeminiDesc": {
+      "description": "One-line description of the Gemini model option."
   },
   "askChats": "Chats",
   "@askChats": {
@@ -7258,6 +7306,10 @@
     "placeholders": {
       "days": { "type": "int" }
     }
+  },
+  "workoutStreakRestoreNoBridge": "No streak to bridge",
+  "@workoutStreakRestoreNoBridge": {
+    "description": "Why the restore action is unavailable: spending it here would not reconnect a streak, so it is offered as disabled rather than letting the user waste a restore for no effect."
   },
   "workoutStreakWhyMissed": "Why no training?",
   "@workoutStreakWhyMissed": {

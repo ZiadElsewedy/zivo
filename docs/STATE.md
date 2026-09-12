@@ -7,8 +7,8 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-12 · **Active branch:** `feature/readiness`
-(cut from `feature/reminders-sync`)
+**Last updated:** 2026-09-13 · **Active branch:** `feature/ai-gemini-provider`
+(cut from `feature/readiness`)
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -93,6 +93,45 @@ notifications)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Ask coach — Gemini as a second provider + manual model select** (2026-09-13,
+  on `feature/ai-gemini-provider`, cut from `feature/readiness`). The `aiChat`
+  gateway now has a real **fallback** and a **manual model switch**, built on the
+  provider seam that was already there (`functions/ai/providers/` +
+  `routing/router.js`) — no parallel AI implementation.
+  - **`GeminiProvider`** (`functions/ai/providers/gemini_provider.js`) translates
+    the ZIVO `NormalizedRequest`/`NormalizedResponse` to/from Gemini's
+    `generateContent` — system→`systemInstruction`, tool_use↔`functionCall`,
+    tool_result↔`functionResponse` (matched by call name across a mid-turn
+    fallback), JSON-Schema sanitized to Gemini's OpenAPI subset, streaming
+    aggregated. The `@google/genai` client (already used for STT) is injected, so
+    it's offline-testable. Model: **`gemini-2.5-pro`** (owner-chosen).
+  - **Routing** (`routing/router.js`): `chat` = Anthropic → Gemini. Fallback fires
+    **only on a genuine provider failure** (5xx/429/timeout/no-response — via
+    `providers/classify.js`); a 4xx (our request is malformed) is rethrown, never
+    masked by a retry on the other provider. A `forceProvider` pins one provider
+    and disables fallback — that's the manual switch.
+  - **Client**: an **Ask settings sheet** (`widgets/ask/ask_settings_sheet.dart`)
+    holding **both** the model choice (Auto · Claude · Gemini) and the reply
+    style (Concise · Balanced · Detailed), each row with a one-line description
+    and the active one checked. Opened from a single header settings button that
+    carries a small accent dot when a specific model is pinned; the two separate
+    header menus are gone. Model persisted at `users/{uid}/settings/ai` field
+    `provider`, forwarded on every `send` (domain `ai_model_selection.dart`).
+    `Auto` = Anthropic-first + Gemini fallback; `Claude`/`Gemini` force that
+    provider.
+  - **Tests** green: router (the 7 scenarios), gemini adapter (translation, tools,
+    streaming, usage, stop-reason), classifier, and client (repo payload + settings
+    round-trip + controller forward/rollback). Existing Anthropic behaviour
+    unchanged (490 functions tests still pass).
+  - **Owner actions:** (1) confirm the `GEMINI_API_KEY` secret is set (it already
+    backs STT), (2) **`firebase deploy --only functions`** to ship the gateway
+    change — offline `npm test` proves the wiring, not the real Gemini wire.
+  - **Note (pre-existing, not from this work):** the light-mode smoke test
+    `test/core/light_mode_smoke_test.dart` ("the Hub reads on paper") fails —
+    Hub's "SLEEP" glance label is below the contrast floor on paper. It comes from
+    the hub refactor commit `c778b8c` this branch sits on, and touches nothing in
+    the AI change.
 
 - **Recovery & Readiness — the Daily Readiness call (v1 spine)** (2026-09-12, on
   `feature/readiness`, cut from `feature/reminders-sync`). The first of

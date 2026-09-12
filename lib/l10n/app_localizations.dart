@@ -3578,17 +3578,89 @@ abstract class AppLocalizations {
   /// **'Concise'**
   String get askReplyStyleConcise;
 
+  /// One-line description of the Concise reply-style option.
+  ///
+  /// In en, this message translates to:
+  /// **'Short, to-the-point answers.'**
+  String get askReplyStyleConciseDesc;
+
   /// Reply-style option: the default reply length.
   ///
   /// In en, this message translates to:
   /// **'Balanced'**
   String get askReplyStyleBalanced;
 
+  /// One-line description of the Balanced reply-style option.
+  ///
+  /// In en, this message translates to:
+  /// **'The default — a bit of context.'**
+  String get askReplyStyleBalancedDesc;
+
   /// Reply-style option: longer, fuller answers.
   ///
   /// In en, this message translates to:
   /// **'Detailed'**
   String get askReplyStyleDetailed;
+
+  /// One-line description of the Detailed reply-style option.
+  ///
+  /// In en, this message translates to:
+  /// **'Longer, fuller explanations.'**
+  String get askReplyStyleDetailedDesc;
+
+  /// Tooltip/title for the Ask settings sheet (model + reply style).
+  ///
+  /// In en, this message translates to:
+  /// **'Ask settings'**
+  String get askSettings;
+
+  /// Section header for the model choice in the Ask settings sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get askModel;
+
+  /// Subtitle under the Model section header in the settings sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which AI answers your questions.'**
+  String get askModelSheetSubtitle;
+
+  /// Model option: automatically pick the best model (Claude, with a Gemini fallback).
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get askModelAuto;
+
+  /// One-line description of the Auto model option.
+  ///
+  /// In en, this message translates to:
+  /// **'Best available — Claude, with Gemini as backup.'**
+  String get askModelAutoDesc;
+
+  /// Model option: always use Claude (Anthropic). A product name — keep as-is in every language.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude'**
+  String get askModelClaude;
+
+  /// One-line description of the Claude model option.
+  ///
+  /// In en, this message translates to:
+  /// **'Always answer with Claude (Anthropic).'**
+  String get askModelClaudeDesc;
+
+  /// Model option: always use Gemini (Google). A product name — keep as-is in every language.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemini'**
+  String get askModelGemini;
+
+  /// One-line description of the Gemini model option.
+  ///
+  /// In en, this message translates to:
+  /// **'Always answer with Gemini (Google).'**
+  String get askModelGeminiDesc;
 
   /// Header of the conversation list sheet.
   ///
@@ -8579,6 +8651,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'One restore every {days} days'**
   String workoutStreakRestoreUnavailable(int days);
+
+  /// Why the restore action is unavailable: spending it here would not reconnect a streak, so it is offered as disabled rather than letting the user waste a restore for no effect.
+  ///
+  /// In en, this message translates to:
+  /// **'No streak to bridge'**
+  String get workoutStreakRestoreNoBridge;
 
   /// Opens the missed-day reason picker.
   ///

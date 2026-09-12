@@ -237,6 +237,11 @@ async function runAiTurn({
 
   const usage = new TurnUsage();
   let iterations = 0;
+  // The provider/model that actually answered, captured from the response the
+  // router stamps. `activeModel` is the requested default; on an `Auto` turn
+  // that fell back, these hold what really ran, so the usage log is truthful.
+  let usedProvider = null;
+  let usedModel = null;
   const toolCalls = [];
   let finalText = null;
   let refusal = false;
@@ -270,6 +275,8 @@ async function runAiTurn({
     const resp = await activeProvider.generate(normalizedRequest, wantsStream ?
       {onText: (text) => emit({type: "delta", text})} : undefined);
 
+    if (resp.provider) usedProvider = resp.provider;
+    if (resp.model) usedModel = resp.model;
     usage.add(resp.usage);
 
     if (resp.stopReason === "refusal") {
@@ -517,10 +524,13 @@ async function runAiTurn({
     tools: toolCalls,
     iterations,
     latencyMs: finishedAt.getTime() - turnNow.getTime(),
-    model: activeModel,
+    model: usedModel || activeModel,
     createdAt: finishedAt,
     schemaVersion: 2,
   };
+  // The provider that answered (e.g. 'anthropic' | 'gemini'), when the router
+  // reported it — so a fallback is visible in usage, not silent.
+  if (usedProvider) usageDoc.provider = usedProvider;
   // Recorded so the validator's real-world hit rate (and any false positives)
   // are observable in production, not a black box.
   if (validation) usageDoc.validation = validation;

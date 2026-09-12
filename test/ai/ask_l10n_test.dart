@@ -203,7 +203,7 @@ void main() {
   });
 
   group('the Ask header speaks Arabic too', () {
-    testWidgets('the reply-style menu is translated, not three English words', (
+    testWidgets('the settings sheet is translated, not English words', (
       tester,
     ) async {
       final ai = FakeAiRepository();
@@ -211,19 +211,27 @@ void main() {
       await tester.pumpWidget(_host(ai, const Locale('ar')));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('header-style')));
+      await tester.tap(find.byKey(const Key('header-settings')));
       await tester.pumpAndSettle();
 
-      for (final english in const ['Concise', 'Balanced', 'Detailed']) {
+      for (final english in const [
+        'Concise',
+        'Balanced',
+        'Detailed',
+        'Auto',
+      ]) {
         expect(
           find.text(english),
           findsNothing,
-          reason: '"$english" is still hardcoded English in the style menu',
+          reason: '"$english" is still hardcoded English in the settings sheet',
         );
       }
+      // Reply-style words, in Arabic.
       expect(find.text('موجز'), findsOneWidget);
       expect(find.text('متوازن'), findsOneWidget);
       expect(find.text('مفصّل'), findsOneWidget);
+      // The model section's "Auto" word, in Arabic.
+      expect(find.text('تلقائي'), findsOneWidget);
     });
 
     testWidgets('a chat\'s relative timestamp is translated', (tester) async {

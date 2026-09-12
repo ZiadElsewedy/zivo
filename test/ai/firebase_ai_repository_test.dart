@@ -122,27 +122,38 @@ void main() {
     });
 
     test('send calls the injected invokeChat with the conversation id, '
-        'trimmed text, and responseStyle (defaulting to balanced)', () async {
+        'trimmed text, responseStyle, and provider selection', () async {
       final firestore = FakeFirebaseFirestore();
-      final calls = <(String, String, String)>[]; // turnId asserted separately below where relevant
+      final calls = <(String, String, String, String)>[];
       final repo = FirebaseAiRepository(
         firestore: firestore,
         uidSource: _signedInAs('test-uid'),
-        invokeChat: (conversationId, message, responseStyle, clientTurnId) async {
-          calls.add((conversationId, message, responseStyle));
+        invokeChat:
+            (conversationId, message, responseStyle, provider, clientTurnId) async {
+          calls.add((conversationId, message, responseStyle, provider));
         },
       );
 
+      // Defaults: balanced style, 'auto' provider.
       await repo.send(conversationId: 'conv-1', text: '  hello there  ');
+      // Explicit style + forced Gemini.
       await repo.send(
         conversationId: 'conv-1',
         text: 'again',
         responseStyle: 'concise',
+        modelSelection: 'gemini',
+      );
+      // An unknown selection is coerced to 'auto' before it reaches the wire.
+      await repo.send(
+        conversationId: 'conv-1',
+        text: 'garbage',
+        modelSelection: 'not-a-provider',
       );
 
       expect(calls, [
-        ('conv-1', 'hello there', 'balanced'),
-        ('conv-1', 'again', 'concise'),
+        ('conv-1', 'hello there', 'balanced', 'auto'),
+        ('conv-1', 'again', 'concise', 'gemini'),
+        ('conv-1', 'garbage', 'balanced', 'auto'),
       ]);
     });
 
@@ -152,7 +163,8 @@ void main() {
       final repo = FirebaseAiRepository(
         firestore: firestore,
         uidSource: _signedInAs('test-uid'),
-        invokeChat: (conversationId, message, responseStyle, clientTurnId) async {
+        invokeChat:
+            (conversationId, message, responseStyle, provider, clientTurnId) async {
           callCount++;
         },
       );
@@ -391,6 +403,49 @@ void main() {
       final data = (await doc.get()).data()!;
       expect(data['responseStyle'], 'concise');
       expect(data['unrelatedField'], 'keep-me');
+    });
+
+    test("getModelSelection defaults to 'auto' when unset, and ignores garbage",
+        () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirebaseAiRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      expect(await repo.getModelSelection(), 'auto');
+
+      await repo.setModelSelection('gemini');
+      expect(await repo.getModelSelection(), 'gemini');
+
+      await firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('settings')
+          .doc('ai')
+          .set({'provider': 'nonsense'});
+      expect(await repo.getModelSelection(), 'auto');
+    });
+
+    test('setModelSelection writes provider to users/{uid}/settings/ai '
+        'without clobbering the responseStyle beside it', () async {
+      final firestore = FakeFirebaseFirestore();
+      final doc = firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('settings')
+          .doc('ai');
+      await doc.set({'responseStyle': 'concise'});
+      final repo = FirebaseAiRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      await repo.setModelSelection('claude');
+
+      final data = (await doc.get()).data()!;
+      expect(data['provider'], 'claude');
+      expect(data['responseStyle'], 'concise');
     });
 
     test(

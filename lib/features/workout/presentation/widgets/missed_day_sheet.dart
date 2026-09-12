@@ -34,12 +34,24 @@ Future<void> showMissedDaySheet(
 }) {
   final key = startOfDay(day);
   final existing = marks.where((m) => startOfDay(m.day) == key).firstOrNull;
-  final canRestore = canRestoreDay(
+  // Eligible AND actually useful: a restore is only offered when it bridges an
+  // earlier trained day into the live run. Without the second half, a user with
+  // no active streak could spend their once-a-month restore on a day that
+  // rescues nothing — the confirmation would promise the streak survives and
+  // the number would stay put.
+  final eligible = canRestoreDay(
     day: key,
     now: now,
     sessions: sessions,
     marks: marks,
   );
+  final rescues = restoreRescuesStreak(
+    day: key,
+    now: now,
+    sessions: sessions,
+    marks: marks,
+  );
+  final canRestore = eligible && rescues;
 
   return showZivoSheet<void>(
     context: context,
@@ -126,11 +138,16 @@ Future<void> showMissedDaySheet(
                       ? l(sheetContext).workoutStreakRestored
                       : (canRestore
                             ? null
-                            : l(
-                                sheetContext,
-                              ).workoutStreakRestoreUnavailable(
-                                kRestoreCooldownDays,
-                              )),
+                            // Say why it is disabled honestly: a day that is
+                            // mechanically eligible but bridges nothing is a
+                            // different message from the cooldown.
+                            : (eligible && !rescues
+                                  ? l(sheetContext).workoutStreakRestoreNoBridge
+                                  : l(
+                                      sheetContext,
+                                    ).workoutStreakRestoreUnavailable(
+                                      kRestoreCooldownDays,
+                                    ))),
                   onTap: canRestore
                       ? () async {
                           final confirmed = await confirmDestructive(

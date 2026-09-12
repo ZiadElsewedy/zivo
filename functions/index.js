@@ -52,6 +52,7 @@ const {generateDietPlan} = require("./ai/diet_generate");
 const {deliverWeeklyReport} = require("./ai/coach_report");
 const {FirestoreStore} = require("./ai/store");
 const {AnthropicProvider} = require("./ai/providers/anthropic_provider");
+const {GeminiProvider} = require("./ai/providers/gemini_provider");
 const {ProviderRegistry} = require("./ai/providers/registry");
 const router = require("./ai/routing/router");
 const {OpenAI, toFile} = require("openai");
@@ -74,10 +75,10 @@ const OTP_PEPPER = defineSecret("OTP_PEPPER");
 // The Anthropic API key backing the `aiChat` gateway (ADR-001). Read only
 // via `.value()` inside the handler below — never hardcoded or logged.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-// The Google Gemini API key backing the DEFAULT `aiTranscribe` STT route.
-// Read only via `.value()` inside the handler below — never hardcoded or
-// logged. Speech-to-text is a separate capability from the Anthropic-backed
-// chat/workout-import gateways above — see `functions/ai/speech/`.
+// The Google Gemini API key. Backs the DEFAULT `aiTranscribe` STT route AND
+// the `aiChat` gateway's Gemini fallback/manual-select route (see
+// `ai/routing/router.js`'s `chat` capability). Read only via `.value()` inside
+// the handlers below — never hardcoded or logged.
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 // The OpenAI API key backing the OPTIONAL `aiTranscribe` STT fallback route,
 // tried only when the Gemini route errors (see
@@ -706,16 +707,26 @@ const toHttpsError = (err) => {
 };
 
 /**
- * Builds a `ProviderRegistry` backed by the real Anthropic client, the one
- * real `AiProvider` today (`./ai/providers/anthropic_provider.js`). A second
- * real provider is a new adapter file plus one more `.register()` call here —
- * `./ai/routing/router.js`'s capability table is the only other place that
- * needs to know about it.
+ * Builds a `ProviderRegistry` backed by the real chat `AiProvider` adapters:
+ * Anthropic (primary) and, when a Gemini client is supplied, Gemini (the
+ * fallback / manual-select route). Which one runs — and in what order — is
+ * decided entirely by `./ai/routing/router.js`'s capability table and the
+ * caller's `forceProvider`, not here; this only supplies the real network
+ * seams. A third provider is a new adapter file plus one more `.register()`
+ * call here and one route entry.
  * @param {!Anthropic} anthropic
+ * @param {?GoogleGenAI} genai The Gemini client, or null to register Anthropic
+ *   only (the router then skips the unregistered Gemini route).
  * @return {!ProviderRegistry}
  */
-function buildProviderRegistry(anthropic) {
-  return new ProviderRegistry().register("anthropic", new AnthropicProvider(anthropic));
+function buildProviderRegistry(anthropic, genai) {
+  const registry = new ProviderRegistry()
+      .register("anthropic", new AnthropicProvider(anthropic));
+  // The real `GoogleGenAI` already exposes `models.generateContent` /
+  // `models.generateContentStream` — exactly the seam `GeminiProvider` wants —
+  // so it's passed straight through.
+  if (genai) registry.register("gemini", new GeminiProvider(genai));
+  return registry;
 }
 
 /**
@@ -725,13 +736,28 @@ function buildProviderRegistry(anthropic) {
  * `./ai/workout_import.js`, which only ever see a single `provider.generate`.
  * @param {!ProviderRegistry} registry
  * @param {string} capability
+ * @param {{forceProvider: string}=} routeOpts A manual provider override —
+ *   pins the turn to one provider and disables Auto's fallback.
  * @return {!Object}
  */
-function providerForCapability(registry, capability) {
+function providerForCapability(registry, capability, routeOpts) {
   return {
     generate: (normalizedRequest, opts) =>
-      router.generate(registry, capability, normalizedRequest, opts),
+      router.generate(registry, capability, normalizedRequest, opts, routeOpts),
   };
+}
+
+/**
+ * Maps the client's manual model selection ('auto'|'claude'|'gemini') to the
+ * router's `forceProvider`. Anything unrecognized (including omitted) is
+ * `Auto` — Anthropic-first with the Gemini fallback. Never trust the raw value.
+ * @param {*} selection
+ * @return {(string|undefined)} The provider to force, or undefined for Auto.
+ */
+function forceProviderFor(selection) {
+  if (selection === "claude") return "anthropic";
+  if (selection === "gemini") return "gemini";
+  return undefined;
 }
 
 /**
@@ -745,7 +771,10 @@ function providerForCapability(registry, capability) {
  */
 exports.aiChat = onCall(
     {
-      secrets: [ANTHROPIC_API_KEY],
+      // Anthropic is primary; Gemini backs the fallback + manual "Gemini"
+      // select route (see ./ai/routing/router.js). Both keys are bound so
+      // either provider can serve a turn.
+      secrets: [ANTHROPIC_API_KEY, GEMINI_API_KEY],
       region: "us-central1",
     },
     async (request, response) => {
@@ -758,6 +787,10 @@ exports.aiChat = onCall(
       const conversationId = (data.conversationId || "").toString();
       const message = (data.message || "").toString();
       const responseStyle = (data.responseStyle || "").toString();
+      // The user's manual model selection ('auto'|'claude'|'gemini'). Untrusted
+      // like every other field; `forceProviderFor` maps anything unrecognized
+      // (or omitted) to Auto (Anthropic-first with the Gemini fallback).
+      const forceProvider = forceProviderFor((data.provider || "").toString());
       // Client-generated idempotency key — makes a retried turn safe.
       const clientTurnId =
         (data.clientTurnId || "").toString() || undefined;
@@ -774,7 +807,8 @@ exports.aiChat = onCall(
       };
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
-      const registry = buildProviderRegistry(anthropic);
+      const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
+      const registry = buildProviderRegistry(anthropic, genai);
       const store = new FirestoreStore(db);
 
       // When the client opts into streaming (`httpsCallable.stream()`), forward
@@ -790,8 +824,8 @@ exports.aiChat = onCall(
       try {
         return await runAiTurn({
           store,
-          provider: providerForCapability(registry, "chat"),
-          model: router.resolve("chat").model,
+          provider: providerForCapability(registry, "chat", {forceProvider}),
+          model: router.resolve("chat", forceProvider).model,
           stream: streaming,
           onEvent: streaming ? (event) => response.sendChunk(event) : undefined,
           uid: auth.uid,

@@ -2061,10 +2061,47 @@ class AppLocalizationsAr extends AppLocalizations {
   String get askReplyStyleConcise => 'موجز';
 
   @override
+  String get askReplyStyleConciseDesc => 'إجابات قصيرة ومباشرة.';
+
+  @override
   String get askReplyStyleBalanced => 'متوازن';
 
   @override
+  String get askReplyStyleBalancedDesc => 'الوضع الافتراضي — قليل من السياق.';
+
+  @override
   String get askReplyStyleDetailed => 'مفصّل';
+
+  @override
+  String get askReplyStyleDetailedDesc => 'شروحات أطول وأوفى.';
+
+  @override
+  String get askSettings => 'إعدادات المساعد';
+
+  @override
+  String get askModel => 'النموذج';
+
+  @override
+  String get askModelSheetSubtitle =>
+      'اختر الذكاء الاصطناعي الذي يجيب على أسئلتك.';
+
+  @override
+  String get askModelAuto => 'تلقائي';
+
+  @override
+  String get askModelAutoDesc => 'الأفضل المتاح — Claude، مع Gemini كاحتياطي.';
+
+  @override
+  String get askModelClaude => 'Claude';
+
+  @override
+  String get askModelClaudeDesc => 'الإجابة دائمًا عبر Claude (Anthropic).';
+
+  @override
+  String get askModelGemini => 'Gemini';
+
+  @override
+  String get askModelGeminiDesc => 'الإجابة دائمًا عبر Gemini (Google).';
 
   @override
   String get askChats => 'المحادثات';
@@ -5305,6 +5342,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String workoutStreakRestoreUnavailable(int days) {
     return 'استعادة واحدة كل $days يومًا';
   }
+
+  @override
+  String get workoutStreakRestoreNoBridge => 'لا سلسلة لسدّها';
 
   @override
   String get workoutStreakWhyMissed => 'لماذا لم تتدرّب؟';

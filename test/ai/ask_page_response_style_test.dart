@@ -10,6 +10,7 @@ import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
 import 'package:zivo/features/workout/domain/workout_import_input.dart';
 import 'package:zivo/features/ai/domain/ai_response_style.dart';
+import 'package:zivo/features/ai/domain/ai_model_selection.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
 import 'package:zivo/features/ai/domain/stt_outcome.dart';
 import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
@@ -36,6 +37,7 @@ class _RecordingAi implements AiRepository {
 
   final FakeAiRepository _inner;
   final List<String> sentStyles = [];
+  final List<String> sentModels = [];
 
   @override
   Future<String> ensureConversation() => _inner.ensureConversation();
@@ -68,14 +70,17 @@ class _RecordingAi implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
   }) {
     sentStyles.add(responseStyle);
+    sentModels.add(modelSelection);
     return _inner.send(
       conversationId: conversationId,
       text: text,
       onEvent: onEvent,
       responseStyle: responseStyle,
+      modelSelection: modelSelection,
     );
   }
 
@@ -127,6 +132,12 @@ class _RecordingAi implements AiRepository {
 
   @override
   Future<void> setResponseStyle(String style) => _inner.setResponseStyle(style);
+  @override
+  Future<String> getModelSelection() => _inner.getModelSelection();
+
+  @override
+  Future<void> setModelSelection(String selection) =>
+      _inner.setModelSelection(selection);
 }
 
 Widget _host(AiRepository ai) => AppScope(
@@ -143,8 +154,8 @@ Widget _host(AiRepository ai) => AppScope(
 );
 
 void main() {
-  testWidgets('defaults to Balanced, and a picked style persists and is '
-      "forwarded on the next send", (tester) async {
+  testWidgets('the settings sheet shows both groups; a picked reply style '
+      'persists and is forwarded on the next send', (tester) async {
     final inner = FakeAiRepository();
     addTearDown(inner.dispose);
     final ai = _RecordingAi(inner);
@@ -152,9 +163,14 @@ void main() {
     await tester.pumpWidget(_host(ai));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('header-style')));
+    // One settings entry now opens a sheet with BOTH groups.
+    await tester.tap(find.byKey(const Key('header-settings')));
     await tester.pumpAndSettle();
 
+    // Model group…
+    expect(find.text('Auto'), findsOneWidget);
+    expect(find.text('Gemini'), findsOneWidget);
+    // …and reply-style group in the same sheet.
     expect(find.text('Concise'), findsOneWidget);
     expect(find.text('Balanced'), findsOneWidget);
     expect(find.text('Detailed'), findsOneWidget);
@@ -167,10 +183,22 @@ void main() {
       findsOneWidget,
     );
 
+    // Picking a style applies in place and does NOT dismiss the sheet.
     await tester.tap(find.text('Concise'));
     await tester.pumpAndSettle();
-
     expect(await inner.getResponseStyle(), 'concise');
+    expect(find.text('Auto'), findsOneWidget, reason: 'sheet stays open');
+    expect(
+      find.descendant(
+        of: find.widgetWithText(Row, 'Concise'),
+        matching: find.byIcon(AppIcons.check),
+      ),
+      findsOneWidget,
+    );
+
+    // Dismiss the sheet (tap the barrier above it), then send.
+    await tester.tapAt(const Offset(20, 20));
+    await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'hello');
     await tester.pump();
@@ -178,13 +206,50 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(ai.sentStyles, ['concise']);
+    expect(ai.sentModels, ['auto'], reason: 'model untouched, still Auto');
+  });
 
-    // Reopening the menu now shows Concise checked instead.
-    await tester.tap(find.byKey(const Key('header-style')));
+  testWidgets('picking a model in the settings sheet persists it and is '
+      'forwarded on the next send', (tester) async {
+    final inner = FakeAiRepository();
+    addTearDown(inner.dispose);
+    final ai = _RecordingAi(inner);
+
+    await tester.pumpWidget(_host(ai));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('header-settings')));
+    await tester.pumpAndSettle();
+
+    // Auto is the default, shown checked in the model group.
+    expect(
+      find.descendant(
+        of: find.widgetWithText(Row, 'Auto'),
+        matching: find.byIcon(AppIcons.check),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Gemini'));
+    await tester.pumpAndSettle();
+    expect(await inner.getModelSelection(), 'gemini');
+
+    await tester.tapAt(const Offset(20, 20));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'hello');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('composer-send')));
+    await tester.pumpAndSettle();
+
+    expect(ai.sentModels, ['gemini']);
+
+    // Reopening shows Gemini checked now.
+    await tester.tap(find.byKey(const Key('header-settings')));
     await tester.pumpAndSettle();
     expect(
       find.descendant(
-        of: find.widgetWithText(Row, 'Concise'),
+        of: find.widgetWithText(Row, 'Gemini'),
         matching: find.byIcon(AppIcons.check),
       ),
       findsOneWidget,

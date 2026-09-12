@@ -139,6 +139,7 @@ class AppIcons {
 
   // Ask · chat & voice.
   static const chatNew = PhosphorIconsRegular.notePencil;
+  // Ask settings (model + reply style) — a "faders" glyph reads as adjustments.
   static const replyStyle = PhosphorIconsRegular.fadersHorizontal;
   static const mic = PhosphorIconsRegular.microphone;
   static const stopCircle = PhosphorIconsRegular.stopCircle;

@@ -291,6 +291,41 @@ bool canRestoreDay({
   return true;
 }
 
+/// Whether spending a restore on [day] would actually keep the streak alive.
+///
+/// [canRestoreDay] answers whether a restore is *mechanically* eligible — recent
+/// enough, off cooldown, not a day already trained. This answers the second,
+/// quieter question the UI must not skip: would spending it change anything?
+///
+/// A restore only ever helps by bridging an earlier trained day into the live
+/// run that reaches today, which raises [TrainingStreak.currentDays]. Where it
+/// rescues nothing — no active streak to save, or a rest day already safely
+/// inside the allowance — the count is untouched. Offered there, the restore
+/// would confirm "your streak survives" and then change nothing while still
+/// burning the [kRestoreCooldownDays] cooldown: the one outcome this feature
+/// exists to prevent. The two predicates are kept apart so each gate stays
+/// independently testable; the missed-day sheet requires both.
+bool restoreRescuesStreak({
+  required DateTime day,
+  required DateTime now,
+  required List<LiveSession> sessions,
+  required List<TrainingDayMark> marks,
+}) {
+  final target = startOfDay(day);
+  final without = computeTrainingStreak(
+    sessions: sessions,
+    now: now,
+    marks: marks,
+  );
+  final withRestore = computeTrainingStreak(
+    sessions: sessions,
+    now: now,
+    // Appended last so it wins the day key over any existing reason-only mark.
+    marks: [...marks, TrainingDayMark(day: target, createdAt: now, restored: true)],
+  );
+  return withRestore.currentDays > without.currentDays;
+}
+
 /// The most recent day in [days] that is on or before [limit].
 DateTime? _latestOnOrBefore(Set<DateTime> days, DateTime limit) {
   DateTime? best;

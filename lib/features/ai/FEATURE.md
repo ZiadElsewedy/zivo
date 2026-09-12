@@ -50,7 +50,16 @@ answered via `AskController.submitInput`), `body_data_writer.dart` (Phase 3 — 
 input form persists height/weight through; impl `data/repository_body_data_writer.dart`
 composes the diet `BodyProfile` + workout `BodyWeightRepository`, the same user-owned
 writes the manual capture screens use; **never writes targets/goal**),
-`ai_response_style.dart`, and STT: `stt_outcome.dart`, `stt_error.dart`.
+`ai_response_style.dart`, `ai_model_selection.dart` (the manual model switch —
+`'auto'`|`'claude'`|`'gemini'`, persisted at `users/{uid}/settings/ai` field
+`provider` and forwarded on every `send`), and STT: `stt_outcome.dart`,
+`stt_error.dart`.
+
+Both the model switch and the reply-style preference live in the **Ask settings
+sheet** (`widgets/ask/ask_settings_sheet.dart`, opened from the single header
+settings button — which shows a small "pinned" dot when the model isn't Auto).
+Selecting a row applies in place (the sheet stays open) via the controller's
+`setModelSelection`/`setResponseStyle`; there is no separate Save.
 
 ## Backend — the real brain ([`functions/ai/`](../../../functions/ai))
 
@@ -70,6 +79,17 @@ writes the manual capture screens use; **never writes targets/goal**),
 | `workout_import.js`, `diet_import.js` | PDF → structured plan extractors |
 | `coach_report.js` | weekly AI coach report |
 | `store.js`, `dates.js` | Firestore access + date helpers |
+
+**Providers & routing (`functions/ai/providers/` + `routing/router.js`).** The
+model call is behind a `NormalizedRequest`/`NormalizedResponse` seam so a turn's
+orchestration never names a vendor. `anthropic_provider.js` (primary) and
+`gemini_provider.js` (fallback / manual `Gemini` route, `gemini-2.5-pro`) are the
+two real adapters; `router.js`'s `chat` capability lists Anthropic → Gemini and
+**fails over only on a real provider failure** (5xx/429/timeout/no-response, via
+`providers/classify.js`) — a 4xx is rethrown, never masked. A `forceProvider`
+(from the client's `provider` field) pins one provider and disables fallback.
+Adding OpenAI/DeepSeek later is one adapter file + one route entry. See
+`gateway.js`/`chat/turn.js` (both take an injected `provider`).
 
 Each has a `*.test.js` (`node --test`, offline — canned fake model, no live API).
 

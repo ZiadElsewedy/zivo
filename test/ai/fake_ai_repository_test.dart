@@ -169,5 +169,24 @@ void main() {
       await repo.setResponseStyle('nonsense');
       expect(await repo.getResponseStyle(), 'balanced');
     });
+
+    test("getModelSelection defaults to 'auto'", () async {
+      final repo = FakeAiRepository();
+      addTearDown(repo.dispose);
+
+      expect(await repo.getModelSelection(), 'auto');
+    });
+
+    test('setModelSelection persists a valid selection; an invalid one falls '
+        "back to 'auto'", () async {
+      final repo = FakeAiRepository();
+      addTearDown(repo.dispose);
+
+      await repo.setModelSelection('gemini');
+      expect(await repo.getModelSelection(), 'gemini');
+
+      await repo.setModelSelection('nonsense');
+      expect(await repo.getModelSelection(), 'auto');
+    });
   });
 }

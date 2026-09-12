@@ -8,6 +8,7 @@ import '../../workout/domain/workout_import_input.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import 'ai_conversation.dart';
 import 'ai_message.dart';
+import 'ai_model_selection.dart';
 import 'ai_response_style.dart';
 import 'ai_turn_event.dart';
 import 'import_progress.dart';
@@ -57,6 +58,14 @@ abstract interface class AiRepository {
   /// Persists the user's reply-length preference.
   Future<void> setResponseStyle(String style);
 
+  /// The user's saved model/provider selection (one of [kAiModelSelections]),
+  /// persisted at `users/{uid}/settings/ai` (field `provider`). Defaults to
+  /// [kDefaultAiModelSelection] ('auto') when never set.
+  Future<String> getModelSelection();
+
+  /// Persists the user's model/provider selection.
+  Future<void> setModelSelection(String selection);
+
   /// The messages in [conversationId], oldest first, as a live stream.
   Stream<List<AiMessage>> watchMessages(String conversationId);
 
@@ -74,11 +83,18 @@ abstract interface class AiRepository {
   /// [responseStyle] is the caller's current [getResponseStyle] value
   /// (defaulting to [kDefaultResponseStyle]) — forwarded to the gateway so it
   /// can adjust reply length/depth.
+  ///
+  /// [modelSelection] is the caller's current [getModelSelection] value
+  /// (defaulting to [kDefaultAiModelSelection]) — forwarded to the gateway,
+  /// which routes the turn accordingly ('auto' = Anthropic-first with Gemini
+  /// fallback; 'claude'/'gemini' force that provider). See
+  /// `functions/ai/routing/router.js`.
   Future<void> send({
     required String conversationId,
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String modelSelection = kDefaultAiModelSelection,
 
     /// Client-generated idempotency key for THIS turn (stable across retries
     /// of the same logical message). The server uses it to skip appending a

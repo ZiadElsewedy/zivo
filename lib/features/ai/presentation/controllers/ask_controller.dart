@@ -12,6 +12,7 @@ import '../../domain/ai_conversation.dart';
 import '../../domain/ai_message.dart';
 import '../../domain/ai_pending_action.dart';
 import '../../domain/ai_repository.dart';
+import '../../domain/ai_model_selection.dart';
 import '../../domain/ai_response_style.dart';
 import '../../domain/ai_role.dart';
 import '../../domain/ai_turn_event.dart';
@@ -109,6 +110,7 @@ class AskController extends ChangeNotifier {
   bool _activeResolved = false;
   bool _activeIsUntitled = false;
   String _responseStyle = kDefaultResponseStyle;
+  String _modelSelection = kDefaultAiModelSelection;
   String? _draftTitle;
 
   /// The localized copy this controller hands to [onError] and renders on the
@@ -142,6 +144,10 @@ class AskController extends ChangeNotifier {
   /// The user's saved reply-length preference, forwarded on every [send].
   String get responseStyle => _responseStyle;
 
+  /// The user's saved model selection ('auto'|'claude'|'gemini'), forwarded on
+  /// every [send] so the gateway routes the turn to the chosen provider.
+  String get modelSelection => _modelSelection;
+
   /// Resolves the initial active conversation once at startup, from the
   /// user's most-recently-updated existing one — never creates one. If there
   /// are none, [activeConversationId] stays null (an unsaved "New chat").
@@ -152,13 +158,16 @@ class AskController extends ChangeNotifier {
     // empty "New chat" state even when a conversation exists.
     final latestFuture = _ai.latestConversation();
     final responseStyleFuture = _ai.getResponseStyle();
+    final modelSelectionFuture = _ai.getModelSelection();
     final latest = await latestFuture;
     final style = await responseStyleFuture;
+    final model = await modelSelectionFuture;
     if (_disposed || _activeResolved) return;
     _activeConversationId = latest?.id;
     _activeIsUntitled = latest?.title == kUntitledConversationTitle;
     _activeResolved = true;
     _responseStyle = validResponseStyle(style);
+    _modelSelection = validAiModelSelection(model);
     _notify();
   }
 
@@ -224,6 +233,24 @@ class AskController extends ChangeNotifier {
     } catch (_) {
       if (_disposed) return;
       _responseStyle = previous;
+      _notify();
+      onError?.call(_strings.askSaveFailed);
+    }
+  }
+
+  /// Picks the model/provider for future turns — applied optimistically (the
+  /// next send uses it immediately) and persisted in the background; rolled
+  /// back with an error if the save fails. Mirrors [setResponseStyle].
+  Future<void> setModelSelection(String selection) async {
+    final previous = _modelSelection;
+    if (selection == previous) return;
+    _modelSelection = selection;
+    _notify();
+    try {
+      await _ai.setModelSelection(selection);
+    } catch (_) {
+      if (_disposed) return;
+      _modelSelection = previous;
       _notify();
       onError?.call(_strings.askSaveFailed);
     }
@@ -485,6 +512,7 @@ class AskController extends ChangeNotifier {
         clientTurnId: _activeTurnId,
         onEvent: _onTurnEvent,
         responseStyle: _responseStyle,
+        modelSelection: _modelSelection,
       );
     } catch (_) {
       _slowTurnTimer?.cancel();

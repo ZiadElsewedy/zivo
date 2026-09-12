@@ -2038,10 +2038,47 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askReplyStyleConcise => 'Concise';
 
   @override
+  String get askReplyStyleConciseDesc => 'Short, to-the-point answers.';
+
+  @override
   String get askReplyStyleBalanced => 'Balanced';
 
   @override
+  String get askReplyStyleBalancedDesc => 'The default — a bit of context.';
+
+  @override
   String get askReplyStyleDetailed => 'Detailed';
+
+  @override
+  String get askReplyStyleDetailedDesc => 'Longer, fuller explanations.';
+
+  @override
+  String get askSettings => 'Ask settings';
+
+  @override
+  String get askModel => 'Model';
+
+  @override
+  String get askModelSheetSubtitle => 'Choose which AI answers your questions.';
+
+  @override
+  String get askModelAuto => 'Auto';
+
+  @override
+  String get askModelAutoDesc =>
+      'Best available — Claude, with Gemini as backup.';
+
+  @override
+  String get askModelClaude => 'Claude';
+
+  @override
+  String get askModelClaudeDesc => 'Always answer with Claude (Anthropic).';
+
+  @override
+  String get askModelGemini => 'Gemini';
+
+  @override
+  String get askModelGeminiDesc => 'Always answer with Gemini (Google).';
 
   @override
   String get askChats => 'Chats';
@@ -5197,6 +5234,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String workoutStreakRestoreUnavailable(int days) {
     return 'One restore every $days days';
   }
+
+  @override
+  String get workoutStreakRestoreNoBridge => 'No streak to bridge';
 
   @override
   String get workoutStreakWhyMissed => 'Why no training?';

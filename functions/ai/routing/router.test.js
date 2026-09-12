@@ -11,8 +11,10 @@ const {ProviderRegistry} = require("../providers/registry");
 
 /**
  * A fake provider whose `generate` either resolves to `response` or, when
- * `fail` is set, rejects with an `Error` carrying `fail` as its message.
- * @param {{response: !Object, fail: string}} opts
+ * `fail` is set, rejects. `fail` may be a string (a status-less Error, treated
+ * as a provider failure) or `{message, status}` to simulate an HTTP status
+ * (e.g. 400 = a request error the router must NOT fall back on).
+ * @param {{response: !Object, fail: (string|!Object)}} opts
  * @return {!Object}
  */
 function fakeProvider({response, fail} = {}) {
@@ -21,7 +23,12 @@ function fakeProvider({response, fail} = {}) {
     calls,
     generate: async (normalizedRequest) => {
       calls.push(normalizedRequest);
-      if (fail) throw new Error(fail);
+      if (fail) {
+        const spec = typeof fail === "string" ? {message: fail} : fail;
+        const err = new Error(spec.message || "failed");
+        if (spec.status !== undefined) err.status = spec.status;
+        throw err;
+      }
       return response;
     },
   };
@@ -100,4 +107,107 @@ test("generate rethrows the last route's error once every route has failed", asy
     CAPABILITY_ROUTES.chat.length = 0;
     CAPABILITY_ROUTES.chat.push(...original);
   }
+});
+
+// --- The chat route is Anthropic → Gemini (requirements #1–#4) --------------
+
+test("chat routes Anthropic primary, Gemini fallback", () => {
+  assert.deepEqual(CAPABILITY_ROUTES.chat.map((r) => r.provider),
+      ["anthropic", "gemini"]);
+});
+
+test("#1 Auto: Claude succeeds, Gemini is never called", async () => {
+  const registry = new ProviderRegistry();
+  const anthropic = fakeProvider({response: {stopReason: "end"}});
+  const gemini = fakeProvider({response: {stopReason: "end"}});
+  registry.register("anthropic", anthropic).register("gemini", gemini);
+
+  const resp = await generate(registry, "chat", {maxTokens: 10, messages: []});
+
+  assert.equal(anthropic.calls.length, 1);
+  assert.equal(gemini.calls.length, 0);
+  // The response is stamped with the route that produced it.
+  assert.equal(resp.provider, "anthropic");
+  assert.equal(resp.model, "claude-sonnet-5");
+});
+
+test("#2 Auto: Claude fails with a provider failure, Gemini answers", async () => {
+  const registry = new ProviderRegistry();
+  const anthropic = fakeProvider({fail: {message: "overloaded", status: 529}});
+  const gemini = fakeProvider({response: {stopReason: "end"}});
+  registry.register("anthropic", anthropic).register("gemini", gemini);
+
+  const resp = await generate(registry, "chat", {maxTokens: 10, messages: []});
+
+  assert.equal(anthropic.calls.length, 1);
+  assert.equal(gemini.calls.length, 1);
+  assert.equal(gemini.calls[0].model, "gemini-2.5-pro");
+  assert.equal(resp.provider, "gemini");
+});
+
+test("Auto: Claude fails with a 4xx request error — NO fallback, rethrow", async () => {
+  const registry = new ProviderRegistry();
+  const anthropic = fakeProvider({fail: {message: "bad request", status: 400}});
+  const gemini = fakeProvider({response: {stopReason: "end"}});
+  registry.register("anthropic", anthropic).register("gemini", gemini);
+
+  await assert.rejects(
+      () => generate(registry, "chat", {maxTokens: 10, messages: []}),
+      (err) => err.message === "bad request");
+  // Gemini must NOT be tried — the request itself was the problem.
+  assert.equal(gemini.calls.length, 0);
+});
+
+test("#3 Manual Claude: only Anthropic is called (fallback bypassed)", async () => {
+  const registry = new ProviderRegistry();
+  const anthropic = fakeProvider({response: {stopReason: "end"}});
+  const gemini = fakeProvider({response: {stopReason: "end"}});
+  registry.register("anthropic", anthropic).register("gemini", gemini);
+
+  const resp = await generate(
+      registry, "chat", {maxTokens: 10, messages: []}, undefined,
+      {forceProvider: "anthropic"});
+
+  assert.equal(anthropic.calls.length, 1);
+  assert.equal(gemini.calls.length, 0);
+  assert.equal(resp.provider, "anthropic");
+});
+
+test("#4 Manual Gemini: request goes straight to Gemini, Claude never called", async () => {
+  const registry = new ProviderRegistry();
+  const anthropic = fakeProvider({response: {stopReason: "end"}});
+  const gemini = fakeProvider({response: {stopReason: "end"}});
+  registry.register("anthropic", anthropic).register("gemini", gemini);
+
+  const resp = await generate(
+      registry, "chat", {maxTokens: 10, messages: []}, undefined,
+      {forceProvider: "gemini"});
+
+  assert.equal(gemini.calls.length, 1);
+  assert.equal(gemini.calls[0].model, "gemini-2.5-pro");
+  assert.equal(anthropic.calls.length, 0);
+  assert.equal(resp.provider, "gemini");
+});
+
+test("Manual Gemini failure does NOT fall back to Claude", async () => {
+  const registry = new ProviderRegistry();
+  const anthropic = fakeProvider({response: {stopReason: "end"}});
+  const gemini = fakeProvider({fail: {message: "gemini down", status: 503}});
+  registry.register("anthropic", anthropic).register("gemini", gemini);
+
+  await assert.rejects(
+      () => generate(registry, "chat", {maxTokens: 10, messages: []}, undefined,
+          {forceProvider: "gemini"}),
+      (err) => err.message === "gemini down");
+  assert.equal(anthropic.calls.length, 0);
+});
+
+test("resolve(capability, forceProvider) returns the forced provider's route", () => {
+  assert.equal(resolve("chat", "gemini").provider, "gemini");
+  assert.equal(resolve("chat", "gemini").model, "gemini-2.5-pro");
+  assert.equal(resolve("chat", "anthropic").provider, "anthropic");
+});
+
+test("forcing a provider with no configured route throws", () => {
+  assert.throws(() => resolve("chat", "openai"));
 });
