@@ -39,22 +39,25 @@ import '../../auth/presentation/pages/settings_page.dart';
 import '../../workout/presentation/pages/workout_dashboard_page.dart';
 import '../../../l10n/l10n.dart';
 
-/// The Hub — a light dashboard into each module's depth. A two-column grid of
-/// premium module cards, each led by the module's own hero photograph with a
-/// hue-tinted icon chip and a live stat line read straight from that module's
-/// repository (see each `_XTile`) — a snapshot of "what's happening in each
-/// area of my life right now", not just a launcher.
+/// The Hub — a calm launcher into each module's depth. It reads top-to-bottom
+/// as one editorial column, in the app's own material language rather than the
+/// old photo grid:
 ///
-/// The photographs give the four modules an instant, distinct identity the
-/// old neutral-icon grid couldn't: each card carries a cropped, unified image
-/// (the source's baked-in title is cropped off in `assets/hub/` so the app's
-/// own localized label reads over clean photography), melting into the card
-/// surface along a bottom fade so the seam reads as depth. The icon chips then
-/// echo each area's owned hue — green for training and diet, amber for money,
-/// ember for moments — so the grid differentiates by image *and* colour while
-/// staying inside the four-hue system (ADR-006). Below the grid, the
-/// **Connected** band shows the services ZIVO talks to with their real brand
-/// marks and live state.
+/// * **Your areas** — Workout · Diet · Expenses · Moments as compact rows in a
+///   single grouped card. Each leads with its owned hue (green training/diet,
+///   amber money, ember moments), the localized label, and a live mono stat
+///   read straight from that module's repo (see each `_XTile`). Slim, dense,
+///   and identical in voice to Today and Settings — no oversized cards.
+/// * **Sleep** — the one intentional image on the page: a full-width nocturnal
+///   hero, a painted night sky (violet→indigo, a soft moon, faint stars) drawn
+///   in the same gradient language as the Sleep screen itself, with last
+///   night's duration set over it. Photography earns its place once, here,
+///   instead of five competing photos.
+/// * **Connected** — the services ZIVO talks to, real brand marks, live state.
+///
+/// The photo grid this replaced made every card tall and read as a different,
+/// stockier app than the rest of ZIVO; the launcher is presentation-only, so
+/// feature logic still lives in the feature (each `_XTile` only fetches).
 class HubPage extends StatelessWidget {
   const HubPage({super.key});
 
@@ -66,62 +69,30 @@ class HubPage extends StatelessWidget {
       // The one soft radial glow this surface gets — the same green wash the
       // Workout hub and Diet carry, since this is where they're opened from.
       decoration: BoxDecoration(gradient: TrainColors.hubTint),
-      child: Stack(
-        children: [
-          // The page is a single top-aligned scroll view: header, then the
-          // grid, then the Connected band. The grid is shrink-wrapped
-          // (`shrinkWrap: true` + `NeverScrollableScrollPhysics`) so it sizes
-          // to its own content and the outer `SingleChildScrollView` is the
-          // only scroller — on a short device (or a large text scale) the whole
-          // thing scrolls naturally with nothing clipped. `extendBody: true`
-          // draws the page behind the shell's floating nav, so the bottom
-          // padding reserves the bottom object's exact rendered height
-          // (`BottomChrome`, safe-area inset and the fused now-playing strip
-          // included) so the last row always clears it with a small, consistent
-          // breathing room.
-          Positioned.fill(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.screen,
-                media.padding.top + 24,
-                AppSpacing.screen,
-                BottomChrome.of(context) + AppSpacing.s,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const _Header(),
-                  const SizedBox(height: 20),
-                  // The full "Start Workout" training card lives on Today (and
-                  // the Workout dashboard) — the Hub deliberately doesn't
-                  // duplicate it here, leading with the module grid instead.
-                  GridView.count(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 14,
-                    crossAxisSpacing: 14,
-                    // The cards carry a fixed-height hero photo plus a
-                    // flex-centred content block, so they're taller than wide.
-                    // 0.82 leaves the content (label + up-to-two-line stat,
-                    // clamped to 1.3×) clear room even on the narrowest phone at
-                    // a large accessibility scale; the centring absorbs the
-                    // slack at the default scale so there's no hollow gap.
-                    childAspectRatio: 0.82,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: const [
-                      _WorkoutTile(),
-                      _DietTile(),
-                      _ExpensesTile(),
-                      _MomentsTile(),
-                      _SleepTile(),
-                    ],
-                  ),
-                  const _ConnectedSection(),
-                ],
-              ),
-            ),
-          ),
-        ],
+      child: SingleChildScrollView(
+        // A single top-aligned scroll view: header, the areas card, the Sleep
+        // hero, then the Connected band. `extendBody: true` draws the page
+        // behind the shell's floating nav, so the bottom padding reserves the
+        // bottom object's exact rendered height (`BottomChrome`, safe-area
+        // inset and the fused now-playing strip included) so the last row
+        // always clears it with a small, consistent breathing room.
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.screen,
+          media.padding.top + 24,
+          AppSpacing.screen,
+          BottomChrome.of(context) + AppSpacing.s,
+        ),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Header(),
+            SizedBox(height: 22),
+            RiseIn(delay: Duration(milliseconds: 40), child: _AreasCard()),
+            SizedBox(height: 14),
+            RiseIn(delay: Duration(milliseconds: 120), child: _SleepBand()),
+            _ConnectedSection(),
+          ],
+        ),
       ),
     );
   }
@@ -160,11 +131,53 @@ class _Header extends StatelessWidget {
               height: 1,
             ),
           ),
-          // The italic-serif aside is gone: Instrument Serif is the ZIVO
-          // assistant's voice and nothing else in the app (identity §3), and a
-          // launcher doesn't need a tagline to explain four labelled tiles.
         ],
       ),
+    );
+  }
+}
+
+/// The four action areas in one grouped card — each row a `_ModuleRow` built by
+/// its own `_XTile`, separated by an inset hairline so the rules start at the
+/// label the way every list card in the app does.
+class _AreasCard extends StatelessWidget {
+  const _AreasCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        gradient: TrainColors.cardGradient,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: TrainColors.hairline),
+      ),
+      child: const Column(
+        children: [
+          _WorkoutTile(),
+          _RowDivider(),
+          _DietTile(),
+          _RowDivider(),
+          _ExpensesTile(),
+          _RowDivider(),
+          _MomentsTile(),
+        ],
+      ),
+    );
+  }
+}
+
+/// The hairline between two `_ModuleRow`s, inset past the icon column so it
+/// begins at the label (directional, so it clears the leading column in Arabic
+/// too).
+class _RowDivider extends StatelessWidget {
+  const _RowDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(start: _ModuleRow.labelInset),
+      child: Divider(height: 1, thickness: 1, color: TrainColors.hairline),
     );
   }
 }
@@ -177,19 +190,17 @@ class _WorkoutTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
-    return RiseIn(
-      delay: const Duration(milliseconds: 40),
-      child: StreamBuilder<WorkoutPlan?>(
-        stream: scope.workoutPlans.watchActivePlan(),
-        initialData: scope.workoutPlans.activePlan,
-        builder: (context, planSnapshot) {
-          final plan = planSnapshot.data;
-          if (plan == null) return _card(context, stat: l(context).hubNoPlanYet);
-          return StreamBuilder<LiveSession?>(
-            stream: scope.workoutSessions.watchActiveSession(),
-            initialData: scope.workoutSessions.activeSession,
-            builder: (context, sessionSnapshot) {
-              final selection = resolveUpNext(
+    return StreamBuilder<WorkoutPlan?>(
+      stream: scope.workoutPlans.watchActivePlan(),
+      initialData: scope.workoutPlans.activePlan,
+      builder: (context, planSnapshot) {
+        final plan = planSnapshot.data;
+        if (plan == null) return _row(context, stat: l(context).hubNoPlanYet);
+        return StreamBuilder<LiveSession?>(
+          stream: scope.workoutSessions.watchActiveSession(),
+          initialData: scope.workoutSessions.activeSession,
+          builder: (context, sessionSnapshot) {
+            final selection = resolveUpNext(
               plan,
               sessionSnapshot.data,
               // A session left open on Tuesday must not still be offering
@@ -197,28 +208,26 @@ class _WorkoutTile extends StatelessWidget {
               now: DateTime.now(),
               maxSessionDuration: AppScope.of(context).maxSessionDuration,
             );
-              final day = selection.day;
-              // Localized whole, not assembled from a translated word and a
-              // separator: an English fragment inside an Arabic paragraph is
-              // reordered by the bidi algorithm, which is what turned this
-              // line into scrambled text in Arabic.
-              final stat = day == null
-                  ? l(context).hubNoPlanYet
-                  : selection.resumable != null
-                  ? l(context).hubWorkoutResume(day.label)
-                  : l(context).hubWorkoutUpNext(day.label);
-              return _card(context, stat: stat);
-            },
-          );
-        },
-      ),
+            final day = selection.day;
+            // Localized whole, not assembled from a translated word and a
+            // separator: an English fragment inside an Arabic paragraph is
+            // reordered by the bidi algorithm, which is what turned this
+            // line into scrambled text in Arabic.
+            final stat = day == null
+                ? l(context).hubNoPlanYet
+                : selection.resumable != null
+                ? l(context).hubWorkoutResume(day.label)
+                : l(context).hubWorkoutUpNext(day.label);
+            return _row(context, stat: stat);
+          },
+        );
+      },
     );
   }
 
-  Widget _card(BuildContext context, {required String stat}) {
-    return _ModuleCard(
+  Widget _row(BuildContext context, {required String stat}) {
+    return _ModuleRow(
       image: 'assets/hub/workout.jpg',
-      icon: AppIcons.workout,
       accent: TrainColors.green,
       label: l(context).hubWorkout,
       stat: stat,
@@ -237,46 +246,42 @@ class _DietTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
-    return RiseIn(
-      delay: const Duration(milliseconds: 90),
-      child: StreamBuilder<DietPlan?>(
-        stream: scope.diet.watchActivePlan(),
-        initialData: scope.diet.activePlan,
-        builder: (context, planSnapshot) {
-          final now = DateTime.now();
-          final day = dayForDate(planSnapshot.data, now);
-          if (day == null) return _card(context, stat: l(context).hubNoPlanYet);
-          return StreamBuilder<Set<String>>(
-            stream: scope.diet.watchConsumed(now),
-            initialData: const <String>{},
-            builder: (context, consumedSnapshot) {
-              final summary = dietDaySummary(
-                day,
-                consumedSnapshot.data ?? const <String>{},
-              );
-              return _card(
-                context,
-                // "meals" and "left" dropped — the card is already labelled
-                // "Diet", so "X of Y" reads unambiguously without the former,
-                // and the latter is what pushed this to a 3rd line at a
-                // standard phone width (measured in hub_page_test.dart).
-                stat: l(context).hubDietStat(
-                  summary.eaten,
-                  summary.total,
-                  '${approx(summary.kcalLeftEstimated)}${summary.kcalLeft}',
-                ),
-              );
-            },
-          );
-        },
-      ),
+    return StreamBuilder<DietPlan?>(
+      stream: scope.diet.watchActivePlan(),
+      initialData: scope.diet.activePlan,
+      builder: (context, planSnapshot) {
+        final now = DateTime.now();
+        final day = dayForDate(planSnapshot.data, now);
+        if (day == null) return _row(context, stat: l(context).hubNoPlanYet);
+        return StreamBuilder<Set<String>>(
+          stream: scope.diet.watchConsumed(now),
+          initialData: const <String>{},
+          builder: (context, consumedSnapshot) {
+            final summary = dietDaySummary(
+              day,
+              consumedSnapshot.data ?? const <String>{},
+            );
+            return _row(
+              context,
+              // "meals" and "left" dropped — the row is already labelled
+              // "Diet", so "X of Y" reads unambiguously without the former,
+              // and the latter is what pushed this to a 3rd line at a
+              // standard phone width (measured in hub_page_test.dart).
+              stat: l(context).hubDietStat(
+                summary.eaten,
+                summary.total,
+                '${approx(summary.kcalLeftEstimated)}${summary.kcalLeft}',
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
-  Widget _card(BuildContext context, {required String stat}) {
-    return _ModuleCard(
+  Widget _row(BuildContext context, {required String stat}) {
+    return _ModuleRow(
       image: 'assets/hub/diet.jpg',
-      icon: AppIcons.diet,
       accent: TrainColors.green,
       label: l(context).hubDiet,
       stat: stat,
@@ -298,46 +303,40 @@ class _ExpensesTile extends StatelessWidget {
     final scope = AppScope.of(context);
     final expenses = scope.expenses;
     final wallet = scope.wallet;
-    return RiseIn(
-      delay: const Duration(milliseconds: 140),
-      child: StreamBuilder<List<Expense>>(
-        stream: expenses.watchAll(),
-        initialData: expenses.current,
-        builder: (context, snapshot) {
-          final weekMinor = weekTotalMinor(
-            snapshot.data ?? const <Expense>[],
-            DateTime.now(),
+    return StreamBuilder<List<Expense>>(
+      stream: expenses.watchAll(),
+      initialData: expenses.current,
+      builder: (context, snapshot) {
+        final weekMinor = weekTotalMinor(
+          snapshot.data ?? const <Expense>[],
+          DateTime.now(),
+        );
+        if (wallet == null) {
+          return _row(
+            context,
+            stat: l(context).hubExpensesStat('EGP ${formatAmount(weekMinor)}'),
           );
-          if (wallet == null) {
-            return _card(
+        }
+        return StreamBuilder<Wallet?>(
+          stream: wallet.watch(),
+          initialData: wallet.current,
+          builder: (context, walletSnapshot) {
+            final currency = walletSnapshot.data?.currency ?? 'EGP';
+            return _row(
               context,
-              stat: l(context).hubExpensesStat(
-                'EGP ${formatAmount(weekMinor)}',
-              ),
-            );
-          }
-          return StreamBuilder<Wallet?>(
-            stream: wallet.watch(),
-            initialData: wallet.current,
-            builder: (context, walletSnapshot) {
-              final currency = walletSnapshot.data?.currency ?? 'EGP';
-              return _card(
+              stat: l(
                 context,
-                stat: l(context).hubExpensesStat(
-                  '$currency ${formatAmount(weekMinor)}',
-                ),
-              );
-            },
-          );
-        },
-      ),
+              ).hubExpensesStat('$currency ${formatAmount(weekMinor)}'),
+            );
+          },
+        );
+      },
     );
   }
 
-  Widget _card(BuildContext context, {required String stat}) {
-    return _ModuleCard(
+  Widget _row(BuildContext context, {required String stat}) {
+    return _ModuleRow(
       image: 'assets/hub/expenses.jpg',
-      icon: AppIcons.expenses,
       accent: TrainColors.amber,
       label: l(context).hubExpenses,
       stat: stat,
@@ -356,87 +355,41 @@ class _MomentsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
-    return RiseIn(
-      delay: const Duration(milliseconds: 190),
-      child: StreamBuilder<List<Moment>>(
-        stream: scope.moments.watchAll(),
-        initialData: scope.moments.current,
-        builder: (context, snapshot) {
-          final count = (snapshot.data ?? const <Moment>[]).length;
-          final stat = count == 0
-              ? l(context).hubNoMomentsYet
-              : l(context).hubMomentsCount(count);
-          return _ModuleCard(
-            image: 'assets/hub/moments.jpg',
-            icon: AppIcons.moments,
-            accent: TrainColors.ember,
-            label: l(context).hubMoments,
-            stat: stat,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const MomentsTimelinePage()),
-            ),
-          );
-        },
-      ),
+    return StreamBuilder<List<Moment>>(
+      stream: scope.moments.watchAll(),
+      initialData: scope.moments.current,
+      builder: (context, snapshot) {
+        final count = (snapshot.data ?? const <Moment>[]).length;
+        final stat = count == 0
+            ? l(context).hubNoMomentsYet
+            : l(context).hubMomentsCount(count);
+        return _ModuleRow(
+          image: 'assets/hub/moments.jpg',
+          accent: TrainColors.ember,
+          label: l(context).hubMoments,
+          stat: stat,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const MomentsTimelinePage()),
+          ),
+        );
+      },
     );
   }
 }
 
-/// Sleep — last night's duration, with how it was known.
+/// One area row: the module's own photo as a small leading thumbnail, its
+/// label, and a live mono stat beneath, with a trailing chevron. Data-fetching
+/// lives entirely in each `_XTile` above — this is presentation only, reused so
+/// every row shares one exact language.
 ///
-/// The stat carries the **method**, not just the figure, for the same reason
-/// every sleep surface does: "7h 12m" alone is a claim ZIVO cannot stand
-/// behind without saying where it came from (`docs/SLEEP_SYSTEM.md` §11). The
-/// card is violet, the hue this palette already gives the night (ADR-010).
-class _SleepTile extends StatelessWidget {
-  const _SleepTile();
-
-  @override
-  Widget build(BuildContext context) {
-    final scope = AppScope.of(context);
-    final sleep = scope.sleep;
-    return RiseIn(
-      delay: const Duration(milliseconds: 250),
-      child: StreamBuilder<List<SleepNight>>(
-        stream: sleep?.watchNights(),
-        initialData: sleep?.current ?? const <SleepNight>[],
-        builder: (context, snapshot) {
-          final nights = snapshot.data ?? const <SleepNight>[];
-          SleepNight? last;
-          for (final night in nights) {
-            if (night.hasData) {
-              last = night;
-              break;
-            }
-          }
-          final stat = last == null
-              ? l(context).hubNoSleepYet
-              : '${sleepDurationText(context, last.main!.asleepDuration)} · '
-                    '${sleepMethodLabel(context, last.main!.provenance.method)}';
-          return _ModuleCard(
-            image: 'assets/hub/sleep.jpg',
-            icon: AppIcons.sleep,
-            accent: TrainColors.sleepAccent,
-            label: l(context).hubSleep,
-            stat: stat,
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const SleepPage())),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// The shared visual shell for a Hub module card: a hero photograph up top, a
-/// hue-tinted icon chip, the module label, and a live stat line underneath.
-/// Data-fetching lives entirely in each concrete `_XTile` above — this is
-/// presentation only, reused so every card shares one exact language.
-class _ModuleCard extends StatelessWidget {
-  const _ModuleCard({
+/// The stat sits *under* the label (rather than on the row's trailing edge)
+/// so a long line like "Full arm (Day 4) · Up next" wraps within the row
+/// instead of being squeezed against the chevron. The photo carries the
+/// module's identity; [accent] is kept for the wash the thumbnail falls back to
+/// if its asset is ever missing.
+class _ModuleRow extends StatelessWidget {
+  const _ModuleRow({
     required this.image,
-    required this.icon,
     required this.accent,
     required this.label,
     required this.stat,
@@ -444,95 +397,119 @@ class _ModuleCard extends StatelessWidget {
   });
 
   final String image;
-  final IconData icon;
   final Color accent;
   final String label;
   final String stat;
   final VoidCallback onTap;
 
+  static const double _thumb = 48;
+
+  /// Where the label starts — the thumbnail column's width (padding + thumb +
+  /// gap). The [_RowDivider] insets to this so each rule begins at the label.
+  static const double labelInset = 16 + _thumb + 13;
+
   @override
   Widget build(BuildContext context) {
-    // Both the label and the stat are clamped so a large accessibility text
-    // scale can't blow past the card's fixed height (the hero photo is a fixed
-    // 92px, so the content block owns the rest).
-    final scaler = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.3);
-    return PressableScale(
-      scale: 0.985,
-      child: Material(
-        color: Colors.transparent,
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: TrainColors.cardGradient,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: TrainColors.hairline),
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: () {
-              HapticFeedback.selectionClick();
-              onTap();
-            },
-            // Clip so the photo's top corners follow the card radius; the 1px
-            // hairline from the Ink decoration reads just outside it.
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _HeroPhoto(image: image, accent: accent),
-                  // The content owns whatever height the fixed hero leaves, and
-                  // sits centred within it — so a default-scale card reads as
-                  // balanced rather than bottom-heavy, while a large text scale
-                  // simply consumes the slack instead of overflowing.
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(15, 10, 15, 12),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              TrainIconTile(
-                                icon: icon,
-                                accent: accent,
-                                size: 34,
-                                iconSize: 21,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textScaler: scaler,
-                                  style: TrainType.ui(
-                                    size: 15.5,
-                                    weight: FontWeight.w700,
-                                    color: TrainColors.inkPlain,
-                                    height: 1.1,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 9),
-                          Text(
-                            stat.toUpperCase(),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textScaler: scaler,
-                            style: TrainType.mono(
-                              size: 9.5,
-                              tracking: 0.06,
-                              color: TrainColors.ink4,
-                              height: 1.35,
-                            ),
-                          ),
-                        ],
+    // Clamp so a large accessibility text scale can't run the two-line stat
+    // past a sensible height — the card grows with the text, it just doesn't
+    // scale without bound.
+    final scaler = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.4);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: Row(
+            children: [
+              _RowThumb(image: image, accent: accent, size: _thumb),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textScaler: scaler,
+                      style: TrainType.ui(
+                        size: 15.5,
+                        weight: FontWeight.w700,
+                        color: TrainColors.inkPlain,
+                        height: 1.15,
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 3),
+                    Text(
+                      stat.toUpperCase(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textScaler: scaler,
+                      style: TrainType.mono(
+                        size: 9.5,
+                        tracking: 0.06,
+                        color: TrainColors.ink4,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: TrainColors.inkAt(0.3),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A module row's leading photograph — the section image, cover-fit into a
+/// small rounded square. Falls back to a hue wash if the asset is ever missing,
+/// so the row never shows a broken image slot.
+class _RowThumb extends StatelessWidget {
+  const _RowThumb({
+    required this.image,
+    required this.accent,
+    required this.size,
+  });
+
+  final String image;
+  final Color accent;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(13),
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Image.asset(
+          image,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.medium,
+          // Decode near the widest the thumb is drawn (×~3 for hi-DPI) rather
+          // than at the source's full resolution.
+          cacheWidth: 160,
+          errorBuilder: (context, error, stack) => DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  accent.withValues(alpha: 0.32),
+                  accent.withValues(alpha: 0.08),
                 ],
               ),
             ),
@@ -543,65 +520,308 @@ class _ModuleCard extends StatelessWidget {
   }
 }
 
-/// A module card's hero photograph: the section image, cover-fit into a fixed
-/// strip, with a fade to the screen base along its bottom edge so it melts into
-/// the card body rather than butting against it with a hard line. Falls back to
-/// a hue wash if the asset is ever missing, so the card never shows a broken
-/// image slot.
-class _HeroPhoto extends StatelessWidget {
-  const _HeroPhoto({required this.image, required this.accent});
-
-  final String image;
-  final Color accent;
+/// Sleep — last night's duration, with how it was known.
+///
+/// The stat carries the **method**, not just the figure, for the same reason
+/// every sleep surface does: "7h 12m" alone is a claim ZIVO cannot stand
+/// behind without saying where it came from (`docs/SLEEP_SYSTEM.md` §11). This
+/// is the page's one hero image — a painted night, in Sleep's own violet-blue
+/// hue (ADR-010).
+class _SleepBand extends StatelessWidget {
+  const _SleepBand();
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 92,
-      width: double.infinity,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            image,
-            fit: BoxFit.cover,
-            filterQuality: FilterQuality.medium,
-            // Decode near the widest a tile is drawn (×~2 for hi-DPI) rather
-            // than at the source's full resolution.
-            cacheWidth: 640,
-            errorBuilder: (context, error, stack) => DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    accent.withValues(alpha: 0.30),
-                    accent.withValues(alpha: 0.06),
-                  ],
+    final scope = AppScope.of(context);
+    final sleep = scope.sleep;
+    return StreamBuilder<List<SleepNight>>(
+      stream: sleep?.watchNights(),
+      initialData: sleep?.current ?? const <SleepNight>[],
+      builder: (context, snapshot) {
+        final nights = snapshot.data ?? const <SleepNight>[];
+        SleepNight? last;
+        for (final night in nights) {
+          if (night.hasData) {
+            last = night;
+            break;
+          }
+        }
+        final duration = last == null
+            ? null
+            : sleepDurationText(context, last.main!.asleepDuration);
+        final method = last == null
+            ? null
+            : sleepMethodLabel(context, last.main!.provenance.method);
+        return _SleepHero(
+          duration: duration,
+          method: method,
+          emptyText: l(context).hubNoSleepYet,
+          onTap: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const SleepPage())),
+        );
+      },
+    );
+  }
+}
+
+/// The Sleep hero: a full-width nocturnal card. A painted night sky sits
+/// behind last night's duration, with a legibility scrim deepening toward the
+/// bottom where the figure reads. Always dark — a night is a night, the same
+/// way the old photo never themed — so the text is white for vibrancy over it.
+class _SleepHero extends StatelessWidget {
+  const _SleepHero({
+    required this.duration,
+    required this.method,
+    required this.emptyText,
+    required this.onTap,
+  });
+
+  /// Last night's asleep duration, or null when there is no night to show.
+  final String? duration;
+
+  /// How that duration was known (Apple Health, entered by hand, …).
+  final String? method;
+
+  /// What to say in place of a duration when there is no night yet.
+  final String emptyText;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(22);
+    final hasNight = duration != null;
+    return PressableScale(
+      scale: 0.99,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: Container(
+          height: 156,
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0B0D22).withValues(alpha: 0.45),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: radius,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CustomPaint(
+                  painter: _NightSkyPainter(glow: TrainColors.sleepGlyph),
                 ),
-              ),
+                // Legibility scrim — the figure sits at the bottom-left, so the
+                // night deepens there without dimming the moon and stars up top.
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0x00000000),
+                        Color(0x00000000),
+                        Color(0x66000000),
+                      ],
+                      stops: [0.0, 0.45, 1.0],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(11),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.18),
+                                  ),
+                                ),
+                                child: Icon(
+                                  AppIcons.sleep,
+                                  size: 18,
+                                  color: Colors.white.withValues(alpha: 0.92),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                l(context).hubSleep.toUpperCase(),
+                                style: TrainType.caption(
+                                  size: 10,
+                                  tracking: 0.22,
+                                  weight: FontWeight.w600,
+                                  color: Colors.white.withValues(alpha: 0.72),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 18,
+                            color: Colors.white.withValues(alpha: 0.5),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (hasNight) ...[
+                            Text(
+                              duration!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TrainType.mono(
+                                size: 27,
+                                weight: FontWeight.w600,
+                                tracking: -0.01,
+                                color: Colors.white,
+                                height: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              method!.toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TrainType.caption(
+                                size: 9.5,
+                                tracking: 0.14,
+                                color: Colors.white.withValues(alpha: 0.62),
+                              ),
+                            ),
+                          ] else
+                            Text(
+                              emptyText,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TrainType.ui(
+                                size: 16,
+                                weight: FontWeight.w600,
+                                color: Colors.white.withValues(alpha: 0.9),
+                                height: 1.2,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          // The seam-softening fade: transparent over the top half, deepening
-          // to the screen base at the very bottom edge.
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  TrainColors.base.withValues(alpha: 0),
-                  TrainColors.base.withValues(alpha: 0),
-                  TrainColors.base.withValues(alpha: 0.76),
-                ],
-                stops: [0.0, 0.52, 1.0],
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
+}
+
+/// A painted night: a violet→indigo sky, a low violet aurora, a soft glowing
+/// moon and a scatter of faint stars. Deterministic (fixed star field, no
+/// per-frame randomness) so it never shimmers between builds, and cheap enough
+/// to repaint never.
+///
+/// The dark base tones are *imagery* — the same licence the old hero photo had
+/// to fall outside the token palette — but the [glow] accent is passed in from
+/// Sleep's own hue so the illustration stays in the family the Sleep screen
+/// uses (ADR-010).
+class _NightSkyPainter extends CustomPainter {
+  const _NightSkyPainter({required this.glow});
+
+  final Color glow;
+
+  // The star field, as fractions of the card's width/height, each with a
+  // radius and an opacity — hand-placed to sit around (not over) the moon.
+  static const List<List<double>> _stars = [
+    [0.10, 0.24, 1.1, 0.65],
+    [0.20, 0.52, 0.9, 0.45],
+    [0.30, 0.18, 1.3, 0.80],
+    [0.38, 0.40, 0.8, 0.40],
+    [0.46, 0.14, 1.0, 0.55],
+    [0.52, 0.62, 0.9, 0.50],
+    [0.60, 0.30, 0.8, 0.42],
+    [0.68, 0.55, 1.1, 0.60],
+    [0.90, 0.60, 0.9, 0.48],
+    [0.94, 0.30, 1.0, 0.55],
+    [0.16, 0.72, 0.8, 0.35],
+    [0.74, 0.20, 0.9, 0.5],
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+
+    // Base sky.
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF0B0D22), Color(0xFF15173A), Color(0xFF241F52)],
+          stops: [0.0, 0.55, 1.0],
+        ).createShader(rect),
+    );
+
+    // A low aurora in Sleep's own violet, rising from the bottom-left.
+    final auroraCenter = Offset(size.width * 0.16, size.height * 1.08);
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [glow.withValues(alpha: 0.34), glow.withValues(alpha: 0.0)],
+        ).createShader(
+          Rect.fromCircle(center: auroraCenter, radius: size.width * 0.72),
+        ),
+    );
+
+    // The moon — a soft halo, then the disc.
+    final moon = Offset(size.width * 0.84, size.height * 0.30);
+    canvas.drawCircle(
+      moon,
+      50,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            Colors.white.withValues(alpha: 0.42),
+            Colors.white.withValues(alpha: 0.0),
+          ],
+        ).createShader(Rect.fromCircle(center: moon, radius: 50)),
+    );
+    canvas.drawCircle(moon, 15, Paint()..color = const Color(0xFFF4F1FF));
+
+    // Stars.
+    final star = Paint();
+    for (final s in _stars) {
+      star.color = Colors.white.withValues(alpha: s[3]);
+      canvas.drawCircle(Offset(size.width * s[0], size.height * s[1]), s[2], star);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_NightSkyPainter oldDelegate) => oldDelegate.glow != glow;
 }
 
 /// The Hub's "Connected" band — the services ZIVO talks to, with their real

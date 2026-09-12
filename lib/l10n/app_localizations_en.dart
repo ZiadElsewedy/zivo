@@ -5512,4 +5512,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get readinessHowBody =>
       'ZIVO fuses last night\'s sleep, how your training is trending, how recently you trained, and your body-weight trend into one call. It only uses what it can source — a missing signal is left out, never guessed — and it is a training guide, not a medical or HRV score.';
+
+  @override
+  String get readinessAboutTitle => 'What is Daily Readiness';
+
+  @override
+  String get readinessAboutBody =>
+      'Every morning ZIVO reads the signals you already track and gives you one honest call — train hard, go light, or rest — so you walk into the gym knowing whether to push or hold back. It\'s your coach\'s opening line for the day, not another number to chase.';
 }

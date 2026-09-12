@@ -21,15 +21,16 @@ about the user that isn't true.
 | `domain/readiness.dart` | the pure engine. `computeReadiness(...)` extracts signals from the domain objects and delegates to **`readinessFromSignals(...)`** — the primitive-level combination logic pinned to the Node coach mirror by shared golden vectors. Carries the thresholds, the verdict maths, and `readinessDeloadDue` (reads `analyzeTraining`'s verdicts — no new stall test) |
 | `presentation/readiness_labels.dart` | the copy contract — verdict word/blurb/colour and each factor's icon/title/detail. Status colours only (green/amber/ember), no new hue |
 | `presentation/widgets/readiness_glance.dart` | **`ReadinessSection`** — the Today card. Composes the same streams the other sections read; hides when the engine returns null. `ReadinessFactorRow` is shared with the detail page |
-| `presentation/pages/readiness_page.dart` | the detail page — the call, every factor with its number, a "how it's worked out / what it isn't" note, and an optional "Ask ZIVO about this" route into the coach |
+| `presentation/pages/readiness_page.dart` | the detail page — **the call first (always), dressed as the hero** with its status colour washed behind it, then a "what is Daily Readiness" intro, then every factor with its number under a "why this call" label, a "how it's worked out / what it isn't" note, and an optional "Ask ZIVO about this" route into the coach |
 
 ## Wiring
 
 - **No repository** — the score is derived, so there is no `AppScope.readiness`.
   `ReadinessSection` reads `sleep` / `workoutSessions` / `bodyWeight` off
   `AppScope` directly.
-- **Surfaced** on Today: `ReadinessSection` sits after `TodayPulseSection`,
-  before the training card, in
+- **Surfaced** on Today: `ReadinessSection` sits after `TodayPulseSection` and
+  after the training card (the training card leads the sections below the
+  pulse), in
   [`today_page.dart`](../home/presentation/pages/today_page.dart). `onOpenAsk`
   is threaded through so the detail page can switch to the Ask tab.
 - **Coach (staged):** `functions/ai/readiness.js` (the Node mirror of

@@ -157,20 +157,21 @@ class _TodayPageState extends State<TodayPage> {
                     delay: const Duration(milliseconds: 70),
                     child: TodayPulseSection(now: widget.now),
                   ),
+                  // The day's training, full-weight card — the first thing to
+                  // act on today, so it leads the sections below the pulse.
+                  const RiseIn(
+                    delay: Duration(milliseconds: 105),
+                    child: _TrainingSection(),
+                  ),
                   // The day's call — train hard / go light / rest — fused from
                   // sleep, training load, recovery and weight. Hides itself
                   // when there is nothing to base a call on.
                   RiseIn(
-                    delay: const Duration(milliseconds: 105),
+                    delay: const Duration(milliseconds: 140),
                     child: ReadinessSection(
                       onOpenAsk: widget.onOpenAsk,
                       now: widget.now,
                     ),
-                  ),
-                  // The day's training, full-weight card.
-                  const RiseIn(
-                    delay: Duration(milliseconds: 140),
-                    child: _TrainingSection(),
                   ),
                   // Momentum — "how am I doing?" streak, week bars,
                   // weight trend.
