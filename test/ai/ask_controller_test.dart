@@ -8,6 +8,7 @@ import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_pending_action.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/ai/domain/ai_turn_usage.dart';
 import 'package:zivo/features/ai/domain/ai_usage_summary.dart';
 import 'package:zivo/features/ai/domain/body_data_writer.dart';
 import 'package:zivo/features/workout/domain/workout_import_input.dart';
@@ -590,6 +591,8 @@ class _FakeAi implements AiRepository {
 
   @override
   Future<List<AiProviderUsage>> usageByProvider() async => const [];
+  @override
+  Future<AiTurnUsage?> usageForTurn(String clientTurnId) async => null;
 
   @override
   Future<void> setModelSelection(String selection) async {

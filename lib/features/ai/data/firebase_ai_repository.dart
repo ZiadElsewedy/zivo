@@ -22,6 +22,7 @@ import '../domain/ai_model_selection.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
 import '../domain/ai_usage_summary.dart';
+import '../domain/ai_turn_usage.dart';
 import '../domain/import_progress.dart';
 import '../domain/ai_response_style.dart';
 import '../domain/ai_role.dart';
@@ -700,6 +701,53 @@ class FirebaseAiRepository implements AiRepository {
 
   CollectionReference<Map<String, dynamic>> _aiUsageCollection(String uid) =>
       _firestore.collection('users').doc(uid).collection('aiUsage');
+
+  @override
+  Future<AiTurnUsage?> usageForTurn(String clientTurnId) async {
+    final uid = uidSource.currentUid();
+    if (uid == null || clientTurnId.isEmpty) return null;
+    // One equality filter on a single field — served by Firestore's automatic
+    // single-field index, no composite index needed.
+    final snap = await _aiUsageCollection(uid)
+        .where('clientTurnId', isEqualTo: clientTurnId)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    final d = snap.docs.first.data();
+
+    final tokensIn = _asInt(d['tokensIn']);
+    final cacheRead = _asInt(d['cacheReadTokens']);
+    final cacheWrite = _asInt(d['cacheWriteTokens']);
+    // `uncachedTokensIn` is a schema-v3 field; a pre-v3 doc doesn't carry it, so
+    // derive it from the slices it does carry rather than showing zero.
+    final uncached = d.containsKey('uncachedTokensIn')
+        ? _asInt(d['uncachedTokensIn'])
+        : (tokensIn - cacheRead - cacheWrite);
+
+    final tools = <String>[];
+    final rawTools = d['tools'];
+    if (rawTools is List) {
+      for (final t in rawTools) {
+        if (t is Map && t['name'] is String) tools.add(t['name'] as String);
+      }
+    }
+
+    return AiTurnUsage(
+      provider: (d['provider'] as String?) ??
+          _providerFromModel(d['model'] as String?),
+      model: (d['model'] as String?) ?? '',
+      tokensIn: tokensIn,
+      uncachedTokensIn: uncached,
+      cacheReadTokens: cacheRead,
+      cacheWriteTokens: cacheWrite,
+      tokensOut: _asInt(d['tokensOut']),
+      toolResultTokens: _asInt(d['toolResultTokens']),
+      tools: tools,
+      iterations: _asInt(d['iterations']),
+      latencyMs: _asInt(d['latencyMs']),
+      costUsd: _asDouble(d['costUsd']),
+    );
+  }
 
   @override
   Future<void> confirmAction({

@@ -4082,6 +4082,84 @@ abstract class AppLocalizations {
   /// **'\"add 40 EGP parking\" · \"finished chest day\"'**
   String get askVoiceExamples;
 
+  /// Title of the sheet shown when long-pressing an assistant message, listing that turn's model and token usage.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn details'**
+  String get askTurnDetailsTitle;
+
+  /// Label for the row naming which provider/model produced the reply.
+  ///
+  /// In en, this message translates to:
+  /// **'Answered by'**
+  String get askTurnAnsweredBy;
+
+  /// Label for total input (prompt) tokens of the turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Input tokens'**
+  String get askTurnInputTokens;
+
+  /// Label for input tokens served from the prompt cache.
+  ///
+  /// In en, this message translates to:
+  /// **'Cached'**
+  String get askTurnCached;
+
+  /// Label for input tokens billed at full price (not cached).
+  ///
+  /// In en, this message translates to:
+  /// **'Uncached'**
+  String get askTurnUncached;
+
+  /// Label for generated (output) tokens of the turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Output tokens'**
+  String get askTurnOutputTokens;
+
+  /// Label for the approximate tokens of tool-result data fed to the model.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool results'**
+  String get askTurnToolResults;
+
+  /// Label for the list of tools the model called this turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools used'**
+  String get askTurnTools;
+
+  /// Label for the number of model-tool round-trips the turn took.
+  ///
+  /// In en, this message translates to:
+  /// **'Iterations'**
+  String get askTurnIterations;
+
+  /// Label for how long the turn took.
+  ///
+  /// In en, this message translates to:
+  /// **'Latency'**
+  String get askTurnLatency;
+
+  /// Label for the estimated dollar cost of the turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Est. cost'**
+  String get askTurnCost;
+
+  /// Shown in the tools row when the turn called no tools.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get askTurnNone;
+
+  /// Shown in the turn-details sheet when no usage record exists for the message.
+  ///
+  /// In en, this message translates to:
+  /// **'No details recorded for this message.'**
+  String get askTurnUnavailable;
+
   /// The user's display name.
   ///
   /// In en, this message translates to:

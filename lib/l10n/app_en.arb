@@ -3248,6 +3248,58 @@
   "@askVoiceExamples": {
       "description": "Two example utterances shown under the record button."
   },
+  "askTurnDetailsTitle": "Turn details",
+  "@askTurnDetailsTitle": {
+      "description": "Title of the sheet shown when long-pressing an assistant message, listing that turn's model and token usage."
+  },
+  "askTurnAnsweredBy": "Answered by",
+  "@askTurnAnsweredBy": {
+      "description": "Label for the row naming which provider/model produced the reply."
+  },
+  "askTurnInputTokens": "Input tokens",
+  "@askTurnInputTokens": {
+      "description": "Label for total input (prompt) tokens of the turn."
+  },
+  "askTurnCached": "Cached",
+  "@askTurnCached": {
+      "description": "Label for input tokens served from the prompt cache."
+  },
+  "askTurnUncached": "Uncached",
+  "@askTurnUncached": {
+      "description": "Label for input tokens billed at full price (not cached)."
+  },
+  "askTurnOutputTokens": "Output tokens",
+  "@askTurnOutputTokens": {
+      "description": "Label for generated (output) tokens of the turn."
+  },
+  "askTurnToolResults": "Tool results",
+  "@askTurnToolResults": {
+      "description": "Label for the approximate tokens of tool-result data fed to the model."
+  },
+  "askTurnTools": "Tools used",
+  "@askTurnTools": {
+      "description": "Label for the list of tools the model called this turn."
+  },
+  "askTurnIterations": "Iterations",
+  "@askTurnIterations": {
+      "description": "Label for the number of model-tool round-trips the turn took."
+  },
+  "askTurnLatency": "Latency",
+  "@askTurnLatency": {
+      "description": "Label for how long the turn took."
+  },
+  "askTurnCost": "Est. cost",
+  "@askTurnCost": {
+      "description": "Label for the estimated dollar cost of the turn."
+  },
+  "askTurnNone": "None",
+  "@askTurnNone": {
+      "description": "Shown in the tools row when the turn called no tools."
+  },
+  "askTurnUnavailable": "No details recorded for this message.",
+  "@askTurnUnavailable": {
+      "description": "Shown in the turn-details sheet when no usage record exists for the message."
+  },
   "profileName": "Name",
   "@profileName": {
       "description": "The user's display name."

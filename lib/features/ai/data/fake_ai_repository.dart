@@ -15,6 +15,7 @@ import '../domain/ai_model_selection.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
 import '../domain/ai_usage_summary.dart';
+import '../domain/ai_turn_usage.dart';
 import '../domain/import_progress.dart';
 import '../domain/ai_response_style.dart';
 import '../domain/ai_role.dart';
@@ -211,6 +212,28 @@ class FakeAiRepository implements AiRepository {
       costUsd: 0.021,
     ),
   ];
+
+  @override
+  Future<AiTurnUsage?> usageForTurn(String clientTurnId) async {
+    // The offline fake keeps no usage log; a canned sample lets the details
+    // sheet be exercised without Firestore (tests/offline), while a real device
+    // reads the true doc through FirebaseAiRepository.
+    if (clientTurnId.isEmpty) return null;
+    return const AiTurnUsage(
+      provider: 'anthropic',
+      model: 'claude-sonnet-5',
+      tokensIn: 13570,
+      uncachedTokensIn: 517,
+      cacheReadTokens: 13053,
+      cacheWriteTokens: 0,
+      tokensOut: 149,
+      toolResultTokens: 0,
+      tools: <String>[],
+      iterations: 1,
+      latencyMs: 3227,
+      costUsd: 0.0077,
+    );
+  }
 
   @override
   Stream<List<AiConversation>> watchConversations() async* {

@@ -2324,6 +2324,45 @@ class AppLocalizationsEn extends AppLocalizations {
       '\"add 40 EGP parking\" · \"finished chest day\"';
 
   @override
+  String get askTurnDetailsTitle => 'Turn details';
+
+  @override
+  String get askTurnAnsweredBy => 'Answered by';
+
+  @override
+  String get askTurnInputTokens => 'Input tokens';
+
+  @override
+  String get askTurnCached => 'Cached';
+
+  @override
+  String get askTurnUncached => 'Uncached';
+
+  @override
+  String get askTurnOutputTokens => 'Output tokens';
+
+  @override
+  String get askTurnToolResults => 'Tool results';
+
+  @override
+  String get askTurnTools => 'Tools used';
+
+  @override
+  String get askTurnIterations => 'Iterations';
+
+  @override
+  String get askTurnLatency => 'Latency';
+
+  @override
+  String get askTurnCost => 'Est. cost';
+
+  @override
+  String get askTurnNone => 'None';
+
+  @override
+  String get askTurnUnavailable => 'No details recorded for this message.';
+
+  @override
   String get profileName => 'Name';
 
   @override

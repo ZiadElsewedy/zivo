@@ -550,6 +550,11 @@ async function runAiTurn({
   // The provider that answered (e.g. 'anthropic' | 'gemini'), when the router
   // reported it — so a fallback is visible in usage, not silent.
   if (usedProvider) usageDoc.provider = usedProvider;
+  // The turn's idempotency key, so a client can pair this usage record with the
+  // assistant MESSAGE it produced (both carry the same clientTurnId) — that's
+  // what the per-message "turn details" view queries on. Absent on turn-less
+  // writes, exactly as on the messages themselves.
+  if (clientTurnId) usageDoc.clientTurnId = clientTurnId;
   // Recorded so the validator's real-world hit rate (and any false positives)
   // are observable in production, not a black box.
   if (validation) usageDoc.validation = validation;

@@ -11,6 +11,7 @@ import 'ai_message.dart';
 import 'ai_model_selection.dart';
 import 'ai_response_style.dart';
 import 'ai_usage_summary.dart';
+import 'ai_turn_usage.dart';
 import 'ai_turn_event.dart';
 import 'import_progress.dart';
 import 'stt_outcome.dart';
@@ -73,6 +74,13 @@ abstract interface class AiRepository {
   /// the user has never used Ask. Used by the Ask settings page's usage
   /// section.
   Future<List<AiProviderUsage>> usageByProvider();
+
+  /// The recorded telemetry of the turn identified by [clientTurnId] — the same
+  /// key the produced assistant [AiMessage] carries — or null when none is
+  /// recorded (a legacy/turn-less message, or a turn logged before the backend
+  /// tagged usage with its clientTurnId). Powers the per-message turn-details
+  /// sheet (long-press an assistant reply).
+  Future<AiTurnUsage?> usageForTurn(String clientTurnId);
 
   /// The messages in [conversationId], oldest first, as a live stream.
   Stream<List<AiMessage>> watchMessages(String conversationId);

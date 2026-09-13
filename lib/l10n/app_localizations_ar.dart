@@ -2354,6 +2354,45 @@ class AppLocalizationsAr extends AppLocalizations {
       '\"سجّل ٤٠ جنيه موقف سيارات\" · \"أنهيت تمرين الصدر\"';
 
   @override
+  String get askTurnDetailsTitle => 'تفاصيل الرد';
+
+  @override
+  String get askTurnAnsweredBy => 'الإجابة من';
+
+  @override
+  String get askTurnInputTokens => 'توكنات الإدخال';
+
+  @override
+  String get askTurnCached => 'مخزّنة مؤقتًا';
+
+  @override
+  String get askTurnUncached => 'غير مخزّنة';
+
+  @override
+  String get askTurnOutputTokens => 'توكنات الإخراج';
+
+  @override
+  String get askTurnToolResults => 'نتائج الأدوات';
+
+  @override
+  String get askTurnTools => 'الأدوات المستخدمة';
+
+  @override
+  String get askTurnIterations => 'عدد الدورات';
+
+  @override
+  String get askTurnLatency => 'زمن الاستجابة';
+
+  @override
+  String get askTurnCost => 'التكلفة التقديرية';
+
+  @override
+  String get askTurnNone => 'لا شيء';
+
+  @override
+  String get askTurnUnavailable => 'لا توجد تفاصيل مسجّلة لهذه الرسالة.';
+
+  @override
   String get profileName => 'الاسم';
 
   @override
