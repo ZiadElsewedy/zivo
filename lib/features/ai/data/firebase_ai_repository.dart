@@ -306,6 +306,35 @@ class FirebaseAiRepository implements AiRepository {
     };
   }
 
+  /// Whether the import callables carry their RESULT over a streaming
+  /// (`.stream()`) connection. Deliberately **off** — see the root cause below.
+  ///
+  /// An import is one expensive whole-document model call. Streaming it made
+  /// the finished plan ride back over a long-lived Server-Sent-Events
+  /// connection, and that connection is fragile: a Cloud Functions cold start,
+  /// an autoscaling instance handover (the logs are full of "Starting new
+  /// instance"), an App Check hiccup, or a momentary network blip drops the
+  /// stream. The server still finishes and logs `stage:"accepted"`, but the
+  /// client's stream ends with no terminating `Result`, `_streamImport` throws,
+  /// and the screen shows the generic "couldn't read that plan". That is
+  /// exactly why import broke and healed "randomly" — warm instance + clean
+  /// network survived the stream; a cold start or a scale-out dropped it. It
+  /// was tracking connection health, never the document.
+  ///
+  /// A buffered `.call()` is a single request/response with SDK-level transient
+  /// retry, so the result cannot be lost to a dropped stream — the right
+  /// transport for a one-shot extraction. The only thing forgone while this is
+  /// off is the live extraction progress: `onProgress` doesn't fire, so the
+  /// screen holds its "Analyzing…" line instead of animating. Flip to `true`
+  /// once the SSE transport itself is made reliable (or move to a
+  /// stream-for-progress + buffered-result design that keeps both).
+  ///
+  /// Read via `bool.fromEnvironment` (so `--dart-define=IMPORT_RESULT_STREAMING=true`
+  /// re-enables it without a code edit) and kept non-`const` on purpose: it
+  /// leaves the streaming branch reachable to the analyzer rather than dead code.
+  static bool get _importResultStreaming =>
+      const bool.fromEnvironment('IMPORT_RESULT_STREAMING');
+
   /// The default `importWorkoutPlan` invoker — calls `aiImportWorkoutPlan`
   /// with either the file base64-encoded or the user's description as text.
   /// Like [_defaultInvokeChat], resolves [FirebaseFunctions] lazily so the
@@ -329,10 +358,21 @@ class FirebaseAiRepository implements AiRepository {
           },
           WorkoutImportDescription(:final text) => {'text': text},
         },
-        if (onProgress != null) 'acceptsStreaming': true,
+        if (onProgress != null && _importResultStreaming)
+          'acceptsStreaming': true,
       };
-      final callable = f.httpsCallable('aiImportWorkoutPlan');
-      if (onProgress == null) {
+      // A whole-PDF extraction can run up to the callable's 180s server
+      // timeout; the client default is ~70s, so without this a slow (but
+      // succeeding) import would time out on the client — the very "random"
+      // failure this change exists to remove, just moved to large files.
+      final callable = f.httpsCallable(
+        'aiImportWorkoutPlan',
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 180)),
+      );
+      // Buffered unless streaming is explicitly enabled: the result must not
+      // depend on a stream that a cold start or scale-out can drop. See
+      // [_importResultStreaming].
+      if (onProgress == null || !_importResultStreaming) {
         return _importOutcomeFromJson((await callable.call(payload)).data);
       }
       return _streamImport(
@@ -406,10 +446,17 @@ class FirebaseAiRepository implements AiRepository {
           },
           DietImportDescription(:final text) => {'text': text},
         },
-        if (onProgress != null) 'acceptsStreaming': true,
+        if (onProgress != null && _importResultStreaming)
+          'acceptsStreaming': true,
       };
-      final callable = f.httpsCallable('aiImportDietPlan');
-      if (onProgress == null) {
+      // Match the server's 180s timeout, like the workout importer above.
+      final callable = f.httpsCallable(
+        'aiImportDietPlan',
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 180)),
+      );
+      // Buffered unless streaming is explicitly enabled — same reliability
+      // reasoning as the workout importer. See [_importResultStreaming].
+      if (onProgress == null || !_importResultStreaming) {
         return _dietImportOutcomeFromJson((await callable.call(payload)).data);
       }
       return _streamImport(
