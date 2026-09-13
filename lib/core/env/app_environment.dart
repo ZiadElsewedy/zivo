@@ -69,6 +69,58 @@ class AppEnvironment {
     required bool override,
   }) => isRelease ? true : override;
 
+  /// The raw `USE_FIREBASE_EMULATOR` override. Off by default.
+  static const bool _useFirebaseEmulatorOverride = bool.fromEnvironment(
+    'USE_FIREBASE_EMULATOR',
+    defaultValue: false,
+  );
+
+  /// Whether to route the Firebase SDKs (Auth, Firestore, Functions, Storage)
+  /// at the local **Emulator Suite** instead of the live `zivo-63f15` backend.
+  ///
+  /// This is ZIVO's demo/experimentation environment: a disposable local
+  /// backend where you can seed demo data and try features without ever
+  /// touching production. Opt in from a debug/profile run with
+  /// `--dart-define=USE_FIREBASE_EMULATOR=true` (see `make dev-emulator`).
+  ///
+  /// **Ignored in release** — a shipped build must never talk to a developer's
+  /// laptop. The guard mirrors [useFirestore]'s release protection.
+  static bool get useFirebaseEmulator => resolveUseFirebaseEmulator(
+    isRelease: isRelease,
+    override: _useFirebaseEmulatorOverride,
+  );
+
+  /// The pure guard behind [useFirebaseEmulator], exposed for tests. Release
+  /// forces the emulator off; every other config honours the [override].
+  @visibleForTesting
+  static bool resolveUseFirebaseEmulator({
+    required bool isRelease,
+    required bool override,
+  }) => isRelease ? false : override;
+
+  /// Optional explicit host for the Emulator Suite, e.g. your machine's LAN IP
+  /// for a physical device: `--dart-define=FIREBASE_EMULATOR_HOST=192.168.1.20`.
+  static const String _emulatorHostOverride = String.fromEnvironment(
+    'FIREBASE_EMULATOR_HOST',
+  );
+
+  /// Host the Emulator Suite is reachable at. Platform-aware by default: the
+  /// Android emulator reaches the host machine at `10.0.2.2`; every other
+  /// target (iOS simulator, desktop, web) uses `localhost`. A non-empty
+  /// [_emulatorHostOverride] wins — needed for physical devices, which must
+  /// point at the dev machine's LAN address.
+  static String get emulatorHost => resolveEmulatorHost(
+    override: _emulatorHostOverride,
+    isAndroid: !kIsWeb && defaultTargetPlatform == TargetPlatform.android,
+  );
+
+  /// The pure resolver behind [emulatorHost], exposed for tests.
+  @visibleForTesting
+  static String resolveEmulatorHost({
+    required String override,
+    required bool isAndroid,
+  }) => override.isNotEmpty ? override : (isAndroid ? '10.0.2.2' : 'localhost');
+
   /// Public Google **Web** OAuth client id passed to `google_sign_in` as
   /// `serverClientId`. A public identifier, not a secret. Overridable via
   /// `--dart-define=GOOGLE_SERVER_CLIENT_ID=<id>.apps.googleusercontent.com`.

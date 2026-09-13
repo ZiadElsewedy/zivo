@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "ZIVO · Development (debug)",
+      "name": "ZIVO · Development · Development",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
@@ -10,7 +10,18 @@
       "toolArgs": ["--dart-define-from-file=config/development.json"]
     },
     {
-      "name": "ZIVO · Profile ",
+      "name": "ZIVO · Emulator · Demo Data",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define-from-file=config/development.json",
+        "--dart-define=USE_FIREBASE_EMULATOR=true"
+      ]
+    },
+    {
+      "name": "ZIVO · Profile · Performance",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
@@ -18,7 +29,7 @@
       "toolArgs": ["--dart-define-from-file=config/profile.json"]
     },
     {
-      "name": "ZIVO · Release",
+      "name": "ZIVO · Release · Production",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
