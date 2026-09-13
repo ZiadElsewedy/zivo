@@ -56,10 +56,17 @@ writes the manual capture screens use; **never writes targets/goal**),
 `stt_error.dart`.
 
 Both the model switch and the reply-style preference live in the **Ask settings
-sheet** (`widgets/ask/ask_settings_sheet.dart`, opened from the single header
-settings button — which shows a small "pinned" dot when the model isn't Auto).
-Selecting a row applies in place (the sheet stays open) via the controller's
-`setModelSelection`/`setResponseStyle`; there is no separate Save.
+page** (`presentation/pages/ask_settings_page.dart` — a pushed full page, opened
+from the single header settings button, which shows a small "pinned" dot when
+the model isn't Auto). Each model row carries its provider's brand mark
+(`widgets/ask/provider_mark.dart` — code-drawn Gemini spark / Anthropic burst,
+no image assets). Selecting a row applies in place via the controller's
+`setModelSelection`/`setResponseStyle`; there is no separate Save. The page also
+shows a **per-provider usage** section — total tokens, turns, and est. cost —
+read via `AiRepository.usageByProvider()` (domain `ai_usage_summary.dart`),
+which aggregates the owner-readable `aiUsage` log (turns before the backend
+recorded a `provider` field are attributed by their `model` id). Cost is
+approximate for Gemini (usage logging still prices at Anthropic rates).
 
 ## Backend — the real brain ([`functions/ai/`](../../../functions/ai))
 

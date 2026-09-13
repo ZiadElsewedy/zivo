@@ -114,13 +114,16 @@ notifications)**.
     `providers/classify.js`); a 4xx (our request is malformed) is rethrown, never
     masked by a retry on the other provider. A `forceProvider` pins one provider
     and disables fallback — that's the manual switch.
-  - **Client**: an **Ask settings sheet** (`widgets/ask/ask_settings_sheet.dart`)
-    holding **both** the model choice (Auto · Claude · Gemini) and the reply
-    style (Concise · Balanced · Detailed), each row with a one-line description
-    and the active one checked. Opened from a single header settings button that
-    carries a small accent dot when a specific model is pinned; the two separate
-    header menus are gone. Model persisted at `users/{uid}/settings/ai` field
-    `provider`, forwarded on every `send` (domain `ai_model_selection.dart`).
+  - **Client**: an **Ask settings page** (`pages/ask_settings_page.dart`, a
+    pushed full page in the app's settings chrome) holding the model choice
+    (Auto · Claude · Gemini, each with a code-drawn provider brand mark —
+    `widgets/ask/provider_mark.dart`), the reply style (Concise · Balanced ·
+    Detailed), and a **per-provider usage** section (tokens · turns · est. cost,
+    via `AiRepository.usageByProvider()` over the owner-readable `aiUsage` log;
+    legacy turns attributed by `model` id). Opened from a single header settings
+    button that carries a small accent dot when a specific model is pinned; the
+    two old header menus are gone. Model persisted at `users/{uid}/settings/ai`
+    field `provider`, forwarded on every `send` (domain `ai_model_selection.dart`).
     `Auto` = Anthropic-first + Gemini fallback; `Claude`/`Gemini` force that
     provider.
   - **Tests** green: router (the 7 scenarios), gemini adapter (translation, tools,

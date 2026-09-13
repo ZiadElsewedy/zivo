@@ -448,6 +448,74 @@ void main() {
       expect(data['responseStyle'], 'concise');
     });
 
+    test('usageByProvider groups aiUsage by provider, sums tokens/turns/cost, '
+        'and attributes legacy (provider-less) turns by their model id',
+        () async {
+      final firestore = FakeFirebaseFirestore();
+      final usageCol = firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('aiUsage');
+      // Two explicit-provider Gemini turns…
+      await usageCol.add({
+        'provider': 'gemini',
+        'model': 'gemini-flash-latest',
+        'tokensIn': 100,
+        'tokensOut': 20,
+        'costUsd': 0.01,
+      });
+      await usageCol.add({
+        'provider': 'gemini',
+        'model': 'gemini-flash-latest',
+        'tokensIn': 50,
+        'tokensOut': 10,
+        'costUsd': 0.005,
+      });
+      // …one explicit-provider Anthropic turn…
+      await usageCol.add({
+        'provider': 'anthropic',
+        'model': 'claude-sonnet-5',
+        'tokensIn': 200,
+        'tokensOut': 40,
+        'costUsd': 0.02,
+      });
+      // …and one LEGACY turn with no `provider` field — inferred from `model`.
+      await usageCol.add({
+        'model': 'claude-sonnet-5',
+        'tokensIn': 300,
+        'tokensOut': 60,
+        'costUsd': 0.03,
+      });
+
+      final repo = FirebaseAiRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+      final usage = await repo.usageByProvider();
+
+      // Anthropic is first (most tokens): 200+40 + 300+60 = 600 total.
+      expect(usage.first.provider, 'anthropic');
+      final anthropic = usage.firstWhere((u) => u.provider == 'anthropic');
+      expect(anthropic.tokensIn, 500);
+      expect(anthropic.tokensOut, 100);
+      expect(anthropic.turns, 2, reason: 'explicit + legacy-inferred');
+      expect(anthropic.costUsd, closeTo(0.05, 1e-9));
+
+      final gemini = usage.firstWhere((u) => u.provider == 'gemini');
+      expect(gemini.tokensIn, 150);
+      expect(gemini.tokensOut, 30);
+      expect(gemini.turns, 2);
+      expect(gemini.costUsd, closeTo(0.015, 1e-9));
+    });
+
+    test('usageByProvider is empty when nothing has been logged', () async {
+      final repo = FirebaseAiRepository(
+        firestore: FakeFirebaseFirestore(),
+        uidSource: _signedInAs('test-uid'),
+      );
+      expect(await repo.usageByProvider(), isEmpty);
+    });
+
     test(
       'confirmAction / cancelAction call the matching callable with the ids',
       () async {

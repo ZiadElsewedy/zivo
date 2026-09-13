@@ -203,7 +203,7 @@ void main() {
   });
 
   group('the Ask header speaks Arabic too', () {
-    testWidgets('the settings sheet is translated, not English words', (
+    testWidgets('the settings page is translated, not English words', (
       tester,
     ) async {
       final ai = FakeAiRepository();

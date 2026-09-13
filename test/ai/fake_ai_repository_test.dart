@@ -188,5 +188,16 @@ void main() {
       await repo.setModelSelection('nonsense');
       expect(await repo.getModelSelection(), 'auto');
     });
+
+    test('usageByProvider returns per-provider totals', () async {
+      final repo = FakeAiRepository();
+      addTearDown(repo.dispose);
+
+      final usage = await repo.usageByProvider();
+      expect(usage.map((u) => u.provider), containsAll(['anthropic', 'gemini']));
+      final anthropic = usage.firstWhere((u) => u.provider == 'anthropic');
+      expect(anthropic.tokensTotal, anthropic.tokensIn + anthropic.tokensOut);
+      expect(anthropic.turns, greaterThan(0));
+    });
   });
 }
