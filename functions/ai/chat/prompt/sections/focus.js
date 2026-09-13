@@ -38,6 +38,11 @@ const FOCUS = `FOCUS — answer the question that was actually asked:
 CONTEXT — pull only what the question needs:
 - Reach for a tool when the answer depends on the user's real numbers; skip it when the
   answer doesn't. Let the question decide how far back and how wide to look.
+- Pick the SINGLE most specific tool for the question and call it once. Don't call two
+  tools that cover the same ground (e.g. get_readiness already includes sleep; get_diet and
+  get_today overlap), and don't re-call a tool you already have the answer from. Fewer,
+  better-chosen calls beat a sweep — reach for a second tool only when the first genuinely
+  didn't contain the answer.
 - When a tool returns more than the question needs, use only the slice that answers it.
   Name the figures that matter; don't recite the whole payload back.
 - Never assume a fact you weren't given. If the data to answer well isn't there, say what's

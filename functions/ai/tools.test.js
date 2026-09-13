@@ -806,6 +806,118 @@ test("an explicit past day gets no time-sensitive findings", async () => {
   assert.equal(nothing.severity, "info");
 });
 
+// --- Narrow tools: get_last_workout + get_sleep_summary ---------------------
+
+test("get_last_workout returns ONE session — the most recent completed one",
+    async () => {
+      const tool = toolsByName.get("get_last_workout");
+      const day = 24 * 60 * 60 * 1000;
+      const store = {
+        listWorkoutSessions: async (uid) => {
+          assert.equal(uid, UID);
+          // A range argument is NOT required — this tool reads the whole set
+          // and picks the newest, so "last workout" needs no week window.
+          return [
+            {id: "old", dayLabel: "Pull", status: "completed",
+              startedAt: new Date(NOW.getTime() - 5 * day),
+              completedAt: new Date(NOW.getTime() - 5 * day),
+              exercises: [{name: "Row", muscleGroup: "Back", sets: [
+                {actualReps: 10, actualWeightKg: 60, type: "working",
+                  outcome: "completed"}]}]},
+            {id: "new", dayLabel: "Push", status: "completed",
+              startedAt: new Date(NOW.getTime() - 2 * day),
+              completedAt: new Date(NOW.getTime() - 2 * day),
+              exercises: [{name: "Bench Press", muscleGroup: "Chest", sets: [
+                {actualReps: 10, actualWeightKg: 40, type: "warmup",
+                  outcome: "completed"},
+                {actualReps: 8, actualWeightKg: 100, type: "working",
+                  outcome: "completed"},
+                {actualReps: 5, actualWeightKg: 110, type: "working",
+                  outcome: "completed"},
+                {actualReps: null, actualWeightKg: null, type: "working",
+                  outcome: "pending"}]}]},
+          ];
+        },
+      };
+
+      const result = await tool.execute(store, UID, {}, NOW, 0);
+
+      assert.equal(result.found, true);
+      assert.equal(result.workout.day, "Push");
+      assert.equal(result.workout.daysAgo, 2);
+      const bench = result.workout.exercises[0];
+      // The heaviest WORKING set is the top set — the warm-up never wins it.
+      assert.equal(bench.topSet, "110kg × 5");
+      assert.equal(bench.workingSets, 2);
+      // Only completed sets survive; pending/skipped are dropped.
+      assert.equal(bench.sets.length, 3);
+    });
+
+test("get_last_workout returns found:false when nothing is completed yet",
+    async () => {
+      const tool = toolsByName.get("get_last_workout");
+      const store = {
+        listWorkoutSessions: async () => [
+          {id: "a", status: "abandoned", exercises: []},
+        ],
+      };
+      const result = await tool.execute(store, UID, {}, NOW, 0);
+      assert.equal(result.found, false);
+      assert.equal(result.date, "2026-08-17");
+    });
+
+test("get_sleep_summary reports last night vs target and a recent average",
+    async () => {
+      const tool = toolsByName.get("get_sleep_summary");
+      const day = 24 * 60 * 60 * 1000;
+      const store = {
+        listSleepNights: async (uid) => {
+          assert.equal(uid, UID);
+          return [
+            {sleepDayMs: NOW.getTime() - day, asleepMinutes: 420,
+              targetDurationMinutes: 480},
+            {sleepDayMs: NOW.getTime() - 2 * day, asleepMinutes: 450,
+              targetDurationMinutes: 480},
+          ];
+        },
+      };
+
+      const result = await tool.execute(store, UID, {}, NOW, 0);
+
+      assert.equal(result.available, true);
+      assert.equal(result.latestNightDaysAgo, 1);
+      assert.equal(result.lastNight.asleepMinutes, 420);
+      assert.equal(result.lastNight.deltaMinutes, -60); // 60 min short
+      assert.equal(result.recent.nights, 2);
+      assert.equal(result.recent.avgAsleepMinutes, 435);
+      assert.equal(result.recent.avgDeltaVsTargetMinutes, -45);
+    });
+
+test("get_sleep_summary: a stale newest night is not passed off as last night",
+    async () => {
+      const tool = toolsByName.get("get_sleep_summary");
+      const day = 24 * 60 * 60 * 1000;
+      const store = {
+        listSleepNights: async () => [
+          {sleepDayMs: NOW.getTime() - 6 * day, asleepMinutes: 400,
+            targetDurationMinutes: 480},
+        ],
+      };
+      const result = await tool.execute(store, UID, {}, NOW, 0);
+      assert.equal(result.available, true);
+      assert.equal(result.latestNightDaysAgo, 6);
+      // 6 days ago is not "last night", so the field is absent (dropNull).
+      assert.equal(result.lastNight, undefined);
+    });
+
+test("get_sleep_summary returns available:false when no sleep is recorded",
+    async () => {
+      const tool = toolsByName.get("get_sleep_summary");
+      const store = {listSleepNights: async () => []};
+      const result = await tool.execute(store, UID, {}, NOW, 0);
+      assert.equal(result.available, false);
+    });
+
 // --- Phase 6: resolve_food + calculate_meal_nutrition -----------------------
 
 // A store with no custom foods — the common case; the resolver falls through

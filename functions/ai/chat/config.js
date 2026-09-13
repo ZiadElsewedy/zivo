@@ -48,6 +48,56 @@ const OUTPUT_COST_PER_TOKEN_USD = 15 / 1000000;
 const CACHE_WRITE_MULTIPLIER = 1.25;
 const CACHE_READ_MULTIPLIER = 0.1;
 
+// Per-provider token pricing, so a turn's cost is logged at the rate of the
+// provider that ACTUALLY answered (the router stamps it as `usedProvider`; an
+// `Auto` turn that fell back to Gemini is priced as Gemini). Anthropic reuses
+// the constants above unchanged, so existing cost behaviour and the cost test
+// are preserved exactly.
+const PRICING = {
+  anthropic: {
+    inputPerToken: INPUT_COST_PER_TOKEN_USD,
+    outputPerToken: OUTPUT_COST_PER_TOKEN_USD,
+    cacheWriteMultiplier: CACHE_WRITE_MULTIPLIER,
+    cacheReadMultiplier: CACHE_READ_MULTIPLIER,
+  },
+  // `gemini-flash-latest` is a ROLLING ALIAS (see routing/router.js) → whatever
+  // Google's current Flash is. These are Google's published Gemini 2.5 Flash
+  // list rates, standard tier (≤200k-token context): $0.30 / 1M input,
+  // $2.50 / 1M output. Two deliberate caveats:
+  //   1. Owner-confirm these the way the Anthropic rate was — they are
+  //      published list prices, not a billed invoice. Adjust the two numbers
+  //      if the actual rate differs; nothing else needs to change.
+  //   2. The model id is a rolling alias, so the rate can move under it.
+  //      Revisit when the alias points at a new Flash tier.
+  // Cache multipliers are INERT today: the chat path reports no cache
+  // read/write tokens for Gemini (confirmed by the validation telemetry), so a
+  // Gemini turn's cost depends only on the input/output rates. They are set to
+  // sane values for the day a Gemini cache path exists, not because one does.
+  gemini: {
+    inputPerToken: 0.30 / 1000000,
+    outputPerToken: 2.50 / 1000000,
+    cacheWriteMultiplier: 1.0,
+    cacheReadMultiplier: 0.25,
+  },
+};
+
+// The provider a turn is priced at when the response carried no provider stamp
+// — the legacy `callModel` seam and every buffered test fake. Anthropic is
+// primary, so this keeps historical cost behaviour identical.
+const DEFAULT_PRICING_PROVIDER = "anthropic";
+
+/**
+ * The pricing entry for `provider`, falling back to the default provider's
+ * rates for an unknown or absent provider — so the cost math always has real
+ * numbers and can never `NaN` out on a missing stamp.
+ * @param {?string} provider
+ * @return {{inputPerToken: number, outputPerToken: number,
+ *   cacheWriteMultiplier: number, cacheReadMultiplier: number}}
+ */
+function pricingFor(provider) {
+  return PRICING[provider] || PRICING[DEFAULT_PRICING_PROVIDER];
+}
+
 const DAILY_LIMIT_MESSAGE =
   "You've hit today's usage limit for Ask. It resets tomorrow — thanks " +
   "for your patience!";
@@ -75,6 +125,9 @@ module.exports = {
   OUTPUT_COST_PER_TOKEN_USD,
   CACHE_WRITE_MULTIPLIER,
   CACHE_READ_MULTIPLIER,
+  PRICING,
+  DEFAULT_PRICING_PROVIDER,
+  pricingFor,
   DAILY_LIMIT_MESSAGE,
   ITERATION_LIMIT_MESSAGE,
   TOKEN_CEILING_MESSAGE,

@@ -375,6 +375,7 @@ class AskController extends ChangeNotifier {
     'get_today' => _strings.askReadingDay,
     'get_diet' => _strings.askReadingDiet,
     'get_workouts' => _strings.askReadingTraining,
+    'get_last_workout' => _strings.askReadingTraining,
     'get_expenses' => _strings.askReadingSpending,
     'summarize_week' => _strings.askSummarisingWeek,
     'resolve_food' => _strings.askLookingUpFood,

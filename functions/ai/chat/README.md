@@ -40,7 +40,9 @@ the split is invisible to `index.js` and the other importers.
   constants, and the fixed user-facing messages. "How much work a turn may do"
   and "what the app says when it can't answer".
 - **`usage.js`** — `TurnUsage` (token accounting across a turn's model calls +
-  cost with the cache-price multipliers) and `isOverDailyCap`.
+  cost with the cache-price multipliers), `isOverDailyCap`, and
+  `approxTokensFromChars` (the tool-result size estimate — observability only,
+  never billed or enforced).
 - **`messages.js`** — history normalization, assistant-text extraction, empty
   thinking-block stripping, and tool-result capping. Pure string/array helpers.
 - **`errors.js`** — `GatewayError` (gRPC-style `code`) and the document-id guard.
@@ -72,3 +74,40 @@ to revisit. Do **not** weaken `safety.js`'s injection fence.
 **Any prompt or tool change needs a `functions` deploy** (owner's credentials —
 see `docs/STATE.md`). The offline `npm test` proves the wiring; it cannot prove
 the model's real behaviour — validate against the emulator + real API too.
+
+## Context-engineering contracts (token efficiency)
+
+The guiding principle: **give the model access to data, don't give it all the
+data.** Concretely, and worth keeping intact:
+
+- **Context is lazy and tool-based.** Nothing about the user's workouts, diet,
+  sleep or profile is injected into the prompt. The only per-turn user data added
+  unconditionally is the one-line `CONTEXT` date block; everything else arrives
+  only when the model calls a tool for it. There is no RAG, no vector store, no
+  eager preamble — and adding one would be a regression, not a feature.
+- **The cached prefix must stay stable — so tools are NOT varied per turn.**
+  Anthropic's cache prefix order is `tools → system → messages`, so changing the
+  tool set invalidates the cache for the system prompt too. Exposing a different
+  subset of tools per turn ("conditional tool exposure") therefore trades the
+  ~0.1× cache read on the whole prefix for a smaller-but-uncached one, and
+  fragments the cache across domains. It was evaluated and **deliberately not
+  done**; revisit only if telemetry (below) shows cold-prefix cost actually
+  dominates. Keep `SYSTEM_PROMPT` element 0 and the tool list stable.
+- **Prefer a narrow tool over a broad one.** `get_last_workout` reads ONE session
+  (not a week) for "what did I do last workout"; `get_sleep_summary` returns last
+  night + a rolling average for sleep questions (`get_readiness` still owns "how
+  am I today", fusing sleep with load/recovery). New tools should be scoped so the
+  answer they serve doesn't drag a range of unrelated rows into context.
+- **Tool results are compacted, but diet nulls are semantic.** `tools.js`'s
+  `dropNull` strips absent fields (a bodyweight set's null weight, a noteless
+  expense) from the workout/expense/week tools — those keys cost re-sent tokens on
+  every iteration and mean nothing. It is **not** applied to the diet tools: there
+  `null` is a signal the prompt reasons about (`targets: null` = no objective set;
+  a null macro in `remaining` = untracked, not zero) and the tests pin it.
+- **Every turn's cost is observable (usage schema v3).** `turn.js` logs, per turn:
+  `provider`, `model`, `tokensIn` (total), `uncachedTokensIn`, `cacheReadTokens`,
+  `cacheWriteTokens`, `tokensOut`, `toolResultTokens` (approx), `tools`,
+  `iterations`, `latencyMs`, `costUsd`. This is what makes Claude-vs-Gemini and
+  before/after optimization measurable rather than guessed — including whether the
+  cache is actually being hit. Keep these additive; the daily cap and the client
+  usage summary read `tokensIn`/`tokensOut`.
