@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../core/env/app_environment.dart';
 import '../core/firebase/uid_source.dart';
+import '../core/util/calendar.dart';
 import '../core/l10n/locale_controller.dart';
 import '../core/media/data/device_gallery_target.dart';
 import '../core/media/data/firestore_media_preferences_repository.dart';
@@ -51,6 +52,9 @@ import '../features/diet/domain/diet_repository.dart';
 import '../features/diet/domain/nutrition/composite_food_resolver.dart';
 import '../features/diet/domain/nutrition/food_resolver.dart';
 import '../features/device/steps/step_counter.dart';
+import '../features/device/steps/step_day_repository.dart';
+import '../features/device/steps/data/firestore_step_day_repository.dart';
+import '../features/device/steps/data/in_memory_step_day_repository.dart';
 import '../features/sleep/data/firestore_sleep_repository.dart';
 import '../features/sleep/data/health_sleep_source.dart';
 import '../features/sleep/data/in_memory_sleep_repository.dart';
@@ -64,6 +68,8 @@ import '../features/reminders/domain/notification_scheduler.dart';
 import '../features/reminders/domain/reminder.dart';
 import '../features/reminders/domain/reminder_sync.dart';
 import '../features/reminders/domain/reminders_repository.dart';
+import '../features/reminders/domain/workout_motivations.dart';
+import '../features/reminders/presentation/workout_reminder_context.dart';
 import '../features/workout/domain/workout_plan.dart';
 import '../features/expenses/data/firestore_category_repository.dart';
 import '../features/expenses/data/firestore_expense_repository.dart';
@@ -126,6 +132,7 @@ class ZivoApp extends StatefulWidget {
     this.activity,
     this.expenses,
     this.stepCounter,
+    this.stepDays,
     this.sleep,
     this.sleepSource,
     this.reminders,
@@ -174,6 +181,10 @@ class ZivoApp extends StatefulWidget {
   final AiRepository? ai;
   final AudioRecorderService? recorder;
   final StepCounterService? stepCounter;
+
+  /// Overridable so app-boot tests inject an in-memory step-snapshot store
+  /// instead of the Firestore-backed default, which reaches Firebase.
+  final StepDayRepository? stepDays;
 
   /// Overridable so tests can drive Sleep without Firestore.
   final SleepRepository? sleep;
@@ -283,6 +294,22 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   late final StepCounterService? _stepCounter =
       widget.stepCounter ??
       (deviceHasStepSensor ? PedometerStepCounterService() : null);
+
+  /// Per-day step snapshots — groundwork for a future readiness input (the
+  /// sensor only exposes today's live count). Firestore-backed in production,
+  /// in-memory offline/in tests. Fed by [_startStepSnapshots] while signed in.
+  late final StepDayRepository _stepDays =
+      widget.stepDays ?? _defaultStepDays();
+  StepDayRepository _defaultStepDays() => _useFirestore
+      ? FirestoreStepDayRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryStepDayRepository();
+
+  // The step-snapshot writer. A single subscription (shared with Today's Move
+  // ring — the counter's stream is broadcast) records today's total, throttled
+  // so a busy sensor doesn't churn writes.
+  StreamSubscription<int>? _stepsSub;
+  DateTime? _lastStepWriteAt;
+  static const _stepSnapshotThrottle = Duration(minutes: 10);
 
   late final SleepRepository _sleep = widget.sleep ?? _defaultSleep();
 
@@ -398,7 +425,50 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       // *only* automatic sleep read at launch — see [_syncSleep].
       if (uid != null) _syncSleep();
       if (uid != null) _sweepStaleSessions();
+      // Accrue a step history from now on (see [_startStepSnapshots]). Signed
+      // out, the writer stops — its writes would be denied anyway.
+      if (uid != null) {
+        _startStepSnapshots();
+      } else {
+        _stopStepSnapshots();
+      }
     });
+  }
+
+  /// Begin recording a daily step snapshot while signed in. Idempotent: a
+  /// second call while already subscribed is a no-op. Shares the counter's
+  /// broadcast stream with Today's Move ring, so it adds no second sensor
+  /// subscription and no extra permission prompt.
+  void _startStepSnapshots() {
+    if (_stepsSub != null) return;
+    final counter = _stepCounter;
+    if (counter == null) return;
+    _stepsSub = counter.watchStepsToday().listen(
+      _maybeWriteStepSnapshot,
+      // Sensor hiccups are not data — the last snapshot stands.
+      onError: (Object _) {},
+    );
+  }
+
+  void _stopStepSnapshots() {
+    _stepsSub?.cancel();
+    _stepsSub = null;
+  }
+
+  /// Persist today's total, throttled — the sensor emits far more often than a
+  /// once-a-day snapshot needs, and a new day always writes immediately.
+  void _maybeWriteStepSnapshot(int steps) {
+    final now = DateTime.now();
+    final last = _lastStepWriteAt;
+    // Skip only within the throttle window on the same day; a new day (or the
+    // first write of the run) always records immediately.
+    if (last != null &&
+        isSameCalendarDay(last, now) &&
+        now.difference(last) < _stepSnapshotThrottle) {
+      return;
+    }
+    _lastStepWriteAt = now;
+    unawaited(_stepDays.record(now, steps));
   }
 
   /// Read the health store, throttled, whenever the app has reason to think
@@ -459,11 +529,20 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   /// plan, skipping the platform call when neither the reminders nor the resolved
   /// [ReminderContext] changed since the last push (see the fields above).
   void _rescheduleNotifications() {
-    final needsPlan = _latestReminders.any(
-      (r) => r.enabled && r.sync is WorkoutSync,
+    final workoutSynced = _latestReminders
+        .where((r) => r.enabled && r.sync is WorkoutSync)
+        .toList();
+    final needsPlan = workoutSynced.isNotEmpty;
+    // Only resolve (and so pay for) a motivational line when some enabled
+    // workout reminder actually asks for one.
+    final needsMotivation = workoutSynced.any(
+      (r) => (r.sync as WorkoutSync).motivational,
     );
     final context = needsPlan
-        ? _workoutContext(_latestPlan)
+        ? workoutReminderContext(
+            _latestPlan,
+            motivations: needsMotivation ? _pickMotivations() : const {},
+          )
         : ReminderContext.empty;
     if (_lastScheduledReminders != null &&
         listEquals(_lastScheduledReminders, _latestReminders) &&
@@ -475,29 +554,31 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     unawaited(_notifications.reschedule(_latestReminders, context: context));
   }
 
-  /// The live text a workout-synced reminder should carry: the active plan's
-  /// next-up day name, and a short list of its exercises. Empty when there is no
-  /// plan or no next day — a synced reminder then falls back to its own label.
-  ReminderContext _workoutContext(WorkoutPlan? plan) {
-    final day = plan?.nextDay;
-    if (day == null) return ReminderContext.empty;
-    final names = [
-      for (final e in (day.exercises.toList()
-            ..sort((a, b) => a.order.compareTo(b.order))))
-        if (e.name.trim().isNotEmpty) e.name.trim(),
-    ];
-    const maxNames = 3;
-    String? body;
-    if (names.length <= maxNames) {
-      body = names.isEmpty ? null : names.join(' · ');
-    } else {
-      body = '${names.take(maxNames).join(' · ')} +${names.length - maxNames}';
-    }
-    final label = day.label.trim();
-    return ReminderContext(
-      workoutTitle: label.isEmpty ? null : label,
-      workoutBody: body,
-    );
+  /// Today's motivational line for every [MotivationTone], in the app's
+  /// language — so the pure resolver can pick by each reminder's own tone.
+  ///
+  /// Seeded by the calendar day so the choice is **stable across a reschedule**
+  /// — two reschedules on the same day pick the same lines, so the dedupe in
+  /// [_rescheduleNotifications] still holds and the platform channel isn't
+  /// churned — while rotating from one day to the next.
+  Map<MotivationTone, String> _pickMotivations() {
+    final now = DateTime.now();
+    final epochDay = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).difference(DateTime(2020)).inDays;
+    final language =
+        _locale.locale.value?.languageCode ??
+        WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+    return {
+      for (final tone in MotivationTone.values)
+        tone: pickWorkoutMotivation(
+          seed: epochDay,
+          languageCode: language,
+          tone: tone,
+        ),
+    };
   }
 
   @override
@@ -506,6 +587,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     _authSub?.cancel();
     _remindersSub?.cancel();
     _workoutPlanSub?.cancel();
+    _stepsSub?.cancel();
     // Only when we own it (the default) — a test-supplied guard stays theirs.
     if (widget.deviceSession == null) _deviceSession.dispose();
     // Only when we own it (the default) — a caller-supplied controller
@@ -526,8 +608,9 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
 
   // Real scheduler only on a Firestore (device) run; offline/dev and tests get
   // the no-op so nothing reaches a platform channel.
-  NotificationScheduler _defaultNotifications() =>
-      _useFirestore ? LocalNotificationScheduler() : NoOpNotificationScheduler();
+  NotificationScheduler _defaultNotifications() => _useFirestore
+      ? LocalNotificationScheduler()
+      : NoOpNotificationScheduler();
 
   TrainingDayMarkRepository _defaultTrainingDayMarks() => _useFirestore
       ? FirestoreTrainingDayMarkRepository(uidSource: UidSource.firebaseAuth())
@@ -636,6 +719,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       ai: _ai,
       recorder: _recorder,
       stepCounter: _stepCounter,
+      stepDays: _stepDays,
       sleep: _sleep,
       sleepService: _sleepService,
       reminders: _reminders,

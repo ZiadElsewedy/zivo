@@ -43,6 +43,7 @@ class Reminder {
     this.weekdays = const {},
     this.enabled = true,
     this.sync,
+    this.emoji,
   });
 
   /// A stable id, minted once when the reminder is created. Used as the seed
@@ -69,6 +70,12 @@ class Reminder {
   /// reminder — the original shape, and what older stored reminders carry.
   final ReminderSync? sync;
 
+  /// An optional emoji the user picked for this reminder — shown on the list row
+  /// and prefixed to the notification title so a glance says which reminder it
+  /// is. `null` (the default, and what older stored reminders carry) leaves the
+  /// kind's icon in place.
+  final String? emoji;
+
   /// True when this reminder fires every day — an empty [weekdays] set, or one
   /// that happens to hold all seven.
   bool get isEveryDay => weekdays.isEmpty || weekdays.length == 7;
@@ -87,6 +94,8 @@ class Reminder {
     bool? enabled,
     ReminderSync? sync,
     bool clearSync = false,
+    String? emoji,
+    bool clearEmoji = false,
   }) => Reminder.clamped(
     id: id,
     label: label ?? this.label,
@@ -96,6 +105,7 @@ class Reminder {
     weekdays: weekdays ?? this.weekdays,
     enabled: enabled ?? this.enabled,
     sync: clearSync ? null : (sync ?? this.sync),
+    emoji: clearEmoji ? null : (emoji ?? this.emoji),
   );
 
   /// Builds a reminder with [hour]/[minute]/[weekdays] forced into range, so a
@@ -109,6 +119,7 @@ class Reminder {
     Set<int> weekdays = const {},
     bool enabled = true,
     ReminderSync? sync,
+    String? emoji,
   }) => Reminder(
     id: id,
     label: label.trim(),
@@ -121,6 +132,8 @@ class Reminder {
     },
     enabled: enabled,
     sync: sync,
+    // Normalise "" to null so an empty pick never renders as a blank prefix.
+    emoji: (emoji != null && emoji.trim().isNotEmpty) ? emoji.trim() : null,
   );
 
   Map<String, dynamic> toMap() => {
@@ -134,6 +147,7 @@ class Reminder {
     'weekdays': (weekdays.toList()..sort()),
     'enabled': enabled,
     if (sync != null) 'sync': sync!.toMap(),
+    if (emoji != null) 'emoji': emoji,
   };
 
   /// Decodes a stored reminder, tolerant of missing or malformed fields (like
@@ -155,6 +169,7 @@ class Reminder {
       },
       enabled: raw['enabled'] is bool ? raw['enabled'] as bool : true,
       sync: ReminderSync.fromMap(raw['sync']),
+      emoji: raw['emoji'] is String ? raw['emoji'] as String : null,
     );
   }
 
@@ -168,7 +183,8 @@ class Reminder {
       other.minute == minute &&
       setEquals(other.weekdays, weekdays) &&
       other.enabled == enabled &&
-      other.sync == sync;
+      other.sync == sync &&
+      other.emoji == emoji;
 
   @override
   int get hashCode => Object.hash(
@@ -180,6 +196,7 @@ class Reminder {
     Object.hashAllUnordered(weekdays),
     enabled,
     sync,
+    emoji,
   );
 }
 

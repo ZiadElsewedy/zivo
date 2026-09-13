@@ -8,8 +8,10 @@ import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/ai/domain/ai_usage_summary.dart';
 import 'package:zivo/features/workout/domain/workout_import_input.dart';
 import 'package:zivo/features/ai/domain/ai_response_style.dart';
+import 'package:zivo/features/ai/domain/ai_model_selection.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
 import 'package:zivo/features/ai/domain/stt_outcome.dart';
 import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
@@ -36,6 +38,7 @@ class _RecordingAi implements AiRepository {
 
   final FakeAiRepository _inner;
   final List<String> sentStyles = [];
+  final List<String> sentModels = [];
 
   @override
   Future<String> ensureConversation() => _inner.ensureConversation();
@@ -68,14 +71,17 @@ class _RecordingAi implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
   }) {
     sentStyles.add(responseStyle);
+    sentModels.add(modelSelection);
     return _inner.send(
       conversationId: conversationId,
       text: text,
       onEvent: onEvent,
       responseStyle: responseStyle,
+      modelSelection: modelSelection,
     );
   }
 
@@ -127,6 +133,15 @@ class _RecordingAi implements AiRepository {
 
   @override
   Future<void> setResponseStyle(String style) => _inner.setResponseStyle(style);
+  @override
+  Future<String> getModelSelection() => _inner.getModelSelection();
+
+  @override
+  Future<List<AiProviderUsage>> usageByProvider() async => const [];
+
+  @override
+  Future<void> setModelSelection(String selection) =>
+      _inner.setModelSelection(selection);
 }
 
 Widget _host(AiRepository ai) => AppScope(
@@ -143,8 +158,8 @@ Widget _host(AiRepository ai) => AppScope(
 );
 
 void main() {
-  testWidgets('defaults to Balanced, and a picked style persists and is '
-      "forwarded on the next send", (tester) async {
+  testWidgets('the settings PAGE shows both groups; a picked reply style '
+      'persists and is forwarded on the next send', (tester) async {
     final inner = FakeAiRepository();
     addTearDown(inner.dispose);
     final ai = _RecordingAi(inner);
@@ -152,25 +167,44 @@ void main() {
     await tester.pumpWidget(_host(ai));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('header-style')));
+    // The header settings button pushes a full page (not a sheet).
+    await tester.tap(find.byKey(const Key('header-settings')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Concise'), findsOneWidget);
-    expect(find.text('Balanced'), findsOneWidget);
-    expect(find.text('Detailed'), findsOneWidget);
+    // Model group and reply-style group both render.
+    expect(find.byKey(const Key('model-auto')), findsOneWidget);
+    expect(find.byKey(const Key('model-gemini')), findsOneWidget);
+    expect(find.byKey(const Key('style-concise')), findsOneWidget);
+    expect(find.byKey(const Key('style-detailed')), findsOneWidget);
     // 'Balanced' is checked by default.
     expect(
       find.descendant(
-        of: find.widgetWithText(Row, 'Balanced'),
+        of: find.byKey(const Key('style-balanced')),
         matching: find.byIcon(AppIcons.check),
       ),
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Concise'));
+    // Picking a style applies in place and does NOT leave the page.
+    await tester.tap(find.byKey(const Key('style-concise')));
     await tester.pumpAndSettle();
-
     expect(await inner.getResponseStyle(), 'concise');
+    expect(
+      find.byKey(const Key('model-auto')),
+      findsOneWidget,
+      reason: 'page stays open',
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('style-concise')),
+        matching: find.byIcon(AppIcons.check),
+      ),
+      findsOneWidget,
+    );
+
+    // Back to the chat, then send.
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'hello');
     await tester.pump();
@@ -178,13 +212,50 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(ai.sentStyles, ['concise']);
+    expect(ai.sentModels, ['auto'], reason: 'model untouched, still Auto');
+  });
 
-    // Reopening the menu now shows Concise checked instead.
-    await tester.tap(find.byKey(const Key('header-style')));
+  testWidgets('picking a model on the settings page persists it and is '
+      'forwarded on the next send', (tester) async {
+    final inner = FakeAiRepository();
+    addTearDown(inner.dispose);
+    final ai = _RecordingAi(inner);
+
+    await tester.pumpWidget(_host(ai));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('header-settings')));
+    await tester.pumpAndSettle();
+
+    // Auto is the default, shown checked in the model group.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('model-auto')),
+        matching: find.byIcon(AppIcons.check),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('model-gemini')));
+    await tester.pumpAndSettle();
+    expect(await inner.getModelSelection(), 'gemini');
+
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'hello');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('composer-send')));
+    await tester.pumpAndSettle();
+
+    expect(ai.sentModels, ['gemini']);
+
+    // Reopening shows Gemini checked now.
+    await tester.tap(find.byKey(const Key('header-settings')));
     await tester.pumpAndSettle();
     expect(
       find.descendant(
-        of: find.widgetWithText(Row, 'Concise'),
+        of: find.byKey(const Key('model-gemini')),
         matching: find.byIcon(AppIcons.check),
       ),
       findsOneWidget,

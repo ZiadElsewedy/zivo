@@ -2038,10 +2038,77 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askReplyStyleConcise => 'Concise';
 
   @override
+  String get askReplyStyleConciseDesc => 'Short, to-the-point answers.';
+
+  @override
   String get askReplyStyleBalanced => 'Balanced';
 
   @override
+  String get askReplyStyleBalancedDesc => 'The default — a bit of context.';
+
+  @override
   String get askReplyStyleDetailed => 'Detailed';
+
+  @override
+  String get askReplyStyleDetailedDesc => 'Longer, fuller explanations.';
+
+  @override
+  String get askSettings => 'Ask settings';
+
+  @override
+  String get askModel => 'Model';
+
+  @override
+  String get askModelSheetSubtitle => 'Choose which AI answers your questions.';
+
+  @override
+  String get askModelAuto => 'Auto';
+
+  @override
+  String get askModelAutoDesc =>
+      'Best available — Claude, with Gemini as backup.';
+
+  @override
+  String get askModelClaude => 'Claude';
+
+  @override
+  String get askModelClaudeDesc => 'Always answer with Claude (Anthropic).';
+
+  @override
+  String get askModelGemini => 'Gemini';
+
+  @override
+  String get askModelGeminiDesc => 'Always answer with Gemini (Google).';
+
+  @override
+  String get askUsage => 'Usage';
+
+  @override
+  String get askUsageSubtitle => 'Tokens used per model, all-time.';
+
+  @override
+  String get askUsageEmpty => 'No usage yet — ask something to get started.';
+
+  @override
+  String askUsageTurns(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count turns',
+      one: '1 turn',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askUsageTokens(String count) {
+    return '$count tokens';
+  }
+
+  @override
+  String askUsageEstCost(String cost) {
+    return '~$cost est.';
+  }
 
   @override
   String get askChats => 'Chats';
@@ -5199,6 +5266,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get workoutStreakRestoreNoBridge => 'No streak to bridge';
+
+  @override
   String get workoutStreakWhyMissed => 'Why no training?';
 
   @override
@@ -5387,6 +5457,31 @@ class AppLocalizationsEn extends AppLocalizations {
       'Shows your next scheduled workout, and keeps it up to date.';
 
   @override
+  String get remindersMotivational => 'Motivational message';
+
+  @override
+  String get remindersMotivationalHint =>
+      'Names today\'s workout and adds a line to keep you going, instead of the exercise list.';
+
+  @override
+  String get remindersEmoji => 'Emoji';
+
+  @override
+  String get remindersToneGentle => 'Gentle';
+
+  @override
+  String get remindersToneToughLove => 'Tough love';
+
+  @override
+  String get remindersToneHype => 'Hype';
+
+  @override
+  String get remindersPreview => 'Preview';
+
+  @override
+  String get remindersPreviewEmptyBody => 'Your reminder — no extra line.';
+
+  @override
   String get remindersPickMeal => 'Which meal?';
 
   @override
@@ -5403,4 +5498,95 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get remindersSyncedBadge => 'Synced';
+
+  @override
+  String get readinessTitle => 'Readiness';
+
+  @override
+  String get readinessTrainHard => 'Train hard';
+
+  @override
+  String get readinessGoLight => 'Go light';
+
+  @override
+  String get readinessRest => 'Rest';
+
+  @override
+  String get readinessTrainHardBlurb =>
+      'Recovered and nothing\'s flagging — push today.';
+
+  @override
+  String get readinessGoLightBlurb => 'A couple of signals say ease off today.';
+
+  @override
+  String get readinessRestBlurb =>
+      'Recovery signals are stacking up — back off today.';
+
+  @override
+  String get readinessWhyCall => 'Why this call';
+
+  @override
+  String get readinessAsk => 'Ask ZIVO about this';
+
+  @override
+  String get readinessSleptWell => 'Slept well';
+
+  @override
+  String get readinessSleepShort => 'Short on sleep';
+
+  @override
+  String get readinessDeloadDueTitle => 'Deload due';
+
+  @override
+  String readinessDeloadDetail(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lifts stalled',
+      one: '1 lift stalled',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get readinessRecoveredTitle => 'Recovered';
+
+  @override
+  String readinessRestDaysDetail(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days since training',
+      one: '1 day since training',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get readinessTrainedTodayTitle => 'Trained today already';
+
+  @override
+  String get readinessWeightDropTitle => 'Dropping weight fast';
+
+  @override
+  String readinessWeightDropDetail(String kg) {
+    return 'Down $kg kg';
+  }
+
+  @override
+  String get readinessDetailTitle => 'Today\'s readiness';
+
+  @override
+  String get readinessHowTitle => 'How this is worked out';
+
+  @override
+  String get readinessHowBody =>
+      'ZIVO fuses last night\'s sleep, how your training is trending, how recently you trained, and your body-weight trend into one call. It only uses what it can source — a missing signal is left out, never guessed — and it is a training guide, not a medical or HRV score.';
+
+  @override
+  String get readinessAboutTitle => 'What is Daily Readiness';
+
+  @override
+  String get readinessAboutBody =>
+      'Every morning ZIVO reads the signals you already track and gives you one honest call — train hard, go light, or rest — so you walk into the gym knowing whether to push or hold back. It\'s your coach\'s opening line for the day, not another number to chase.';
 }

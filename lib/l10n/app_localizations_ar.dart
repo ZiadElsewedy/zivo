@@ -2061,10 +2061,81 @@ class AppLocalizationsAr extends AppLocalizations {
   String get askReplyStyleConcise => 'موجز';
 
   @override
+  String get askReplyStyleConciseDesc => 'إجابات قصيرة ومباشرة.';
+
+  @override
   String get askReplyStyleBalanced => 'متوازن';
 
   @override
+  String get askReplyStyleBalancedDesc => 'الوضع الافتراضي — قليل من السياق.';
+
+  @override
   String get askReplyStyleDetailed => 'مفصّل';
+
+  @override
+  String get askReplyStyleDetailedDesc => 'شروحات أطول وأوفى.';
+
+  @override
+  String get askSettings => 'إعدادات المساعد';
+
+  @override
+  String get askModel => 'النموذج';
+
+  @override
+  String get askModelSheetSubtitle =>
+      'اختر الذكاء الاصطناعي الذي يجيب على أسئلتك.';
+
+  @override
+  String get askModelAuto => 'تلقائي';
+
+  @override
+  String get askModelAutoDesc => 'الأفضل المتاح — Claude، مع Gemini كاحتياطي.';
+
+  @override
+  String get askModelClaude => 'Claude';
+
+  @override
+  String get askModelClaudeDesc => 'الإجابة دائمًا عبر Claude (Anthropic).';
+
+  @override
+  String get askModelGemini => 'Gemini';
+
+  @override
+  String get askModelGeminiDesc => 'الإجابة دائمًا عبر Gemini (Google).';
+
+  @override
+  String get askUsage => 'الاستخدام';
+
+  @override
+  String get askUsageSubtitle => 'الرموز المستخدمة لكل نموذج، منذ البداية.';
+
+  @override
+  String get askUsageEmpty => 'لا يوجد استخدام بعد — اسأل شيئًا لتبدأ.';
+
+  @override
+  String askUsageTurns(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count محادثة',
+      many: '$count محادثة',
+      few: '$count محادثات',
+      two: 'محادثتان',
+      one: 'محادثة واحدة',
+      zero: '$count محادثة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askUsageTokens(String count) {
+    return '$count رمز';
+  }
+
+  @override
+  String askUsageEstCost(String cost) {
+    return '~$cost تقديريًا';
+  }
 
   @override
   String get askChats => 'المحادثات';
@@ -5307,6 +5378,9 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get workoutStreakRestoreNoBridge => 'لا سلسلة لسدّها';
+
+  @override
   String get workoutStreakWhyMissed => 'لماذا لم تتدرّب؟';
 
   @override
@@ -5495,6 +5569,31 @@ class AppLocalizationsAr extends AppLocalizations {
       'يعرض تمرينك التالي المجدول ويبقيه محدّثًا.';
 
   @override
+  String get remindersMotivational => 'رسالة تحفيزية';
+
+  @override
+  String get remindersMotivationalHint =>
+      'يذكر تمرين اليوم ويضيف عبارة تشجّعك على الاستمرار، بدلًا من قائمة التمارين.';
+
+  @override
+  String get remindersEmoji => 'إيموجي';
+
+  @override
+  String get remindersToneGentle => 'لطيف';
+
+  @override
+  String get remindersToneToughLove => 'حازم';
+
+  @override
+  String get remindersToneHype => 'حماسي';
+
+  @override
+  String get remindersPreview => 'معاينة';
+
+  @override
+  String get remindersPreviewEmptyBody => 'تذكيرك — بدون سطر إضافي.';
+
+  @override
   String get remindersPickMeal => 'أي وجبة؟';
 
   @override
@@ -5511,4 +5610,103 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get remindersSyncedBadge => 'مُزامَن';
+
+  @override
+  String get readinessTitle => 'الجاهزية';
+
+  @override
+  String get readinessTrainHard => 'تدرّب بقوة';
+
+  @override
+  String get readinessGoLight => 'خفّف اليوم';
+
+  @override
+  String get readinessRest => 'استرح';
+
+  @override
+  String get readinessTrainHardBlurb =>
+      'تعافيت ولا شيء يدعو للقلق — تدرّب بقوة اليوم.';
+
+  @override
+  String get readinessGoLightBlurb => 'بعض المؤشّرات تنصح بالتخفيف اليوم.';
+
+  @override
+  String get readinessRestBlurb =>
+      'مؤشّرات التعافي تتراكم — خفّف الحِمل اليوم.';
+
+  @override
+  String get readinessWhyCall => 'لماذا هذا التقييم';
+
+  @override
+  String get readinessAsk => 'اسأل ZIVO عن هذا';
+
+  @override
+  String get readinessSleptWell => 'نوم جيّد';
+
+  @override
+  String get readinessSleepShort => 'نوم غير كافٍ';
+
+  @override
+  String get readinessDeloadDueTitle => 'حان وقت التخفيف';
+
+  @override
+  String readinessDeloadDetail(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count تمرين متوقّف',
+      many: '$count تمرينًا متوقّفًا',
+      few: '$count تمارين متوقّفة',
+      two: 'تمرينان متوقّفان',
+      one: 'تمرين واحد متوقّف',
+      zero: 'لا تمارين متوقّفة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get readinessRecoveredTitle => 'متعافٍ';
+
+  @override
+  String readinessRestDaysDetail(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days يوم منذ التمرين',
+      many: '$days يومًا منذ التمرين',
+      few: '$days أيام منذ التمرين',
+      two: 'يومان منذ التمرين',
+      one: 'يوم واحد منذ التمرين',
+      zero: 'لا أيام منذ التمرين',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get readinessTrainedTodayTitle => 'تدرّبت اليوم بالفعل';
+
+  @override
+  String get readinessWeightDropTitle => 'انخفاض سريع في الوزن';
+
+  @override
+  String readinessWeightDropDetail(String kg) {
+    return 'نزول $kg كجم';
+  }
+
+  @override
+  String get readinessDetailTitle => 'جاهزية اليوم';
+
+  @override
+  String get readinessHowTitle => 'كيف يُحتسب هذا';
+
+  @override
+  String get readinessHowBody =>
+      'يجمع ZIVO نوم الليلة الماضية، واتجاه تدريبك، وقرب آخر تمرين، واتجاه وزنك في تقييم واحد. لا يستخدم إلا ما يمكنه التحقق منه — والمؤشّر الغائب يُترك ولا يُخمَّن — وهو دليل تدريبي، لا تقييم طبّي أو تقييم لتغيّر معدّل ضربات القلب.';
+
+  @override
+  String get readinessAboutTitle => 'ما هي جاهزية اليوم';
+
+  @override
+  String get readinessAboutBody =>
+      'كل صباح يقرأ ZIVO المؤشّرات التي تتابعها أصلًا ويمنحك تقييمًا واحدًا صادقًا — تدرّب بقوة، أو خفّف، أو استرِح — لتدخل النادي وأنت تعرف هل تدفع أم تتمهّل. إنها الكلمة الأولى من مدرّبك لهذا اليوم، لا رقمًا آخر تسعى خلفه.';
 }

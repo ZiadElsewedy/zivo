@@ -8,12 +8,7 @@
  * math lives in one place instead of being threaded through `turn.js`.
  */
 
-const {
-  INPUT_COST_PER_TOKEN_USD,
-  OUTPUT_COST_PER_TOKEN_USD,
-  CACHE_WRITE_MULTIPLIER,
-  CACHE_READ_MULTIPLIER,
-} = require("./config");
+const {pricingFor} = require("./config");
 
 /**
  * Accumulates the four token buckets across the model calls of one turn and
@@ -61,17 +56,22 @@ class TurnUsage {
   }
 
   /**
-   * The turn's dollar cost, with cache reads/writes priced at their
-   * multipliers.
+   * The turn's dollar cost, priced at the rate of the provider that actually
+   * answered, with cache reads/writes at that provider's multipliers. An
+   * unknown or omitted `provider` prices at the default (Anthropic) — the
+   * legacy `callModel` seam and buffered test fakes stamp no provider, so their
+   * cost is unchanged from before per-provider pricing existed.
+   * @param {?string=} provider The `usedProvider` the router stamped, e.g.
+   *   'anthropic' | 'gemini'.
    * @return {number}
    */
-  costUsd() {
-    const inUsd = INPUT_COST_PER_TOKEN_USD;
+  costUsd(provider) {
+    const p = pricingFor(provider);
     return (
-      this.uncachedTokensIn * inUsd +
-      this.cacheWriteTokens * inUsd * CACHE_WRITE_MULTIPLIER +
-      this.cacheReadTokens * inUsd * CACHE_READ_MULTIPLIER +
-      this.tokensOut * OUTPUT_COST_PER_TOKEN_USD
+      this.uncachedTokensIn * p.inputPerToken +
+      this.cacheWriteTokens * p.inputPerToken * p.cacheWriteMultiplier +
+      this.cacheReadTokens * p.inputPerToken * p.cacheReadMultiplier +
+      this.tokensOut * p.outputPerToken
     );
   }
 }
@@ -91,4 +91,28 @@ function isOverDailyCap(totals, cfg) {
         totals.tokens >= cfg.perDayTokenCeiling));
 }
 
-module.exports = {TurnUsage, isOverDailyCap};
+// A crude bytes→tokens heuristic (~4 chars/token) for content WE generate and
+// whose exact tokenization the provider never reports back — specifically the
+// tool-result JSON. It is deliberately not the provider's tokenizer: it exists
+// only to make "how much of this turn's input was tool output" observable and
+// comparable across providers, not to bill against. Off by ~15%; never used for
+// a ceiling or a charge.
+const APPROX_CHARS_PER_TOKEN = 4;
+
+/**
+ * Approximate token count for `chars` characters of tool-result JSON. See
+ * `APPROX_CHARS_PER_TOKEN` — this is an observability estimate, not a billed or
+ * enforced figure.
+ * @param {number} chars
+ * @return {number}
+ */
+function approxTokensFromChars(chars) {
+  return Math.round((chars || 0) / APPROX_CHARS_PER_TOKEN);
+}
+
+module.exports = {
+  TurnUsage,
+  isOverDailyCap,
+  approxTokensFromChars,
+  APPROX_CHARS_PER_TOKEN,
+};

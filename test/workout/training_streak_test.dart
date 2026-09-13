@@ -427,6 +427,82 @@ void main() {
     });
   });
 
+  // `canRestoreDay` says a restore is mechanically *eligible*; this second gate
+  // says it would actually *rescue* the streak. The sheet requires both, so a
+  // user with no live run to save can never spend their monthly restore on a
+  // day that leaves the number untouched.
+  group('restoreRescuesStreak', () {
+    test('no active streak: restoring a recent day rescues nothing', () {
+      // Exactly the screenshot state — the count is 0, and a restore here would
+      // stay 0 while burning the cooldown.
+      expect(
+        restoreRescuesStreak(
+          day: _daysAgo(2),
+          now: _today,
+          sessions: const [],
+          marks: const [],
+        ),
+        isFalse,
+      );
+    });
+
+    test('bridges an earlier trained day back into the live run', () {
+      final sessions = [
+        session(id: 'a', startedAt: _daysAgo(0)),
+        session(id: 'b', startedAt: _daysAgo(5)),
+      ];
+      // The 5-day gap has already collapsed the run to today alone...
+      expect(_streak(sessions).currentDays, 1);
+      // ...and restoring day 3 reconnects day 5, so it genuinely helps.
+      expect(
+        restoreRescuesStreak(
+          day: _daysAgo(3),
+          now: _today,
+          sessions: sessions,
+          marks: const [],
+        ),
+        isTrue,
+      );
+      expect(_streak(sessions, marks: [_restore(3)]).currentDays, 2);
+    });
+
+    test('a rest day already inside the allowance is a wasted restore', () {
+      // Trained today and two days ago: the run is alive and day 1 is already a
+      // free rest day. Restoring it changes nothing, so it is not offered.
+      final sessions = [
+        session(id: 'a', startedAt: _daysAgo(0)),
+        session(id: 'b', startedAt: _daysAgo(2)),
+      ];
+      expect(
+        restoreRescuesStreak(
+          day: _daysAgo(1),
+          now: _today,
+          sessions: sessions,
+          marks: const [],
+        ),
+        isFalse,
+      );
+    });
+
+    test('will not rescue a gap wider than the allowance can close', () {
+      // Trained today and 9 days ago; day 9 is out of restore reach anyway, but
+      // even restoring an in-reach day cannot pull day 9 across a 5-day side.
+      final sessions = [
+        session(id: 'a', startedAt: _daysAgo(0)),
+        session(id: 'b', startedAt: _daysAgo(9)),
+      ];
+      expect(
+        restoreRescuesStreak(
+          day: _daysAgo(5),
+          now: _today,
+          sessions: sessions,
+          marks: const [],
+        ),
+        isFalse,
+      );
+    });
+  });
+
   // The regression that made this a rewrite rather than a tweak. Both old
   // engines walked the calendar with `Duration(days: 1)`, which is 24 absolute
   // hours — so on the two days a year the zone shifts, the walk stepped to

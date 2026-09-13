@@ -472,6 +472,17 @@ test("the system prompt forbids inventing nutrition figures", async () => {
   assert.match(SYSTEM_PROMPT, /say you don't have it/i);
 });
 
+test("the system prompt points the coach at the readiness call", async () => {
+  // The coach must lead with ZIVO's deterministic readiness verdict and never
+  // invent or overturn it — the training-section counterpart of the NUMBERS
+  // rule, so the card and the coach can't disagree about today's call.
+  assert.match(SYSTEM_PROMPT, /get_readiness/);
+  assert.match(SYSTEM_PROMPT, /Daily Readiness call/i);
+  // Same discipline as NUMBERS: lead with the deterministic verdict, don't
+  // invent or overturn it.
+  assert.match(SYSTEM_PROMPT, /never invent a readiness call/i);
+});
+
 test("the system prompt keeps the user's goal separate from the plan's sum",
     async () => {
       // The one confusion that would undo Phase 1: "targets" is what the user
@@ -614,7 +625,14 @@ test("usage is logged once with tokens/tools/iterations", async () => {
   assert.equal(usageDoc.iterations, 2);
   assert.deepEqual(usageDoc.tools,
       [{name: "get_workouts", toolCallId: "call-1"}]);
-  assert.equal(usageDoc.schemaVersion, 2);
+  assert.equal(usageDoc.schemaVersion, 3);
+  // Phase 3 observability: the input slices and the tool-output estimate are
+  // reported so cache effect and tool cost are measurable per turn.
+  assert.equal(usageDoc.uncachedTokensIn, 13); // no cache in the fake usage
+  assert.equal(usageDoc.cacheReadTokens, 0);
+  assert.equal(usageDoc.cacheWriteTokens, 0);
+  // One get_workouts result was fed back, so the estimate is a positive count.
+  assert.ok(usageDoc.toolResultTokens > 0);
 });
 
 test("the tool schemas + system prompt are sent as a cached prefix", async () => {
@@ -753,6 +771,46 @@ test("cache read/write tokens are logged and priced at their discounts",
         100 * inRate + 2000 * inRate * 1.25 + 4000 * inRate * 0.1 +
         10 * outRate;
       assert.ok(Math.abs(usageDoc.costUsd - expected) < 1e-12);
+    });
+
+test("a Gemini-answered turn is logged at Gemini rates, not Anthropic's",
+    async () => {
+      // A turn served by Gemini (a manual selection, or an Auto fallback) must
+      // price at Gemini's rate — the provider the router stamps on the response
+      // drives the cost, not a hardcoded Anthropic assumption.
+      const {PRICING} = require("./chat/config");
+      const store = makeStore();
+      const provider = {
+        generate: async () => ({
+          stopReason: "end",
+          content: [{type: "text", text: "hi", raw: {type: "text", text: "hi"}}],
+          usage: {inputTokens: 1000, outputTokens: 200,
+            cacheReadTokens: 0, cacheWriteTokens: 0},
+          provider: "gemini",
+          model: "gemini-flash-latest",
+        }),
+      };
+
+      await runAiTurn({
+        store,
+        provider,
+        uid: UID,
+        conversationId: CONVERSATION_ID,
+        message: "hello",
+        now: makeClock(0),
+      });
+
+      const usageDoc = store.calls.logUsage[0].usageDoc;
+      assert.equal(usageDoc.provider, "gemini");
+      assert.equal(usageDoc.model, "gemini-flash-latest");
+      const g = PRICING.gemini;
+      const expected = 1000 * g.inputPerToken + 200 * g.outputPerToken;
+      assert.ok(Math.abs(usageDoc.costUsd - expected) < 1e-12);
+      // And it is NOT the Anthropic figure for the same buckets.
+      const anthropic =
+        1000 * PRICING.anthropic.inputPerToken +
+        200 * PRICING.anthropic.outputPerToken;
+      assert.ok(usageDoc.costUsd < anthropic);
     });
 
 test("a read-tool turn emits understanding → working → done phases plus " +

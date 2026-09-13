@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'reminder.dart';
+import 'workout_motivations.dart';
 
 /// The live, resolved context a reschedule needs to bake dynamic reminders.
 ///
@@ -13,7 +14,11 @@ import 'reminder.dart';
 /// label, exactly as a plain reminder would.
 @immutable
 class ReminderContext {
-  const ReminderContext({this.workoutTitle, this.workoutBody});
+  const ReminderContext({
+    this.workoutTitle,
+    this.workoutBody,
+    this.workoutMotivations = const {},
+  });
 
   /// The next-up workout day's name (e.g. "Push Day"), or null.
   final String? workoutTitle;
@@ -21,16 +26,32 @@ class ReminderContext {
   /// A short line under it (e.g. "Bench · OHP · Dips +2 more"), or null.
   final String? workoutBody;
 
+  /// Today's motivational line per [MotivationTone] — what a [WorkoutSync] with
+  /// `motivational` on shows instead of [workoutBody], keyed by the reminder's
+  /// chosen tone (e.g. `{toughLove: "Don't skip leg day."}`). Keyed rather than a
+  /// single string because tone is per-reminder while this context is shared
+  /// across a reschedule. Picked once per day by the app root so the choice is
+  /// stable across a reschedule; empty means no motivational reminder needs one.
+  final Map<MotivationTone, String> workoutMotivations;
+
   static const empty = ReminderContext();
 
   @override
   bool operator ==(Object other) =>
       other is ReminderContext &&
       other.workoutTitle == workoutTitle &&
-      other.workoutBody == workoutBody;
+      other.workoutBody == workoutBody &&
+      mapEquals(other.workoutMotivations, workoutMotivations);
 
   @override
-  int get hashCode => Object.hash(workoutTitle, workoutBody);
+  int get hashCode => Object.hash(
+    workoutTitle,
+    workoutBody,
+    // Order-independent so two equal maps hash alike.
+    Object.hashAllUnordered(
+      workoutMotivations.entries.map((e) => Object.hash(e.key, e.value)),
+    ),
+  );
 }
 
 /// The seam between the app and the platform's local-notification machinery —

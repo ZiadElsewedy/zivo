@@ -8,9 +8,11 @@ import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_pending_action.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/ai/domain/ai_usage_summary.dart';
 import 'package:zivo/features/ai/domain/body_data_writer.dart';
 import 'package:zivo/features/workout/domain/workout_import_input.dart';
 import 'package:zivo/features/ai/domain/ai_response_style.dart';
+import 'package:zivo/features/ai/domain/ai_model_selection.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
 import 'package:zivo/features/ai/domain/stt_outcome.dart';
@@ -333,6 +335,38 @@ void main() {
     expect(reported, isNotNull);
   });
 
+  test('setModelSelection persists and is forwarded on the next send', () async {
+    final ai = _FakeAi();
+    final c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+    expect(c.modelSelection, 'auto', reason: 'default before any choice');
+
+    await c.setModelSelection('gemini');
+    expect(c.modelSelection, 'gemini');
+    expect(await ai.getModelSelection(), 'gemini', reason: 'persisted');
+
+    c.input.text = 'hello';
+    await c.send();
+
+    expect(ai.sent.single.modelSelection, 'gemini',
+        reason: 'the chosen provider rides along on send');
+  });
+
+  test('a failed model-selection save rolls back and reports', () async {
+    final ai = _FakeAi(failStyleSave: true);
+    String? reported;
+    final c = _controller(ai, onError: (m) => reported = m);
+    addTearDown(c.dispose);
+    await c.load();
+    final original = c.modelSelection;
+
+    await c.setModelSelection('claude');
+
+    expect(c.modelSelection, original);
+    expect(reported, isNotNull);
+  });
+
   test('a failed confirm un-resolves the card and reports', () async {
     final ai = _FakeAi(failConfirm: true);
     String? reported;
@@ -494,7 +528,12 @@ AiMessage _message(String id, AiRole role, String text, String? turnId) =>
       clientTurnId: turnId,
     );
 
-typedef _Sent = ({String conversationId, String text, String? turnId});
+typedef _Sent = ({
+  String conversationId,
+  String text,
+  String? turnId,
+  String modelSelection,
+});
 
 /// A scripted [AiRepository] — only the members Ask actually drives are
 /// implemented; the import/generate surface throws if ever reached.
@@ -544,6 +583,20 @@ class _FakeAi implements AiRepository {
     responseStyle = style;
   }
 
+  String modelSelection = kDefaultAiModelSelection;
+
+  @override
+  Future<String> getModelSelection() async => modelSelection;
+
+  @override
+  Future<List<AiProviderUsage>> usageByProvider() async => const [];
+
+  @override
+  Future<void> setModelSelection(String selection) async {
+    if (failStyleSave) throw StateError('offline');
+    modelSelection = selection;
+  }
+
   @override
   Future<String> createConversation({String? title}) async {
     created++;
@@ -565,12 +618,14 @@ class _FakeAi implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
   }) async {
     sent.add((
       conversationId: conversationId,
       text: text,
       turnId: clientTurnId,
+      modelSelection: modelSelection,
     ));
     for (final phase in phases) {
       observedPhases.add(phase);

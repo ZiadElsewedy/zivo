@@ -2889,13 +2889,88 @@
   "@askReplyStyleConcise": {
       "description": "Reply-style option: short, to-the-point answers."
   },
+  "askReplyStyleConciseDesc": "Short, to-the-point answers.",
+  "@askReplyStyleConciseDesc": {
+      "description": "One-line description of the Concise reply-style option."
+  },
   "askReplyStyleBalanced": "Balanced",
   "@askReplyStyleBalanced": {
       "description": "Reply-style option: the default reply length."
   },
+  "askReplyStyleBalancedDesc": "The default — a bit of context.",
+  "@askReplyStyleBalancedDesc": {
+      "description": "One-line description of the Balanced reply-style option."
+  },
   "askReplyStyleDetailed": "Detailed",
   "@askReplyStyleDetailed": {
       "description": "Reply-style option: longer, fuller answers."
+  },
+  "askReplyStyleDetailedDesc": "Longer, fuller explanations.",
+  "@askReplyStyleDetailedDesc": {
+      "description": "One-line description of the Detailed reply-style option."
+  },
+  "askSettings": "Ask settings",
+  "@askSettings": {
+      "description": "Tooltip/title for the Ask settings sheet (model + reply style)."
+  },
+  "askModel": "Model",
+  "@askModel": {
+      "description": "Section header for the model choice in the Ask settings sheet."
+  },
+  "askModelSheetSubtitle": "Choose which AI answers your questions.",
+  "@askModelSheetSubtitle": {
+      "description": "Subtitle under the Model section header in the settings sheet."
+  },
+  "askModelAuto": "Auto",
+  "@askModelAuto": {
+      "description": "Model option: automatically pick the best model (Claude, with a Gemini fallback)."
+  },
+  "askModelAutoDesc": "Best available — Claude, with Gemini as backup.",
+  "@askModelAutoDesc": {
+      "description": "One-line description of the Auto model option."
+  },
+  "askModelClaude": "Claude",
+  "@askModelClaude": {
+      "description": "Model option: always use Claude (Anthropic). A product name — keep as-is in every language."
+  },
+  "askModelClaudeDesc": "Always answer with Claude (Anthropic).",
+  "@askModelClaudeDesc": {
+      "description": "One-line description of the Claude model option."
+  },
+  "askModelGemini": "Gemini",
+  "@askModelGemini": {
+      "description": "Model option: always use Gemini (Google). A product name — keep as-is in every language."
+  },
+  "askModelGeminiDesc": "Always answer with Gemini (Google).",
+  "@askModelGeminiDesc": {
+      "description": "One-line description of the Gemini model option."
+  },
+  "askUsage": "Usage",
+  "@askUsage": {
+      "description": "Section header for the AI token-usage list on the Ask settings page."
+  },
+  "askUsageSubtitle": "Tokens used per model, all-time.",
+  "@askUsageSubtitle": {
+      "description": "Subtitle under the Usage section header."
+  },
+  "askUsageEmpty": "No usage yet — ask something to get started.",
+  "@askUsageEmpty": {
+      "description": "Shown in the Usage section when the user has never used Ask."
+  },
+  "askUsageTurns": "{count, plural, =1{1 turn} other{{count} turns}}",
+  "@askUsageTurns": {
+      "description": "Number of AI turns for a provider, e.g. '37 turns'.",
+      "placeholders": { "count": { "type": "int" } }
+  },
+  "askUsageTokens": "{count} tokens",
+  "@askUsageTokens": {
+      "description": "A token count label, e.g. '50.6K tokens'. The count is pre-formatted (may be compact like 1.2M).",
+      "placeholders": { "count": { "type": "String" } }
+  },
+  "askUsageEstCost": "~{cost} est.",
+  "@askUsageEstCost": {
+      "description": "Estimated cost for a provider, e.g. '~$0.19 est.'. Cost is pre-formatted with its currency symbol.",
+      "placeholders": { "cost": { "type": "String" } }
   },
   "askChats": "Chats",
   "@askChats": {
@@ -7259,6 +7334,10 @@
       "days": { "type": "int" }
     }
   },
+  "workoutStreakRestoreNoBridge": "No streak to bridge",
+  "@workoutStreakRestoreNoBridge": {
+    "description": "Why the restore action is unavailable: spending it here would not reconnect a streak, so it is offered as disabled rather than letting the user waste a restore for no effect."
+  },
   "workoutStreakWhyMissed": "Why no training?",
   "@workoutStreakWhyMissed": {
     "description": "Opens the missed-day reason picker."
@@ -7499,6 +7578,38 @@
   "@remindersSyncWorkoutHint": {
     "description": "Explanation under the workout-sync toggle."
   },
+  "remindersMotivational": "Motivational message",
+  "@remindersMotivational": {
+    "description": "Toggle on a synced workout reminder that shows a short line of encouragement instead of the list of exercises."
+  },
+  "remindersMotivationalHint": "Names today's workout and adds a line to keep you going, instead of the exercise list.",
+  "@remindersMotivationalHint": {
+    "description": "Explanation under the motivational-message toggle on a workout reminder."
+  },
+  "remindersEmoji": "Emoji",
+  "@remindersEmoji": {
+    "description": "Label above the optional emoji picker for a reminder."
+  },
+  "remindersToneGentle": "Gentle",
+  "@remindersToneGentle": {
+    "description": "A motivational-message tone: kind and encouraging."
+  },
+  "remindersToneToughLove": "Tough love",
+  "@remindersToneToughLove": {
+    "description": "A motivational-message tone: blunt, no-excuses."
+  },
+  "remindersToneHype": "Hype",
+  "@remindersToneHype": {
+    "description": "A motivational-message tone: high-energy and exclamatory."
+  },
+  "remindersPreview": "Preview",
+  "@remindersPreview": {
+    "description": "Label above a live preview of what the reminder's notification will say."
+  },
+  "remindersPreviewEmptyBody": "Your reminder — no extra line.",
+  "@remindersPreviewEmptyBody": {
+    "description": "Placeholder body shown in the notification preview when the reminder has only a title and no second line."
+  },
   "remindersPickMeal": "Which meal?",
   "@remindersPickMeal": {
     "description": "Title of the sheet that lists the meals in the plan to pick one for a reminder."
@@ -7522,5 +7633,112 @@
   "remindersSyncedBadge": "Synced",
   "@remindersSyncedBadge": {
     "description": "Small badge on a reminder row indicating it is linked to a plan."
+  },
+  "readinessTitle": "Readiness",
+  "@readinessTitle": {
+    "description": "Section label above the Daily Readiness card on Today."
+  },
+  "readinessTrainHard": "Train hard",
+  "@readinessTrainHard": {
+    "description": "Readiness verdict: recovered, push today."
+  },
+  "readinessGoLight": "Go light",
+  "@readinessGoLight": {
+    "description": "Readiness verdict: ease off, train but not to the limit."
+  },
+  "readinessRest": "Rest",
+  "@readinessRest": {
+    "description": "Readiness verdict: recovery debt is high, back off today."
+  },
+  "readinessTrainHardBlurb": "Recovered and nothing's flagging — push today.",
+  "@readinessTrainHardBlurb": {
+    "description": "One-line explanation under the Train hard verdict."
+  },
+  "readinessGoLightBlurb": "A couple of signals say ease off today.",
+  "@readinessGoLightBlurb": {
+    "description": "One-line explanation under the Go light verdict."
+  },
+  "readinessRestBlurb": "Recovery signals are stacking up — back off today.",
+  "@readinessRestBlurb": {
+    "description": "One-line explanation under the Rest verdict."
+  },
+  "readinessWhyCall": "Why this call",
+  "@readinessWhyCall": {
+    "description": "Affordance on the readiness card that opens the detail page explaining the factors."
+  },
+  "readinessAsk": "Ask ZIVO about this",
+  "@readinessAsk": {
+    "description": "Button on the readiness detail page that opens the AI coach to discuss today's readiness."
+  },
+  "readinessSleptWell": "Slept well",
+  "@readinessSleptWell": {
+    "description": "Readiness factor title when last night's sleep supports training."
+  },
+  "readinessSleepShort": "Short on sleep",
+  "@readinessSleepShort": {
+    "description": "Readiness factor title when last night's sleep was below target."
+  },
+  "readinessDeloadDueTitle": "Deload due",
+  "@readinessDeloadDueTitle": {
+    "description": "Readiness factor title when the workout analysis shows stalled lifts."
+  },
+  "readinessDeloadDetail": "{count, plural, =1{1 lift stalled} other{{count} lifts stalled}}",
+  "@readinessDeloadDetail": {
+    "description": "Readiness deload factor detail: how many working lifts are stalled or regressing.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "readinessRecoveredTitle": "Recovered",
+  "@readinessRecoveredTitle": {
+    "description": "Readiness factor title when enough rest days have passed since the last session."
+  },
+  "readinessRestDaysDetail": "{days, plural, =1{1 day since training} other{{days} days since training}}",
+  "@readinessRestDaysDetail": {
+    "description": "Readiness recovery factor detail: calendar days since the last completed session.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "readinessTrainedTodayTitle": "Trained today already",
+  "@readinessTrainedTodayTitle": {
+    "description": "Readiness factor title when a session was already completed today."
+  },
+  "readinessWeightDropTitle": "Dropping weight fast",
+  "@readinessWeightDropTitle": {
+    "description": "Readiness factor title when body weight is falling quickly over the trend window."
+  },
+  "readinessWeightDropDetail": "Down {kg} kg",
+  "@readinessWeightDropDetail": {
+    "description": "Readiness body-weight factor detail: how many kg lost over the trend window.",
+    "placeholders": {
+      "kg": {
+        "type": "String"
+      }
+    }
+  },
+  "readinessDetailTitle": "Today's readiness",
+  "@readinessDetailTitle": {
+    "description": "Title of the readiness detail page."
+  },
+  "readinessHowTitle": "How this is worked out",
+  "@readinessHowTitle": {
+    "description": "Heading of the explanation section on the readiness detail page."
+  },
+  "readinessHowBody": "ZIVO fuses last night's sleep, how your training is trending, how recently you trained, and your body-weight trend into one call. It only uses what it can source — a missing signal is left out, never guessed — and it is a training guide, not a medical or HRV score.",
+  "@readinessHowBody": {
+    "description": "Body text explaining how the readiness call is computed and its limits."
+  },
+  "readinessAboutTitle": "What is Daily Readiness",
+  "@readinessAboutTitle": {
+    "description": "Heading of the section explaining what the Daily Readiness feature is."
+  },
+  "readinessAboutBody": "Every morning ZIVO reads the signals you already track and gives you one honest call — train hard, go light, or rest — so you walk into the gym knowing whether to push or hold back. It's your coach's opening line for the day, not another number to chase.",
+  "@readinessAboutBody": {
+    "description": "Body text introducing the Daily Readiness feature and what it does for the user."
   }
 }

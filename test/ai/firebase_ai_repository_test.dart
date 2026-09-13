@@ -122,27 +122,38 @@ void main() {
     });
 
     test('send calls the injected invokeChat with the conversation id, '
-        'trimmed text, and responseStyle (defaulting to balanced)', () async {
+        'trimmed text, responseStyle, and provider selection', () async {
       final firestore = FakeFirebaseFirestore();
-      final calls = <(String, String, String)>[]; // turnId asserted separately below where relevant
+      final calls = <(String, String, String, String)>[];
       final repo = FirebaseAiRepository(
         firestore: firestore,
         uidSource: _signedInAs('test-uid'),
-        invokeChat: (conversationId, message, responseStyle, clientTurnId) async {
-          calls.add((conversationId, message, responseStyle));
+        invokeChat:
+            (conversationId, message, responseStyle, provider, clientTurnId) async {
+          calls.add((conversationId, message, responseStyle, provider));
         },
       );
 
+      // Defaults: balanced style, 'auto' provider.
       await repo.send(conversationId: 'conv-1', text: '  hello there  ');
+      // Explicit style + forced Gemini.
       await repo.send(
         conversationId: 'conv-1',
         text: 'again',
         responseStyle: 'concise',
+        modelSelection: 'gemini',
+      );
+      // An unknown selection is coerced to 'auto' before it reaches the wire.
+      await repo.send(
+        conversationId: 'conv-1',
+        text: 'garbage',
+        modelSelection: 'not-a-provider',
       );
 
       expect(calls, [
-        ('conv-1', 'hello there', 'balanced'),
-        ('conv-1', 'again', 'concise'),
+        ('conv-1', 'hello there', 'balanced', 'auto'),
+        ('conv-1', 'again', 'concise', 'gemini'),
+        ('conv-1', 'garbage', 'balanced', 'auto'),
       ]);
     });
 
@@ -152,7 +163,8 @@ void main() {
       final repo = FirebaseAiRepository(
         firestore: firestore,
         uidSource: _signedInAs('test-uid'),
-        invokeChat: (conversationId, message, responseStyle, clientTurnId) async {
+        invokeChat:
+            (conversationId, message, responseStyle, provider, clientTurnId) async {
           callCount++;
         },
       );
@@ -391,6 +403,117 @@ void main() {
       final data = (await doc.get()).data()!;
       expect(data['responseStyle'], 'concise');
       expect(data['unrelatedField'], 'keep-me');
+    });
+
+    test("getModelSelection defaults to 'auto' when unset, and ignores garbage",
+        () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirebaseAiRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      expect(await repo.getModelSelection(), 'auto');
+
+      await repo.setModelSelection('gemini');
+      expect(await repo.getModelSelection(), 'gemini');
+
+      await firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('settings')
+          .doc('ai')
+          .set({'provider': 'nonsense'});
+      expect(await repo.getModelSelection(), 'auto');
+    });
+
+    test('setModelSelection writes provider to users/{uid}/settings/ai '
+        'without clobbering the responseStyle beside it', () async {
+      final firestore = FakeFirebaseFirestore();
+      final doc = firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('settings')
+          .doc('ai');
+      await doc.set({'responseStyle': 'concise'});
+      final repo = FirebaseAiRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      await repo.setModelSelection('claude');
+
+      final data = (await doc.get()).data()!;
+      expect(data['provider'], 'claude');
+      expect(data['responseStyle'], 'concise');
+    });
+
+    test('usageByProvider groups aiUsage by provider, sums tokens/turns/cost, '
+        'and attributes legacy (provider-less) turns by their model id',
+        () async {
+      final firestore = FakeFirebaseFirestore();
+      final usageCol = firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('aiUsage');
+      // Two explicit-provider Gemini turns…
+      await usageCol.add({
+        'provider': 'gemini',
+        'model': 'gemini-flash-latest',
+        'tokensIn': 100,
+        'tokensOut': 20,
+        'costUsd': 0.01,
+      });
+      await usageCol.add({
+        'provider': 'gemini',
+        'model': 'gemini-flash-latest',
+        'tokensIn': 50,
+        'tokensOut': 10,
+        'costUsd': 0.005,
+      });
+      // …one explicit-provider Anthropic turn…
+      await usageCol.add({
+        'provider': 'anthropic',
+        'model': 'claude-sonnet-5',
+        'tokensIn': 200,
+        'tokensOut': 40,
+        'costUsd': 0.02,
+      });
+      // …and one LEGACY turn with no `provider` field — inferred from `model`.
+      await usageCol.add({
+        'model': 'claude-sonnet-5',
+        'tokensIn': 300,
+        'tokensOut': 60,
+        'costUsd': 0.03,
+      });
+
+      final repo = FirebaseAiRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+      final usage = await repo.usageByProvider();
+
+      // Anthropic is first (most tokens): 200+40 + 300+60 = 600 total.
+      expect(usage.first.provider, 'anthropic');
+      final anthropic = usage.firstWhere((u) => u.provider == 'anthropic');
+      expect(anthropic.tokensIn, 500);
+      expect(anthropic.tokensOut, 100);
+      expect(anthropic.turns, 2, reason: 'explicit + legacy-inferred');
+      expect(anthropic.costUsd, closeTo(0.05, 1e-9));
+
+      final gemini = usage.firstWhere((u) => u.provider == 'gemini');
+      expect(gemini.tokensIn, 150);
+      expect(gemini.tokensOut, 30);
+      expect(gemini.turns, 2);
+      expect(gemini.costUsd, closeTo(0.015, 1e-9));
+    });
+
+    test('usageByProvider is empty when nothing has been logged', () async {
+      final repo = FirebaseAiRepository(
+        firestore: FakeFirebaseFirestore(),
+        uidSource: _signedInAs('test-uid'),
+      );
+      expect(await repo.usageByProvider(), isEmpty);
     });
 
     test(

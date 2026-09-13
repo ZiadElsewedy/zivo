@@ -1261,12 +1261,19 @@ PODS:
   - Firebase/Functions (12.17.0):
     - Firebase/CoreOnly
     - FirebaseFunctions (~> 12.17.0)
+  - Firebase/Storage (12.17.0):
+    - Firebase/CoreOnly
+    - FirebaseStorage (~> 12.17.0)
   - firebase_auth (6.5.7):
     - Firebase/Auth (= 12.17.0)
     - firebase_core
     - Flutter
   - firebase_core (4.13.0):
     - Firebase/CoreOnly (= 12.17.0)
+    - Flutter
+  - firebase_storage (13.4.6):
+    - Firebase/Storage (= 12.17.0)
+    - firebase_core
     - Flutter
   - FirebaseAppCheckInterop (12.17.0)
   - FirebaseAuth (12.17.0):
@@ -1317,6 +1324,13 @@ PODS:
     - GTMSessionFetcher/Core (< 6.0, >= 3.4)
   - FirebaseMessagingInterop (12.17.0)
   - FirebaseSharedSwift (12.17.0)
+  - FirebaseStorage (12.17.0):
+    - FirebaseAppCheckInterop (~> 12.17.0)
+    - FirebaseAuthInterop (~> 12.17.0)
+    - FirebaseCore (~> 12.17.0)
+    - FirebaseCoreExtension (~> 12.17.0)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GTMSessionFetcher/Core (< 6.0, >= 3.4)
   - Flutter (1.0.0)
   - flutter_local_notifications (0.0.1):
     - Flutter
@@ -1503,6 +1517,7 @@ DEPENDENCIES:
   - file_picker (from `.symlinks/plugins/file_picker/ios`)
   - firebase_auth (from `.symlinks/plugins/firebase_auth/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
+  - firebase_storage (from `.symlinks/plugins/firebase_storage/ios`)
   - Flutter (from `Flutter`)
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
   - flutter_timezone (from `.symlinks/plugins/flutter_timezone/ios`)
@@ -1538,6 +1553,7 @@ SPEC REPOS:
     - FirebaseFunctions
     - FirebaseMessagingInterop
     - FirebaseSharedSwift
+    - FirebaseStorage
     - GoogleSignIn
     - GoogleUtilities
     - "gRPC-C++"
@@ -1566,6 +1582,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/firebase_auth/ios"
   firebase_core:
     :path: ".symlinks/plugins/firebase_core/ios"
+  firebase_storage:
+    :path: ".symlinks/plugins/firebase_storage/ios"
   Flutter:
     :path: Flutter
   flutter_local_notifications:
@@ -1609,6 +1627,7 @@ SPEC CHECKSUMS:
   Firebase: e8400c058702940d53f31fc0653e4e7a06332326
   firebase_auth: 3e82fa3e632856cd5a8e2bedf458d682740c8168
   firebase_core: c94f9efeed0ded590b7eecaf6110a374eb865d7a
+  firebase_storage: cfd99be7642a3d9bf36d45ff234c1987dafb811c
   FirebaseAppCheckInterop: 6d4cd7b9df8047da8cfc98c3fef4618bab2a8e0d
   FirebaseAuth: d27d2fc54508c3af9db2f617300fcf3042328d80
   FirebaseAuthInterop: 1679f5a45921270225b7eabf1ad4ebff8790fe82
@@ -1620,6 +1639,7 @@ SPEC CHECKSUMS:
   FirebaseFunctions: e2eb75689fe581f80f4a834cb9658b94e97d24a0
   FirebaseMessagingInterop: d4e6a61aae51b00e5964bd1361cc1848c7bdad05
   FirebaseSharedSwift: 983820e9aa55d2acd6af77f9a1f252ba0afb3150
+  FirebaseStorage: 27f85a11050be78601509cb450a12823dc9f5764
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_local_notifications: 643a3eda1ce1c0599413ca31672536d423dee214
   flutter_timezone: 7c838e17ffd4645d261e87037e5bebf6d38fe544

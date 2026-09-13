@@ -111,6 +111,7 @@ repos, provides `AppScope`, a `MaterialApp` on the chosen skin, `home: AuthGate`
 | **sleep** | Apple Health / Health Connect sleep + manual logging, with provenance on every number — training recovery | [`lib/features/sleep/`](lib/features/sleep/FEATURE.md) | [SLEEP_SYSTEM.md](docs/SLEEP_SYSTEM.md), [ADR-010](docs/DECISIONS/ADR-010-sleep-provenance.md) |
 | **device** | Pedometer step counter (Today's Move ring) | [`lib/features/device/`](lib/features/device/FEATURE.md) | — |
 | **reminders** | Simple customizable **local** notifications — meal/workout/activity reminders the user schedules | [`lib/features/reminders/`](lib/features/reminders/FEATURE.md) | [ADR-013](docs/DECISIONS/ADR-013-local-notifications.md) |
+| **readiness** | The Daily Readiness call (train hard / go light / rest), fused from sleep + training load + recovery + weight — **derived, never stored** | [`lib/features/readiness/`](lib/features/readiness/FEATURE.md) | [ADR-015](docs/DECISIONS/ADR-015-readiness.md) |
 
 **Shared / cross-cutting (`lib/core/`):**
 
@@ -203,4 +204,5 @@ launcher file; those are kept to a one-line pointer here so there is a single so
 | [`docs/DECISIONS/ADR-012-streaks-and-session-duration.md`](docs/DECISIONS/ADR-012-streaks-and-session-duration.md) | **What a streak means, why calendar maths never uses `Duration`, and why a session's duration is measured rather than capped** | reference |
 | [`docs/DECISIONS/ADR-013-local-notifications.md`](docs/DECISIONS/ADR-013-local-notifications.md) | **Reminders: local-only notifications, the three deps, and why scheduling is inexact** | reference |
 | [`docs/DECISIONS/ADR-014-avatar-firebase-storage.md`](docs/DECISIONS/ADR-014-avatar-firebase-storage.md) | **Why the profile avatar is in Firebase Storage while moments stay on Google Drive** | reference |
+| [`docs/DECISIONS/ADR-015-readiness.md`](docs/DECISIONS/ADR-015-readiness.md) | **The Daily Readiness call — derived-not-stored, how the signals fuse, status-colour-not-a-hue, and why the coach half is deploy-staged** | reference |
 | [`docs/build_configurations.md`](docs/build_configurations.md) | Build configs + dart-defines | reference |

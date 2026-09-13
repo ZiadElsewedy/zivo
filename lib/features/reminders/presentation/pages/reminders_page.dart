@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
@@ -174,17 +175,38 @@ class _ReminderRow extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 12),
           child: Row(
             children: [
-              TrainIconTile(
-                icon: reminderKindIcon(reminder.kind),
-                accent: reminder.enabled
-                    ? TrainColors.neutralMark
-                    : TrainColors.inkAt(0.35),
-              ),
+              if (reminder.emoji != null)
+                // A picked emoji stands in for the kind icon — same 32×32
+                // footprint so nothing else in the row reflows. Dimmed to match
+                // the icon when the reminder is off.
+                SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: Center(
+                    child: Opacity(
+                      opacity: reminder.enabled ? 1 : 0.35,
+                      child: Text(
+                        reminder.emoji!,
+                        style: const TextStyle(fontSize: 19),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                TrainIconTile(
+                  icon: reminderKindIcon(reminder.kind),
+                  accent: reminder.enabled
+                      ? TrainColors.neutralMark
+                      : TrainColors.inkAt(0.35),
+                ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(

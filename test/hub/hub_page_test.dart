@@ -148,15 +148,15 @@ void main() {
   );
 
   testWidgets(
-    'the grid scrolls to reveal every module rather than clipping any of them',
+    'the page scrolls to reveal every module rather than clipping any of them',
     (tester) async {
       await pumpAt(tester, const Size(750, 900), textScale: 1.6);
       expect(tester.takeException(), isNull);
 
-      // Scroll the grid to the bottom and confirm the last module is reachable
-      // and rendered — proving it's a real scrollable, not a fixed grid that
-      // silently clips whatever doesn't fit.
-      await tester.drag(find.byType(GridView), const Offset(0, -600));
+      // Scroll the page to the bottom and confirm the last module is reachable
+      // and rendered — proving it's a real scrollable column, not a fixed
+      // layout that silently clips whatever doesn't fit.
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -600));
       await tester.pump();
       expect(tester.takeException(), isNull);
       expect(find.text('Moments'), findsOneWidget);

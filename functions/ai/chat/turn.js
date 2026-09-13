@@ -48,7 +48,7 @@ const {
   toNormalizedMessage,
   capToolResult,
 } = require("./messages");
-const {TurnUsage, isOverDailyCap} = require("./usage");
+const {TurnUsage, isOverDailyCap, approxTokensFromChars} = require("./usage");
 const {buildSystemBlocks} = require("./context");
 const {persistProposal, persistElicitation} = require("./actions");
 
@@ -237,7 +237,19 @@ async function runAiTurn({
 
   const usage = new TurnUsage();
   let iterations = 0;
+  // The provider/model that actually answered, captured from the response the
+  // router stamps. `activeModel` is the requested default; on an `Auto` turn
+  // that fell back, these hold what really ran, so the usage log is truthful.
+  let usedProvider = null;
+  let usedModel = null;
   const toolCalls = [];
+  // Total characters of tool-result JSON fed back to the model this turn, so
+  // the usage log can report roughly how much of the input was tool output
+  // (Phase 3 observability). Counted once as each result is produced — the
+  // re-send on later iterations is real input cost but is already captured by
+  // the provider's own input-token accounting, so counting it here too would
+  // double-count what this figure is meant to isolate.
+  let toolResultChars = 0;
   let finalText = null;
   let refusal = false;
   let tokenCeilingHit = false;
@@ -270,6 +282,8 @@ async function runAiTurn({
     const resp = await activeProvider.generate(normalizedRequest, wantsStream ?
       {onText: (text) => emit({type: "delta", text})} : undefined);
 
+    if (resp.provider) usedProvider = resp.provider;
+    if (resp.model) usedModel = resp.model;
     usage.add(resp.usage);
 
     if (resp.stopReason === "refusal") {
@@ -389,6 +403,7 @@ async function runAiTurn({
             JSON.stringify(resultPayload), cfg.maxToolResultChars),
       };
       if (isError) toolResult.isError = true;
+      toolResultChars += toolResult.content.length;
       toolResults.push(toolResult);
     }
 
@@ -509,18 +524,32 @@ async function runAiTurn({
 
   const usageDoc = {
     dayKey,
+    // `tokensIn` is the total input volume (uncached + cache read + cache
+    // write) the daily cap and the client usage summary read; the three slices
+    // below make the cache's effect legible and let Claude vs Gemini be
+    // compared on the input they paid full price for (schema v3, Phase 3).
     tokensIn: usage.tokensIn,
-    tokensOut: usage.tokensOut,
+    uncachedTokensIn: usage.uncachedTokensIn,
     cacheReadTokens: usage.cacheReadTokens,
     cacheWriteTokens: usage.cacheWriteTokens,
-    costUsd: usage.costUsd(),
+    tokensOut: usage.tokensOut,
+    // Roughly how much of the input was tool-result JSON (own estimate, not the
+    // provider's tokenizer) — the lever the context-engineering pass moves, so
+    // it needs to be measurable, not inferred. See `approxTokensFromChars`.
+    toolResultTokens: approxTokensFromChars(toolResultChars),
+    // Priced at the provider that actually answered (Gemini on a fallback
+    // turn), not always Anthropic. Null (legacy seam) prices at the default.
+    costUsd: usage.costUsd(usedProvider),
     tools: toolCalls,
     iterations,
     latencyMs: finishedAt.getTime() - turnNow.getTime(),
-    model: activeModel,
+    model: usedModel || activeModel,
     createdAt: finishedAt,
-    schemaVersion: 2,
+    schemaVersion: 3,
   };
+  // The provider that answered (e.g. 'anthropic' | 'gemini'), when the router
+  // reported it — so a fallback is visible in usage, not silent.
+  if (usedProvider) usageDoc.provider = usedProvider;
   // Recorded so the validator's real-world hit rate (and any false positives)
   // are observable in production, not a black box.
   if (validation) usageDoc.validation = validation;

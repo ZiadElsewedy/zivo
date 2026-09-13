@@ -23,7 +23,8 @@ abstract interface class StepCounterService {
 /// Whether THIS device can provide step data at all — used to decide whether
 /// the dashboard mounts its Move ring. Step sensors exist on iOS (CoreMotion)
 /// and most Android phones; desktop/web hosts have none.
-bool get deviceHasStepSensor => !kIsWeb && (Platform.isIOS || Platform.isAndroid);
+bool get deviceHasStepSensor =>
+    !kIsWeb && (Platform.isIOS || Platform.isAndroid);
 
 /// [pedometer]-backed [StepCounterService].
 ///

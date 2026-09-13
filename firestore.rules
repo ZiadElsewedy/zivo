@@ -451,6 +451,22 @@ service cloud.firestore {
       allow delete: if canWrite(userId);
     }
 
+    // Step-day snapshots: one document per calendar day, keyed `yyyy-MM-dd`,
+    // holding the day's step total. Owner-only, id-shape-pinned like sleepNights
+    // (a derived key keeps two devices converging on one doc). `steps` is a
+    // non-negative int; `updatedAt` is a server timestamp. Groundwork — nothing
+    // reads it yet, but the write must be shape-validated like every other
+    // collection (a new collection needs a rule and a rule test).
+    match /users/{userId}/stepDays/{dayKey} {
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
+        && dayKey.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && request.resource.data.steps is int
+        && request.resource.data.steps >= 0
+        && request.resource.data.updatedAt is timestamp;
+      allow delete: if canWrite(userId);
+    }
+
     // Sleep settings: one document per user (users/{userId}/sleepSettings/main)
     // holding the bedtime/wake/duration targets and the open manual sleep mark
     // — the half-logged "I'm going to sleep" that has no wake time yet, and so

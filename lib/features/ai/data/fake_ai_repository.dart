@@ -11,8 +11,10 @@ import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
 import '../domain/ai_conversation.dart';
 import '../domain/ai_message.dart';
+import '../domain/ai_model_selection.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
+import '../domain/ai_usage_summary.dart';
 import '../domain/import_progress.dart';
 import '../domain/ai_response_style.dart';
 import '../domain/ai_role.dart';
@@ -99,6 +101,7 @@ class FakeAiRepository implements AiRepository {
   String? _defaultConversationId;
 
   String _responseStyle = kDefaultResponseStyle;
+  String _modelSelection = kDefaultAiModelSelection;
 
   int _sequence = 0;
   int _conversationSequence = 0;
@@ -185,6 +188,31 @@ class FakeAiRepository implements AiRepository {
       _responseStyle = validResponseStyle(style);
 
   @override
+  Future<String> getModelSelection() async => _modelSelection;
+
+  @override
+  Future<void> setModelSelection(String selection) async =>
+      _modelSelection = validAiModelSelection(selection);
+
+  @override
+  Future<List<AiProviderUsage>> usageByProvider() async => const [
+    AiProviderUsage(
+      provider: 'anthropic',
+      tokensIn: 42000,
+      tokensOut: 8600,
+      turns: 37,
+      costUsd: 0.192,
+    ),
+    AiProviderUsage(
+      provider: 'gemini',
+      tokensIn: 5100,
+      tokensOut: 1200,
+      turns: 4,
+      costUsd: 0.021,
+    ),
+  ];
+
+  @override
   Stream<List<AiConversation>> watchConversations() async* {
     final list = _conversations.values.toList()
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
@@ -231,6 +259,7 @@ class FakeAiRepository implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
   }) async {
     final trimmed = text.trim();

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import 'workout_motivations.dart';
+
 /// An optional link between a [Reminder] and the user's plans, so a meal or
 /// workout reminder can carry more than a bare title.
 ///
@@ -73,28 +75,52 @@ class MealSync extends ReminderSync {
 /// A workout reminder linked to the active plan. Carries no schedule payload of
 /// its own — the title/body are resolved live at reschedule time — beyond
 /// [cachedDayLabel], the last known next-up day name, kept only for the list row.
+///
+/// [motivational] flips the notification from the day's exercise list to a short
+/// line of encouragement (see `workout_motivations.dart`): the day is still
+/// named, but the body is a rotating motivational phrase rather than the lift
+/// details. Off by default, so the original behaviour is unchanged. [tone]
+/// chooses that line's voice (gentle / tough-love / hype) and only matters while
+/// [motivational] is on.
 @immutable
 class WorkoutSync extends ReminderSync {
-  const WorkoutSync({this.cachedDayLabel});
+  const WorkoutSync({
+    this.cachedDayLabel,
+    this.motivational = false,
+    this.tone = MotivationTone.gentle,
+  });
 
   final String? cachedDayLabel;
+  final bool motivational;
+  final MotivationTone tone;
 
   @override
   Map<String, dynamic> toMap() => {
     'type': 'workout',
     if (cachedDayLabel != null) 'cachedDayLabel': cachedDayLabel,
+    if (motivational) 'motivational': true,
+    // Persist the tone only when it can matter, so a non-motivational sync stays
+    // as small as it always was.
+    if (motivational && tone != MotivationTone.gentle) 'tone': tone.name,
   };
 
   static WorkoutSync fromMap(Map raw) => WorkoutSync(
     cachedDayLabel: raw['cachedDayLabel'] is String
         ? raw['cachedDayLabel'] as String
         : null,
+    motivational: raw['motivational'] is bool
+        ? raw['motivational'] as bool
+        : false,
+    tone: MotivationTone.fromName(raw['tone']),
   );
 
   @override
   bool operator ==(Object other) =>
-      other is WorkoutSync && other.cachedDayLabel == cachedDayLabel;
+      other is WorkoutSync &&
+      other.cachedDayLabel == cachedDayLabel &&
+      other.motivational == motivational &&
+      other.tone == tone;
 
   @override
-  int get hashCode => cachedDayLabel.hashCode;
+  int get hashCode => Object.hash(cachedDayLabel, motivational, tone);
 }

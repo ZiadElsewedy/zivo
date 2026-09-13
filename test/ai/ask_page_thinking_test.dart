@@ -8,8 +8,10 @@ import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/ai/domain/ai_usage_summary.dart';
 import 'package:zivo/features/workout/domain/workout_import_input.dart';
 import 'package:zivo/features/ai/domain/ai_response_style.dart';
+import 'package:zivo/features/ai/domain/ai_model_selection.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
 import 'package:zivo/features/ai/domain/stt_outcome.dart';
 import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
@@ -68,6 +70,7 @@ class _GatedAi implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
   }) async {
     await gate.future;
@@ -84,6 +87,14 @@ class _GatedAi implements AiRepository {
 
   @override
   Future<void> setResponseStyle(String style) => _inner.setResponseStyle(style);
+  @override
+  Future<String> getModelSelection() async => kDefaultAiModelSelection;
+
+  @override
+  Future<List<AiProviderUsage>> usageByProvider() async => const [];
+
+  @override
+  Future<void> setModelSelection(String selection) async {}
 
   @override
   Future<void> confirmAction({

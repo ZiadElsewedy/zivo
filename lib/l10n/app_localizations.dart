@@ -3578,17 +3578,125 @@ abstract class AppLocalizations {
   /// **'Concise'**
   String get askReplyStyleConcise;
 
+  /// One-line description of the Concise reply-style option.
+  ///
+  /// In en, this message translates to:
+  /// **'Short, to-the-point answers.'**
+  String get askReplyStyleConciseDesc;
+
   /// Reply-style option: the default reply length.
   ///
   /// In en, this message translates to:
   /// **'Balanced'**
   String get askReplyStyleBalanced;
 
+  /// One-line description of the Balanced reply-style option.
+  ///
+  /// In en, this message translates to:
+  /// **'The default — a bit of context.'**
+  String get askReplyStyleBalancedDesc;
+
   /// Reply-style option: longer, fuller answers.
   ///
   /// In en, this message translates to:
   /// **'Detailed'**
   String get askReplyStyleDetailed;
+
+  /// One-line description of the Detailed reply-style option.
+  ///
+  /// In en, this message translates to:
+  /// **'Longer, fuller explanations.'**
+  String get askReplyStyleDetailedDesc;
+
+  /// Tooltip/title for the Ask settings sheet (model + reply style).
+  ///
+  /// In en, this message translates to:
+  /// **'Ask settings'**
+  String get askSettings;
+
+  /// Section header for the model choice in the Ask settings sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get askModel;
+
+  /// Subtitle under the Model section header in the settings sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which AI answers your questions.'**
+  String get askModelSheetSubtitle;
+
+  /// Model option: automatically pick the best model (Claude, with a Gemini fallback).
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get askModelAuto;
+
+  /// One-line description of the Auto model option.
+  ///
+  /// In en, this message translates to:
+  /// **'Best available — Claude, with Gemini as backup.'**
+  String get askModelAutoDesc;
+
+  /// Model option: always use Claude (Anthropic). A product name — keep as-is in every language.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude'**
+  String get askModelClaude;
+
+  /// One-line description of the Claude model option.
+  ///
+  /// In en, this message translates to:
+  /// **'Always answer with Claude (Anthropic).'**
+  String get askModelClaudeDesc;
+
+  /// Model option: always use Gemini (Google). A product name — keep as-is in every language.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemini'**
+  String get askModelGemini;
+
+  /// One-line description of the Gemini model option.
+  ///
+  /// In en, this message translates to:
+  /// **'Always answer with Gemini (Google).'**
+  String get askModelGeminiDesc;
+
+  /// Section header for the AI token-usage list on the Ask settings page.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get askUsage;
+
+  /// Subtitle under the Usage section header.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens used per model, all-time.'**
+  String get askUsageSubtitle;
+
+  /// Shown in the Usage section when the user has never used Ask.
+  ///
+  /// In en, this message translates to:
+  /// **'No usage yet — ask something to get started.'**
+  String get askUsageEmpty;
+
+  /// Number of AI turns for a provider, e.g. '37 turns'.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 turn} other{{count} turns}}'**
+  String askUsageTurns(int count);
+
+  /// A token count label, e.g. '50.6K tokens'. The count is pre-formatted (may be compact like 1.2M).
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tokens'**
+  String askUsageTokens(String count);
+
+  /// Estimated cost for a provider, e.g. '~$0.19 est.'. Cost is pre-formatted with its currency symbol.
+  ///
+  /// In en, this message translates to:
+  /// **'~{cost} est.'**
+  String askUsageEstCost(String cost);
 
   /// Header of the conversation list sheet.
   ///
@@ -8580,6 +8688,12 @@ abstract class AppLocalizations {
   /// **'One restore every {days} days'**
   String workoutStreakRestoreUnavailable(int days);
 
+  /// Why the restore action is unavailable: spending it here would not reconnect a streak, so it is offered as disabled rather than letting the user waste a restore for no effect.
+  ///
+  /// In en, this message translates to:
+  /// **'No streak to bridge'**
+  String get workoutStreakRestoreNoBridge;
+
   /// Opens the missed-day reason picker.
   ///
   /// In en, this message translates to:
@@ -8934,6 +9048,54 @@ abstract class AppLocalizations {
   /// **'Shows your next scheduled workout, and keeps it up to date.'**
   String get remindersSyncWorkoutHint;
 
+  /// Toggle on a synced workout reminder that shows a short line of encouragement instead of the list of exercises.
+  ///
+  /// In en, this message translates to:
+  /// **'Motivational message'**
+  String get remindersMotivational;
+
+  /// Explanation under the motivational-message toggle on a workout reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Names today\'s workout and adds a line to keep you going, instead of the exercise list.'**
+  String get remindersMotivationalHint;
+
+  /// Label above the optional emoji picker for a reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Emoji'**
+  String get remindersEmoji;
+
+  /// A motivational-message tone: kind and encouraging.
+  ///
+  /// In en, this message translates to:
+  /// **'Gentle'**
+  String get remindersToneGentle;
+
+  /// A motivational-message tone: blunt, no-excuses.
+  ///
+  /// In en, this message translates to:
+  /// **'Tough love'**
+  String get remindersToneToughLove;
+
+  /// A motivational-message tone: high-energy and exclamatory.
+  ///
+  /// In en, this message translates to:
+  /// **'Hype'**
+  String get remindersToneHype;
+
+  /// Label above a live preview of what the reminder's notification will say.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get remindersPreview;
+
+  /// Placeholder body shown in the notification preview when the reminder has only a title and no second line.
+  ///
+  /// In en, this message translates to:
+  /// **'Your reminder — no extra line.'**
+  String get remindersPreviewEmptyBody;
+
   /// Title of the sheet that lists the meals in the plan to pick one for a reminder.
   ///
   /// In en, this message translates to:
@@ -8969,6 +9131,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Synced'**
   String get remindersSyncedBadge;
+
+  /// Section label above the Daily Readiness card on Today.
+  ///
+  /// In en, this message translates to:
+  /// **'Readiness'**
+  String get readinessTitle;
+
+  /// Readiness verdict: recovered, push today.
+  ///
+  /// In en, this message translates to:
+  /// **'Train hard'**
+  String get readinessTrainHard;
+
+  /// Readiness verdict: ease off, train but not to the limit.
+  ///
+  /// In en, this message translates to:
+  /// **'Go light'**
+  String get readinessGoLight;
+
+  /// Readiness verdict: recovery debt is high, back off today.
+  ///
+  /// In en, this message translates to:
+  /// **'Rest'**
+  String get readinessRest;
+
+  /// One-line explanation under the Train hard verdict.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovered and nothing\'s flagging — push today.'**
+  String get readinessTrainHardBlurb;
+
+  /// One-line explanation under the Go light verdict.
+  ///
+  /// In en, this message translates to:
+  /// **'A couple of signals say ease off today.'**
+  String get readinessGoLightBlurb;
+
+  /// One-line explanation under the Rest verdict.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery signals are stacking up — back off today.'**
+  String get readinessRestBlurb;
+
+  /// Affordance on the readiness card that opens the detail page explaining the factors.
+  ///
+  /// In en, this message translates to:
+  /// **'Why this call'**
+  String get readinessWhyCall;
+
+  /// Button on the readiness detail page that opens the AI coach to discuss today's readiness.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask ZIVO about this'**
+  String get readinessAsk;
+
+  /// Readiness factor title when last night's sleep supports training.
+  ///
+  /// In en, this message translates to:
+  /// **'Slept well'**
+  String get readinessSleptWell;
+
+  /// Readiness factor title when last night's sleep was below target.
+  ///
+  /// In en, this message translates to:
+  /// **'Short on sleep'**
+  String get readinessSleepShort;
+
+  /// Readiness factor title when the workout analysis shows stalled lifts.
+  ///
+  /// In en, this message translates to:
+  /// **'Deload due'**
+  String get readinessDeloadDueTitle;
+
+  /// Readiness deload factor detail: how many working lifts are stalled or regressing.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 lift stalled} other{{count} lifts stalled}}'**
+  String readinessDeloadDetail(int count);
+
+  /// Readiness factor title when enough rest days have passed since the last session.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovered'**
+  String get readinessRecoveredTitle;
+
+  /// Readiness recovery factor detail: calendar days since the last completed session.
+  ///
+  /// In en, this message translates to:
+  /// **'{days, plural, =1{1 day since training} other{{days} days since training}}'**
+  String readinessRestDaysDetail(int days);
+
+  /// Readiness factor title when a session was already completed today.
+  ///
+  /// In en, this message translates to:
+  /// **'Trained today already'**
+  String get readinessTrainedTodayTitle;
+
+  /// Readiness factor title when body weight is falling quickly over the trend window.
+  ///
+  /// In en, this message translates to:
+  /// **'Dropping weight fast'**
+  String get readinessWeightDropTitle;
+
+  /// Readiness body-weight factor detail: how many kg lost over the trend window.
+  ///
+  /// In en, this message translates to:
+  /// **'Down {kg} kg'**
+  String readinessWeightDropDetail(String kg);
+
+  /// Title of the readiness detail page.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s readiness'**
+  String get readinessDetailTitle;
+
+  /// Heading of the explanation section on the readiness detail page.
+  ///
+  /// In en, this message translates to:
+  /// **'How this is worked out'**
+  String get readinessHowTitle;
+
+  /// Body text explaining how the readiness call is computed and its limits.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO fuses last night\'s sleep, how your training is trending, how recently you trained, and your body-weight trend into one call. It only uses what it can source — a missing signal is left out, never guessed — and it is a training guide, not a medical or HRV score.'**
+  String get readinessHowBody;
+
+  /// Heading of the section explaining what the Daily Readiness feature is.
+  ///
+  /// In en, this message translates to:
+  /// **'What is Daily Readiness'**
+  String get readinessAboutTitle;
+
+  /// Body text introducing the Daily Readiness feature and what it does for the user.
+  ///
+  /// In en, this message translates to:
+  /// **'Every morning ZIVO reads the signals you already track and gives you one honest call — train hard, go light, or rest — so you walk into the gym knowing whether to push or hold back. It\'s your coach\'s opening line for the day, not another number to chase.'**
+  String get readinessAboutBody;
 }
 
 class _AppLocalizationsDelegate

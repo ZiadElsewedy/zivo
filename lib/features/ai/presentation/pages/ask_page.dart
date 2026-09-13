@@ -25,6 +25,7 @@ import '../widgets/ask/message_bubble.dart';
 import '../../data/repository_body_data_writer.dart';
 import '../widgets/ask/choice_chips.dart';
 import '../widgets/ask/input_request_card.dart';
+import 'ask_settings_page.dart';
 import '../widgets/ask/proposal_card.dart';
 import '../widgets/ask/sessions_sheet.dart';
 import '../widgets/ask/thinking_rail.dart';
@@ -219,6 +220,22 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
     if (trimmed != null && trimmed.isNotEmpty) _c.setDraftTitle(trimmed);
   }
 
+  /// Pushes the Ask settings page (model + reply style + usage). Each pick is
+  /// applied live via the controller, which persists it optimistically and
+  /// rolls back with a toast on failure — so there's nothing to await here.
+  Future<void> _openSettings() {
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AskSettingsPage(
+          initialModel: _c.modelSelection,
+          initialStyle: _c.responseStyle,
+          onSelectModel: _c.setModelSelection,
+          onSelectStyle: _c.setResponseStyle,
+        ),
+      ),
+    );
+  }
+
   Future<void> _openSessions(String? activeConversationId) async {
     final result = await showZivoSheet<SessionsSelection>(
       context: context,
@@ -354,8 +371,10 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                     onSessions: (!_c.activeResolved || _c.sending)
                         ? null
                         : () => _openSessions(_c.activeConversationId),
-                    responseStyle: _c.responseStyle,
-                    onSelectStyle: _c.setResponseStyle,
+                    modelSelection: _c.modelSelection,
+                    onOpenSettings: (!_c.activeResolved || _c.sending)
+                        ? null
+                        : _openSettings,
                   ),
                   Expanded(
                     child: AnimatedPadding(

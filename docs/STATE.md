@@ -7,8 +7,8 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-11 · **Active branch:** `feature/theme-modes`
-(cut from `feature/sleep`, which is 60 commits ahead of `version-1`)
+**Last updated:** 2026-09-13 · **Active branch:** `feature/ai-gemini-provider`
+(cut from `feature/readiness`)
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -93,6 +93,94 @@ notifications)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Ask coach — Gemini as a second provider + manual model select** (2026-09-13,
+  on `feature/ai-gemini-provider`, cut from `feature/readiness`). The `aiChat`
+  gateway now has a real **fallback** and a **manual model switch**, built on the
+  provider seam that was already there (`functions/ai/providers/` +
+  `routing/router.js`) — no parallel AI implementation.
+  - **`GeminiProvider`** (`functions/ai/providers/gemini_provider.js`) translates
+    the ZIVO `NormalizedRequest`/`NormalizedResponse` to/from Gemini's
+    `generateContent` — system→`systemInstruction`, tool_use↔`functionCall`,
+    tool_result↔`functionResponse` (matched by call name across a mid-turn
+    fallback), JSON-Schema sanitized to Gemini's OpenAPI subset, streaming
+    aggregated. The `@google/genai` client (already used for STT) is injected, so
+    it's offline-testable. Model: **`gemini-flash-latest`** — a rolling alias
+    (the same one STT uses), because pinned ids like `gemini-2.5-pro` get 404'd
+    ("no longer available to new users") for new projects. For Pro-depth try
+    `gemini-pro-latest` once verified against the key.
+  - **Routing** (`routing/router.js`): `chat` = Anthropic → Gemini. Fallback fires
+    **only on a genuine provider failure** (5xx/429/timeout/no-response — via
+    `providers/classify.js`); a 4xx (our request is malformed) is rethrown, never
+    masked by a retry on the other provider. A `forceProvider` pins one provider
+    and disables fallback — that's the manual switch.
+  - **Client**: an **Ask settings page** (`pages/ask_settings_page.dart`, a
+    pushed full page in the app's settings chrome) holding the model choice
+    (Auto · Claude · Gemini, each with a code-drawn provider brand mark —
+    `widgets/ask/provider_mark.dart`), the reply style (Concise · Balanced ·
+    Detailed), and a **per-provider usage** section (tokens · turns · est. cost,
+    via `AiRepository.usageByProvider()` over the owner-readable `aiUsage` log;
+    legacy turns attributed by `model` id). Opened from a single header settings
+    button that carries a small accent dot when a specific model is pinned; the
+    two old header menus are gone. Model persisted at `users/{uid}/settings/ai`
+    field `provider`, forwarded on every `send` (domain `ai_model_selection.dart`).
+    `Auto` = Anthropic-first + Gemini fallback; `Claude`/`Gemini` force that
+    provider.
+  - **Tests** green: router (the 7 scenarios), gemini adapter (translation, tools,
+    streaming, usage, stop-reason), classifier, and client (repo payload + settings
+    round-trip + controller forward/rollback). Existing Anthropic behaviour
+    unchanged (490 functions tests still pass).
+  - **Owner actions:** (1) confirm the `GEMINI_API_KEY` secret is set (it already
+    backs STT), (2) **`firebase deploy --only functions`** to ship the gateway
+    change — offline `npm test` proves the wiring, not the real Gemini wire.
+  - **Note (pre-existing, not from this work):** the light-mode smoke test
+    `test/core/light_mode_smoke_test.dart` ("the Hub reads on paper") fails —
+    Hub's "SLEEP" glance label is below the contrast floor on paper. It comes from
+    the hub refactor commit `c778b8c` this branch sits on, and touches nothing in
+    the AI change.
+
+- **Recovery & Readiness — the Daily Readiness call (v1 spine)** (2026-09-12, on
+  `feature/readiness`, cut from `feature/reminders-sync`). The first of
+  `PRODUCT.md`'s "readiness signals" wedge, per
+  [ADR-015](DECISIONS/ADR-015-readiness.md). One deterministic **train hard /
+  go light / rest** call on Today, fused from data ZIVO already holds — last
+  night's sleep, the workout analytics stall/**deload** signal, how recently you
+  trained, and your body-weight trend — each factor citing its number.
+  - **Derived, never stored.** Computed on the client from existing streams
+    (`domain/readiness.dart`), and the Today card **hides** when the gate returns
+    null (no recent sleep, no training, no weigh-in) — the sleep-glance rule. It
+    **fuses** other engines' verdicts (`analyzeTraining`, `computeWeightTrend`,
+    `SleepNight`/`SleepTargets`); it never re-derives them.
+  - **Auto-deload folded in** as a readiness factor (≥2 stalled/regressing lifts,
+    or an overall regression), not a standalone surface. Colour carries status
+    (green/amber/ember), no new hue (ADR-006).
+  - **Surface:** `ReadinessSection` on Today (after the pulse, before training) +
+    a `ReadinessPage` detail (every factor with its number, a "how it's worked
+    out / not an HRV score" note, and an "Ask ZIVO about this" route into the
+    coach). New `features/readiness/`.
+  - **Coach — staged, not live.** `functions/ai/readiness.js` (Node mirror of the
+    pure combination layer, pinned to Dart by
+    `test/fixtures/readiness_vectors.json`, BOTH suites run it), a `get_readiness`
+    read tool, and a `training.js` prompt note. Committed + offline-tested but
+    inert until `firebase deploy --only functions`.
+  - **Steps deferred, snapshots started.** The sensor only exposes today's live
+    count, so v1 fuses sleep+training+weight; a new `StepDayRepository` writes
+    `users/{uid}/stepDays/{yyyy-MM-dd}` from a throttled app-root writer so a
+    step history accrues for a later input. **Not read by readiness yet.** New
+    `firestore.rules` block + rules test.
+  - **Cover:** +20 readiness tests (engine gating→null / three verdicts / factor
+    provenance / deload predicate / stale-sleep discount / shared golden vectors,
+    the Today section show/hide, the detail page), the 3 app-boot tests now inject
+    the in-memory step store, whole Flutter suite **1583** green, analyze clean.
+    Functions **466** green (readiness vectors + `get_readiness` + prompt pin).
+    New `stepDays` rules test added to `firestore-tests`.
+  - **⚠ OWNER ACTIONS.** (1) `firebase deploy --only firestore:rules` — the new
+    `stepDays` block is denied by the catch-all until deployed (step snapshots
+    fail to save on device). (2) `firebase deploy --only functions` — activates
+    `get_readiness` + the prompt; until then the card works standalone and the
+    coach doesn't cite it. (3) ~24 new Arabic strings are mine, not a native
+    speaker's. (4) On-device sanity check across a low-sleep vs well-rested
+    morning.
 
 - **Reminders v2 — kinds, an iOS wheel picker, a de-purpled premium UI, and plan
   sync** (2026-09-11, on `feature/reminders-sync`, cut from
@@ -1895,6 +1983,63 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-11 — **Reminder UI: Apple fluid-interface polish pass** (on `feature/reminders-sync`;
+  Dart only, reused existing primitives — no new deps). Applied the `apple-design` skill within
+  the design system: every interactive control in the reminders sheet + list (kind/day/emoji/tone
+  chips, sync/time/close/meal buttons, list rows) now wraps `PressableScale` (instant press-down
+  scale on pointer-down, spring-back, reduced-motion aware) and fires `HapticFeedback`
+  (`selectionClick` for picks, `lightImpact` for close, native iOS haptics left to the adaptive
+  switches). The whole sync-section area sits in one `AnimatedSize` (240ms easeOutCubic, zero on
+  reduced-motion) so switching kind or flipping a nested toggle **unfolds continuously** instead of
+  hard-jumping. No visual-system changes (monochrome selection, tokens, type all untouched).
+  `flutter test` green (1566).
+- 2026-09-11 — **Reminder enrichments: emoji · motivational tone · Snooze action** (on
+  `feature/reminders-sync`; Dart + l10n + AndroidManifest). Three additions on top of the
+  editor work below. **(1) Per-reminder emoji** — `Reminder.emoji`, a curated `_EmojiPicker`
+  in the sheet; the emoji leads the list row (swapping the kind icon) and the notification
+  title (prefixed in `resolveReminderText`). **(2) Motivational tone** — `MotivationTone`
+  (gentle / tough-love / hype); `workout_motivations.dart` restructured into three EN+AR sets
+(**34 lines each — ~100 English encouragements**, index-aligned per tone),
+  `WorkoutSync.tone` persisted, a tone selector under the Motivational toggle. `ReminderContext`
+  now carries a **tone→line map** (`workoutMotivations`) since tone is per-reminder while the
+  context is shared; the app root picks one line per tone per day. **(3) Snooze action** — every
+  notification carries a Snooze button (Android action + iOS `zivo_reminder` category) and a JSON
+  title/body payload; a tap re-posts 10 min later via `_onNotificationResponse` (app alive) or the
+  top-level `notificationSnoozeBackgroundHandler` (terminated). Added `ActionBroadcastReceiver` to
+  AndroidManifest. **Snooze label is hardcoded English** (like the channel name) — localisation is
+  a tracked follow-up; **the action fires can only be verified on a real device.** New l10n:
+  emoji, three tones (en + ar). Tests: emoji round-trip/normalise + emoji-in-title, tone
+  round-trip + tone-selection occurrence, tone-based `workout_motivations` suite. `flutter test`
+  green (1566).
+- 2026-09-11 — **Reminder editor: close button + live notification preview** (on
+  `feature/reminders-sync`; Dart + l10n). Fixed a real dismissal trap — a tall, keyboard-lifted
+  edit sheet left no scrim to tap, so it added an explicit header **close button**
+  (`_SheetCloseButton`, Semantics-labelled). Added a **live notification preview** — a
+  lock-screen banner mock (`_NotificationPreview`) above the time field that updates as you
+  type/toggle and shows the exact title/body that will fire (today's motivational line
+  included). To do it without a layering break, the pure `resolveReminderText` was promoted to
+  `domain/reminder_notification_text.dart` (both the scheduler and the preview call it), and the
+  workout-context builder was extracted to `presentation/workout_reminder_context.dart`
+  (`workoutReminderContext`, shared by the app root and the preview — app.dart's private
+  `_workoutContext` deleted, no behaviour change). New `remindersPreview`/`…PreviewEmptyBody`
+  l10n (en + ar). Tests: close-dismiss + preview-reflects-name; the wheel-picker test now
+  disambiguates the duplicated time. `flutter test` green (1559). **Also this session:** reverted
+  an accidental `pub upgrade` that rode in on the reminders commit — file_picker 8→12,
+  package_info_plus 8→10, googleapis 14→17 (+ Firebase iOS 12.17→12.18) all pinned back to
+  pre-upgrade; `pubspec.*` now byte-identical to `f792ad1`.
+- 2026-09-11 — **Motivational workout reminders** (on `feature/reminders-sync`; Dart + l10n,
+  no repo/rules change). A synced workout reminder can now be flipped to **motivational**: a
+  nested "Motivational message" toggle on the edit sheet (shown only once "Sync with my plan"
+  is on). In that mode the notification **names today's workout but swaps the exercise list for
+  one line of encouragement** ("Arm Day · Don't skip leg day.") instead of the lift details.
+  New local, offline copy in `reminders/domain/workout_motivations.dart` (EN + AR, index-aligned)
+  + pure deterministic `pickWorkoutMotivation(seed, languageCode)`; the app root picks **one line
+  per calendar day** (seeded so the choice is stable across a reschedule, keeping the dedupe that
+  protects the platform channel) and hands it in via the new `ReminderContext.workoutMotivation`.
+  `WorkoutSync` gains a persisted `motivational` flag (absent = off, unchanged behaviour). New
+  `remindersMotivational`/`remindersMotivationalHint` l10n keys (en + ar). Tests: motivational
+  occurrence cases, `WorkoutSync` motivational round-trip, and a `workout_motivations` suite —
+  `flutter test test/reminders` green (37 → +6).
 - 2026-09-11 — **Workout Analysis redesign + Progress retired** (on
   `feature/workout-analysis-redesign`, cut from `feature/ask-elicitation`; Dart/UI only, no
   engine/repo/functions change). The Analysis hub (`workout_analysis_page.dart`) is reorganised

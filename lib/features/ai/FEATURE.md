@@ -50,16 +50,32 @@ answered via `AskController.submitInput`), `body_data_writer.dart` (Phase 3 — 
 input form persists height/weight through; impl `data/repository_body_data_writer.dart`
 composes the diet `BodyProfile` + workout `BodyWeightRepository`, the same user-owned
 writes the manual capture screens use; **never writes targets/goal**),
-`ai_response_style.dart`, and STT: `stt_outcome.dart`, `stt_error.dart`.
+`ai_response_style.dart`, `ai_model_selection.dart` (the manual model switch —
+`'auto'`|`'claude'`|`'gemini'`, persisted at `users/{uid}/settings/ai` field
+`provider` and forwarded on every `send`), and STT: `stt_outcome.dart`,
+`stt_error.dart`.
+
+Both the model switch and the reply-style preference live in the **Ask settings
+page** (`presentation/pages/ask_settings_page.dart` — a pushed full page, opened
+from the single header settings button, which shows a small "pinned" dot when
+the model isn't Auto). Each model row carries its provider's brand mark
+(`widgets/ask/provider_mark.dart` — code-drawn Gemini spark / Anthropic burst,
+no image assets). Selecting a row applies in place via the controller's
+`setModelSelection`/`setResponseStyle`; there is no separate Save. The page also
+shows a **per-provider usage** section — total tokens, turns, and est. cost —
+read via `AiRepository.usageByProvider()` (domain `ai_usage_summary.dart`),
+which aggregates the owner-readable `aiUsage` log (turns before the backend
+recorded a `provider` field are attributed by their `model` id). Cost is
+approximate for Gemini (usage logging still prices at Anthropic rates).
 
 ## Backend — the real brain ([`functions/ai/`](../../../functions/ai))
 
 | File | Role |
 |---|---|
 | `gateway.js` | Ask entrypoint — now a thin **facade** re-exporting `chat/` (`runAiTurn`, `confirmAction`, `cancelAction`, `GatewayError`, `SYSTEM_PROMPT`, `DEFAULT_CONFIG`). The split is invisible to callers |
-| **`chat/`** | The chat subsystem, split by concern (see [`chat/README.md`](../../../functions/ai/chat/README.md)): `turn.js` (the model↔tool loop), `actions.js` (propose→confirm→execute writes), `context.js` (the system blocks handed to the model each turn + prompt-cache discipline), `config.js` (ceilings/pricing/canned messages), `usage.js` (token accounting + cost + daily cap), `messages.js` (history + tool-result shaping), `errors.js` (`GatewayError`) |
+| **`chat/`** | The chat subsystem, split by concern (see [`chat/README.md`](../../../functions/ai/chat/README.md)): `turn.js` (the model↔tool loop), `actions.js` (propose→confirm→execute writes), `context.js` (the system blocks handed to the model each turn + prompt-cache discipline), `config.js` (ceilings/pricing/canned messages), `usage.js` (token accounting + cost + daily cap; logs per-turn observability — provider/model, uncached vs cached input, output, approx tool-result tokens, tools, iterations, latency, cost — as `aiUsage` **schema v3**), `messages.js` (history + tool-result shaping), `errors.js` (`GatewayError`) |
 | **`chat/prompt/`** | The **system prompt**, composed in `system_prompt.js` from `sections/` — `persona` · **`focus`** (answer the exact question, pull only relevant context) · **`formatting`** (plain-text structure the client renders) · `numbers` · `training` · `coaching` · `mutations` · `safety`. The load-bearing sections are pinned by `gateway.test.js`; `formatting` assumes the client renders **plain text** (no Markdown) |
-| `tools.js` | uid-scoped **read** tools — `get_today`, `get_diet`, `get_workouts`, **`get_training_analysis`**, `get_expenses`, `summarize_week`, plus **`resolve_food`** (a food → its `foodId` + per-100g nutrition, or `ambiguous`/`notFound`) and **`calculate_meal_nutrition`** (items → computed kcal/macros + total). Every payload states the **date** it resolved; diet payloads carry the user's `targets`, what's `remaining` of them, and the `estimated` provenance of every figure. `get_expenses` surfaces each expense's `id` so edit/delete can target it. **`get_workouts` returns the REAL per-set actuals** from `workoutSessions` (weight/reps/type/outcome per set — warm-ups flagged, skipped/pending dropped), never the lossy flat log; **`get_training_analysis` hands the model ZIVO's deterministic workout analysis + typed `findings`** (see `workout_analytics.js`) so it phrases strength/PRs/trends, never computes them — and now also **`planAdherence`** (planned movements being skipped/gone-stale, from `exercise_analytics.js` + `store.getActiveWorkoutPlan`); **`get_exercise_analysis`** resolves ONE lift by name and returns its full session-by-session history, session-to-session deltas, verdict/tone and deterministic insight (the drill-down the model explains, never recomputes) |
+| `tools.js` | uid-scoped **read** tools — `get_today`, `get_diet`, `get_workouts`, **`get_last_workout`**, **`get_training_analysis`**, `get_expenses`, `summarize_week`, **`get_readiness`**, **`get_sleep_summary`**, plus **`resolve_food`** (a food → its `foodId` + per-100g nutrition, or `ambiguous`/`notFound`) and **`calculate_meal_nutrition`** (items → computed kcal/macros + total). Every payload states the **date** it resolved; diet payloads carry the user's `targets`, what's `remaining` of them, and the `estimated` provenance of every figure. `get_expenses` surfaces each expense's `id` so edit/delete can target it. **`get_workouts` returns the REAL per-set actuals** from `workoutSessions` (weight/reps/type/outcome per set — warm-ups flagged, skipped/pending dropped), never the lossy flat log; **`get_last_workout`** returns just the SINGLE most recent completed session (with each exercise's top working set precomputed) so "what did I do last workout" doesn't fetch a whole week; **`get_training_analysis` hands the model ZIVO's deterministic workout analysis + typed `findings`** (see `workout_analytics.js`) so it phrases strength/PRs/trends, never computes them — and now also **`planAdherence`** (planned movements being skipped/gone-stale, from `exercise_analytics.js` + `store.getActiveWorkoutPlan`); **`get_exercise_analysis`** resolves ONE lift by name and returns its full session-by-session history, session-to-session deltas, verdict/tone and deterministic insight (the drill-down the model explains, never recomputes); **`get_sleep_summary`** returns last night vs target + a rolling average for sleep-specific questions (`get_readiness` still owns "how am I today", fusing sleep with load/recovery). **Token discipline:** `dropNull` strips absent fields from the workout/expense/week payloads (re-sent every tool iteration), but **never from the diet tools** — there a `null` is a semantic signal (`targets:null` = no objective) the prompt reasons about |
 | `workout_analytics.js` | the **workout analytics engine** — the Node mirror of `lib/features/workout/domain/analytics/workout_analytics.dart`, pinned to it by shared golden vectors (`test/fixtures/workout_analytics_vectors.json`, run by both suites). Estimated 1RM (Epley), PRs derived from history, per-exercise status (thresholded, min-3-appearance, warm-ups excluded), per-muscle rollup, working-volume trend, and `fact`/`interpretation`-typed findings. `store.listWorkoutSessions` feeds it |
 | `exercise_analytics.js` | the **per-exercise drill-down + plan-adherence engine** — the Node mirror of `exercise_analysis.dart` + `plan_adherence.dart`, reusing `workout_analytics.js`'s primitives. `analyzeExercise` (one lift's session records, session-to-session deltas, **intensity-first** verdict/tone, PRs, frequency, insight) and `analyzePlanAdherence` (skipped/never-trained/stale planned movements). The numeric facts + verdict/tone + change tags + adherence reasons are pinned to Dart by the `exerciseAnalysis`/`planAdherence` golden vectors (both suites); the insight PROSE is generated per side, not pinned |
 | `dates.js` | timezone-aware day/week/month resolution — takes the client's `offsetMinutes` so "today" is the **user's** today, not the server's UTC one |
@@ -70,6 +86,19 @@ writes the manual capture screens use; **never writes targets/goal**),
 | `workout_import.js`, `diet_import.js` | PDF → structured plan extractors |
 | `coach_report.js` | weekly AI coach report |
 | `store.js`, `dates.js` | Firestore access + date helpers |
+
+**Providers & routing (`functions/ai/providers/` + `routing/router.js`).** The
+model call is behind a `NormalizedRequest`/`NormalizedResponse` seam so a turn's
+orchestration never names a vendor. `anthropic_provider.js` (primary) and
+`gemini_provider.js` (fallback / manual `Gemini` route, `gemini-flash-latest`
+— a rolling alias, since pinned ids like `gemini-2.5-pro` get 404'd for new
+projects) are the
+two real adapters; `router.js`'s `chat` capability lists Anthropic → Gemini and
+**fails over only on a real provider failure** (5xx/429/timeout/no-response, via
+`providers/classify.js`) — a 4xx is rethrown, never masked. A `forceProvider`
+(from the client's `provider` field) pins one provider and disables fallback.
+Adding OpenAI/DeepSeek later is one adapter file + one route entry. See
+`gateway.js`/`chat/turn.js` (both take an injected `provider`).
 
 Each has a `*.test.js` (`node --test`, offline — canned fake model, no live API).
 

@@ -3,17 +3,16 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
-import '../../domain/ai_response_style.dart';
-import '../ai_labels.dart';
+import '../../domain/ai_model_selection.dart' show kDefaultAiModelSelection;
 import '../../../../l10n/l10n.dart';
 
 /// The Ask screen's header: the screen title beside three uniform glass
-/// circle actions — reply style, chat history, new chat — all drawn from the
+/// circle actions — settings, chat history, new chat — all drawn from the
 /// app's single icon vocabulary so they sit consistently with every other
-/// surface.
+/// surface. The settings circle opens the Ask settings sheet (model + reply
+/// style); it used to be two separate header menus.
 ///
 /// Built to the design handoff's Ask header: Manrope 800/27 title, three
 /// 38px circles on a flat `rgba(255,255,255,.04)` fill inside a hairline.
@@ -25,8 +24,8 @@ class ChatHeader extends StatelessWidget {
     super.key,
     required this.onNewChat,
     required this.onSessions,
-    required this.responseStyle,
-    required this.onSelectStyle,
+    required this.modelSelection,
+    required this.onOpenSettings,
   });
 
   /// Starts a new chat session. Null (disabled) while a turn is in flight.
@@ -36,11 +35,14 @@ class ChatHeader extends StatelessWidget {
   /// flight.
   final VoidCallback? onSessions;
 
-  /// The current reply-length preference, for the style menu's checkmark.
-  final String responseStyle;
+  /// The current model selection ('auto'|'claude'|'gemini'). Drives the small
+  /// "pinned" dot on the settings button when it's anything other than Auto —
+  /// a glance-able hint that a specific model is forced.
+  final String modelSelection;
 
-  /// Persists a newly-picked reply-length preference.
-  final void Function(String style) onSelectStyle;
+  /// Opens the Ask settings sheet (model + reply style). Null (disabled) while
+  /// a turn is in flight.
+  final VoidCallback? onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -69,10 +71,15 @@ class ChatHeader extends StatelessWidget {
               ),
             ),
           ),
-          _ReplyStyleMenu(
-            responseStyle: responseStyle,
-            onSelect: onSelectStyle,
-            enabled: onSessions != null,
+          _HeaderAction(
+            key: const Key('header-settings'),
+            icon: AppIcons.replyStyle,
+            tooltip: l(context).askSettings,
+            onTap: onOpenSettings,
+            // A non-Auto model means the user has pinned a specific one —
+            // surface that with a small accent dot so it's visible without
+            // opening the sheet, without a label that would crowd the row.
+            showDot: modelSelection != kDefaultAiModelSelection,
           ),
           const SizedBox(width: 8),
           _HeaderAction(
@@ -94,22 +101,26 @@ class ChatHeader extends StatelessWidget {
   }
 }
 
-/// One uniform glass squircle in the header row. The premium treatment:
-/// a lit-from-above gradient fill (warm charcoal catching light at the top
-/// edge), hairline outline, soft contact shadow for real lift, an `AppIcons`
-/// glyph, instant press-down scale, and a light haptic on commit. Disabled
-/// while a turn is in flight.
+/// One uniform glass circle in the header row: a flat glass fill inside a
+/// hairline, an `AppIcons` glyph, instant press-down scale, and a light haptic
+/// on commit. Disabled while a turn is in flight. Can carry a small accent
+/// dot ([showDot]) to flag a non-default state.
 class _HeaderAction extends StatelessWidget {
   const _HeaderAction({
     super.key,
     required this.icon,
     required this.tooltip,
     required this.onTap,
+    this.showDot = false,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback? onTap;
+
+  /// Draws a small accent dot at the top-end corner — used to flag a
+  /// non-default state (e.g. a pinned model) without adding a label.
+  final bool showDot;
 
   @override
   Widget build(BuildContext context) {
@@ -131,15 +142,40 @@ class _HeaderAction extends StatelessWidget {
                       onTap!();
                     },
               customBorder: const CircleBorder(),
-              child: Container(
-                width: 38,
-                height: 38,
-                decoration: _glassDecoration(),
-                child: Icon(
-                  icon,
-                  size: 16,
-                  color: disabled ? TrainColors.ink4 : TrainColors.inkAt(0.7),
-                ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: _glassDecoration(),
+                    child: Icon(
+                      icon,
+                      size: 16,
+                      color: disabled
+                          ? TrainColors.ink4
+                          : TrainColors.inkAt(0.7),
+                    ),
+                  ),
+                  if (showDot)
+                    PositionedDirectional(
+                      top: 1,
+                      end: 1,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: TrainColors.violet,
+                          // A ring in the ground colour so the dot reads as a
+                          // badge lifted off the glass, not a stray pixel.
+                          border: Border.fromBorderSide(
+                            BorderSide(color: TrainColors.base, width: 1.5),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -149,10 +185,6 @@ class _HeaderAction extends StatelessWidget {
   }
 }
 
-/// The shared "glass squircle" skin for header controls: a diagonal gradient
-/// from a raised warm charcoal down to card, a hairline edge, a faint top
-/// sheen as if lit from above, and a low soft shadow that lifts it off the
-/// chat's aurora background.
 /// The shared skin for header controls: a flat glass circle inside a
 /// hairline. No gradient, no shadow — the screen's single radial glow is
 /// what gives this surface its depth.
@@ -161,76 +193,3 @@ BoxDecoration _glassDecoration() => BoxDecoration(
   color: TrainColors.glassSoft,
   border: Border.fromBorderSide(BorderSide(color: TrainColors.liftAt(0.09))),
 );
-
-/// The reply-length picker: a glass squircle opening a small ZIVO-styled
-/// menu (Concise / Balanced / Detailed), persisted via [onSelect]. The
-/// current choice carries an iris checkmark.
-class _ReplyStyleMenu extends StatelessWidget {
-  const _ReplyStyleMenu({
-    required this.responseStyle,
-    required this.onSelect,
-    required this.enabled,
-  });
-
-  final String responseStyle;
-  final void Function(String style) onSelect;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      key: const Key('header-style'),
-      tooltip: l(context).askReplyStyle,
-      color: TrainColors.raised,
-      surfaceTintColor: Colors.transparent,
-      elevation: 12,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: TrainColors.hairline),
-      ),
-      position: PopupMenuPosition.under,
-      onSelected: onSelect,
-      enabled: enabled,
-      child: Opacity(
-        opacity: enabled ? 1 : 0.45,
-        child: Container(
-          width: 38,
-          height: 38,
-          decoration: _glassDecoration(),
-          child: Icon(
-            AppIcons.replyStyle,
-            size: 16,
-            color: TrainColors.inkAt(0.7),
-          ),
-        ),
-      ),
-      itemBuilder: (context) => [
-        for (final style in kResponseStyles)
-          PopupMenuItem<String>(
-            value: style,
-            height: 42,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    responseStyleText(context, style),
-                    style: AppText.rowTitle.copyWith(
-                      fontSize: 15,
-                      fontWeight: style == responseStyle
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                      color: style == responseStyle
-                          ? TrainColors.ink
-                          : TrainColors.ink2,
-                    ),
-                  ),
-                ),
-                if (style == responseStyle)
-                  Icon(AppIcons.check, size: 15, color: TrainColors.violet),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}

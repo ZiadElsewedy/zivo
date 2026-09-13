@@ -18,8 +18,10 @@ import '../domain/ai_conversation.dart';
 import '../domain/ai_choice_request.dart';
 import '../domain/ai_input_request.dart';
 import '../domain/ai_message.dart';
+import '../domain/ai_model_selection.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
+import '../domain/ai_usage_summary.dart';
 import '../domain/import_progress.dart';
 import '../domain/ai_response_style.dart';
 import '../domain/ai_role.dart';
@@ -62,6 +64,31 @@ Map<String, Object?> clientClockFields([DateTime? now]) {
   };
 }
 
+/// A mutable per-provider accumulator for [FirebaseAiRepository.usageByProvider].
+class _UsageAcc {
+  int tokensIn = 0;
+  int tokensOut = 0;
+  int turns = 0;
+  double costUsd = 0;
+}
+
+/// The routing-layer provider name for a logged `model` id, for turns written
+/// before the backend recorded an explicit `provider` field. Everything Claude
+/// is 'anthropic'; everything Gemini is 'gemini'; anything else (or missing)
+/// defaults to 'anthropic', since every pre-`provider` turn was Anthropic.
+String _providerFromModel(String? model) {
+  final m = (model ?? '').toLowerCase();
+  if (m.startsWith('gemini')) return 'gemini';
+  if (m.startsWith('claude')) return 'anthropic';
+  return 'anthropic';
+}
+
+/// Firestore may hand a number back as int or double; coerce to int safely.
+int _asInt(Object? v) => v is num ? v.toInt() : 0;
+
+/// Firestore may hand a number back as int or double; coerce to double safely.
+double _asDouble(Object? v) => v is num ? v.toDouble() : 0;
+
 class FirebaseAiRepository implements AiRepository {
   FirebaseAiRepository({
     FirebaseFirestore? firestore,
@@ -71,6 +98,7 @@ class FirebaseAiRepository implements AiRepository {
       String conversationId,
       String message,
       String responseStyle,
+      String provider,
       String? clientTurnId,
     )?
     invokeChat,
@@ -78,6 +106,7 @@ class FirebaseAiRepository implements AiRepository {
       String conversationId,
       String message,
       String responseStyle,
+      String provider,
       String? clientTurnId,
       void Function(AiTurnEvent event) onEvent,
     )?
@@ -126,6 +155,7 @@ class FirebaseAiRepository implements AiRepository {
     String conversationId,
     String message,
     String responseStyle,
+    String provider,
     String? clientTurnId,
   )
   _invokeChat;
@@ -133,6 +163,7 @@ class FirebaseAiRepository implements AiRepository {
     String conversationId,
     String message,
     String responseStyle,
+    String provider,
     String? clientTurnId,
     void Function(AiTurnEvent event) onEvent,
   )
@@ -175,16 +206,18 @@ class FirebaseAiRepository implements AiRepository {
     String conversationId,
     String message,
     String responseStyle,
+    String provider,
     String? clientTurnId,
   )
   _defaultInvokeChat(FirebaseFunctions? functions) {
-    return (conversationId, message, responseStyle, clientTurnId) async {
+    return (conversationId, message, responseStyle, provider, clientTurnId) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
       await f.httpsCallable('aiChat').call({
         'conversationId': conversationId,
         'message': message,
         'responseStyle': responseStyle,
+        'provider': provider,
         'clientTurnId': ?clientTurnId,
         ...clientClockFields(),
       });
@@ -205,6 +238,7 @@ class FirebaseAiRepository implements AiRepository {
     String conversationId,
     String message,
     String responseStyle,
+    String provider,
     String? clientTurnId,
     void Function(AiTurnEvent event) onEvent,
   )
@@ -213,6 +247,7 @@ class FirebaseAiRepository implements AiRepository {
       conversationId,
       message,
       responseStyle,
+      provider,
       clientTurnId,
       onEvent,
     ) async {
@@ -222,6 +257,7 @@ class FirebaseAiRepository implements AiRepository {
         'conversationId': conversationId,
         'message': message,
         'responseStyle': responseStyle,
+        'provider': provider,
         'acceptsStreaming': true,
         'clientTurnId': ?clientTurnId,
         ...clientClockFields(),
@@ -572,18 +608,25 @@ class FirebaseAiRepository implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
   }) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return Future.value();
+    // Guard the wire value: never trust a round-tripped/stale selection to
+    // reach the gateway — the server also defaults unknowns to 'auto', but the
+    // client shouldn't send a value it wouldn't accept back.
+    final provider = validAiModelSelection(modelSelection);
     // Stream only when the caller wants live events; otherwise the plain
     // `.call()` path keeps the buffered behavior (and its cheaper transport).
     return onEvent == null
-        ? _invokeChat(conversationId, trimmed, responseStyle, clientTurnId)
+        ? _invokeChat(conversationId, trimmed, responseStyle, provider,
+            clientTurnId)
         : _invokeChatStream(
             conversationId,
             trimmed,
             responseStyle,
+            provider,
             clientTurnId,
             onEvent,
           );
@@ -604,6 +647,59 @@ class FirebaseAiRepository implements AiRepository {
       uid,
     ).set({'responseStyle': style}, SetOptions(merge: true));
   }
+
+  @override
+  Future<String> getModelSelection() async {
+    final uid = uidSource.currentUid();
+    if (uid == null) return kDefaultAiModelSelection;
+    final doc = await _aiSettingsDoc(uid).get();
+    return validAiModelSelection(doc.data()?['provider'] as String?);
+  }
+
+  @override
+  Future<void> setModelSelection(String selection) async {
+    final uid = _requireUid();
+    await _aiSettingsDoc(
+      uid,
+    ).set({'provider': selection}, SetOptions(merge: true));
+  }
+
+  @override
+  Future<List<AiProviderUsage>> usageByProvider() async {
+    final uid = uidSource.currentUid();
+    if (uid == null) return const [];
+    final snapshot = await _aiUsageCollection(uid).get();
+    // Accumulate per provider. A turn logged before the backend recorded a
+    // `provider` field is attributed by its `model` id (all legacy turns were
+    // Anthropic/Claude, so the model prefix is a reliable fallback).
+    final acc = <String, _UsageAcc>{};
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final provider = (data['provider'] as String?) ??
+          _providerFromModel(data['model'] as String?);
+      final a = acc.putIfAbsent(provider, _UsageAcc.new);
+      a.tokensIn += _asInt(data['tokensIn']);
+      a.tokensOut += _asInt(data['tokensOut']);
+      a.costUsd += _asDouble(data['costUsd']);
+      a.turns += 1;
+    }
+    final list = acc.entries
+        .map(
+          (e) => AiProviderUsage(
+            provider: e.key,
+            tokensIn: e.value.tokensIn,
+            tokensOut: e.value.tokensOut,
+            turns: e.value.turns,
+            costUsd: e.value.costUsd,
+          ),
+        )
+        .toList()
+      ..sort((a, b) => b.tokensTotal.compareTo(a.tokensTotal));
+    return list;
+  }
+
+  CollectionReference<Map<String, dynamic>> _aiUsageCollection(String uid) =>
+      _firestore.collection('users').doc(uid).collection('aiUsage');
 
   @override
   Future<void> confirmAction({

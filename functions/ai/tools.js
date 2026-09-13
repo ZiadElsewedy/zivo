@@ -48,7 +48,9 @@ const {
   isoWeekday,
   localHourAt,
   resolveDietDay,
+  startOfDay,
 } = require("./dates");
+const {readinessFromSignals} = require("./readiness");
 const {buildDietState, summariseHistory} = require("../diet/state");
 const {calibrateMaintenance, energyFor, ageFrom} = require("../diet/energy");
 const {coachingFindings} = require("../diet/rules");
@@ -68,6 +70,41 @@ const {
  */
 function iso(date) {
   return date ? date.toISOString() : null;
+}
+
+/**
+ * Recursively removes keys whose value is `null` or `undefined` from a plain
+ * object/array tree, so a tool result carries only the fields it actually has.
+ *
+ * TOKEN DISCIPLINE (context-engineering pass): a tool result is re-sent, at
+ * full (uncached) price, on every subsequent model call in the same turn. An
+ * absent
+ * key costs nothing; a `"weightKg": null` on every bodyweight set, or a
+ * `"muscleGroup": null` on every exercise, costs the same tokens as a real
+ * value — repeatedly. Stripping them is a pure size win.
+ *
+ * SCOPE — do NOT apply this to the diet tools. There, `null` is a SEMANTIC
+ * signal the prompt reasons about ("targets is null → the user set no
+ * objective", a macro null in `remaining` → untracked, not zero), and the
+ * gateway/tools tests assert those nulls explicitly. This helper is only for
+ * tools where a missing figure genuinely means "absent" (workouts, expenses,
+ * the week digest): there, absence and null carry the same meaning, so dropping
+ * the key changes nothing the model can read.
+ * @template T
+ * @param {T} value
+ * @return {T}
+ */
+function dropNull(value) {
+  if (Array.isArray(value)) return value.map(dropNull);
+  if (value && typeof value === "object" && !(value instanceof Date)) {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (v === null || v === undefined) continue;
+      out[k] = dropNull(v);
+    }
+    return out;
+  }
+  return value;
 }
 
 /**
@@ -355,7 +392,7 @@ const EXPENSES_TOOL = {
       currency = currency || e.currency;
     }
 
-    return {
+    return dropNull({
       range: input.range === "month" ? "month" : "week",
       today: dayKeyFor(now, offsetMinutes),
       currency,
@@ -369,10 +406,12 @@ const EXPENSES_TOOL = {
         amountMinor: e.amountMinor,
         currency: e.currency,
         category: e.category,
+        // Dropped by `dropNull` when the expense has no note, rather than
+        // serializing `"note": null` on every noteless row.
         note: e.note || null,
         spentAt: iso(e.spentAt),
       })),
-    };
+    });
   },
 };
 
@@ -438,13 +477,15 @@ const WORKOUTS_TOOL = {
     const sessions = await store.listWorkoutSessions(uid, range);
     sessions.sort((a, b) =>
       (b.completedAt || b.startedAt) - (a.completedAt || a.startedAt));
-    return {
+    // The "warm-up isn't working volume / top set is the heaviest working set"
+    // guidance the payload used to repeat as a prose `note` lives in the tool
+    // description and the TRAINING prompt section — both cached — so it is not
+    // re-sent uncached with every result here. `dropNull` then strips the
+    // absent figures a workout legitimately has (a bodyweight set's null
+    // `weightKg`, a null `muscleGroup`) rather than paying to serialize them.
+    return dropNull({
       range: input.range === "month" ? "month" : "week",
       today: dayKeyFor(now, offsetMinutes),
-      note:
-        "Each set below is what the user actually performed. A warm-up set " +
-        "(type='warmup') is not working volume; the top set is the heaviest " +
-        "set with type!='warmup'.",
       workouts: sessions.map((s) => ({
         day: s.dayLabel,
         status: s.status,
@@ -465,7 +506,99 @@ const WORKOUTS_TOOL = {
               })),
         })),
       })),
-    };
+    });
+  },
+};
+
+/**
+ * The heaviest working (non-warm-up) set of a projected set list, as a short
+ * label ("100kg × 8", or "8 reps" for a bodyweight movement), or null when the
+ * exercise has no working set. Computed here so the coach can lead with the top
+ * set without re-deriving "heaviest" from the set list itself.
+ * @param {!Array<{weightKg: ?number, reps: ?number, type: string}>} sets
+ * @return {?string}
+ */
+function topWorkingSetLabel(sets) {
+  let best = null;
+  for (const s of sets) {
+    if (s.type === "warmup") continue;
+    if (best === null) {
+      best = s;
+      continue;
+    }
+    const bw = best.weightKg == null ? -1 : best.weightKg;
+    const sw = s.weightKg == null ? -1 : s.weightKg;
+    if (sw > bw || (sw === bw && (s.reps || 0) > (best.reps || 0))) best = s;
+  }
+  if (!best) return null;
+  if (best.weightKg == null) return `${best.reps} reps`;
+  return `${trimKg(best.weightKg)}kg × ${best.reps}`;
+}
+
+const LAST_WORKOUT_TOOL = {
+  name: "get_last_workout",
+  description:
+    "The single most recent COMPLETED workout session — its real per-set " +
+    "actuals (each set's weight, reps and type), the top working set of each " +
+    "exercise, the session duration and how many days ago it was. Use this for " +
+    "'what did I do last workout', 'how was my last session', 'what was my " +
+    "last leg day'. It reads ONE session, not a date range — for a whole week " +
+    "or month use get_workouts, and for one lift's trend over time use " +
+    "get_exercise_analysis. Returns `found:false` when no completed session " +
+    "exists yet.",
+  inputSchema: {type: "object", properties: {}},
+  /**
+   * @param {!Object} store
+   * @param {string} uid
+   * @param {!Object} input
+   * @param {Date} now
+   * @param {number=} offsetMinutes
+   * @return {!Promise<!Object>}
+   */
+  async execute(store, uid, input, now, offsetMinutes) {
+    const today = dayKeyFor(now, offsetMinutes);
+    const sessions = await store.listWorkoutSessions(uid);
+    const s = (sessions || [])
+        .filter((x) => x.status === "completed")
+        .sort((a, b) =>
+          (b.completedAt || b.startedAt) - (a.completedAt || a.startedAt))[0];
+    if (!s) return {date: today, found: false};
+
+    const at = s.completedAt || s.startedAt;
+    const dayMs = 24 * 60 * 60 * 1000;
+    const daysAgo = at ? Math.round(
+        (startOfDay(now, offsetMinutes).getTime() -
+          startOfDay(at, offsetMinutes).getTime()) / dayMs) : null;
+
+    return dropNull({
+      date: today,
+      found: true,
+      workout: {
+        day: s.dayLabel,
+        performedAt: iso(at),
+        daysAgo,
+        durationMinutes: sessionDurationMinutes(s),
+        exercises: (s.exercises || []).map((e) => {
+          const sets = (e.sets || [])
+              .filter((set) => set.outcome === "completed")
+              .map((set, i) => ({
+                set: i + 1,
+                weightKg: set.actualWeightKg,
+                reps: set.actualReps,
+                type: set.type,
+              }));
+          return {
+            name: e.name,
+            muscleGroup: e.muscleGroup,
+            // The deterministic top set, so the coach leads with the fact
+            // rather than scanning the sets to find the heaviest itself.
+            topSet: topWorkingSetLabel(sets),
+            workingSets: sets.filter((set) => set.type !== "warmup").length,
+            sets,
+          };
+        }),
+      },
+    });
   },
 };
 
@@ -994,7 +1127,7 @@ const SUMMARIZE_WEEK_TOOL = {
       currency = currency || e.currency;
     }
 
-    return {
+    return dropNull({
       today: dayKeyFor(now, offsetMinutes),
       weekStart: dayKeyFor(new Date(week.fromMs), offsetMinutes),
       workouts: workouts.map((w) => ({
@@ -1003,7 +1136,172 @@ const SUMMARIZE_WEEK_TOOL = {
       })),
       expenses: {currency, totalMinor, totalByCategory},
       dietPlan: plan ? plan.name : null,
+    });
+  },
+};
+
+const READINESS_TOOL = {
+  name: "get_readiness",
+  description:
+    "ZIVO's Daily Readiness call — the SAME train-hard / go-light / rest " +
+    "recommendation the Today screen shows, fused deterministically from last " +
+    "night's sleep, the training stall/deload signal, how recently the user " +
+    "trained, and their body-weight trend. Use it for 'how am I today', 'should " +
+    "I train hard', 'what should I do today' and anything about recovery. " +
+    "Returns `available:false` when there is not enough data for a call. " +
+    "Otherwise returns `verdict` (trainHard | goLight | rest) and `factors` — " +
+    "each with the number behind it: `sleep` (sleepDurationMinutes, " +
+    "sleepDeltaMinutes vs target), `deload` (deloadExerciseCount stalled lifts), " +
+    "`recentLoad` (restDays since last session), `bodyWeight` (weightChangeKg " +
+    "over ~30 days) — and a `direction` of supports / caution / limits. LEAD " +
+    "with the verdict and cite the factors; these are FACTS — never invent a " +
+    "readiness number or overturn the call. It is a training guide, not a " +
+    "medical or HRV score.",
+  inputSchema: {type: "object", properties: {}},
+  /**
+   * @param {!Object} store
+   * @param {string} uid
+   * @param {!Object} input
+   * @param {Date} now
+   * @param {number=} offsetMinutes
+   * @return {!Promise<!Object>}
+   */
+  async execute(store, uid, input, now, offsetMinutes) {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const todayStart = startOfDay(now, offsetMinutes).getTime();
+    const daysAgo = (ms) => {
+      const start = startOfDay(new Date(ms), offsetMinutes).getTime();
+      return Math.round((todayStart - start) / dayMs);
     };
+
+    // Training — the deload signal and how recently they trained.
+    const sessions = await store.listWorkoutSessions(uid);
+    const analysis = analyzeTraining({sessions, now});
+    let lastSessionMs = null;
+    for (const s of sessions) {
+      if (s.status !== "completed") continue;
+      const at = s.completedAt || s.startedAt;
+      const ms = at ? at.getTime() : null;
+      if (ms !== null && (lastSessionMs === null || ms > lastSessionMs)) {
+        lastSessionMs = ms;
+      }
+    }
+    const lastSessionDaysAgo =
+      lastSessionMs === null ? null : daysAgo(lastSessionMs);
+
+    // Sleep — only the newest night, and only if it is genuinely recent.
+    const nights = store.listSleepNights ?
+      await store.listSleepNights(uid) : [];
+    let sleepDurationMinutes = null;
+    let sleepTargetMinutes = null;
+    const latestNight = nights[0]; // newest first, already has data
+    if (latestNight && daysAgo(latestNight.sleepDayMs) <= 1) {
+      sleepDurationMinutes = latestNight.asleepMinutes;
+      sleepTargetMinutes = latestNight.targetDurationMinutes;
+    }
+
+    // Body weight — signed change over the trailing 30 days (mirrors
+    // `computeWeightTrend`). `listBodyWeights` is oldest→newest.
+    const weights = store.listBodyWeights ?
+      await store.listBodyWeights(uid) : [];
+    let weightChangeKg = null;
+    const cutoff = now.getTime() - 30 * dayMs;
+    const inWindow = weights.filter((w) => w.loggedAtMs >= cutoff);
+    if (inWindow.length >= 2) {
+      weightChangeKg =
+        inWindow[inWindow.length - 1].weightKg - inWindow[0].weightKg;
+    }
+
+    const readiness = readinessFromSignals({
+      sleepDurationMinutes,
+      sleepTargetMinutes,
+      stalledCount: analysis.needsAttention.length,
+      overallStatusRegressing: analysis.overallStatus === "regressing",
+      lastSessionDaysAgo,
+      weightChangeKg,
+    });
+    if (readiness === null) {
+      return {
+        date: dayKeyFor(now, offsetMinutes),
+        available: false,
+        reason: "Not enough data yet — no recent sleep, training, or weigh-in.",
+      };
+    }
+    return {date: dayKeyFor(now, offsetMinutes), available: true, ...readiness};
+  },
+};
+
+const SLEEP_SUMMARY_TOOL = {
+  name: "get_sleep_summary",
+  description:
+    "A compact sleep summary: last night's sleep duration and how it compares " +
+    "to the user's sleep-duration target, plus a rolling average over their " +
+    "most recent nights. Use this for sleep-SPECIFIC questions — 'how did I " +
+    "sleep', 'how much am I sleeping', 'is my sleep improving'. For 'should I " +
+    "train today' / 'how am I today' use get_readiness instead — it already " +
+    "fuses sleep with training load and recovery into one call, so don't call " +
+    "both for a readiness question. Durations are in minutes; a positive " +
+    "`deltaMinutes` means over target, negative means short. `available:false` " +
+    "when no sleep is recorded. `latestNightDaysAgo` says how fresh the newest " +
+    "night is — when it's not last night, `lastNight` is null and you should " +
+    "say the freshest data is from N days ago rather than call it last night.",
+  inputSchema: {type: "object", properties: {}},
+  /**
+   * @param {!Object} store
+   * @param {string} uid
+   * @param {!Object} input
+   * @param {Date} now
+   * @param {number=} offsetMinutes
+   * @return {!Promise<!Object>}
+   */
+  async execute(store, uid, input, now, offsetMinutes) {
+    const today = dayKeyFor(now, offsetMinutes);
+    const nights = store.listSleepNights ?
+      await store.listSleepNights(uid) : [];
+    if (!nights || nights.length === 0) {
+      return {date: today, available: false};
+    }
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    const todayStart = startOfDay(now, offsetMinutes).getTime();
+    const daysAgo = (ms) => Math.round(
+        (todayStart - startOfDay(new Date(ms), offsetMinutes).getTime()) /
+        dayMs);
+
+    const latest = nights[0]; // newest first (store sorts desc)
+    const latestDaysAgo = daysAgo(latest.sleepDayMs);
+    // "Last night" only holds when the newest record is genuinely recent; a
+    // stale newest night is reported via `latestNightDaysAgo` instead of being
+    // passed off as last night's sleep.
+    const lastNight = latestDaysAgo <= 2 ? {
+      date: dayKeyFor(new Date(latest.sleepDayMs), offsetMinutes),
+      daysAgo: latestDaysAgo,
+      asleepMinutes: latest.asleepMinutes,
+      targetMinutes: latest.targetDurationMinutes,
+      deltaMinutes: latest.targetDurationMinutes == null ?
+        null : latest.asleepMinutes - latest.targetDurationMinutes,
+    } : null;
+
+    const recent = nights.slice(0, 7);
+    const avgAsleepMinutes = Math.round(
+        recent.reduce((sum, n) => sum + n.asleepMinutes, 0) / recent.length);
+    const withTarget = recent.filter((n) => n.targetDurationMinutes != null);
+    const avgDeltaVsTargetMinutes = withTarget.length === 0 ? null : Math.round(
+        withTarget.reduce(
+            (sum, n) => sum + (n.asleepMinutes - n.targetDurationMinutes), 0) /
+        withTarget.length);
+
+    return dropNull({
+      date: today,
+      available: true,
+      latestNightDaysAgo: latestDaysAgo,
+      lastNight,
+      recent: {
+        nights: recent.length,
+        avgAsleepMinutes,
+        avgDeltaVsTargetMinutes,
+      },
+    });
   },
 };
 
@@ -1017,8 +1315,11 @@ const tools = [
   TODAY_TOOL,
   EXPENSES_TOOL,
   WORKOUTS_TOOL,
+  LAST_WORKOUT_TOOL,
   TRAINING_ANALYSIS_TOOL,
   EXERCISE_ANALYSIS_TOOL,
+  READINESS_TOOL,
+  SLEEP_SUMMARY_TOOL,
   DIET_TOOL,
   RESOLVE_FOOD_TOOL,
   CALCULATE_MEAL_TOOL,

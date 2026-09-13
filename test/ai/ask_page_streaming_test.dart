@@ -7,8 +7,10 @@ import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/ai/domain/ai_usage_summary.dart';
 import 'package:zivo/features/workout/domain/workout_import_input.dart';
 import 'package:zivo/features/ai/domain/ai_response_style.dart';
+import 'package:zivo/features/ai/domain/ai_model_selection.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
 import 'package:zivo/features/ai/domain/stt_outcome.dart';
@@ -58,6 +60,14 @@ class _StreamingAi implements AiRepository {
 
   @override
   Future<void> setResponseStyle(String style) async {}
+  @override
+  Future<String> getModelSelection() async => kDefaultAiModelSelection;
+
+  @override
+  Future<List<AiProviderUsage>> usageByProvider() async => const [];
+
+  @override
+  Future<void> setModelSelection(String selection) async {}
 
   @override
   Stream<List<AiConversation>> watchConversations() => Stream.value(const []);
@@ -77,6 +87,7 @@ class _StreamingAi implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
   }) async {
     _messages.add(
