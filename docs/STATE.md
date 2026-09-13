@@ -105,7 +105,10 @@ notifications)**.
     tool_result↔`functionResponse` (matched by call name across a mid-turn
     fallback), JSON-Schema sanitized to Gemini's OpenAPI subset, streaming
     aggregated. The `@google/genai` client (already used for STT) is injected, so
-    it's offline-testable. Model: **`gemini-2.5-pro`** (owner-chosen).
+    it's offline-testable. Model: **`gemini-flash-latest`** — a rolling alias
+    (the same one STT uses), because pinned ids like `gemini-2.5-pro` get 404'd
+    ("no longer available to new users") for new projects. For Pro-depth try
+    `gemini-pro-latest` once verified against the key.
   - **Routing** (`routing/router.js`): `chat` = Anthropic → Gemini. Fallback fires
     **only on a genuine provider failure** (5xx/429/timeout/no-response — via
     `providers/classify.js`); a 4xx (our request is malformed) is rethrown, never

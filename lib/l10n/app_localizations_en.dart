@@ -2081,6 +2081,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askModelGeminiDesc => 'Always answer with Gemini (Google).';
 
   @override
+  String get askUsage => 'Usage';
+
+  @override
+  String get askUsageSubtitle => 'Tokens used per model, all-time.';
+
+  @override
+  String get askUsageEmpty => 'No usage yet — ask something to get started.';
+
+  @override
+  String askUsageTurns(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count turns',
+      one: '1 turn',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askUsageTokens(String count) {
+    return '$count tokens';
+  }
+
+  @override
+  String askUsageEstCost(String cost) {
+    return '~$cost est.';
+  }
+
+  @override
   String get askChats => 'Chats';
 
   @override

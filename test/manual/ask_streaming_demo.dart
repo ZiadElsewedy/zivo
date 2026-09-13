@@ -15,6 +15,7 @@ import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_pending_action.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/ai/domain/ai_usage_summary.dart';
 import 'package:zivo/features/workout/domain/workout_import_input.dart';
 import 'package:zivo/features/ai/domain/ai_response_style.dart';
 import 'package:zivo/features/ai/domain/ai_model_selection.dart';
@@ -67,6 +68,9 @@ class DemoAi implements AiRepository {
   Future<void> setResponseStyle(String style) async {}
   @override
   Future<String> getModelSelection() async => kDefaultAiModelSelection;
+
+  @override
+  Future<List<AiProviderUsage>> usageByProvider() async => const [];
 
   @override
   Future<void> setModelSelection(String selection) async {}

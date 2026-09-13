@@ -2104,6 +2104,40 @@ class AppLocalizationsAr extends AppLocalizations {
   String get askModelGeminiDesc => 'الإجابة دائمًا عبر Gemini (Google).';
 
   @override
+  String get askUsage => 'الاستخدام';
+
+  @override
+  String get askUsageSubtitle => 'الرموز المستخدمة لكل نموذج، منذ البداية.';
+
+  @override
+  String get askUsageEmpty => 'لا يوجد استخدام بعد — اسأل شيئًا لتبدأ.';
+
+  @override
+  String askUsageTurns(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count محادثة',
+      many: '$count محادثة',
+      few: '$count محادثات',
+      two: 'محادثتان',
+      one: 'محادثة واحدة',
+      zero: '$count محادثة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askUsageTokens(String count) {
+    return '$count رمز';
+  }
+
+  @override
+  String askUsageEstCost(String cost) {
+    return '~$cost تقديريًا';
+  }
+
+  @override
   String get askChats => 'المحادثات';
 
   @override

@@ -25,10 +25,19 @@ const CAPABILITY_ROUTES = {
   // Anthropic is primary; Gemini is the fallback, tried only when Anthropic's
   // call fails with a provider failure (outage, 5xx, 429/quota, timeout). A
   // manual selection can force either one directly — see `generate`'s
-  // `forceProvider`. `gemini-2.5-pro` is the owner-chosen chat fallback model.
+  // `forceProvider`.
+  //
+  // Model: `gemini-flash-latest` — a ROLLING ALIAS, the same one the STT route
+  // already uses successfully with this project's GEMINI_API_KEY. This is
+  // deliberate: pinned point versions get retired for new projects over time
+  // (Google returns 404 "no longer available to new users" — that's what
+  // `gemini-2.5-pro` did here), so the alias tracks whatever current Flash is
+  // and the route can't rot. For a Pro-tier model try `gemini-pro-latest`
+  // (rolling) or Google's current preview id — but verify it resolves for this
+  // key first, since a pinned/preview id can 404 the same way.
   chat: [
     {provider: "anthropic", model: "claude-sonnet-5"},
-    {provider: "gemini", model: "gemini-2.5-pro"},
+    {provider: "gemini", model: "gemini-flash-latest"},
   ],
   // The PDF importers stream partial tool INPUT for their progress UI (a path
   // only the Anthropic adapter emits today), so they stay single-route until a

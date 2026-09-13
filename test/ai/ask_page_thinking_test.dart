@@ -8,6 +8,7 @@ import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/ai/domain/ai_usage_summary.dart';
 import 'package:zivo/features/workout/domain/workout_import_input.dart';
 import 'package:zivo/features/ai/domain/ai_response_style.dart';
 import 'package:zivo/features/ai/domain/ai_model_selection.dart';
@@ -88,6 +89,9 @@ class _GatedAi implements AiRepository {
   Future<void> setResponseStyle(String style) => _inner.setResponseStyle(style);
   @override
   Future<String> getModelSelection() async => kDefaultAiModelSelection;
+
+  @override
+  Future<List<AiProviderUsage>> usageByProvider() async => const [];
 
   @override
   Future<void> setModelSelection(String selection) async {}

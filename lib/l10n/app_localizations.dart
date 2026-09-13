@@ -3662,6 +3662,42 @@ abstract class AppLocalizations {
   /// **'Always answer with Gemini (Google).'**
   String get askModelGeminiDesc;
 
+  /// Section header for the AI token-usage list on the Ask settings page.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get askUsage;
+
+  /// Subtitle under the Usage section header.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens used per model, all-time.'**
+  String get askUsageSubtitle;
+
+  /// Shown in the Usage section when the user has never used Ask.
+  ///
+  /// In en, this message translates to:
+  /// **'No usage yet — ask something to get started.'**
+  String get askUsageEmpty;
+
+  /// Number of AI turns for a provider, e.g. '37 turns'.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 turn} other{{count} turns}}'**
+  String askUsageTurns(int count);
+
+  /// A token count label, e.g. '50.6K tokens'. The count is pre-formatted (may be compact like 1.2M).
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tokens'**
+  String askUsageTokens(String count);
+
+  /// Estimated cost for a provider, e.g. '~$0.19 est.'. Cost is pre-formatted with its currency symbol.
+  ///
+  /// In en, this message translates to:
+  /// **'~{cost} est.'**
+  String askUsageEstCost(String cost);
+
   /// Header of the conversation list sheet.
   ///
   /// In en, this message translates to:

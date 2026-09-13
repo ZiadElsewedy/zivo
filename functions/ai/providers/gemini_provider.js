@@ -33,7 +33,7 @@ const {AiProvider} = require("./provider");
  * real model comes from `../routing/router.js`'s capability table.
  * @const {string}
  */
-const DEFAULT_MODEL = "gemini-2.5-pro";
+const DEFAULT_MODEL = "gemini-flash-latest";
 
 /**
  * JSON-Schema keywords Gemini's function-declaration schema (an OpenAPI 3.0

@@ -21,6 +21,7 @@ import '../domain/ai_message.dart';
 import '../domain/ai_model_selection.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
+import '../domain/ai_usage_summary.dart';
 import '../domain/import_progress.dart';
 import '../domain/ai_response_style.dart';
 import '../domain/ai_role.dart';
@@ -62,6 +63,31 @@ Map<String, Object?> clientClockFields([DateTime? now]) {
     'timeZoneName': at.timeZoneName,
   };
 }
+
+/// A mutable per-provider accumulator for [FirebaseAiRepository.usageByProvider].
+class _UsageAcc {
+  int tokensIn = 0;
+  int tokensOut = 0;
+  int turns = 0;
+  double costUsd = 0;
+}
+
+/// The routing-layer provider name for a logged `model` id, for turns written
+/// before the backend recorded an explicit `provider` field. Everything Claude
+/// is 'anthropic'; everything Gemini is 'gemini'; anything else (or missing)
+/// defaults to 'anthropic', since every pre-`provider` turn was Anthropic.
+String _providerFromModel(String? model) {
+  final m = (model ?? '').toLowerCase();
+  if (m.startsWith('gemini')) return 'gemini';
+  if (m.startsWith('claude')) return 'anthropic';
+  return 'anthropic';
+}
+
+/// Firestore may hand a number back as int or double; coerce to int safely.
+int _asInt(Object? v) => v is num ? v.toInt() : 0;
+
+/// Firestore may hand a number back as int or double; coerce to double safely.
+double _asDouble(Object? v) => v is num ? v.toDouble() : 0;
 
 class FirebaseAiRepository implements AiRepository {
   FirebaseAiRepository({
@@ -637,6 +663,43 @@ class FirebaseAiRepository implements AiRepository {
       uid,
     ).set({'provider': selection}, SetOptions(merge: true));
   }
+
+  @override
+  Future<List<AiProviderUsage>> usageByProvider() async {
+    final uid = uidSource.currentUid();
+    if (uid == null) return const [];
+    final snapshot = await _aiUsageCollection(uid).get();
+    // Accumulate per provider. A turn logged before the backend recorded a
+    // `provider` field is attributed by its `model` id (all legacy turns were
+    // Anthropic/Claude, so the model prefix is a reliable fallback).
+    final acc = <String, _UsageAcc>{};
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final provider = (data['provider'] as String?) ??
+          _providerFromModel(data['model'] as String?);
+      final a = acc.putIfAbsent(provider, _UsageAcc.new);
+      a.tokensIn += _asInt(data['tokensIn']);
+      a.tokensOut += _asInt(data['tokensOut']);
+      a.costUsd += _asDouble(data['costUsd']);
+      a.turns += 1;
+    }
+    final list = acc.entries
+        .map(
+          (e) => AiProviderUsage(
+            provider: e.key,
+            tokensIn: e.value.tokensIn,
+            tokensOut: e.value.tokensOut,
+            turns: e.value.turns,
+            costUsd: e.value.costUsd,
+          ),
+        )
+        .toList()
+      ..sort((a, b) => b.tokensTotal.compareTo(a.tokensTotal));
+    return list;
+  }
+
+  CollectionReference<Map<String, dynamic>> _aiUsageCollection(String uid) =>
+      _firestore.collection('users').doc(uid).collection('aiUsage');
 
   @override
   Future<void> confirmAction({

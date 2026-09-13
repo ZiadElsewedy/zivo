@@ -14,6 +14,7 @@ import '../domain/ai_message.dart';
 import '../domain/ai_model_selection.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
+import '../domain/ai_usage_summary.dart';
 import '../domain/import_progress.dart';
 import '../domain/ai_response_style.dart';
 import '../domain/ai_role.dart';
@@ -192,6 +193,24 @@ class FakeAiRepository implements AiRepository {
   @override
   Future<void> setModelSelection(String selection) async =>
       _modelSelection = validAiModelSelection(selection);
+
+  @override
+  Future<List<AiProviderUsage>> usageByProvider() async => const [
+    AiProviderUsage(
+      provider: 'anthropic',
+      tokensIn: 42000,
+      tokensOut: 8600,
+      turns: 37,
+      costUsd: 0.192,
+    ),
+    AiProviderUsage(
+      provider: 'gemini',
+      tokensIn: 5100,
+      tokensOut: 1200,
+      turns: 4,
+      costUsd: 0.021,
+    ),
+  ];
 
   @override
   Stream<List<AiConversation>> watchConversations() async* {

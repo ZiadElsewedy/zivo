@@ -43,6 +43,15 @@ String aiModelSelectionText(BuildContext context, String selection) =>
       _ => l(context).askModelAuto,
     };
 
+/// The display name for a routing-layer provider id ('anthropic' → "Claude",
+/// 'gemini' → "Gemini") — used by the usage section, which is keyed by
+/// provider rather than by the user's selection. Anthropic's product is Claude.
+String aiProviderDisplayName(BuildContext context, String provider) =>
+    switch (provider) {
+      'gemini' => l(context).askModelGemini,
+      _ => l(context).askModelClaude,
+    };
+
 /// The one-line description under each model option in the settings sheet —
 /// context that makes the choice understandable at the point of decision.
 String aiModelSelectionDescription(BuildContext context, String selection) =>

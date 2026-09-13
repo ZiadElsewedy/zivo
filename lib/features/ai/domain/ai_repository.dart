@@ -10,6 +10,7 @@ import 'ai_conversation.dart';
 import 'ai_message.dart';
 import 'ai_model_selection.dart';
 import 'ai_response_style.dart';
+import 'ai_usage_summary.dart';
 import 'ai_turn_event.dart';
 import 'import_progress.dart';
 import 'stt_outcome.dart';
@@ -65,6 +66,13 @@ abstract interface class AiRepository {
 
   /// Persists the user's model/provider selection.
   Future<void> setModelSelection(String selection);
+
+  /// All-time AI usage grouped by provider ('anthropic', 'gemini', …), read
+  /// from the owner-readable `aiUsage` log. Only providers with at least one
+  /// turn are returned, sorted by total tokens (most-used first). Empty when
+  /// the user has never used Ask. Used by the Ask settings page's usage
+  /// section.
+  Future<List<AiProviderUsage>> usageByProvider();
 
   /// The messages in [conversationId], oldest first, as a live stream.
   Stream<List<AiMessage>> watchMessages(String conversationId);

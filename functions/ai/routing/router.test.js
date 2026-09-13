@@ -141,7 +141,7 @@ test("#2 Auto: Claude fails with a provider failure, Gemini answers", async () =
 
   assert.equal(anthropic.calls.length, 1);
   assert.equal(gemini.calls.length, 1);
-  assert.equal(gemini.calls[0].model, "gemini-2.5-pro");
+  assert.equal(gemini.calls[0].model, "gemini-flash-latest");
   assert.equal(resp.provider, "gemini");
 });
 
@@ -184,7 +184,7 @@ test("#4 Manual Gemini: request goes straight to Gemini, Claude never called", a
       {forceProvider: "gemini"});
 
   assert.equal(gemini.calls.length, 1);
-  assert.equal(gemini.calls[0].model, "gemini-2.5-pro");
+  assert.equal(gemini.calls[0].model, "gemini-flash-latest");
   assert.equal(anthropic.calls.length, 0);
   assert.equal(resp.provider, "gemini");
 });
@@ -204,7 +204,7 @@ test("Manual Gemini failure does NOT fall back to Claude", async () => {
 
 test("resolve(capability, forceProvider) returns the forced provider's route", () => {
   assert.equal(resolve("chat", "gemini").provider, "gemini");
-  assert.equal(resolve("chat", "gemini").model, "gemini-2.5-pro");
+  assert.equal(resolve("chat", "gemini").model, "gemini-flash-latest");
   assert.equal(resolve("chat", "anthropic").provider, "anthropic");
 });
 

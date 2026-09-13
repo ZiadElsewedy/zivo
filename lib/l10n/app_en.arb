@@ -2945,6 +2945,33 @@
   "@askModelGeminiDesc": {
       "description": "One-line description of the Gemini model option."
   },
+  "askUsage": "Usage",
+  "@askUsage": {
+      "description": "Section header for the AI token-usage list on the Ask settings page."
+  },
+  "askUsageSubtitle": "Tokens used per model, all-time.",
+  "@askUsageSubtitle": {
+      "description": "Subtitle under the Usage section header."
+  },
+  "askUsageEmpty": "No usage yet — ask something to get started.",
+  "@askUsageEmpty": {
+      "description": "Shown in the Usage section when the user has never used Ask."
+  },
+  "askUsageTurns": "{count, plural, =1{1 turn} other{{count} turns}}",
+  "@askUsageTurns": {
+      "description": "Number of AI turns for a provider, e.g. '37 turns'.",
+      "placeholders": { "count": { "type": "int" } }
+  },
+  "askUsageTokens": "{count} tokens",
+  "@askUsageTokens": {
+      "description": "A token count label, e.g. '50.6K tokens'. The count is pre-formatted (may be compact like 1.2M).",
+      "placeholders": { "count": { "type": "String" } }
+  },
+  "askUsageEstCost": "~{cost} est.",
+  "@askUsageEstCost": {
+      "description": "Estimated cost for a provider, e.g. '~$0.19 est.'. Cost is pre-formatted with its currency symbol.",
+      "placeholders": { "cost": { "type": "String" } }
+  },
   "askChats": "Chats",
   "@askChats": {
       "description": "Header of the conversation list sheet."

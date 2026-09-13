@@ -83,7 +83,9 @@ Selecting a row applies in place (the sheet stays open) via the controller's
 **Providers & routing (`functions/ai/providers/` + `routing/router.js`).** The
 model call is behind a `NormalizedRequest`/`NormalizedResponse` seam so a turn's
 orchestration never names a vendor. `anthropic_provider.js` (primary) and
-`gemini_provider.js` (fallback / manual `Gemini` route, `gemini-2.5-pro`) are the
+`gemini_provider.js` (fallback / manual `Gemini` route, `gemini-flash-latest`
+— a rolling alias, since pinned ids like `gemini-2.5-pro` get 404'd for new
+projects) are the
 two real adapters; `router.js`'s `chat` capability lists Anthropic → Gemini and
 **fails over only on a real provider failure** (5xx/429/timeout/no-response, via
 `providers/classify.js`) — a 4xx is rethrown, never masked. A `forceProvider`
