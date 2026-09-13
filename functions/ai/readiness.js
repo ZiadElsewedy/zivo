@@ -41,15 +41,10 @@ const PULL = {limits: 2, caution: 1, supports: 0};
  * Fuse primitive signals into a readiness call, or null on the gate (no recent
  * sleep, no training, no weigh-in). Mirrors Dart `readinessFromSignals`.
  *
- * @param {{
- *   sleepDurationMinutes?: (number|null),
- *   sleepTargetMinutes?: (number|null),
- *   stalledCount?: number,
- *   overallStatusRegressing?: boolean,
- *   lastSessionDaysAgo?: (number|null),
- *   weightChangeKg?: (number|null),
- * }} signals
- * @return {?{verdict: string, factors: !Array<!Object>}}
+ * @param {!Object} signals Optional fields: `sleepDurationMinutes`,
+ *   `sleepTargetMinutes`, `stalledCount`, `overallStatusRegressing`,
+ *   `lastSessionDaysAgo`, `weightChangeKg` (the nullable ones gate to null).
+ * @return {?Object} `{verdict, factors}`, or null on the gate.
  */
 function readinessFromSignals(signals) {
   const sleepDurationMinutes = signals.sleepDurationMinutes ?? null;

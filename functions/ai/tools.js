@@ -1038,8 +1038,10 @@ const READINESS_TOOL = {
   async execute(store, uid, input, now, offsetMinutes) {
     const dayMs = 24 * 60 * 60 * 1000;
     const todayStart = startOfDay(now, offsetMinutes).getTime();
-    const daysAgo = (ms) =>
-      Math.round((todayStart - startOfDay(new Date(ms), offsetMinutes).getTime()) / dayMs);
+    const daysAgo = (ms) => {
+      const start = startOfDay(new Date(ms), offsetMinutes).getTime();
+      return Math.round((todayStart - start) / dayMs);
+    };
 
     // Training — the deload signal and how recently they trained.
     const sessions = await store.listWorkoutSessions(uid);

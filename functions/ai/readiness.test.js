@@ -21,7 +21,11 @@ const VECTORS = JSON.parse(fs.readFileSync(
     path.join(REPO_ROOT, "test/fixtures/readiness_vectors.json"),
     "utf8"));
 
-/** Serialise a factor to the vector's canonical shape (present fields only). */
+/**
+ * Serialise a factor to the vector's canonical shape (present fields only).
+ * @param {!Object} f A readiness factor.
+ * @return {!Object} The factor's canonical, present-fields-only shape.
+ */
 function serializeFactor(f) {
   const out = {kind: f.kind, direction: f.direction};
   if (f.sleepDurationMinutes !== undefined) {
