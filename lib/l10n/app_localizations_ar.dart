@@ -5777,4 +5777,117 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get readinessAboutBody =>
       'كل صباح يقرأ ZIVO المؤشّرات التي تتابعها أصلًا ويمنحك تقييمًا واحدًا صادقًا — تدرّب بقوة، أو خفّف، أو استرِح — لتدخل النادي وأنت تعرف هل تدفع أم تتمهّل. إنها الكلمة الأولى من مدرّبك لهذا اليوم، لا رقمًا آخر تسعى خلفه.';
+
+  @override
+  String get describeTranscribing => 'يُدوّن ما قلته…';
+
+  @override
+  String get dietBuilderGoalTitle => 'ما هدفك؟';
+
+  @override
+  String get dietBuilderGoalPrompt => 'ما الذي تسعى إليه؟';
+
+  @override
+  String get dietBuilderAboutTitle => 'عنك';
+
+  @override
+  String get dietBuilderAboutPrompt =>
+      'يستخدم ZIVO هذه المعلومات ليصمّم خطتك حول جسمك.';
+
+  @override
+  String get dietBuilderAgeFromProfile =>
+      'من ملفّك الشخصي — عدّلها إن كانت خاطئة.';
+
+  @override
+  String get dietBuilderEatTitle => 'أخبر ZIVO كيف تأكل';
+
+  @override
+  String get dietBuilderEatPrompt =>
+      'كيف يبدو يومك المعتاد في الأكل؟ أخبر ZIVO بما تأكله عادةً، وكم وجبة تتناول، وأي شيء عن روتينك.';
+
+  @override
+  String get dietBuilderEatHint =>
+      'عادةً أتناول البيض والخبز على الإفطار، والدجاج والأرز على الغداء، وشيئًا خفيفًا في الليل…';
+
+  @override
+  String get dietBuilderOptionalNote =>
+      'كلما أخبرت أكثر، اقتربت الخطة من احتياجك — لكن هذا اختياري.';
+
+  @override
+  String get dietBuilderAvoidTitle => 'هل هناك ما لا تريده؟';
+
+  @override
+  String get dietBuilderAvoidPrompt => 'أطعمة تفضّل أن يُبقيها ZIVO خارج خطتك.';
+
+  @override
+  String get dietBuilderAvoidHint =>
+      'لا أحبّ السمك أو البروكلي أو الجبن القريش.';
+
+  @override
+  String get dietBuilderAllergiesTitle => 'حساسية أو أطعمة يجب تجنّبها';
+
+  @override
+  String get dietBuilderAllergiesPrompt =>
+      'تختلف عن مجرّد عدم التفضيل — لن يضع ZIVO هذه في خطتك أبدًا.';
+
+  @override
+  String get dietBuilderAllergiesHint => 'الفول السوداني، المحار…';
+
+  @override
+  String get dietBuilderAllergyChips => 'الشائعة';
+
+  @override
+  String get dietBuilderAllergyChipsNote => 'اضغط ما ينطبق عليك.';
+
+  @override
+  String get dietBuilderMealsTitle => 'كم وجبة؟';
+
+  @override
+  String get dietBuilderMealsPrompt => 'كم وجبة تريد كل يوم؟';
+
+  @override
+  String get dietBuilderScheduleTitle => 'هل من شيء عن جدولك؟';
+
+  @override
+  String get dietBuilderSchedulePrompt =>
+      'ليتمكّن ZIVO من توزيع وجباتك على يومك.';
+
+  @override
+  String get dietBuilderScheduleHint =>
+      'أتدرّب في السادسة صباحًا وآكل بعدها مباشرة.';
+
+  @override
+  String get dietBuilderContinue => 'متابعة';
+
+  @override
+  String get dietBuilderBack => 'رجوع';
+
+  @override
+  String get dietBuilderPlanReadyTitle => 'خطتك جاهزة';
+
+  @override
+  String get dietBuilderPlanReadySubtitle =>
+      'مبنيّة على هدفك وبيانات جسمك وعاداتك الغذائية وجدولك.';
+
+  @override
+  String dietBuilderMacros(String protein, String carbs, String fat) {
+    return '$proteinغ بروتين · $carbsغ كربوهيدرات · $fatغ دهون';
+  }
+
+  @override
+  String get dietBuilderCoachNote => 'ملاحظة المدرّب';
+
+  @override
+  String get dietBuilderCoachNoteBody =>
+      'هذه الخطة نقطة انطلاق بناءً على ما أخبرت به ZIVO. عدّل المقادير مع الوقت حسب تقدّمك وشعورك.';
+
+  @override
+  String get dietBuilderSafetyNote =>
+      'الخطط الغذائية ليست بديلاً عن الاستشارة الطبية. إن كانت لديك حالة صحية أو حساسية غذائية أو متطلّبات غذائية خاصة، فاستشر طبيبًا أو اختصاصي تغذية معتمدًا قبل اتّباع خطة تقييدية.';
+
+  @override
+  String get dietBuilderSavePlan => 'حفظ الخطة';
+
+  @override
+  String get dietBuilderEditPlan => 'تعديل الخطة';
 }

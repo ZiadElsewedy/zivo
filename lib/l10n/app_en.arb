@@ -7848,5 +7848,142 @@
   "readinessAboutBody": "Every morning ZIVO reads the signals you already track and gives you one honest call — train hard, go light, or rest — so you walk into the gym knowing whether to push or hold back. It's your coach's opening line for the day, not another number to chase.",
   "@readinessAboutBody": {
     "description": "Body text introducing the Daily Readiness feature and what it does for the user."
+  },
+  "describeTranscribing": "Writing it down…",
+  "@describeTranscribing": {
+    "description": "Shown while a spoken description is being transcribed."
+  },
+  "dietBuilderGoalTitle": "What's your goal?",
+  "@dietBuilderGoalTitle": {
+    "description": "Title of the Diet Builder's first step, where the user picks their goal."
+  },
+  "dietBuilderGoalPrompt": "What are you working toward?",
+  "@dietBuilderGoalPrompt": {
+    "description": "Prompt under the goal step title."
+  },
+  "dietBuilderAboutTitle": "About you",
+  "@dietBuilderAboutTitle": {
+    "description": "Title of the Diet Builder step collecting weight, height, age, sex and activity."
+  },
+  "dietBuilderAboutPrompt": "ZIVO uses this to shape your plan around your body.",
+  "@dietBuilderAboutPrompt": {
+    "description": "Prompt under the About-you step title."
+  },
+  "dietBuilderAgeFromProfile": "From your profile — change it if it's wrong.",
+  "@dietBuilderAgeFromProfile": {
+    "description": "Note under the age field when it was prefilled from the account's date of birth."
+  },
+  "dietBuilderEatTitle": "Tell ZIVO how you eat",
+  "@dietBuilderEatTitle": {
+    "description": "Title of the Diet Builder step where the user describes their normal eating."
+  },
+  "dietBuilderEatPrompt": "What does a normal day of eating look like? Tell ZIVO what you usually eat, how many meals you have, and anything about your routine.",
+  "@dietBuilderEatPrompt": {
+    "description": "Prompt under the how-you-eat step title."
+  },
+  "dietBuilderEatHint": "I usually have eggs and bread for breakfast, chicken and rice for lunch, and something light at night…",
+  "@dietBuilderEatHint": {
+    "description": "Placeholder in the how-you-eat free-text field."
+  },
+  "dietBuilderOptionalNote": "The more you say, the closer the plan fits — but this is optional.",
+  "@dietBuilderOptionalNote": {
+    "description": "Reassurance under the how-you-eat field that it can be left blank."
+  },
+  "dietBuilderAvoidTitle": "Anything you don't want?",
+  "@dietBuilderAvoidTitle": {
+    "description": "Title of the Diet Builder step for disliked foods and allergies."
+  },
+  "dietBuilderAvoidPrompt": "Foods you'd rather ZIVO kept out of your plan.",
+  "@dietBuilderAvoidPrompt": {
+    "description": "Prompt under the dislikes field."
+  },
+  "dietBuilderAvoidHint": "I don't like fish, broccoli, or cottage cheese.",
+  "@dietBuilderAvoidHint": {
+    "description": "Placeholder in the dislikes free-text field."
+  },
+  "dietBuilderAllergiesTitle": "Allergies or foods you must avoid",
+  "@dietBuilderAllergiesTitle": {
+    "description": "Heading of the allergies sub-section, kept separate from dislikes."
+  },
+  "dietBuilderAllergiesPrompt": "Different from a dislike — ZIVO will never put these in your plan.",
+  "@dietBuilderAllergiesPrompt": {
+    "description": "Note explaining that an allergy is a hard limit, not a preference."
+  },
+  "dietBuilderAllergiesHint": "Peanuts, shellfish…",
+  "@dietBuilderAllergiesHint": {
+    "description": "Placeholder in the allergies free-text field."
+  },
+  "dietBuilderAllergyChips": "Common ones",
+  "@dietBuilderAllergyChips": {
+    "description": "Heading over the optional tap-to-add common allergen chips."
+  },
+  "dietBuilderAllergyChipsNote": "Tap any that apply.",
+  "@dietBuilderAllergyChipsNote": {
+    "description": "Note under the common allergen chips."
+  },
+  "dietBuilderMealsTitle": "How many meals?",
+  "@dietBuilderMealsTitle": {
+    "description": "Title of the Diet Builder step choosing meals per day and schedule."
+  },
+  "dietBuilderMealsPrompt": "How many meals do you want each day?",
+  "@dietBuilderMealsPrompt": {
+    "description": "Prompt under the meals-per-day picker."
+  },
+  "dietBuilderScheduleTitle": "Anything about your schedule?",
+  "@dietBuilderScheduleTitle": {
+    "description": "Heading of the optional schedule/timing field."
+  },
+  "dietBuilderSchedulePrompt": "So ZIVO can place your meals around your day.",
+  "@dietBuilderSchedulePrompt": {
+    "description": "Note under the schedule field."
+  },
+  "dietBuilderScheduleHint": "I train at 6am and eat straight after.",
+  "@dietBuilderScheduleHint": {
+    "description": "Placeholder in the schedule free-text field."
+  },
+  "dietBuilderContinue": "Continue",
+  "@dietBuilderContinue": {
+    "description": "Advances to the next step of the Diet Builder."
+  },
+  "dietBuilderBack": "Back",
+  "@dietBuilderBack": {
+    "description": "Returns to the previous step of the Diet Builder."
+  },
+  "dietBuilderPlanReadyTitle": "Your plan is ready",
+  "@dietBuilderPlanReadyTitle": {
+    "description": "Title of the finished-plan reveal screen."
+  },
+  "dietBuilderPlanReadySubtitle": "Built around your goal, body data, eating habits and schedule.",
+  "@dietBuilderPlanReadySubtitle": {
+    "description": "Subtitle under the plan-ready title."
+  },
+  "dietBuilderMacros": "{protein}g protein · {carbs}g carbs · {fat}g fat",
+  "@dietBuilderMacros": {
+    "description": "The macro line under the daily calorie target on the plan reveal.",
+    "placeholders": {
+      "protein": { "type": "String" },
+      "carbs": { "type": "String" },
+      "fat": { "type": "String" }
+    }
+  },
+  "dietBuilderCoachNote": "Coach note",
+  "@dietBuilderCoachNote": {
+    "description": "Label over the coach's note on the plan reveal."
+  },
+  "dietBuilderCoachNoteBody": "This plan is a starting point based on what you told ZIVO. Adjust portions as you go, based on your progress and how you feel.",
+  "@dietBuilderCoachNoteBody": {
+    "description": "The coach's note on the plan reveal."
+  },
+  "dietBuilderSafetyNote": "Nutrition plans aren't a substitute for medical advice. If you have a medical condition, a food allergy, or a specific dietary requirement, talk to a doctor or a registered dietitian before following a restrictive plan.",
+  "@dietBuilderSafetyNote": {
+    "description": "The subtle medical-advice disclaimer on the plan reveal."
+  },
+  "dietBuilderSavePlan": "Save plan",
+  "@dietBuilderSavePlan": {
+    "description": "Saves the generated plan and its target from the reveal."
+  },
+  "dietBuilderEditPlan": "Edit plan",
+  "@dietBuilderEditPlan": {
+    "description": "Opens the plan editor to tweak the generated plan before saving."
   }
 }

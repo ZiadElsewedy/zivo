@@ -6,10 +6,10 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/zivo_sheet.dart';
 import '../../../capture/presentation/import/add_plan_route_tile.dart';
+import '../pages/diet_builder_page.dart';
 import '../pages/diet_dictate_page.dart';
 import '../pages/diet_import_page.dart';
 import '../pages/diet_plan_edit_page.dart';
-import '../pages/diet_preferences_page.dart';
 import '../../../../l10n/l10n.dart';
 
 /// Every way a plan gets into ZIVO, in one place.
@@ -93,7 +93,7 @@ class _AddDietSheet extends StatelessWidget {
             icon: Icons.auto_awesome_rounded,
             label: l(context).addDietGenerate,
             detail: l(context).addDietGenerateDetail,
-            onTap: () => _open(context, const DietPreferencesPage()),
+            onTap: () => _open(context, const DietBuilderPage()),
           ),
           AddPlanRouteTile(
             routeKey: const Key('add-diet-manual'),

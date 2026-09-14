@@ -14,6 +14,7 @@ import '../../domain/diet_import_outcome.dart';
 import '../../domain/diet_source.dart';
 import '../../domain/diet_plan.dart';
 import '../../domain/diet_plan_from_import.dart';
+import '../../domain/nutrition_targets.dart';
 import 'diet_plan_edit_page.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../l10n/l10n.dart';
@@ -46,6 +47,8 @@ class DietImportPage extends StatefulWidget {
     super.key,
     this.input,
     this.generateFrom,
+    this.targetOverride,
+    this.reviewBuilder,
     Future<PickedImportFile?> Function()? pickFile,
   }) : assert(
          input == null || generateFrom == null,
@@ -56,6 +59,18 @@ class DietImportPage extends StatefulWidget {
   /// Preferences to build a plan FROM, rather than material to read. Mutually
   /// exclusive with [input].
   final PlanPreferences? generateFrom;
+
+  /// The target the generated day is sized to, when the caller has computed one
+  /// it does not want saved yet (the Diet Builder wizard's case). When null,
+  /// generation falls back to the user's saved target. Ignored for imports.
+  final NutritionTargets? targetOverride;
+
+  /// Where an accepted proposal is reviewed. Defaults to the plan editor
+  /// (`DietPlanEditPage`), the shared review-and-save gate; the wizard passes a
+  /// builder for its own reveal screen, which also saves the target and body
+  /// data alongside the plan. It is handed the freshly-built draft and returns
+  /// once its own route is done — this page then pops itself, as before.
+  final Widget Function(DietPlan draft)? reviewBuilder;
 
   /// Material gathered before this page was pushed. Null means "pick a file",
   /// which is the only route that can be restarted from inside this screen —
@@ -163,9 +178,11 @@ class _DietImportPageState extends State<DietImportPage> {
       await _propose(
         () => AppScope.of(context).ai.generateDietPlan(
           preferences: generateFrom,
-          // The plan is sized to whatever objective the user has approved.
+          // The plan is sized to whatever objective the user has approved — or
+          // to the wizard's computed-but-unsaved target when one is passed.
           // Null is fine and honest: the plan is built, just not fitted.
-          targets: AppScope.of(context).diet.currentTargets,
+          targets:
+              widget.targetOverride ?? AppScope.of(context).diet.currentTargets,
         ),
         source: DietSource.generated,
       );
@@ -291,8 +308,13 @@ class _DietImportPageState extends State<DietImportPage> {
   /// the editor ends in Save or just closing, the import flow itself is done
   /// either way, so this pops itself once that route returns.
   Future<void> _reviewDraft(DietPlan draft) async {
+    final reviewBuilder = widget.reviewBuilder;
     await Navigator.of(context).push<DietPlan>(
-      MaterialPageRoute(builder: (_) => DietPlanEditPage(initialPlan: draft)),
+      MaterialPageRoute(
+        builder: (_) => reviewBuilder != null
+            ? reviewBuilder(draft)
+            : DietPlanEditPage(initialPlan: draft),
+      ),
     );
     if (mounted) Navigator.of(context).pop();
   }

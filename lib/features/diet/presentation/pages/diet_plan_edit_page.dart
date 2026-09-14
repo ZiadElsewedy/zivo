@@ -53,9 +53,15 @@ class _DayDraft {
 /// sheet, mirroring Workout's exercise sheet). Saving persists the whole
 /// plan, reusing its id when editing so it overwrites idempotently.
 class DietPlanEditPage extends StatefulWidget {
-  const DietPlanEditPage({super.key, this.initialPlan});
+  const DietPlanEditPage({super.key, this.initialPlan, this.autosave = true});
 
   final DietPlan? initialPlan;
+
+  /// Whether Save persists the plan itself. True everywhere but the Diet
+  /// Builder reveal, which opens this editor only to let the user tweak a draft
+  /// and takes the edited plan back to save alongside the target and body data
+  /// in one commit — so here Save just returns the plan without writing it.
+  final bool autosave;
 
   @override
   State<DietPlanEditPage> createState() => _DietPlanEditPageState();
@@ -199,7 +205,9 @@ class _DietPlanEditPageState extends State<DietPlanEditPage>
           )
           .toList(),
     );
-    await AppScope.of(context).diet.savePlan(plan);
+    if (widget.autosave) {
+      await AppScope.of(context).diet.savePlan(plan);
+    }
     if (mounted) Navigator.of(context).pop(plan);
   }
 
