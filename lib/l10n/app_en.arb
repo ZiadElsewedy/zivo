@@ -5936,6 +5936,10 @@
   "@importAnalyzing": {
       "description": "Title of the analysing step."
   },
+  "importAnalyzingWait": "This can take up to a minute",
+  "@importAnalyzingWait": {
+      "description": "Subtitle under 'Analyzing your plan' setting the wait expectation for the single AI call."
+  },
   "importBuildManuallyInstead": "Build manually instead",
   "@importBuildManuallyInstead": {
       "description": "Abandons the import and opens the empty editor."

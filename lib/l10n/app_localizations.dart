@@ -7236,6 +7236,12 @@ abstract class AppLocalizations {
   /// **'Analyzing your plan'**
   String get importAnalyzing;
 
+  /// Subtitle under 'Analyzing your plan' setting the wait expectation for the single AI call.
+  ///
+  /// In en, this message translates to:
+  /// **'This can take up to a minute'**
+  String get importAnalyzingWait;
+
   /// Abandons the import and opens the empty editor.
   ///
   /// In en, this message translates to:

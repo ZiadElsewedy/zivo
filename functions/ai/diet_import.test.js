@@ -512,3 +512,16 @@ test("extractDietPlan: a description does not need a media type", async () => {
   });
   assert.equal(result.ok, true);
 });
+
+test("extractDietPlan: a mid-generation abort surfaces as a 'cancelled' GatewayError", async () => {
+  // Mirrors extractWorkoutPlan: pressing X aborts the in-flight call, which is
+  // a cancellation, not a failure to read the document.
+  const abort = async () => {
+    const err = new Error("Request was aborted.");
+    err.name = "APIUserAbortError";
+    throw err;
+  };
+  await assert.rejects(
+      () => extractDietPlan({callModel: abort, pdfBase64: "ZmFrZS1wZGY="}),
+      (err) => err instanceof GatewayError && err.code === "cancelled");
+});

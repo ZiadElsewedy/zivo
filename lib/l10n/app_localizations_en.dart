@@ -4249,6 +4249,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get importAnalyzing => 'Analyzing your plan';
 
   @override
+  String get importAnalyzingWait => 'This can take up to a minute';
+
+  @override
   String get importBuildManuallyInstead => 'Build manually instead';
 
   @override

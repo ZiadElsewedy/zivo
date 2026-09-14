@@ -7,7 +7,7 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../capture/presentation/import/import_flow_states.dart';
 import '../../../capture/presentation/import/plan_import_file.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
-import '../../../ai/domain/import_progress.dart';
+import '../../../ai/domain/import_cancellation.dart';
 import '../../domain/diet_import_input.dart';
 import '../../domain/plan_preferences.dart';
 import '../../domain/diet_import_outcome.dart';
@@ -101,8 +101,9 @@ class _DietImportPageState extends State<DietImportPage> {
   Timer? _analyzingTimer;
   int _analyzingStatusIndex = 0;
 
-  /// The newest extraction snapshot — import only; generation never sets it.
-  ImportProgress? _progress;
+  /// The live cancel handle for the in-flight import, or null. Cancelling it
+  /// calls `aiCancelImport`, which aborts the backend model call.
+  ImportCancellation? _cancellation;
 
   @override
   void initState() {
@@ -116,20 +117,19 @@ class _DietImportPageState extends State<DietImportPage> {
     super.dispose();
   }
 
-  /// What the analysing screen says right now.
-  ///
-  /// Import reports real extraction (via [importProgressLine]); generation
-  /// still cycles its written lines, because that callable does not stream.
-  String _statusLineFor(BuildContext context) {
-    if (widget.generateFrom != null) {
-      final lines = _generatingStatusLines(context);
-      return lines[_analyzingStatusIndex % lines.length];
-    }
-    return importProgressLine(
-      context,
-      _progress,
-      itemKind: ImportItemKind.item,
-    );
+  /// Closing the flow — cancels an in-flight import first (propagating to the
+  /// backend via `aiCancelImport`), then pops.
+  void _closeFlow() {
+    _cancellation?.cancel();
+    Navigator.of(context).maybePop();
+  }
+
+  /// The cycled line the **generation** screen shows — that callable does not
+  /// stream, so there is no live extraction to report. Import instead renders
+  /// the real pipeline via [ImportAnalyzingState].
+  String _generatingLine(BuildContext context) {
+    final lines = _generatingStatusLines(context);
+    return lines[_analyzingStatusIndex % lines.length];
   }
 
   /// Only generation cycles now. Import's line moves when the model does.
@@ -210,17 +210,16 @@ class _DietImportPageState extends State<DietImportPage> {
       input = DietImportDocument(bytes: file.bytes, mimeType: file.mimeType);
     }
 
+    final cancellation = ImportCancellation();
     await _propose(
       () => AppScope.of(context).ai.importDietPlan(
         input!,
-        onProgress: (progress) {
-          if (!mounted) return;
-          setState(() => _progress = progress);
-        },
+        cancellation: cancellation,
       ),
       // The plan remembers which route it arrived by, so the library can say
       // so months later.
       source: _sourceFor(input),
+      cancellation: cancellation,
     );
   }
 
@@ -231,13 +230,14 @@ class _DietImportPageState extends State<DietImportPage> {
   Future<void> _propose(
     Future<DietImportOutcome> Function() run, {
     required DietSource source,
+    ImportCancellation? cancellation,
   }) async {
     if (!mounted) return;
     // Read before the awaits below, for the same reason as in [_run].
     final strings = l(context);
     setState(() {
       _phase = _ImportPhase.analyzing;
-      _progress = null;
+      _cancellation = cancellation;
     });
     _startAnalyzingCycle();
 
@@ -260,6 +260,11 @@ class _DietImportPageState extends State<DietImportPage> {
             _phase = _ImportPhase.rejected;
           });
       }
+    } on ImportCancelledException {
+      // The user pressed X/Cancel: the backend call is aborting and the page is
+      // popping. Nothing to show.
+      _analyzingTimer?.cancel();
+      return;
     } catch (error, stack) {
       // Surface the real failure instead of swallowing it — an App Check /
       // network rejection shouldn't read as "your PDF is bad".
@@ -276,6 +281,8 @@ class _DietImportPageState extends State<DietImportPage> {
         );
         _errorDetail = kDebugMode ? error.toString() : null;
       });
+    } finally {
+      _cancellation = null;
     }
   }
 
@@ -311,7 +318,7 @@ class _DietImportPageState extends State<DietImportPage> {
                 (_, final PlanPreferences _) => l(context).dietBuildingYourPlan,
                 _ => l(context).dietReadingYourPlan,
               },
-              onClose: () => Navigator.of(context).maybePop(),
+              onClose: _closeFlow,
               titleColor: TrainColors.ink2,
               iconColor: TrainColors.ink2,
               chipColor: TrainColors.raisedStrong,
@@ -355,8 +362,14 @@ class _DietImportPageState extends State<DietImportPage> {
           subtitle: l(context).dietSelectYourPlanBody,
         );
       case _ImportPhase.analyzing:
+        // Both are one buffered AI call with no observable sub-steps: import
+        // shows an honest wait line with a working Cancel; generation keeps its
+        // cycled description lines (no cancel).
         return ImportAnalyzingState(
-          statusLine: _statusLineFor(context),
+          statusLine: generating
+              ? _generatingLine(context)
+              : l(context).importAnalyzingWait,
+          onCancel: generating ? null : _closeFlow,
           chipColor: TrainColors.raisedStrong,
         );
       case _ImportPhase.rejected:

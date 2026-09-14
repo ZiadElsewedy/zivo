@@ -22,8 +22,8 @@
 
 const {GatewayError} = require("./gateway");
 const {AnthropicProvider} = require("./providers/anthropic_provider");
-const {scanWorkoutProgress} = require("./import_progress");
 const {legacyAnthropicClient} = require("./providers/legacy_client");
+const {isAbortError} = require("./abort");
 
 const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 8000;
@@ -275,20 +275,15 @@ const DEFAULT_REJECTION_REASON =
  *   tool fired, reject reason if any). Injected rather than importing
  *   `firebase-functions/logger` directly, so this stays dependency-free for
  *   `node --test`. Defaults to a no-op.
- * @param {function(!Object): void} [args.onProgress] Optional **live** sink,
- *   called as the model writes its tool input with
- *   `{planName, days: [...labels], exercises: n}` — see `./import_progress.js`.
- *   This is the only real progress an import has: the call emits no assistant
- *   text, so the extraction itself is the only thing moving. Passing it opts
- *   the call into streaming; omitting it leaves the request buffered and
- *   byte-identical to before. Fires only when the numbers actually change, so
- *   a caller can forward each event straight to the client.
+ * @param {(AbortSignal|undefined)} [args.signal] Aborts the in-flight model
+ *   call when tripped (by `aiCancelImport`, via `import_runtime`), so a
+ *   cancelled import stops the generation instead of running to completion.
  * @return {!Promise<{ok: true, planName: string, days: !Array<!Object>}|
  *   {ok: false, reason: string}>}
  */
 async function extractWorkoutPlan({
   provider, model, callModel, pdfBase64, fileBase64, mediaType, text,
-  logEvent = () => {}, onProgress,
+  logEvent = () => {}, signal,
 }) {
   const base64 = fileBase64 || pdfBase64;
   const hasFile = typeof base64 === "string" && base64.trim() !== "";
@@ -358,33 +353,45 @@ async function extractWorkoutPlan({
     ],
   };
 
-  // Only re-emit when the visible numbers move: `inputJson` fires per token,
-  // and forwarding every one of those to a client would be hundreds of chunks
-  // saying the same thing.
-  let lastSignature = "";
-  const opts = typeof onProgress === "function" ? {
-    onInputJson: (_delta, snapshot) => {
-      const p = scanWorkoutProgress(snapshot);
-      // Nothing has been extracted yet — the model is still opening the
-      // object. An event here would say literally nothing.
-      if (!p.planName && !p.days.length && !p.exercises) return;
-      const signature = `${p.planName || ""}|${p.days.length}|${p.exercises}`;
-      if (signature === lastSignature) return;
-      lastSignature = signature;
-      onProgress(p);
-    },
-  } : {};
+  // --- boundary timing (see logEvent below) ---------------------------------
+  // Every duration the "why did this take ~80 seconds" question needs, measured
+  // where it actually happens rather than inferred from log line timestamps.
+  // The whole cost is one buffered model call, so `preModelMs` is negligible
+  // and `modelMs` is essentially the total.
+  const tStart = Date.now();
 
+  // The abort signal (from `import_runtime`, tripped by aiCancelImport).
+  // Threaded into the model call so cancelling actually aborts the generation.
+  const opts = signal ? {signal} : {};
+
+  const tModelStart = Date.now();
   let response;
   try {
     response = await activeProvider.generate(normalizedRequest, opts);
   } catch (err) {
+    // A cancelled import isn't a failure to report — the client is already
+    // gone. Re-throw it as a distinct `cancelled` so the callable logs it as
+    // a cancellation, not a scary "internal" error, and doesn't pay to build
+    // a friendly message nobody will see.
+    if (isAbortError(err) || (signal && signal.aborted)) {
+      throw new GatewayError("cancelled", "Import cancelled.");
+    }
     throw new GatewayError(
         "internal", err.message || "Couldn't read that PDF. Please try again.");
   }
+  const tModelDone = Date.now();
+
+  // The boundary breakdown, computed at log time. `preModelMs` is validation +
+  // request build; `modelMs` is the whole model call — the dominant (≈ total)
+  // cost; `totalMs` is end to end inside this function.
+  const timings = () => ({
+    preModelMs: tModelStart - tStart,
+    modelMs: tModelDone - tModelStart,
+    totalMs: Date.now() - tStart,
+  });
 
   if (response.stopReason === "refusal") {
-    logEvent({stage: "refusal", stopReason: response.stopReason});
+    logEvent({stage: "refusal", stopReason: response.stopReason, ...timings()});
     throw new GatewayError(
         "failed-precondition", "That document couldn't be processed.");
   }
@@ -401,6 +408,7 @@ async function extractWorkoutPlan({
       stopReason: response.stopReason,
       toolCalled: REJECT_TOOL_NAME,
       reason,
+      ...timings(),
     });
     return {ok: false, reason};
   }
@@ -412,6 +420,7 @@ async function extractWorkoutPlan({
       stage: "no_tool_call",
       stopReason: response.stopReason,
       blockTypes: blocks.map((b) => b && b.type),
+      ...timings(),
     });
     throw new GatewayError(
         "internal",
@@ -432,6 +441,7 @@ async function extractWorkoutPlan({
       toolCalled: TOOL_NAME,
       rawDayCount: Array.isArray(call.input && call.input.days) ?
         call.input.days.length : 0,
+      ...timings(),
     });
     return {ok: false, reason: DEFAULT_REJECTION_REASON};
   }
@@ -441,6 +451,7 @@ async function extractWorkoutPlan({
     toolCalled: TOOL_NAME,
     dayCount: normalized.days.length,
     exerciseCount: normalized.days.reduce((n, d) => n + d.exercises.length, 0),
+    ...timings(),
   });
   return {ok: true, planName: normalized.planName, days: normalized.days};
 }

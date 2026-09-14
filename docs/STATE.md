@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-13 · **Active branch:** `feature/ai-gemini-provider`
+**Last updated:** 2026-09-14 · **Active branch:** `feature/ai-gemini-provider`
 (cut from `feature/readiness`)
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
@@ -93,6 +93,76 @@ notifications)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Plan import made observable, cancellable, idempotent — plus a save
+  permission fix** (2026-09-14, on `feature/ai-gemini-provider`). Owner report:
+  import sits behind a spinner for 77–93s, was logged running **twice** for one
+  import, X didn't stop the backend, and photo/voice/typed imports failed at
+  save with `permission-denied`.
+  - **The 77–93s is one model call, not a chain of tools.** An import is a
+    single structured-output extraction (`extractWorkoutPlan` → one
+    `provider.generate` → one `propose_workout_split`/`reject_import`); no
+    sequential AI calls, no extra tools, and no Firestore work in the function
+    beyond one fast quota transaction. So the time is Claude generating a large
+    strict-JSON tool output over a whole-PDF input — there is no redundant call
+    to delete. The UI now shows the **real pipeline** as an honest stage
+    checklist (`ImportStage`: receiving → analyzing → extracting → building,
+    done/running/pending) driven by the existing `{type:'progress'}` chunks —
+    never invented "validating"/"saving" tools (saving happens later, only after
+    the review gate). New `ai/domain/import_execution.dart`; the shared
+    `ImportAnalyzingState` is now the checklist, with `ImportGeneratingState`
+    keeping the single cycled line for diet **generation** (which isn't
+    streamed).
+  - **Cancellation is real now, via `executionId` — not a connection close.**
+    X/Cancel trips an `ImportCancellation` (`ai/domain/import_cancellation.dart`)
+    which calls the new **`aiCancelImport({executionId})`** callable; the server
+    trips that run's `AbortController` (held in `ai/import_runtime.js`), threaded
+    `extract*Plan → provider.generate({signal}) → Anthropic
+    messages.stream/create({signal})`, aborting the in-flight generation
+    (billing stops). Decoupled from the transport on purpose: a `.call()` can't
+    be cancelled client-side and the **Functions emulator can't stream**, so a
+    connection-close signal would fail exactly where it's tested. A cancelled
+    run throws a `cancelled` `GatewayError`; `ai/abort.js` is the shared
+    abort-error predicate.
+  - **Transport: streaming for progress, buffered salvage for reliability.** The
+    client opens `.stream()` for live chunks, but if the stream **errors or
+    drops** (the emulator returns "Unexpected format for streamed response";
+    a cold start drops SSE) it salvages the result with ONE buffered `.call()`
+    on the same `executionId`. `ai/import_runtime.js`'s `runImportOnce` **dedups
+    by `executionId`** (in-memory, per instance) and moves `enforceDailyQuota`
+    inside the run, so the salvage — and any duplicate dispatch — never runs the
+    model or spends quota twice. This is what makes the earlier "one import
+    billed twice" structurally impossible on a warm/single instance, and it
+    lets streaming be re-enabled without the old dropped-SSE-loses-result bug.
+  - **Double-run also guarded on the client.** `_run` fires exactly once per
+    attempt, and the `executionId` is logged on every server event, so any
+    residual duplicate is diagnosable at a glance (two lines, one id) — and
+    harmless (deduped). Cross-instance dedup/cancel (a shared Firestore store)
+    is the one documented gap, deferred until logs show it's needed.
+  - **Save `permission-denied` fixed at the rule.**
+    [`firestore.rules`](../firestore.rules) `workoutPlans` allowed only
+    `source in ['manual', 'pdf']`, so every **photo/dictated/typed** import was
+    rejected at save (PDF worked). Widened to the full `WorkoutPlanSource` enum;
+    still validates a known source (not loosened). +6 `firestore-tests` cases
+    (186 pass).
+  - **Cover:** Flutter suite green except the pre-existing
+    `light_mode_smoke_test` (Hub "SLEEP" contrast, unrelated); functions **514**
+    pass (provider signal-forwarding, import abort→`cancelled`, `import_runtime`
+    dedup/cancel); rules **186**; analyze clean; 5 ARB keys added in both
+    languages. New: `functions/ai/import_runtime.js` + `abort.js`,
+    `aiCancelImport` callable, `ai/domain/import_execution.dart` +
+    `import_cancellation.dart`, `ImportGeneratingState`.
+  - **⚠ OWNER ACTIONS.** (1) `firebase deploy --only firestore:rules` — until
+    then photo/voice/typed imports still fail to save (and, when testing on the
+    **emulator**, restart it so it reloads the edited rules). (2) `firebase
+    deploy --only functions` — ships `aiCancelImport` + the dedup/abort wiring;
+    offline tests prove the wiring, not the live abort. (3) The 5 new Arabic
+    strings are mine, not a native speaker's. (4) On device/emulator: confirm
+    photo/voice/typed import saves, the stage checklist advances (live per-item
+    counts appear on real Cloud Functions; the emulator can't stream, so it
+    shows stages without the live counter and salvages via the buffered call),
+    and X mid-import aborts the run (logs show an aborted generation, quota not
+    double-spent).
 
 - **Ask coach — Gemini as a second provider + manual model select** (2026-09-13,
   on `feature/ai-gemini-provider`, cut from `feature/readiness`). The `aiChat`

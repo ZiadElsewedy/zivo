@@ -1189,6 +1189,7 @@
   "importReadingDocument": "جارٍ قراءة المستند…",
   "importFoundNamed": "تم العثور على «{name}»…",
   "importAnalyzing": "جارٍ تحليل جدولك",
+  "importAnalyzingWait": "قد يستغرق هذا حتى دقيقة",
   "importBuildManuallyInstead": "ابنِ يدويًا بدلًا من ذلك",
   "importSectionItems": "{section} · {items}",
   "importItemCountDay": "{count, plural, zero{لا أيام} one{يوم واحد} two{يومان} few{{count} أيام} many{{count} يومًا} other{{count} يوم}}",

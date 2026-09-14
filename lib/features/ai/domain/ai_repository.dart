@@ -13,7 +13,7 @@ import 'ai_response_style.dart';
 import 'ai_usage_summary.dart';
 import 'ai_turn_usage.dart';
 import 'ai_turn_event.dart';
-import 'import_progress.dart';
+import 'import_cancellation.dart';
 import 'stt_outcome.dart';
 
 /// The seam between the app and the AI assistant ("Ask"). Storage-agnostic
@@ -148,13 +148,17 @@ abstract interface class AiRepository {
   /// Resolves to [WorkoutImportRejected] (never throws) when the material
   /// genuinely isn't/doesn't contain a usable plan — throwing stays reserved
   /// for real technical failures (network, auth/App Check, server error).
-  /// [onProgress] receives live extraction snapshots while the model writes
-  /// its answer (see [ImportProgress]). Passing it opts the call into
-  /// streaming; omitting it leaves the call buffered exactly as before, so a
-  /// caller that doesn't render progress pays nothing for it.
+  /// The whole import is a single buffered model call (~a minute for a real
+  /// document); there is no live sub-progress to report, so this resolves once
+  /// with the outcome.
+  ///
+  /// [cancellation], when given, lets the caller abort the import: cancelling
+  /// calls `aiCancelImport` for this run's id, which aborts the in-flight model
+  /// generation. A cancelled import throws [ImportCancelledException] rather
+  /// than resolving to an outcome.
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
+    ImportCancellation? cancellation,
   });
 
   /// Extracts a proposed diet plan from [input] via the `aiImportDietPlan`
@@ -170,10 +174,10 @@ abstract interface class AiRepository {
   /// Resolves to [DietImportRejected] (never throws) when the material
   /// genuinely isn't/doesn't contain a usable plan — throwing stays reserved
   /// for real technical failures (network, auth/App Check, server error).
-  /// [onProgress] behaves exactly as in [importWorkoutPlan].
+  /// [cancellation] behaves exactly as in [importWorkoutPlan].
   Future<DietImportOutcome> importDietPlan(
     DietImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
+    ImportCancellation? cancellation,
   });
 
   /// Builds a proposed diet plan from [preferences] via the

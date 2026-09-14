@@ -31,6 +31,7 @@ import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 import 'package:zivo/features/ai/presentation/widgets/ask/ask_effects.dart';
+import 'package:zivo/features/ai/domain/import_cancellation.dart';
 import 'package:zivo/features/ai/domain/import_progress.dart';
 
 /// A scripted repository whose message stream is driven BY HAND, so tests
@@ -121,12 +122,14 @@ class _ScriptedAi implements AiRepository {
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
     void Function(ImportProgress progress)? onProgress,
+    ImportCancellation? cancellation,
   }) async => const WorkoutImportRejected('unused');
 
   @override
   Future<DietImportOutcome> importDietPlan(
     DietImportInput input, {
     void Function(ImportProgress progress)? onProgress,
+    ImportCancellation? cancellation,
   }) async =>
       DietImportRejected('unused');
 

@@ -4320,6 +4320,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get importAnalyzing => 'جارٍ تحليل جدولك';
 
   @override
+  String get importAnalyzingWait => 'قد يستغرق هذا حتى دقيقة';
+
+  @override
   String get importBuildManuallyInstead => 'ابنِ يدويًا بدلًا من ذلك';
 
   @override

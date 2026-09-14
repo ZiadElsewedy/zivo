@@ -390,3 +390,66 @@ test("generate without onText uses create, not the streaming path", async () => 
   assert.equal(createCalls, 1);
   assert.equal(client.calls.length, 0); // messages.stream was never invoked.
 });
+
+// --- abort signal forwarding (import cancellation) --------------------
+
+test("opts.signal is forwarded to messages.create as RequestOptions", async () => {
+  const seen = [];
+  const client = {
+    messages: {
+      create: async (_req, options) => {
+        seen.push(options);
+        return {stop_reason: "end_turn", content: [], usage: {}};
+      },
+    },
+  };
+  const provider = new AnthropicProvider(client);
+  const signal = new AbortController().signal;
+  await provider.generate(
+      {model: "m", maxTokens: 10, messages: [{role: "user", content: "hi"}]},
+      {signal},
+  );
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].signal, signal);
+});
+
+test("no signal means no RequestOptions arg (buffered fakes stay one-arg)", async () => {
+  const seen = [];
+  const client = {
+    messages: {
+      create: async (_req, options) => {
+        seen.push(options);
+        return {stop_reason: "end_turn", content: [], usage: {}};
+      },
+    },
+  };
+  const provider = new AnthropicProvider(client);
+  await provider.generate(
+      {model: "m", maxTokens: 10, messages: [{role: "user", content: "hi"}]});
+  assert.equal(seen[0], undefined);
+});
+
+test("opts.signal is forwarded to messages.stream on the streaming path", async () => {
+  const seen = [];
+  const client = {
+    messages: {
+      stream: (_req, options) => {
+        seen.push(options);
+        return {
+          on: () => {},
+          finalMessage: async () => ({
+            stop_reason: "tool_use", content: [], usage: {},
+          }),
+        };
+      },
+    },
+  };
+  const provider = new AnthropicProvider(client);
+  const signal = new AbortController().signal;
+  await provider.generate(
+      {model: "m", maxTokens: 10, messages: [{role: "user", content: "hi"}]},
+      {onInputJson: () => {}, signal},
+  );
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].signal, signal);
+});

@@ -55,6 +55,17 @@ writes the manual capture screens use; **never writes targets/goal**),
 `provider` and forwarded on every `send`), and STT: `stt_outcome.dart`,
 `stt_error.dart`.
 
+Plan import (workout + diet) is observable and cancellable: `import_progress.dart`
+(a live extraction snapshot), `import_execution.dart` (`ImportStage` +
+`ImportExecution` — the honest done/running/pending pipeline the analysing
+checklist renders; an import is ONE extraction call, so these are real stages,
+not server tools), and `import_cancellation.dart` (`ImportCancellation` +
+`ImportCancelledException` — pressing X closes the streaming callable, firing
+the function's `response.signal` so the backend model call actually aborts). The
+import methods carry `onProgress` + `cancellation`; the client sends one
+`executionId` per attempt so a duplicated run is diagnosable and the streaming
+drop-fallback stays idempotent.
+
 Both the model switch and the reply-style preference live in the **Ask settings
 page** (`presentation/pages/ask_settings_page.dart` — a pushed full page, opened
 from the single header settings button, which shows a small "pinned" dot when

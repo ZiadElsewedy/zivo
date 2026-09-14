@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/ai/domain/import_cancellation.dart';
 import 'package:zivo/features/ai/domain/import_progress.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -35,6 +36,7 @@ class _FailingImportAi extends FakeAiRepository {
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
     void Function(ImportProgress progress)? onProgress,
+    ImportCancellation? cancellation,
   }) {
     throw error is String ? StateError(error as String) : error;
   }
@@ -107,18 +109,34 @@ class _StreamingImportAi extends FakeAiRepository {
   final _started = Completer<void>();
 
   late final void Function(ImportProgress) emit;
+  ImportCancellation? _cancellation;
 
   Future<void> get started => _started.future;
   void finish() => _gate.complete();
+
+  /// Whether the page propagated a cancel to the backend seam — the real
+  /// signal that X/Cancel stops the work rather than only leaving the screen.
+  bool get cancelled => _cancellation?.isCancelled ?? false;
 
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
     void Function(ImportProgress progress)? onProgress,
+    ImportCancellation? cancellation,
   }) async {
     emit = onProgress!;
+    _cancellation = cancellation;
     _started.complete();
-    await _gate.future;
+    // Resolve on finish, OR abort the moment the page cancels — mirroring the
+    // real repository, which throws [ImportCancelledException] once the stream
+    // closes.
+    await Future.any(<Future<void>>[
+      _gate.future,
+      if (cancellation != null) cancellation.whenCancelled,
+    ]);
+    if (cancellation != null && cancellation.isCancelled) {
+      throw const ImportCancelledException();
+    }
     return const WorkoutImportRejected('done');
   }
 }
@@ -490,8 +508,8 @@ void main() {
   );
 
   testWidgets(
-    'the analysing screen shows what the model is actually extracting, '
-    'replacing the timer-cycled lines',
+    'the analysing screen shows the pipeline stages and the live extraction '
+    'detail as the model works',
     (tester) async {
       final ai = _StreamingImportAi();
       await _pumpImportPage(
@@ -503,8 +521,15 @@ void main() {
       await ai.started;
       await tester.pump();
 
-      // Before anything is extracted, the one written line stands.
-      expect(find.text('Reading the document…'), findsOneWidget);
+      // The honest pipeline is on screen as a checklist — every real stage,
+      // not an invented server tool.
+      expect(find.text('Plan received'), findsOneWidget);
+      expect(find.text('Reading your plan'), findsOneWidget);
+      expect(find.text('Extracting the structure'), findsOneWidget);
+      expect(find.text('Building your plan'), findsOneWidget);
+      // Before anything is extracted there is no count yet — a stalled import
+      // shows no fabricated detail.
+      expect(findTextIgnoringBidi('exercises'), findsNothing);
 
       ai.emit(
         const ImportProgress(
@@ -515,12 +540,8 @@ void main() {
       );
       await tester.pump();
       expect(findTextIgnoringBidi('Push · 3 exercises'), findsOneWidget);
-      // Past the AnimatedSwitcher's cross-fade, which legitimately keeps the
-      // outgoing line on screen for 220ms.
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('Reading the document…'), findsNothing);
 
-      // The line follows the model into the next day.
+      // The detail follows the model into the next day.
       ai.emit(
         const ImportProgress(
           planName: 'Push Pull Legs',
@@ -536,7 +557,7 @@ void main() {
     },
   );
 
-  testWidgets('the analysing line no longer moves on its own', (tester) async {
+  testWidgets('the extraction detail does not move on its own', (tester) async {
     final ai = _StreamingImportAi();
     await _pumpImportPage(
       tester,
@@ -548,11 +569,13 @@ void main() {
     await tester.pump();
 
     // Ten seconds — six ticks of the old 1.6s timer, which would have cycled
-    // the line twice over. A stalled import must now visibly stall.
+    // a line twice over. A stalled import must visibly stall: the stage rows
+    // stand and no fabricated count appears.
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(seconds: 1));
     }
-    expect(find.text('Reading the document…'), findsOneWidget);
+    expect(find.text('Reading your plan'), findsOneWidget);
+    expect(findTextIgnoringBidi('exercises'), findsNothing);
 
     ai.finish();
     await tester.pump();
@@ -576,4 +599,30 @@ void main() {
     ai.finish();
     await tester.pump();
   });
+
+  testWidgets(
+    'pressing Cancel during analysis propagates to the backend and returns home',
+    (tester) async {
+      final ai = _StreamingImportAi();
+      await _pumpImportPage(
+        tester,
+        ai: ai,
+        pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
+        settle: false,
+      );
+      await ai.started;
+      await tester.pump();
+
+      // The analysing screen offers a Cancel that actually cancels.
+      expect(find.text('Cancel'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // The cancel reached the repository seam (in the real one this closes the
+      // stream, firing the callable's signal so the model call aborts)…
+      expect(ai.cancelled, isTrue);
+      // …and the flow left the screen.
+      expect(find.text('open'), findsOneWidget);
+    },
+  );
 }
