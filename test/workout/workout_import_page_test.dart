@@ -7,7 +7,6 @@ import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
 import 'package:zivo/features/ai/domain/import_cancellation.dart';
-import 'package:zivo/features/ai/domain/import_progress.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
@@ -19,7 +18,6 @@ import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 import 'package:zivo/features/workout/domain/workout_import_result.dart';
 import 'package:zivo/features/workout/presentation/pages/workout_import_page.dart';
 
-import '../support/bidi_finders.dart';
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 
@@ -35,7 +33,6 @@ class _FailingImportAi extends FakeAiRepository {
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
     ImportCancellation? cancellation,
   }) {
     throw error is String ? StateError(error as String) : error;
@@ -100,15 +97,14 @@ Future<InMemoryWorkoutPlanRepository> _pumpImportPage(
   return plans;
 }
 
-/// An import that reports progress and only resolves when [finish] is called,
-/// so a test can inspect the analysing screen mid-extraction. Without the gate
-/// the call returns before a single frame renders and there is nothing to look
-/// at — which is precisely why the old timer-based lines were untestable.
+/// An import that only resolves when [finish] is called, so a test can hold
+/// the analysing screen up and inspect it — or press Cancel — while the
+/// extraction is still in flight. Without the gate the call returns before a
+/// single frame renders and there is nothing to look at.
 class _StreamingImportAi extends FakeAiRepository {
   final _gate = Completer<void>();
   final _started = Completer<void>();
 
-  late final void Function(ImportProgress) emit;
   ImportCancellation? _cancellation;
 
   Future<void> get started => _started.future;
@@ -121,10 +117,8 @@ class _StreamingImportAi extends FakeAiRepository {
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
     ImportCancellation? cancellation,
   }) async {
-    emit = onProgress!;
     _cancellation = cancellation;
     _started.complete();
     // Resolve on finish, OR abort the moment the page cancels — mirroring the
@@ -508,8 +502,8 @@ void main() {
   );
 
   testWidgets(
-    'the analysing screen shows the pipeline stages and the live extraction '
-    'detail as the model works',
+    'the analysing screen shows the wait line and an actual Cancel while the '
+    'import is in flight',
     (tester) async {
       final ai = _StreamingImportAi();
       await _pumpImportPage(
@@ -521,84 +515,17 @@ void main() {
       await ai.started;
       await tester.pump();
 
-      // The honest pipeline is on screen as a checklist — every real stage,
-      // not an invented server tool.
-      expect(find.text('Plan received'), findsOneWidget);
-      expect(find.text('Reading your plan'), findsOneWidget);
-      expect(find.text('Extracting the structure'), findsOneWidget);
-      expect(find.text('Building your plan'), findsOneWidget);
-      // Before anything is extracted there is no count yet — a stalled import
-      // shows no fabricated detail.
-      expect(findTextIgnoringBidi('exercises'), findsNothing);
-
-      ai.emit(
-        const ImportProgress(
-          planName: 'Push Pull Legs',
-          sections: ['Push'],
-          items: 3,
-        ),
-      );
-      await tester.pump();
-      expect(findTextIgnoringBidi('Push · 3 exercises'), findsOneWidget);
-
-      // The detail follows the model into the next day.
-      ai.emit(
-        const ImportProgress(
-          planName: 'Push Pull Legs',
-          sections: ['Push', 'Pull'],
-          items: 7,
-        ),
-      );
-      await tester.pump();
-      expect(findTextIgnoringBidi('Pull · 7 exercises'), findsOneWidget);
+      // An import is a single opaque model call with no observable sub-steps,
+      // so the screen sets the wait expectation rather than animating fake
+      // progress. It stays put — a stalled import visibly stalls.
+      expect(find.text('Analyzing your plan'), findsOneWidget);
+      expect(find.text('This can take up to a minute'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
 
       ai.finish();
       await tester.pump();
     },
   );
-
-  testWidgets('the extraction detail does not move on its own', (tester) async {
-    final ai = _StreamingImportAi();
-    await _pumpImportPage(
-      tester,
-      ai: ai,
-      pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
-      settle: false,
-    );
-    await ai.started;
-    await tester.pump();
-
-    // Ten seconds — six ticks of the old 1.6s timer, which would have cycled
-    // a line twice over. A stalled import must visibly stall: the stage rows
-    // stand and no fabricated count appears.
-    for (var i = 0; i < 10; i++) {
-      await tester.pump(const Duration(seconds: 1));
-    }
-    expect(find.text('Reading your plan'), findsOneWidget);
-    expect(findTextIgnoringBidi('exercises'), findsNothing);
-
-    ai.finish();
-    await tester.pump();
-  });
-
-  testWidgets('a single exercise is not pluralised', (tester) async {
-    final ai = _StreamingImportAi();
-    await _pumpImportPage(
-      tester,
-      ai: ai,
-      pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
-      settle: false,
-    );
-    await ai.started;
-    await tester.pump();
-
-    ai.emit(const ImportProgress(sections: ['Push'], items: 1));
-    await tester.pump();
-    expect(findTextIgnoringBidi('Push · 1 exercise'), findsOneWidget);
-
-    ai.finish();
-    await tester.pump();
-  });
 
   testWidgets(
     'pressing Cancel during analysis propagates to the backend and returns home',

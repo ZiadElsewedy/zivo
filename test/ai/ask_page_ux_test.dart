@@ -28,7 +28,6 @@ import 'package:zivo/features/diet/domain/nutrition_targets.dart';
 import 'package:zivo/features/diet/domain/plan_preferences.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 import 'package:zivo/features/ai/domain/import_cancellation.dart';
-import 'package:zivo/features/ai/domain/import_progress.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -132,14 +131,12 @@ class _FlakyAi implements AiRepository {
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
     ImportCancellation? cancellation,
-  }) => _inner.importWorkoutPlan(input, onProgress: onProgress);
+  }) => _inner.importWorkoutPlan(input, cancellation: cancellation);
 
   @override
   Future<DietImportOutcome> importDietPlan(
     DietImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
     ImportCancellation? cancellation,
   }) =>
       _inner.importDietPlan(input);
@@ -228,14 +225,12 @@ class _SilentDropAi implements AiRepository {
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
     ImportCancellation? cancellation,
   }) => throw UnimplementedError();
 
   @override
   Future<DietImportOutcome> importDietPlan(
     DietImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
     ImportCancellation? cancellation,
   }) =>
       throw UnimplementedError();
@@ -439,14 +434,12 @@ class _HeldAi implements AiRepository {
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
     ImportCancellation? cancellation,
-  }) => _inner.importWorkoutPlan(input, onProgress: onProgress);
+  }) => _inner.importWorkoutPlan(input, cancellation: cancellation);
 
   @override
   Future<DietImportOutcome> importDietPlan(
     DietImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
     ImportCancellation? cancellation,
   }) =>
       _inner.importDietPlan(input);

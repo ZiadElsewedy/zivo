@@ -55,16 +55,15 @@ writes the manual capture screens use; **never writes targets/goal**),
 `provider` and forwarded on every `send`), and STT: `stt_outcome.dart`,
 `stt_error.dart`.
 
-Plan import (workout + diet) is observable and cancellable: `import_progress.dart`
-(a live extraction snapshot), `import_execution.dart` (`ImportStage` +
-`ImportExecution` — the honest done/running/pending pipeline the analysing
-checklist renders; an import is ONE extraction call, so these are real stages,
-not server tools), and `import_cancellation.dart` (`ImportCancellation` +
+Plan import (workout + diet) is a single buffered model call — one long,
+opaque extraction (~a minute for a real document) with no observable sub-steps,
+so the analysing screen sets the wait expectation rather than animating fake
+progress. It is cancellable: `import_cancellation.dart` (`ImportCancellation` +
 `ImportCancelledException` — pressing X closes the streaming callable, firing
-the function's `response.signal` so the backend model call actually aborts). The
-import methods carry `onProgress` + `cancellation`; the client sends one
-`executionId` per attempt so a duplicated run is diagnosable and the streaming
-drop-fallback stays idempotent.
+the function's `response.signal` so the backend model call actually aborts, and
+the import method throws `ImportCancelledException` instead of resolving). The
+import methods carry a `cancellation` handle only; a cancelled import stops the
+work (and the billing) instead of running to completion for output nobody reads.
 
 Both the model switch and the reply-style preference live in the **Ask settings
 page** (`presentation/pages/ask_settings_page.dart` — a pushed full page, opened
@@ -129,17 +128,19 @@ Both surfaces report **real backend state**, never a timer.
   unknown tool falls back to "Working…" so a newer server can't leak a raw identifier onto
   an older client. Mutating tools emit no step: they propose rather than execute, which
   `preparing_change` and the confirmation card already describe.
-- **PDF/photo import.** `aiImportWorkoutPlan` / `aiImportDietPlan` stream. These turns emit
-  **no assistant text** (`toolChoice: "any"` forces a tool call), so the only thing moving
-  is the structured output being written — `ai/import_progress.js` scans that partially
-  streamed tool input for *complete* `"key": "value"` pairs and reports days/meals and item
-  counts as they land. Progress only ever grows, and a half-written label is never shown.
-  The screens previously cycled three hardcoded lines on a 1.6s timer, which moved whether
-  or not the backend did; **a stalled import now visibly stalls.**
-- Both are **opt-in**: without `acceptsStreaming` (chat) or `onProgress` (import) the call
-  is buffered and byte-identical to before.
-- **`aiGenerateDietPlan` was NOT converted** — it still cycles written lines, and
-  `diet_import_page` says so in a comment. That asymmetry is deliberate, not an oversight.
+- **PDF/photo import.** `aiImportWorkoutPlan` / `aiImportDietPlan` are single buffered
+  extractions — one opaque model call (`toolChoice: "any"` forces a tool call, so the turn
+  emits **no assistant text** to stream either way). There is no live sub-progress to
+  report: the analysing screen shows a fixed wait line ("This can take up to a minute")
+  rather than fake motion, so **a stalled import visibly stalls.** The one thing the screen
+  streams is *cancellation* — the callable stays open so pressing X can close it and abort
+  the model call (see `import_cancellation.dart`).
+- **Chat is opt-in streaming**: without `acceptsStreaming` the `send` call is buffered and
+  byte-identical to before. Import has no streaming toggle — it is always the buffered call
+  above, carrying only a `cancellation` handle.
+- **`aiGenerateDietPlan`** cycles written lines on the analysing screen, and
+  `diet_import_page` says so in a comment — it designs a plan rather than extracting one,
+  so there is no document to read against.
 
 ## Gotchas
 

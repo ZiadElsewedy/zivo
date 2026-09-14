@@ -28,7 +28,6 @@ import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 import 'package:zivo/features/ai/domain/stt_outcome.dart';
 import 'package:zivo/features/ai/domain/import_cancellation.dart';
-import 'package:zivo/features/ai/domain/import_progress.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -117,14 +116,12 @@ class _LongThreadAi implements AiRepository {
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
     ImportCancellation? cancellation,
   }) async => const WorkoutImportRejected('unused');
 
   @override
   Future<DietImportOutcome> importDietPlan(
     DietImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
     ImportCancellation? cancellation,
   }) async =>
       DietImportRejected('unused');
