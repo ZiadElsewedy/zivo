@@ -5589,4 +5589,118 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get readinessAboutBody =>
       'Every morning ZIVO reads the signals you already track and gives you one honest call — train hard, go light, or rest — so you walk into the gym knowing whether to push or hold back. It\'s your coach\'s opening line for the day, not another number to chase.';
+
+  @override
+  String get describeTranscribing => 'Writing it down…';
+
+  @override
+  String get dietBuilderGoalTitle => 'What\'s your goal?';
+
+  @override
+  String get dietBuilderGoalPrompt => 'What are you working toward?';
+
+  @override
+  String get dietBuilderAboutTitle => 'About you';
+
+  @override
+  String get dietBuilderAboutPrompt =>
+      'ZIVO uses this to shape your plan around your body.';
+
+  @override
+  String get dietBuilderAgeFromProfile =>
+      'From your profile — change it if it\'s wrong.';
+
+  @override
+  String get dietBuilderEatTitle => 'Tell ZIVO how you eat';
+
+  @override
+  String get dietBuilderEatPrompt =>
+      'What does a normal day of eating look like? Tell ZIVO what you usually eat, how many meals you have, and anything about your routine.';
+
+  @override
+  String get dietBuilderEatHint =>
+      'I usually have eggs and bread for breakfast, chicken and rice for lunch, and something light at night…';
+
+  @override
+  String get dietBuilderOptionalNote =>
+      'The more you say, the closer the plan fits — but this is optional.';
+
+  @override
+  String get dietBuilderAvoidTitle => 'Anything you don\'t want?';
+
+  @override
+  String get dietBuilderAvoidPrompt =>
+      'Foods you\'d rather ZIVO kept out of your plan.';
+
+  @override
+  String get dietBuilderAvoidHint =>
+      'I don\'t like fish, broccoli, or cottage cheese.';
+
+  @override
+  String get dietBuilderAllergiesTitle => 'Allergies or foods you must avoid';
+
+  @override
+  String get dietBuilderAllergiesPrompt =>
+      'Different from a dislike — ZIVO will never put these in your plan.';
+
+  @override
+  String get dietBuilderAllergiesHint => 'Peanuts, shellfish…';
+
+  @override
+  String get dietBuilderAllergyChips => 'Common ones';
+
+  @override
+  String get dietBuilderAllergyChipsNote => 'Tap any that apply.';
+
+  @override
+  String get dietBuilderMealsTitle => 'How many meals?';
+
+  @override
+  String get dietBuilderMealsPrompt => 'How many meals do you want each day?';
+
+  @override
+  String get dietBuilderScheduleTitle => 'Anything about your schedule?';
+
+  @override
+  String get dietBuilderSchedulePrompt =>
+      'So ZIVO can place your meals around your day.';
+
+  @override
+  String get dietBuilderScheduleHint =>
+      'I train at 6am and eat straight after.';
+
+  @override
+  String get dietBuilderContinue => 'Continue';
+
+  @override
+  String get dietBuilderBack => 'Back';
+
+  @override
+  String get dietBuilderPlanReadyTitle => 'Your plan is ready';
+
+  @override
+  String get dietBuilderPlanReadySubtitle =>
+      'Built around your goal, body data, eating habits and schedule.';
+
+  @override
+  String dietBuilderMacros(String protein, String carbs, String fat) {
+    return '${protein}g protein · ${carbs}g carbs · ${fat}g fat';
+  }
+
+  @override
+  String get dietBuilderCoachNote => 'Coach note';
+
+  @override
+  String get dietBuilderCoachNoteBody =>
+      'This plan is a starting point based on what you told ZIVO. Adjust portions as you go, based on your progress and how you feel.';
+
+  @override
+  String get dietBuilderSafetyNote =>
+      'Nutrition plans aren\'t a substitute for medical advice. If you have a medical condition, a food allergy, or a specific dietary requirement, talk to a doctor or a registered dietitian before following a restrictive plan.';
+
+  @override
+  String get dietBuilderSavePlan => 'Save plan';
+
+  @override
+  String get dietBuilderEditPlan => 'Edit plan';
 }

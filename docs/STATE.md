@@ -7,8 +7,9 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-13 · **Active branch:** `feature/ai-gemini-provider`
-(cut from `feature/readiness`)
+**Last updated:** 2026-09-14 · **Active branch:** `feature/ai-gemini-provider`
+(cut from `feature/readiness`); Diet Builder wizard on
+`claude/affectionate-wozniak-wcnkpm`
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -93,6 +94,40 @@ notifications)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Diet Builder — one guided, number-free wizard** (2026-09-14, on
+  `claude/affectionate-wozniak-wcnkpm`). The scattered "build me one" screens are
+  replaced, as the primary generate entry, by a single stepped flow: **Goal →
+  About you (weight · height · age · sex · activity) → How you eat → What you
+  avoid → How many meals → Build → the finished plan**. Decisions in
+  [ADR-016](DECISIONS/ADR-016-diet-builder-wizard.md).
+  - **The engine is reused, not rebuilt.** The wizard only *gathers*; the
+    deterministic target (`calculateTargets`), the generator (the model picks
+    foods, the catalog prices them, `plan_fitting.js` scales them), and the
+    review editor are the existing pipeline. New: `diet_builder_page.dart` +
+    `presentation/controllers/diet_builder_controller.dart` (ADR-008) +
+    `diet_plan_reveal_page.dart`.
+  - **No numbers until the reveal.** The target is computed on-device, sizes the
+    generation (`DietImportPage` gained a `targetOverride`), and is shown only on
+    the finished plan as context. **Nothing is saved until Save on the reveal** —
+    body data, target and plan commit together, so the target the user never
+    typed is still one they approved (honors ADR-007). The reveal's Edit opens
+    the editor with a new `autosave:false`.
+  - **Free text + voice for intake** (`VoiceCaptureField`, new shared capture
+    widget) for how-you-eat / dislikes / allergies / schedule — a deliberate
+    reversal of the chip-first intake for this flow, with allergen chips kept as
+    an optional quick-add so the server's allergen gate still gets clean tokens.
+    Folded into the generator's existing `notes`, so **no functions deploy is
+    required**. `PlanPreferences` gained `eatingHabits`/`scheduleNotes` +
+    `splitNaturalFoodList`.
+  - **Retained, not deleted:** the old chip-based `DietPreferencesPage` (still
+    tested) and the manual `DietTargetsPage`.
+  - **Cover:** new `diet_builder_controller_test`, `diet_builder_page_test`,
+    `plan_preferences_test`; whole Flutter suite green except the **pre-existing**
+    `light_mode_smoke_test` "the Hub reads on paper" (unrelated, documented
+    below), `flutter analyze` clean, 34 new ARB keys in both languages.
+  - **⚠ OWNER ACTIONS.** (1) The ~33 new Arabic strings are mine, not a native
+    speaker's. (2) On-device pass of the flow (voice capture needs a real device).
 
 - **Ask coach — Gemini as a second provider + manual model select** (2026-09-13,
   on `feature/ai-gemini-provider`, cut from `feature/readiness`). The `aiChat`
