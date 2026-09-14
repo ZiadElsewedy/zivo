@@ -484,6 +484,24 @@ describe('workoutPlans delete path', () => {
   });
 });
 
+describe('workoutPlans source allowlist', () => {
+  const path = collPath(OWNER, 'workoutPlans');
+  const plan = (source) => ({ ...valid.workoutPlans, source });
+
+  // Every capture route the importer records (workout_plan_source.dart) must
+  // be writable — the allowlist was ['manual', 'pdf'] and silently rejected
+  // every photo/voice/typed import at save.
+  for (const source of ['manual', 'pdf', 'photo', 'dictated', 'typed']) {
+    it(`owner can save a plan with source '${source}'`, async () => {
+      await assertSucceeds(setDoc(doc(ownerDb(), path), plan(source)));
+    });
+  }
+
+  it('an unknown source is still rejected', async () => {
+    await assertFails(setDoc(doc(ownerDb(), path), plan('vibes')));
+  });
+});
+
 describe('workoutSessions: voided status and corrected durations', () => {
   const path = collPath(OWNER, 'workoutSessions');
   const base = () => ({ ...valid.workoutSessions });

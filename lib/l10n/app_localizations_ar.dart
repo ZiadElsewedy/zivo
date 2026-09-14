@@ -781,6 +781,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveWeightKg => 'الوزن · كجم';
 
   @override
+  String get liveWeight => 'الوزن';
+
+  @override
+  String get unitLb => 'رطل';
+
+  @override
   String get liveRepsField => 'التكرارات';
 
   @override
@@ -896,6 +902,26 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String liveQuickLast(String weight) {
+    return 'الأخير · $weight';
+  }
+
+  @override
+  String liveQuickGoal(String weight) {
+    return 'الهدف · $weight';
+  }
+
+  @override
+  String liveWeightFieldUnit(String unit) {
+    return 'الوزن ($unit)';
+  }
+
+  @override
+  String liveSetNumberUnit(int number, String unit) {
+    return 'المجموعة $number · $unit';
+  }
+
+  @override
   String get liveConnectMusic => 'اربط الموسيقى';
 
   @override
@@ -906,7 +932,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String liveDeltaWeight(String delta) {
-    return '$delta كجم عن مجموعتك السابقة';
+    return '$delta عن مجموعتك السابقة';
   }
 
   @override
@@ -926,7 +952,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String liveRepsByWeight(int reps, String kg) {
-    return '$reps × $kg كجم';
+    return '$reps × $kg';
   }
 
   @override
@@ -2352,6 +2378,45 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get askVoiceExamples =>
       '\"سجّل ٤٠ جنيه موقف سيارات\" · \"أنهيت تمرين الصدر\"';
+
+  @override
+  String get askTurnDetailsTitle => 'تفاصيل الرد';
+
+  @override
+  String get askTurnAnsweredBy => 'الإجابة من';
+
+  @override
+  String get askTurnInputTokens => 'توكنات الإدخال';
+
+  @override
+  String get askTurnCached => 'مخزّنة مؤقتًا';
+
+  @override
+  String get askTurnUncached => 'غير مخزّنة';
+
+  @override
+  String get askTurnOutputTokens => 'توكنات الإخراج';
+
+  @override
+  String get askTurnToolResults => 'نتائج الأدوات';
+
+  @override
+  String get askTurnTools => 'الأدوات المستخدمة';
+
+  @override
+  String get askTurnIterations => 'عدد الدورات';
+
+  @override
+  String get askTurnLatency => 'زمن الاستجابة';
+
+  @override
+  String get askTurnCost => 'التكلفة التقديرية';
+
+  @override
+  String get askTurnNone => 'لا شيء';
+
+  @override
+  String get askTurnUnavailable => 'لا توجد تفاصيل مسجّلة لهذه الرسالة.';
 
   @override
   String get profileName => 'الاسم';
@@ -4279,6 +4344,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get importAnalyzing => 'جارٍ تحليل جدولك';
+
+  @override
+  String get importAnalyzingWait => 'قد يستغرق هذا حتى دقيقة';
 
   @override
   String get importBuildManuallyInstead => 'ابنِ يدويًا بدلًا من ذلك';

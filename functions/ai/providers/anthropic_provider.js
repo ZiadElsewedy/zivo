@@ -196,9 +196,15 @@ class AnthropicProvider extends AiProvider {
    * those turns emit no text at all, so `onText` never fires for them. It is
    * called with `(partialJson, snapshot)` — the delta and the cumulative JSON
    * so far, the latter being what a progress scanner actually wants.
+   * `opts.signal` is an `AbortSignal` (from the callable's `response.signal`,
+   * which fires when the client disconnects). Threaded into the Anthropic SDK
+   * call so a cancelled import genuinely aborts the in-flight generation
+   * instead of billing for output nobody will read. Aborting rejects the
+   * awaited promise with an abort error, which the caller lets propagate.
    * @param {!Object} normalizedRequest
    * @param {{onText: (function(string): void),
-   *   onInputJson: (function(string, string): void)}=} opts
+   *   onInputJson: (function(string, string): void),
+   *   signal: (AbortSignal|undefined)}=} opts
    * @return {!Promise<!Object>}
    * @override
    */
@@ -206,19 +212,28 @@ class AnthropicProvider extends AiProvider {
     const anthropicReq = toAnthropicRequest(normalizedRequest);
     const wantsText = typeof opts.onText === "function";
     const wantsInputJson = typeof opts.onInputJson === "function";
+    // Only pass a second (RequestOptions) arg when there's a signal to carry —
+    // the legacy `callModel` seam and the buffered test fakes are plain
+    // one-arg functions, so an unconditional options object would change every
+    // existing call's shape for no reason.
+    const reqOpts = opts.signal ? {signal: opts.signal} : undefined;
     // A client with no `stream` (the legacy `callModel`-only seam, and every
     // buffered test fake) degrades to a buffered call rather than throwing.
     // Callers get the same final response either way — only the live progress
     // is lost, which is the correct thing to trade for not failing the import.
     const canStream = typeof this._client.messages.stream === "function";
     if ((wantsText || wantsInputJson) && canStream) {
-      const stream = this._client.messages.stream(anthropicReq);
+      const stream = reqOpts ?
+        this._client.messages.stream(anthropicReq, reqOpts) :
+        this._client.messages.stream(anthropicReq);
       if (wantsText) stream.on("text", opts.onText);
       if (wantsInputJson) stream.on("inputJson", opts.onInputJson);
       const raw = await stream.finalMessage();
       return toNormalizedResponse(raw);
     }
-    const raw = await this._client.messages.create(anthropicReq);
+    const raw = reqOpts ?
+      await this._client.messages.create(anthropicReq, reqOpts) :
+      await this._client.messages.create(anthropicReq);
     return toNormalizedResponse(raw);
   }
 }

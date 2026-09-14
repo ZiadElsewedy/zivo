@@ -9,6 +9,7 @@ import '../../../../../core/widgets/zivo_sheet.dart';
 import '../../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../domain/logged_set.dart';
 import '../../../domain/session_exercise.dart';
+import '../../../domain/weight_unit.dart';
 import '../../../../../l10n/l10n.dart';
 import 'live_session_format.dart';
 import 'set_input.dart';
@@ -18,11 +19,13 @@ import 'set_input.dart';
 class ReviewExerciseGroup extends StatelessWidget {
   const ReviewExerciseGroup({
     required this.exercise,
+    required this.unit,
     required this.onEditSet,
     super.key,
   });
 
   final SessionExercise exercise;
+  final WeightUnit unit;
   final void Function(LoggedSet set, int position) onEditSet;
 
   @override
@@ -54,6 +57,7 @@ class ReviewExerciseGroup extends StatelessWidget {
             ReviewSetRow(
               position: position,
               set: set,
+              unit: unit,
               onTap: () => onEditSet(set, position),
             ),
         ],
@@ -69,12 +73,14 @@ class ReviewSetRow extends StatelessWidget {
   const ReviewSetRow({
     required this.position,
     required this.set,
+    required this.unit,
     required this.onTap,
     super.key,
   });
 
   final int position;
   final LoggedSet set;
+  final WeightUnit unit;
   final VoidCallback onTap;
 
   @override
@@ -108,7 +114,7 @@ class ReviewSetRow extends StatelessWidget {
               Text(
                 skipped
                     ? l(context).liveSkipped
-                    : ltrFor(context, formatSetActuals(set)),
+                    : ltrFor(context, formatSetActuals(set, unit)),
                 style: AppText.meta.copyWith(
                   color: skipped ? TrainColors.ink3 : TrainColors.ink2,
                   fontWeight: skipped ? FontWeight.w600 : FontWeight.w500,
@@ -137,6 +143,8 @@ class SetReviewSheet extends StatefulWidget {
   const SetReviewSheet({
     required this.title,
     required this.wasSkipped,
+    required this.unit,
+    required this.weightStep,
     this.initialReps,
     this.initialWeight,
     super.key,
@@ -144,7 +152,17 @@ class SetReviewSheet extends StatefulWidget {
 
   final String title;
   final bool wasSkipped;
+
+  /// The active display unit — the weight is shown, stepped and typed in it,
+  /// then converted back to kg on save (the sheet still returns canonical kg).
+  final WeightUnit unit;
+
+  /// The equipment-aware ± increment, in [unit] (see `weightStepFor`).
+  final double weightStep;
+
   final int? initialReps;
+
+  /// The set's stored load, in canonical kilograms.
   final double? initialWeight;
 
   @override
@@ -156,7 +174,9 @@ class _SetReviewSheetState extends State<SetReviewSheet> {
     text: widget.initialReps?.toString() ?? '',
   );
   late final TextEditingController _weight = TextEditingController(
-    text: widget.initialWeight != null ? trimWeight(widget.initialWeight!) : '',
+    text: widget.initialWeight != null
+        ? widget.unit.display(widget.initialWeight!)
+        : '',
   );
 
   @override
@@ -168,8 +188,9 @@ class _SetReviewSheetState extends State<SetReviewSheet> {
 
   void _save() {
     final reps = parseWhole(_reps.text);
-    final weight = parseDecimal(_weight.text);
-    Navigator.of(context).pop((reps, weight));
+    final display = parseDecimal(_weight.text);
+    final weightKg = display == null ? null : widget.unit.toKg(display);
+    Navigator.of(context).pop((reps, weightKg));
   }
 
   @override
@@ -216,9 +237,11 @@ class _SetReviewSheetState extends State<SetReviewSheet> {
               ),
               const SizedBox(width: AppSpacing.m),
               StepperField(
-                label: l(context).liveWeightField,
+                label: l(context).liveWeightFieldUnit(
+                  unitSymbol(l(context), widget.unit),
+                ),
                 controller: _weight,
-                step: 2.5,
+                step: widget.weightStep,
                 hint: '—',
                 onChanged: () => setState(() {}),
               ),

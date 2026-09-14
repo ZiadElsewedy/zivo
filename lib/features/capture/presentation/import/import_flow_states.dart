@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/util/bidi.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../l10n/l10n.dart';
-import '../../../ai/domain/import_progress.dart';
 import '../widgets/capture_widgets.dart';
 
 /// The phase screens a plan import moves through — select → analyze →
@@ -19,49 +17,12 @@ import '../widgets/capture_widgets.dart';
 /// ladder (ADR-009), and each caller passes only its own copy and accent — the
 /// review/preview step, which only the workout flow has, stays in that page.
 
-/// What kind of thing an importer is counting as it reads.
+/// The looping-Lottie single-line "working" screen — for a step that does NOT
+/// stream real progress and so has no honest stage checklist to show.
 ///
-/// An id, not a noun: the count has to be a real ICU plural (Arabic has six
-/// forms, and "1 day"/"2 days" cannot be built by appending an "s"), so the
-/// caller names the *kind* and the `.arb` owns every form of it.
-enum ImportItemKind { day, meal, exercise, item }
-
-String _itemCount(BuildContext context, ImportItemKind kind, int count) =>
-    switch (kind) {
-      ImportItemKind.day => l(context).importItemCountDay(count),
-      ImportItemKind.meal => l(context).importItemCountMeal(count),
-      ImportItemKind.exercise => l(context).importItemCountExercise(count),
-      ImportItemKind.item => l(context).importItemCountGeneric(count),
-    };
-
-/// What the analysing screen says right now: the live extraction if one has
-/// arrived, else the opening line ("Reading the document…" — before the first
-/// day/meal arrives, reading really is all that happens).
-///
-/// Deliberately never claims a total — the model doesn't know how many items a
-/// document holds until it has read them, so "Day 2 of 5" would be a number
-/// nobody has. A rising count is the honest shape.
-String importProgressLine(
-  BuildContext context,
-  ImportProgress? progress, {
-  required ImportItemKind itemKind,
-}) {
-  final p = progress;
-  if (p == null || p.isEmpty) return l(context).importReadingDocument;
-  final section = p.latestSection;
-  if (section == null) {
-    return p.planName != null
-        ? l(context).importFoundNamed(p.planName!)
-        : l(context).importReadingDocument;
-  }
-  // The section name comes out of the user's own document, in whichever
-  // script it was written in.
-  return l(context).importSectionItems(
-    isolate(section),
-    _itemCount(context, itemKind, p.items),
-  );
-}
-
+/// Used by diet **generation** (`aiGenerateDietPlan` is not streamed), whose
+/// [statusLine] is a cycled written line, not a live extraction. Import uses
+/// [ImportAnalyzingState] instead, which shows the real pipeline.
 /// A large tinted rounded-square icon above a headline/subcopy pair — the
 /// "premium empty/status state" language the capture flows share.
 class ImportPhaseIcon extends StatelessWidget {
@@ -136,35 +97,42 @@ class ImportSelectingState extends StatelessWidget {
   }
 }
 
-/// The looping-Lottie "analysing" screen. [statusLine] is the one live line;
-/// build it with [importProgressLine].
+/// The "analysing" screen — a looping-Lottie mark, the title, one honest line,
+/// and an optional Cancel.
+///
+/// An import is a single ~minute model call with no observable sub-steps, so
+/// this deliberately does NOT pretend separate backend stages are running: it
+/// says the app is analysing the plan and sets the wait expectation via
+/// [statusLine]. [onCancel], when given, shows a Cancel that aborts the import
+/// (backend-side, via `aiCancelImport`). Diet generation reuses this with its
+/// own cycled [statusLine] and no cancel.
 class ImportAnalyzingState extends StatelessWidget {
   const ImportAnalyzingState({
     required this.statusLine,
+    this.onCancel,
     Color? accent,
     Color? chipColor,
     super.key,
-    // `this._x`, which the lint asks for here, is not a thing Dart will
-    // accept: a named parameter cannot be private. The field is private
-    // so that the public name can be the *resolved* getter below, which
-    // is what keeps this constructor `const` (ADR-011).
+    // A named parameter cannot be private; the field is private so the public
+    // name can be the *resolved* getter below, which keeps this const (ADR-011).
     // ignore: prefer_initializing_formals
   }) : _accent = accent,
        // ignore: prefer_initializing_formals
        _chipColor = chipColor;
 
   final String statusLine;
+
+  /// Aborts the import (backend-side, via `aiCancelImport`). Null hides Cancel
+  /// (e.g. diet generation, or an offline fake that cannot cancel).
+  final VoidCallback? onCancel;
+
   final Color? _accent;
 
-  /// Defaults to the active skin's `green` — resolved on read
-  /// rather than as a parameter default, which is what lets this
-  /// constructor stay `const` (ADR-011).
+  /// Defaults to the active skin's `green` — resolved on read (ADR-011).
   Color get accent => _accent ?? TrainColors.green;
   final Color? _chipColor;
 
-  /// Defaults to the active skin's `glassStrong` — resolved on read
-  /// rather than as a parameter default, which is what lets this
-  /// constructor stay `const` (ADR-011).
+  /// Defaults to the active skin's `glassStrong` — resolved on read (ADR-011).
   Color get chipColor => _chipColor ?? TrainColors.glassStrong;
 
   @override
@@ -195,8 +163,19 @@ class ImportAnalyzingState extends StatelessWidget {
               statusLine,
               key: ValueKey(statusLine),
               style: AppText.body.copyWith(color: TrainColors.ink3),
+              textAlign: TextAlign.center,
             ),
           ),
+          if (onCancel != null) ...[
+            const SizedBox(height: 24),
+            TextButton(
+              onPressed: onCancel,
+              child: Text(
+                l(context).actionCancel,
+                style: AppText.meta.copyWith(color: TrainColors.ink2),
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -34,7 +34,7 @@ const Anthropic = require("@anthropic-ai/sdk");
 const otp = require("./auth/otp");
 const quota = require("./shared/quota");
 const {isDocumentId} = require("./shared/ids");
-const {dayKeyFor} = require("./ai/dates");
+const {dayKeyFor} = require("./ai/shared/dates");
 const {
   markEmailSent,
   markEmailVerified,
@@ -46,11 +46,13 @@ const {
   cancelAction,
   GatewayError,
 } = require("./ai/gateway");
-const {extractWorkoutPlan} = require("./ai/workout_import");
-const {extractDietPlan} = require("./ai/diet_import");
-const {generateDietPlan} = require("./ai/diet_generate");
-const {deliverWeeklyReport} = require("./ai/coach_report");
-const {FirestoreStore} = require("./ai/store");
+const {extractWorkoutPlan} = require("./ai/services/workout_import");
+const {extractDietPlan} = require("./ai/services/diet_import");
+const {importKey, runImportOnce, cancelImport} =
+    require("./ai/shared/import_runtime");
+const {generateDietPlan} = require("./ai/services/diet_generate");
+const {deliverWeeklyReport} = require("./ai/services/coach_report");
+const {FirestoreStore} = require("./ai/shared/store");
 const {AnthropicProvider} = require("./ai/providers/anthropic_provider");
 const {GeminiProvider} = require("./ai/providers/gemini_provider");
 const {ProviderRegistry} = require("./ai/providers/registry");
@@ -733,7 +735,8 @@ function buildProviderRegistry(anthropic, genai) {
  * An `AiProvider`-shaped object whose `generate` resolves `capability` via
  * `./ai/routing/router.js` on every call — including the router's
  * fallback-on-error policy, transparently to `./ai/gateway.js`/
- * `./ai/workout_import.js`, which only ever see a single `provider.generate`.
+ * `./ai/services/workout_import.js`, which only ever see a single
+ * `provider.generate`.
  * @param {!ProviderRegistry} registry
  * @param {string} capability
  * @param {{forceProvider: string}=} routeOpts A manual provider override —
@@ -764,7 +767,8 @@ function forceProviderFor(selection) {
  * The "Ask" AI assistant gateway (ADR-001): a read-only, tool-mediated
  * Claude conversation over the user's own ZIVO data. All orchestration
  * (history windowing, the tool loop, cost/iteration ceilings, usage
- * logging) lives in `./ai/gateway.js`/`./ai/tools.js` so it is unit-testable
+ * logging) lives in `./ai/gateway.js`/`./ai/tools/read.js` so it is
+ * unit-testable
  * without the network or the emulator; this handler only wires the real
  * Anthropic client, provider/routing seam, and Firestore store, and maps
  * errors.
@@ -974,7 +978,7 @@ exports.aiImportWorkoutPlan = onCall(
       // here to keep each round-trip small.
       timeoutSeconds: 180,
     },
-    async (request, response) => {
+    async (request) => {
       const auth = request.auth;
       if (!auth) {
         throw new HttpsError("unauthenticated", "Sign in to import a plan.");
@@ -986,18 +990,21 @@ exports.aiImportWorkoutPlan = onCall(
         throw new HttpsError(
             "invalid-argument", "That file is too large to import.");
       }
-      // Spend the day's allowance BEFORE calling the model, never after: a
-      // ceiling charged on success would leave a loop of *failing* calls
-      // unbounded, which is the same unbounded bill. The size check above
-      // runs first so a rejected oversized upload costs the user nothing.
-      await enforceDailyQuota(
-          auth.uid, "workoutImport", offsetFromData(data));
       const mimeType = (data.mimeType || "application/pdf").toString();
       // The same extraction, from the user's own words instead of a file —
       // a dictated split (transcribed by `aiTranscribe` first) or one typed
       // out. `extractWorkoutPlan` enforces exactly-one-kind and the length
       // bound; passing it through undefined keeps the file path unchanged.
       const text = typeof data.text === "string" ? data.text : undefined;
+      // One id per client import attempt (see the Flutter importer). It is the
+      // idempotency + cancellation key: a duplicated invocation (a retry, or
+      // the client's buffered fallback after an unparseable `.stream()`)
+      // attaches to the same run instead of paying twice, and `aiCancelImport`
+      // trips this run's AbortController. Logged on every event, so a dup
+      // run is diagnosable at a glance (two lines, one id = one attempt sent
+      // twice).
+      const executionId = (data.executionId || "").toString() || undefined;
+      const key = importKey(auth.uid, executionId);
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic);
@@ -1005,37 +1012,45 @@ exports.aiImportWorkoutPlan = onCall(
       // "why did this reject" patterns (e.g. a suspiciously tiny upload).
       const approxPdfBytes = Math.round(pdfBase64.length * 3 / 4);
 
-      // Same opt-in contract as aiChat: the client asks for streaming
-      // explicitly, and a plain `.call()` runs exactly as before — buffered,
-      // no progress events, no per-token work.
-      const streaming =
-        request.acceptsStreaming === true ||
-        data.acceptsStreaming === true && !!response;
-
       try {
-        const result = await extractWorkoutPlan({
-          provider: providerForCapability(registry, "workout_import"),
-          model: router.resolve("workout_import").model,
-          fileBase64: pdfBase64,
-          mediaType: mimeType,
-          text,
-          onProgress: streaming ? (p) => response.sendChunk({
-            type: "progress",
-            planName: p.planName,
-            days: p.days,
-            exercises: p.exercises,
-          }) : undefined,
-          logEvent: (event) => logger.info("aiImportWorkoutPlan", {
-            approxPdfBytes,
-            inputKind: text ? "description" : "document",
-            ...event,
-          }),
+        // Buffered, single request/response — the reliable transport (callable
+        // streaming does not reach this app's Flutter client). runImportOnce
+        // dedups by executionId so a duplicated invocation never runs the model
+        // or spends quota twice, and supplies the AbortSignal aiCancelImport
+        // trips.
+        const result = await runImportOnce(key, async (signal) => {
+          // Charged INSIDE the run so a deduped duplicate isn't charged again.
+          // Before the model call, never after: a ceiling charged on success
+          // would leave a loop of *failing* calls unbounded — the same
+          // unbounded bill.
+          await enforceDailyQuota(
+              auth.uid, "workoutImport", offsetFromData(data));
+          return extractWorkoutPlan({
+            provider: providerForCapability(registry, "workout_import"),
+            model: router.resolve("workout_import").model,
+            fileBase64: pdfBase64,
+            mediaType: mimeType,
+            text,
+            // Tripped by aiCancelImport (an explicit X), so cancelling aborts
+            // the generation.
+            signal,
+            logEvent: (event) => logger.info("aiImportWorkoutPlan", {
+              approxPdfBytes,
+              executionId,
+              inputKind: text ? "description" : "document",
+              ...event,
+            }),
+          });
         });
         return result;
       } catch (err) {
+        // A cancellation is expected, not a failure — log it as one and don't
+        // route it through the "unhandled error" console.error in toHttpsError.
+        const cancelled = err && err.code === "cancelled";
         logger.info("aiImportWorkoutPlan", {
           approxPdfBytes,
-          stage: "error",
+          executionId,
+          stage: cancelled ? "cancelled" : "error",
           message: err && err.message,
         });
         throw toHttpsError(err);
@@ -1065,7 +1080,7 @@ exports.aiImportDietPlan = onCall(
       // run well past the platform's 60s default.
       timeoutSeconds: 180,
     },
-    async (request, response) => {
+    async (request) => {
       const auth = request.auth;
       if (!auth) {
         throw new HttpsError("unauthenticated", "Sign in to import a plan.");
@@ -1077,56 +1092,82 @@ exports.aiImportDietPlan = onCall(
         throw new HttpsError(
             "invalid-argument", "That file is too large to import.");
       }
-      // See aiImportWorkoutPlan: charged before the model call, after the
-      // size check, so a loop is bounded but a rejected upload is free.
-      await enforceDailyQuota(auth.uid, "dietImport", offsetFromData(data));
       const mimeType = (data.mimeType || "application/pdf").toString();
       // The same extraction, from the user's own words instead of a file —
       // a dictated plan (transcribed by `aiTranscribe` first) or one typed
       // out. `extractDietPlan` enforces exactly-one-kind and the length
       // bound; passing it through undefined keeps the file path unchanged.
       const text = typeof data.text === "string" ? data.text : undefined;
+      // See aiImportWorkoutPlan: one id per client attempt — the idempotency +
+      // cancellation key, logged for duplicate-run diagnosis.
+      const executionId = (data.executionId || "").toString() || undefined;
+      const key = importKey(auth.uid, executionId);
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic);
       const approxPdfBytes = Math.round(pdfBase64.length * 3 / 4);
 
-      const streaming =
-        request.acceptsStreaming === true ||
-        data.acceptsStreaming === true && !!response;
-
       try {
-        const result = await extractDietPlan({
-          provider: providerForCapability(registry, "diet_import"),
-          model: router.resolve("diet_import").model,
-          fileBase64: pdfBase64,
-          mediaType: mimeType,
-          text,
-          onProgress: streaming ? (p) => response.sendChunk({
-            type: "progress",
-            planName: p.planName,
-            // Days and meals share the `label` key in the diet schema, so
-            // these arrive as one ordered list — the client shows the latest.
-            labels: p.labels,
-            items: p.items,
-          }) : undefined,
-          logEvent: (event) => logger.info("aiImportDietPlan", {
-            approxPdfBytes,
-            inputKind: text ? "description" : "document",
-            ...event,
-          }),
+        // Buffered — see aiImportWorkoutPlan. Deduped + cancellable by
+        // executionId.
+        const result = await runImportOnce(key, async (signal) => {
+          // Charged inside the run so a deduped duplicate isn't charged twice.
+          await enforceDailyQuota(auth.uid, "dietImport", offsetFromData(data));
+          return extractDietPlan({
+            provider: providerForCapability(registry, "diet_import"),
+            model: router.resolve("diet_import").model,
+            fileBase64: pdfBase64,
+            mediaType: mimeType,
+            text,
+            signal,
+            logEvent: (event) => logger.info("aiImportDietPlan", {
+              approxPdfBytes,
+              executionId,
+              inputKind: text ? "description" : "document",
+              ...event,
+            }),
+          });
         });
         return result;
       } catch (err) {
+        const cancelled = err && err.code === "cancelled";
         logger.info("aiImportDietPlan", {
           approxPdfBytes,
-          stage: "error",
+          executionId,
+          stage: cancelled ? "cancelled" : "error",
           message: err && err.message,
         });
         throw toHttpsError(err);
       }
     },
 );
+
+// --- aiCancelImport ----------------------------------------------------------
+
+/**
+ * Cancels an in-flight plan import (workout or diet) by its `executionId`. The
+ * client sends this when the user presses X/Cancel: it trips the run's
+ * `AbortController` (registered by `runImportOnce` on this instance), which
+ * aborts the in-flight Anthropic generation so a cancelled import stops the
+ * work and the billing instead of running to completion.
+ *
+ * Decoupled from the streaming connection on purpose: a `.call()` can't be
+ * cancelled client-side, and the Functions emulator can't stream, so tying
+ * cancellation to a connection close would leave it not working in exactly the
+ * places it's tested. `{cancelled}` says whether a live run was found — false
+ * is normal (it already finished, or is on another instance; in-memory stores
+ * are per-instance, so cross-instance cancel is a documented gap).
+ */
+exports.aiCancelImport = onCall(
+    {region: "us-central1"}, async (request) => {
+      const auth = request.auth;
+      if (!auth) throw new HttpsError("unauthenticated", "Sign in.");
+      const executionId = (request.data && request.data.executionId || "")
+          .toString();
+      const cancelled = cancelImport(importKey(auth.uid, executionId));
+      logger.info("aiCancelImport", {executionId, cancelled});
+      return {cancelled};
+    });
 
 // --- aiGenerateDietPlan ------------------------------------------------------
 
@@ -1136,7 +1177,8 @@ exports.aiImportDietPlan = onCall(
  * The same "human confirms before it becomes real" gate as the importer: this
  * writes nothing, and the client reviews and saves the result itself. What is
  * different is where the numbers come from — the model picks foods, and
- * `./ai/diet_generate.js` prices them through the SAME nutrition catalog the
+ * `./ai/services/diet_generate.js` prices them through the SAME nutrition
+ * catalog the
  * coach and the food log use, including the user's own custom foods. See
  * ADR-007 for why a generated plan may not carry model-stated calories.
  *
@@ -1381,7 +1423,8 @@ exports.aiTranscribe = onCall(
  * training done, diet adherence vs plan, spend — as an assistant message in
  * each user's most recent Ask conversation, so it's waiting there when they
  * next open the app. No model call per user: the text is a template over
- * real numbers (`./ai/coach_report.js`), which keeps this free to run and
+ * real numbers (`./ai/services/coach_report.js`), which keeps this free to
+ * run and
  * impossible to hallucinate.
  *
  * Delivery targets come from Auth (every real account), but only users with

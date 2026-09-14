@@ -4,10 +4,11 @@
 DEV_DEFINES     = --dart-define-from-file=config/development.json
 PROFILE_DEFINES = --dart-define-from-file=config/profile.json
 RELEASE_DEFINES = --dart-define-from-file=config/release.json
+EMULATOR_DEFINES = --dart-define=USE_FIREBASE_EMULATOR=true
 
 .DEFAULT_GOAL := help
 
-.PHONY: help dev profile release build-apk build-ipa build-apk-profile gates hooks
+.PHONY: help dev dev-emulator emulators profile release build-apk build-ipa build-apk-profile gates hooks
 
 help: ## List the available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -15,6 +16,12 @@ help: ## List the available targets
 
 dev: ## Run Development (debug) on the default device
 	flutter run $(DEV_DEFINES)
+
+emulators: ## Start the Firebase Emulator Suite (demo backend; persists data in .emulator-data)
+	firebase emulators:start --import=.emulator-data --export-on-exit=.emulator-data
+
+dev-emulator: ## Run Development against the local Emulator Suite (run `make emulators` first)
+	flutter run $(DEV_DEFINES) $(EMULATOR_DEFINES)
 
 profile: ## Run Profile — the M7 config — on a PHYSICAL device
 	flutter run --profile $(PROFILE_DEFINES)

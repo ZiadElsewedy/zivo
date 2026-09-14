@@ -12,15 +12,15 @@
  *
  * The window is the trailing 7 days ending "now" (the scheduler's run time),
  * computed in the server's UTC day boundaries — the same convention as every
- * other date computation in this backend (`./dates.js`'s header note).
+ * other date computation in this backend (`../shared/dates.js`'s header note).
  *
  * The text is a deterministic template on purpose: no model call means zero
  * cost per user per week, fully testable output, and it can't hallucinate
  * numbers. The live coach elaborates when the user replies to it.
  */
 
-const {dayKeyFor, resolveDietDay} = require("./dates");
-const {dayNutrition} = require("./tools");
+const {dayKeyFor, resolveDietDay} = require("../shared/dates");
+const {dayNutrition} = require("../tools/read");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

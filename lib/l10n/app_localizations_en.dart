@@ -781,6 +781,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveWeightKg => 'WEIGHT · KG';
 
   @override
+  String get liveWeight => 'WEIGHT';
+
+  @override
+  String get unitLb => 'lb';
+
+  @override
   String get liveRepsField => 'Reps';
 
   @override
@@ -897,6 +903,26 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String liveQuickLast(String weight) {
+    return 'Last · $weight';
+  }
+
+  @override
+  String liveQuickGoal(String weight) {
+    return 'Goal · $weight';
+  }
+
+  @override
+  String liveWeightFieldUnit(String unit) {
+    return 'Weight ($unit)';
+  }
+
+  @override
+  String liveSetNumberUnit(int number, String unit) {
+    return 'SET $number · $unit';
+  }
+
+  @override
   String get liveConnectMusic => 'CONNECT MUSIC';
 
   @override
@@ -907,7 +933,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String liveDeltaWeight(String delta) {
-    return '${delta}kg from your previous set';
+    return '$delta from your previous set';
   }
 
   @override
@@ -927,7 +953,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String liveRepsByWeight(int reps, String kg) {
-    return '$reps × $kg kg';
+    return '$reps × $kg';
   }
 
   @override
@@ -2322,6 +2348,45 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get askVoiceExamples =>
       '\"add 40 EGP parking\" · \"finished chest day\"';
+
+  @override
+  String get askTurnDetailsTitle => 'Turn details';
+
+  @override
+  String get askTurnAnsweredBy => 'Answered by';
+
+  @override
+  String get askTurnInputTokens => 'Input tokens';
+
+  @override
+  String get askTurnCached => 'Cached';
+
+  @override
+  String get askTurnUncached => 'Uncached';
+
+  @override
+  String get askTurnOutputTokens => 'Output tokens';
+
+  @override
+  String get askTurnToolResults => 'Tool results';
+
+  @override
+  String get askTurnTools => 'Tools used';
+
+  @override
+  String get askTurnIterations => 'Iterations';
+
+  @override
+  String get askTurnLatency => 'Latency';
+
+  @override
+  String get askTurnCost => 'Est. cost';
+
+  @override
+  String get askTurnNone => 'None';
+
+  @override
+  String get askTurnUnavailable => 'No details recorded for this message.';
 
   @override
   String get profileName => 'Name';
@@ -4208,6 +4273,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get importAnalyzing => 'Analyzing your plan';
+
+  @override
+  String get importAnalyzingWait => 'This can take up to a minute';
 
   @override
   String get importBuildManuallyInstead => 'Build manually instead';

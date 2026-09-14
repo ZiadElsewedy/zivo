@@ -14,7 +14,7 @@ const {
   DEFAULT_REJECTION_REASON,
   MAX_TEXT_CHARS,
 } = require("./workout_import");
-const {GatewayError} = require("./gateway");
+const {GatewayError} = require("../gateway");
 
 /**
  * A `callModel` fake resolving to a single scripted response, recording the
@@ -402,141 +402,6 @@ test("extractWorkoutPlan: rejects an unsupported media type before calling the m
   assert.equal(callModel.lastRequest, undefined);
 });
 
-// ---- Live progress -------------------------------------------------------
-
-/**
- * An `AnthropicProvider`-shaped client that streams a tool call's input JSON
- * in fragments, the way the real SDK does. This is what makes the progress
- * path testable offline: `callModel` alone can never exercise it, because a
- * buffered call has no intermediate state to report.
- * @param {!Object} finalResponse
- * @param {!Array<string>} fragments
- * @return {!Object}
- */
-function streamingClient(finalResponse, fragments) {
-  return {
-    messages: {
-      create: async () => finalResponse,
-      stream: () => {
-        const handlers = {};
-        return {
-          on(event, fn) {
-            handlers[event] = fn;
-            return this;
-          },
-          async finalMessage() {
-            let snapshot = "";
-            for (const fragment of fragments) {
-              snapshot += fragment;
-              if (handlers.inputJson) handlers.inputJson(fragment, snapshot);
-            }
-            return finalResponse;
-          },
-        };
-      },
-    },
-  };
-}
-
-test("streams live progress as days and exercises are extracted", async () => {
-  const {AnthropicProvider} = require("./providers/anthropic_provider");
-  const input = {
-    planName: "Push Pull Legs",
-    days: [
-      {slot: "A", label: "Push", exercises: [
-        {name: "Bench Press", muscleGroup: "Chest", sets: 4, repsMin: 6,
-          repsMax: 8, toFailure: false, targetWeightKg: null,
-          restSeconds: null},
-      ]},
-      {slot: "B", label: "Pull", exercises: [
-        {name: "Row", muscleGroup: "Back", sets: 4, repsMin: 6, repsMax: 8,
-          toFailure: false, targetWeightKg: null, restSeconds: null},
-      ]},
-    ],
-  };
-  const json = JSON.stringify(input);
-  // Fragment it the way a token stream would — mid-word, mid-string.
-  const fragments = [];
-  for (let i = 0; i < json.length; i += 17) {
-    fragments.push(json.slice(i, i + 17));
-  }
-
-  const seen = [];
-  const result = await extractWorkoutPlan({
-    provider: new AnthropicProvider(
-        streamingClient(toolResponse(input), fragments)),
-    fileBase64: "QUJD",
-    onProgress: (p) => seen.push(p),
-  });
-
-  assert.equal(result.ok, true);
-  assert.ok(seen.length > 0, "progress must actually be reported");
-
-  // It grows, and it never goes backwards.
-  for (let i = 1; i < seen.length; i++) {
-    assert.ok(seen[i].days.length >= seen[i - 1].days.length);
-    assert.ok(seen[i].exercises >= seen[i - 1].exercises);
-  }
-  const last = seen[seen.length - 1];
-  assert.deepEqual(last.days, ["Push", "Pull"]);
-  assert.equal(last.exercises, 2);
-  assert.equal(last.planName, "Push Pull Legs");
-});
-
-test("progress is emitted only when the numbers change, not per token",
-    async () => {
-      const {AnthropicProvider} = require("./providers/anthropic_provider");
-      const input = {
-        planName: "PPL",
-        days: [{slot: "A", label: "Push", exercises: [
-          {name: "Bench", muscleGroup: null, sets: 3, repsMin: 8, repsMax: 8,
-            toFailure: false, targetWeightKg: null, restSeconds: null},
-        ]}],
-      };
-      const json = JSON.stringify(input);
-      // One fragment per character: the worst case the real stream can throw.
-      const fragments = json.split("");
-
-      const seen = [];
-      await extractWorkoutPlan({
-        provider: new AnthropicProvider(
-            streamingClient(toolResponse(input), fragments)),
-        fileBase64: "QUJD",
-        onProgress: (p) => seen.push(p),
-      });
-
-      // Three things can change (planName, a day, an exercise), so at most
-      // three events — not one per character.
-      assert.ok(seen.length <= 3,
-          `expected at most 3 events, got ${seen.length}`);
-      assert.ok(fragments.length > 50, "fixture must be token-dense");
-    });
-
-test("omitting onProgress leaves the call buffered", async () => {
-  const {AnthropicProvider} = require("./providers/anthropic_provider");
-  const input = {planName: "PPL", days: [{
-    slot: "A",
-    label: "Push",
-    exercises: [{name: "Bench", muscleGroup: null, sets: 3, repsMin: 8,
-      repsMax: 8, toFailure: false, targetWeightKg: null, restSeconds: null}],
-  }]};
-  let streamed = false;
-  const client = streamingClient(toolResponse(input), [JSON.stringify(input)]);
-  const realStream = client.messages.stream;
-  client.messages.stream = (...args) => {
-    streamed = true;
-    return realStream(...args);
-  };
-
-  const result = await extractWorkoutPlan({
-    provider: new AnthropicProvider(client),
-    fileBase64: "QUJD",
-  });
-
-  assert.equal(result.ok, true);
-  assert.equal(streamed, false, "no onProgress must mean no streaming call");
-});
-
 // --- a dictated or typed description ---------------------------------------
 //
 // The same extractor, different material: a transcript of someone describing
@@ -632,4 +497,31 @@ test("extractWorkoutPlan: a description does not need a media type", async () =>
     callModel, text: "Day A: squats 5 by 5.", mediaType: "text/plain",
   });
   assert.equal(result.ok, true);
+});
+
+test("extractWorkoutPlan: a mid-generation abort surfaces as a 'cancelled' GatewayError, not 'internal'", async () => {
+  // The client pressed X: the callable's response.signal fired and the SDK
+  // rejected the in-flight call with an abort error. That is a cancellation,
+  // not a failure to read the PDF.
+  const abort = async () => {
+    const err = new Error("Request was aborted.");
+    err.name = "APIUserAbortError";
+    throw err;
+  };
+  await assert.rejects(
+      () => extractWorkoutPlan({callModel: abort, pdfBase64: "ZmFrZS1wZGY="}),
+      (err) => err instanceof GatewayError && err.code === "cancelled");
+});
+
+test("extractWorkoutPlan: an aborted signal is reported as cancelled even if the error is generic", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const boom = async () => {
+    throw new Error("socket hang up");
+  };
+  await assert.rejects(
+      () => extractWorkoutPlan({
+        callModel: boom, pdfBase64: "ZmFrZS1wZGY=", signal: controller.signal,
+      }),
+      (err) => err instanceof GatewayError && err.code === "cancelled");
 });

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../l10n/l10n.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../ai/domain/import_progress.dart';
+import '../../../ai/domain/import_cancellation.dart';
 import '../../../../core/widgets/zivo_toast.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../capture/presentation/import/import_flow_states.dart';
@@ -74,9 +74,14 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
   WorkoutPlan? _draft;
   bool _saving = false;
 
-  /// The newest extraction snapshot from the model, or null before the first
-  /// one lands.
-  ImportProgress? _progress;
+  /// The live cancel handle for the in-flight extraction, or null when nothing
+  /// is running. Cancelling it calls `aiCancelImport`, which aborts the backend
+  /// model call.
+  ImportCancellation? _cancellation;
+
+  /// Guards against a second dispatch: [_run] fires exactly once per attempt,
+  /// so an import is never invoked twice for one user action.
+  bool _running = false;
 
   @override
   void initState() {
@@ -84,18 +89,21 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _run());
   }
 
-  /// What the analysing screen says right now: the live extraction if one has
-  /// arrived, else the opening line.
-  String get _statusLine =>
-      importProgressLine(
-        context,
-        _progress,
-        itemKind: ImportItemKind.exercise,
-      );
+  /// Closing the flow. While an extraction is in flight this first cancels it —
+  /// which propagates to the backend (`aiCancelImport` aborts the model call) —
+  /// then pops. Otherwise it just pops.
+  void _closeFlow() {
+    _cancellation?.cancel();
+    Navigator.of(context).maybePop();
+  }
 
   /// The entry point for both routes: an [input] gathered before the push goes
   /// straight to extraction; otherwise a file is picked first.
   Future<void> _run() async {
+    // One dispatch per attempt. Without this a rebuild-triggered re-run (or a
+    // double push) would fire a second expensive extraction for one action.
+    if (_running) return;
+    _running = true;
     setState(() {
       _phase = _ImportPhase.selecting;
       _errorMessage = null;
@@ -103,50 +111,55 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
       _rejectionReason = null;
       _draft = null;
       _saving = false;
-      _progress = null;
     });
 
-    final passed = widget.input;
-    if (passed != null) {
-      await _extract(passed);
-      return;
-    }
-
-    PickedImportFile? file;
+    // `_running` is released once this attempt fully settles, so a re-pick
+    // (`_restart`) can start a fresh one.
     try {
-      file = await widget.pickFile();
-    } catch (error, stack) {
-      debugPrint('WorkoutImport: could not read the picked file: $error');
-      debugPrintStack(stackTrace: stack);
-      if (!mounted) return;
-      setState(() {
-        _phase = _ImportPhase.error;
-        _errorMessage = l(context).importCouldntReadFile;
-        _errorDetail = kDebugMode ? error.toString() : null;
-      });
-      return;
-    }
+      final passed = widget.input;
+      if (passed != null) {
+        await _extract(passed);
+        return;
+      }
 
-    if (file == null) {
-      // The user backed out of the picker — nothing went wrong, just leave.
-      if (mounted) Navigator.of(context).pop();
-      return;
-    }
+      PickedImportFile? file;
+      try {
+        file = await widget.pickFile();
+      } catch (error, stack) {
+        debugPrint('WorkoutImport: could not read the picked file: $error');
+        debugPrintStack(stackTrace: stack);
+        if (!mounted) return;
+        setState(() {
+          _phase = _ImportPhase.error;
+          _errorMessage = l(context).importCouldntReadFile;
+          _errorDetail = kDebugMode ? error.toString() : null;
+        });
+        return;
+      }
 
-    // Fail fast on oversized files — the callable's transport rejects them
-    // anyway, but with an error this screen can't explain.
-    if (file.bytes.length > kMaxImportFileBytes) {
-      if (!mounted) return;
-      setState(() {
-        _phase = _ImportPhase.error;
-        _errorMessage = l(context).importFileTooLarge;
-      });
-      return;
-    }
+      if (file == null) {
+        // The user backed out of the picker — nothing went wrong, just leave.
+        if (mounted) Navigator.of(context).pop();
+        return;
+      }
 
-    await _extract(
-      WorkoutImportDocument(bytes: file.bytes, mimeType: file.mimeType),
-    );
+      // Fail fast on oversized files — the callable's transport rejects them
+      // anyway, but with an error this screen can't explain.
+      if (file.bytes.length > kMaxImportFileBytes) {
+        if (!mounted) return;
+        setState(() {
+          _phase = _ImportPhase.error;
+          _errorMessage = l(context).importFileTooLarge;
+        });
+        return;
+      }
+
+      await _extract(
+        WorkoutImportDocument(bytes: file.bytes, mimeType: file.mimeType),
+      );
+    } finally {
+      _running = false;
+    }
   }
 
   /// Runs the extraction for [input] and takes its outcome to the review
@@ -154,18 +167,16 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
   /// whatever route the material arrived by.
   Future<void> _extract(WorkoutImportInput input) async {
     if (!mounted) return;
+    final cancellation = ImportCancellation();
     setState(() {
       _phase = _ImportPhase.analyzing;
-      _progress = null;
+      _cancellation = cancellation;
     });
 
     try {
       final outcome = await AppScope.of(context).ai.importWorkoutPlan(
         input,
-        onProgress: (progress) {
-          if (!mounted) return;
-          setState(() => _progress = progress);
-        },
+        cancellation: cancellation,
       );
       if (!mounted) return;
       switch (outcome) {
@@ -186,6 +197,10 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
             _phase = _ImportPhase.rejected;
           });
       }
+    } on ImportCancelledException {
+      // The user pressed X/Cancel: the backend call is already aborting and the
+      // page is popping. Nothing to show — just stop.
+      return;
     } catch (error, stack) {
       // Surface the real failure instead of swallowing it. The old blanket
       // "couldn't read that plan" hid App Check / network rejections and
@@ -202,6 +217,10 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
         );
         _errorDetail = kDebugMode ? error.toString() : null;
       });
+    } finally {
+      // The attempt is over — clear the handle so a later X just pops instead
+      // of trying to cancel a call that already finished.
+      _cancellation = null;
     }
   }
 
@@ -315,7 +334,7 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
                 title: _phase == _ImportPhase.preview
                     ? l(context).importReviewTitle
                     : l(context).importPlanTitle,
-                onClose: () => Navigator.of(context).maybePop(),
+                onClose: _closeFlow,
                 titleColor: TrainColors.ink2,
                 iconColor: TrainColors.ink2,
                 chipColor: TrainColors.glassStrong,
@@ -341,7 +360,10 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
           subtitle: l(context).importSelectBody,
         );
       case _ImportPhase.analyzing:
-        return ImportAnalyzingState(statusLine: _statusLine);
+        return ImportAnalyzingState(
+          statusLine: l(context).importAnalyzingWait,
+          onCancel: _closeFlow,
+        );
       case _ImportPhase.preview:
         return _PreviewState(
           plan: _draft!,

@@ -1,12 +1,12 @@
 /**
- * Offline unit tests for the read-only tool registry (`./tools.js`), each
+ * Offline unit tests for the read-only tool registry (`./read.js`), each
  * against a plain in-memory fake `store`. No Firestore, no network.
  */
 
 const assert = require("node:assert/strict");
 const {test} = require("node:test");
 
-const {toolsByName} = require("./tools");
+const {toolsByName} = require("./read");
 
 const UID = "user-1";
 const NOW = new Date("2026-08-17T12:00:00");

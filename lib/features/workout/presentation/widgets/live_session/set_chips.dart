@@ -4,8 +4,8 @@ import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/train_tokens.dart';
 import '../../../domain/logged_set.dart';
 import '../../../domain/session_exercise.dart';
+import '../../../domain/weight_unit.dart';
 import '../../../../../l10n/l10n.dart';
-import 'live_session_format.dart';
 
 enum SetChipStatus { done, current, upcoming }
 
@@ -22,6 +22,7 @@ class SetChipRow extends StatelessWidget {
     required this.currentSetId,
     required this.liveReps,
     required this.liveWeight,
+    required this.unit,
     super.key,
   });
 
@@ -31,6 +32,10 @@ class SetChipRow extends StatelessWidget {
   /// The steppers' live values, echoed into the current chip.
   final String liveReps;
   final String liveWeight;
+
+  /// The active display unit — a done chip's stored kg load is written in it.
+  /// The current chip echoes [liveWeight], which is already in this unit.
+  final WeightUnit unit;
 
   /// Past four, equal-width chips get too narrow for "12 × 42.5", so the row
   /// scrolls instead of squeezing.
@@ -46,7 +51,7 @@ class SetChipRow extends StatelessWidget {
       final reps = set.actualReps;
       final weight = set.actualWeightKg;
       if (reps == null) return l(context).liveSkippedCaps;
-      return '$reps × ${weight == null ? '—' : trimWeight(weight)}';
+      return '$reps × ${weight == null ? '—' : unit.display(weight)}';
     }
     return '— × —';
   }

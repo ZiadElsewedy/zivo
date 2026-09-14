@@ -129,6 +129,116 @@ notifications)**.
   - **⚠ OWNER ACTIONS.** (1) The ~33 new Arabic strings are mine, not a native
     speaker's. (2) On-device pass of the flow (voice capture needs a real device).
 
+- **Live session: KG/LB support + a smarter weight-adjustment UX** (2026-09-14,
+  on `feature/ai-gemini-provider`). A polish pass on the workout logging screen.
+  - **KG/LB is presentation-only; kg stays canonical.** New pure
+    `workout/domain/weight_unit.dart` (`WeightUnit`, exact `2.2046226218`,
+    gym-friendly display — kg 1-decimal, lb snapped to 0.5 lb). The
+    `LiveSessionController.weight` field now holds **display-unit** text and
+    converts at exactly two boundaries (`typedWeightKg` on read, `unit.display`
+    on write); **no model/repo/analytics/AI change, no Firestore, no rules,
+    no migration.** Unit is a **device-local UI preference**
+    (`SharedPreferences` key `zivo.session.weightUnit`), loaded off `start` like
+    the rest countdown. A polished KG/LB `UnitSelector` rides the weight field's
+    label row (neutral wash, hue-less — ember stays the commit colour). Every
+    weight surface on the session (goal hero, set chips, last-time, up-next,
+    review sheet/rows, completed PR line, rest tally) renders through the unit.
+  - **The `+2.5/−2.5` chips are replaced by two context-aware anchors — Last and
+    Goal** (`set_input.dart` `LoadAnchorRow`): Last repeats what you actually
+    lifted, Goal takes the progression target; deduped when equal, hidden with no
+    data (first-time honesty). Micro-adjustment moved to the steppers, whose ±
+    now uses an **equipment-aware increment** (kg 2.5/1, lb 5/2.5, small-muscle =
+    smaller) and **hold-to-repeat with acceleration** (`StepButton` is now
+    stateful).
+  - **KG-mode output is byte-identical to before** (the unit rode into the value
+    of the few ARB strings that baked "kg": `liveDeltaWeight`,
+    `liveRepsByWeight`), which is what keeps the existing widget suite green.
+    New ARB keys (en + ar): `liveWeight`, `unitLb`, `liveQuickLast`,
+    `liveQuickGoal`, `liveWeightFieldUnit`, `liveSetNumberUnit`.
+  - **Cover:** new `test/workout/weight_unit_test.dart` (10, pure conversion/
+    display/step) + `live_session_weight_unit_test.dart` (6, controller
+    read/write/switch/persist) + 2 widget tests in `live_session_page_test.dart`
+    (the selector converts the hero; anchors replace the ± chips). `flutter
+    analyze lib` clean; full `test/workout/` **549 pass** — the one failure,
+    `workout_import_page_test.dart`, is **pre-existing and unrelated** (it still
+    imports `lib/features/ai/domain/import_progress.dart`, deleted in `a20dc38`;
+    the test file was left behind — worth deleting).
+  - **⚠ OWNER ACTIONS.** (1) The 8 new/edited **Arabic** strings are mine, not a
+    native speaker's — `unitLb` = "رطل" especially worth a check. (2) On device:
+    confirm switching KG↔LB converts the field/hero in place, that entering e.g.
+    190 lb logs ~86.18 kg, and that the unit sticks across sessions. No Firebase
+    deploy is needed for this change.
+
+- **Plan import made observable, cancellable, idempotent — plus a save
+  permission fix** (2026-09-14, on `feature/ai-gemini-provider`). Owner report:
+  import sits behind a spinner for 77–93s, was logged running **twice** for one
+  import, X didn't stop the backend, and photo/voice/typed imports failed at
+  save with `permission-denied`.
+  - **The 77–93s is one model call, not a chain of tools.** An import is a
+    single structured-output extraction (`extractWorkoutPlan` → one
+    `provider.generate` → one `propose_workout_split`/`reject_import`); no
+    sequential AI calls, no extra tools, and no Firestore work in the function
+    beyond one fast quota transaction. So the time is Claude generating a large
+    strict-JSON tool output over a whole-PDF input — there is no redundant call
+    to delete. The UI now shows the **real pipeline** as an honest stage
+    checklist (`ImportStage`: receiving → analyzing → extracting → building,
+    done/running/pending) driven by the existing `{type:'progress'}` chunks —
+    never invented "validating"/"saving" tools (saving happens later, only after
+    the review gate). New `ai/domain/import_execution.dart`; the shared
+    `ImportAnalyzingState` is now the checklist, with `ImportGeneratingState`
+    keeping the single cycled line for diet **generation** (which isn't
+    streamed).
+  - **Cancellation is real now, via `executionId` — not a connection close.**
+    X/Cancel trips an `ImportCancellation` (`ai/domain/import_cancellation.dart`)
+    which calls the new **`aiCancelImport({executionId})`** callable; the server
+    trips that run's `AbortController` (held in `ai/import_runtime.js`), threaded
+    `extract*Plan → provider.generate({signal}) → Anthropic
+    messages.stream/create({signal})`, aborting the in-flight generation
+    (billing stops). Decoupled from the transport on purpose: a `.call()` can't
+    be cancelled client-side and the **Functions emulator can't stream**, so a
+    connection-close signal would fail exactly where it's tested. A cancelled
+    run throws a `cancelled` `GatewayError`; `ai/abort.js` is the shared
+    abort-error predicate.
+  - **Transport: streaming for progress, buffered salvage for reliability.** The
+    client opens `.stream()` for live chunks, but if the stream **errors or
+    drops** (the emulator returns "Unexpected format for streamed response";
+    a cold start drops SSE) it salvages the result with ONE buffered `.call()`
+    on the same `executionId`. `ai/import_runtime.js`'s `runImportOnce` **dedups
+    by `executionId`** (in-memory, per instance) and moves `enforceDailyQuota`
+    inside the run, so the salvage — and any duplicate dispatch — never runs the
+    model or spends quota twice. This is what makes the earlier "one import
+    billed twice" structurally impossible on a warm/single instance, and it
+    lets streaming be re-enabled without the old dropped-SSE-loses-result bug.
+  - **Double-run also guarded on the client.** `_run` fires exactly once per
+    attempt, and the `executionId` is logged on every server event, so any
+    residual duplicate is diagnosable at a glance (two lines, one id) — and
+    harmless (deduped). Cross-instance dedup/cancel (a shared Firestore store)
+    is the one documented gap, deferred until logs show it's needed.
+  - **Save `permission-denied` fixed at the rule.**
+    [`firestore.rules`](../firestore.rules) `workoutPlans` allowed only
+    `source in ['manual', 'pdf']`, so every **photo/dictated/typed** import was
+    rejected at save (PDF worked). Widened to the full `WorkoutPlanSource` enum;
+    still validates a known source (not loosened). +6 `firestore-tests` cases
+    (186 pass).
+  - **Cover:** Flutter suite green except the pre-existing
+    `light_mode_smoke_test` (Hub "SLEEP" contrast, unrelated); functions **514**
+    pass (provider signal-forwarding, import abort→`cancelled`, `import_runtime`
+    dedup/cancel); rules **186**; analyze clean; 5 ARB keys added in both
+    languages. New: `functions/ai/import_runtime.js` + `abort.js`,
+    `aiCancelImport` callable, `ai/domain/import_execution.dart` +
+    `import_cancellation.dart`, `ImportGeneratingState`.
+  - **⚠ OWNER ACTIONS.** (1) `firebase deploy --only firestore:rules` — until
+    then photo/voice/typed imports still fail to save (and, when testing on the
+    **emulator**, restart it so it reloads the edited rules). (2) `firebase
+    deploy --only functions` — ships `aiCancelImport` + the dedup/abort wiring;
+    offline tests prove the wiring, not the live abort. (3) The 5 new Arabic
+    strings are mine, not a native speaker's. (4) On device/emulator: confirm
+    photo/voice/typed import saves, the stage checklist advances (live per-item
+    counts appear on real Cloud Functions; the emulator can't stream, so it
+    shows stages without the live counter and salvages via the buffered call),
+    and X mid-import aborts the run (logs show an aborted generation, quota not
+    double-spent).
+
 - **Ask coach — Gemini as a second provider + manual model select** (2026-09-13,
   on `feature/ai-gemini-provider`, cut from `feature/readiness`). The `aiChat`
   gateway now has a real **fallback** and a **manual model switch**, built on the
@@ -2018,6 +2128,18 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-14 — **Backend AI reorg: `functions/ai/` by responsibility** (on
+  `feature/ai-gemini-provider`; Node only, pure file-moves + require-path edits, zero
+  behaviour change). The ~18 files that were flat at the `functions/ai/` root are now
+  foldered: `tools/` (read/mutations/elicitations), `services/` (workout_import ·
+  diet_import · diet_generate · coach_report · sleep_insights), `analytics/`
+  (workout/exercise analytics · readiness · plan_fitting), `shared/` (store · dates ·
+  abort · import_runtime), and the reply `validator.js` moved into `chat/` beside the
+  turn loop it guards. `tools.js` → `tools/read.js`. `chat/`, `providers/`, `routing/`,
+  `speech/` unchanged; `gateway.js` stays the root entry facade. New
+  [`functions/ai/README.md`](../functions/ai/README.md) is the map. All history preserved
+  via `git mv`; `npm test` green (503), `eslint` clean. Docs synced (FEATURE.md, chat
+  README, AGENTS.md). No LangChain — confirmed unused, so no such folder was created.
 - 2026-09-11 — **Reminder UI: Apple fluid-interface polish pass** (on `feature/reminders-sync`;
   Dart only, reused existing primitives — no new deps). Applied the `apple-design` skill within
   the design system: every interactive control in the reminders sheet + list (kind/day/emoji/tone

@@ -5,6 +5,7 @@ import '../../../../../../core/widgets/train_chrome.dart';
 import '../../../../../../l10n/l10n.dart';
 import '../../../../domain/logged_set.dart';
 import '../../../../domain/session_exercise.dart';
+import '../../../../domain/weight_unit.dart';
 import '../rest_ring.dart';
 import '../session_header.dart';
 import '../up_next_card.dart';
@@ -32,6 +33,7 @@ class CountdownPhase extends StatelessWidget {
     required this.upNextLabel,
     required this.exercise,
     required this.set,
+    required this.unit,
     required this.skipLabel,
     required this.adjustKeyPrefix,
     required this.onTogglePause,
@@ -63,6 +65,9 @@ class CountdownPhase extends StatelessWidget {
   final String? upNextLabel;
   final SessionExercise? exercise;
   final LoggedSet? set;
+
+  /// The active display unit — for the "up next" card's target load.
+  final WeightUnit unit;
 
   final String skipLabel;
 
@@ -114,7 +119,12 @@ class CountdownPhase extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 26),
-        UpNextCard(label: upNextLabel, exercise: exercise, set: set),
+        UpNextCard(
+          label: upNextLabel,
+          exercise: exercise,
+          set: set,
+          unit: unit,
+        ),
         // A hard minimum gap, not just the Spacer below it: on a short screen
         // the Spacer collapses to zero and the card would otherwise weld to
         // the ±15s controls, reading as one two-storey slab. (Music now lives

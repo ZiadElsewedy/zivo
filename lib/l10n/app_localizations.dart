@@ -1460,6 +1460,18 @@ abstract class AppLocalizations {
   /// **'WEIGHT · KG'**
   String get liveWeightKg;
 
+  /// All-caps caption on the weight field; the unit (KG/LB) sits beside it in a selector.
+  ///
+  /// In en, this message translates to:
+  /// **'WEIGHT'**
+  String get liveWeight;
+
+  /// Pounds, the imperial weight unit — used when the user has switched the live session to pounds.
+  ///
+  /// In en, this message translates to:
+  /// **'lb'**
+  String get unitLb;
+
   /// Sentence-case label on the reps correction field.
   ///
   /// In en, this message translates to:
@@ -1670,6 +1682,30 @@ abstract class AppLocalizations {
   /// **'Same · {kg}kg'**
   String liveSameWeight(String kg);
 
+  /// Load anchor chip: one tap to repeat the load you last actually lifted. {weight} is the load with its unit, e.g. '70 kg' / '155 lb'.
+  ///
+  /// In en, this message translates to:
+  /// **'Last · {weight}'**
+  String liveQuickLast(String weight);
+
+  /// Load anchor chip: one tap to take the progression target. {weight} is the load with its unit, e.g. '72.5 kg' / '160 lb'.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal · {weight}'**
+  String liveQuickGoal(String weight);
+
+  /// Sentence-case label on the weight correction field, carrying the active unit symbol.
+  ///
+  /// In en, this message translates to:
+  /// **'Weight ({unit})'**
+  String liveWeightFieldUnit(String unit);
+
+  /// All-caps set badge with the active weight unit shown alongside.
+  ///
+  /// In en, this message translates to:
+  /// **'SET {number} · {unit}'**
+  String liveSetNumberUnit(int number, String unit);
+
   /// Prompt to link Spotify from the rest screen.
   ///
   /// In en, this message translates to:
@@ -1688,10 +1724,10 @@ abstract class AppLocalizations {
   /// **'BACK'**
   String get actionBackCaps;
 
-  /// How the load compares to the previous set today.
+  /// How the load compares to the previous set today. {delta} is the signed change with its unit symbol, e.g. '+2.5kg' or '+5lb'.
   ///
   /// In en, this message translates to:
-  /// **'{delta}kg from your previous set'**
+  /// **'{delta} from your previous set'**
   String liveDeltaWeight(String delta);
 
   /// How the reps compare to the previous set today.
@@ -1712,10 +1748,10 @@ abstract class AppLocalizations {
   /// **'{kg} kg'**
   String liveWeightValue(String kg);
 
-  /// Reps and load together — the usual case.
+  /// Reps and load together — the usual case. {kg} is the load with its unit symbol, e.g. '60 kg' or '132 lb'.
   ///
   /// In en, this message translates to:
-  /// **'{reps} × {kg} kg'**
+  /// **'{reps} × {kg}'**
   String liveRepsByWeight(int reps, String kg);
 
   /// Built-in expense category.
@@ -4081,6 +4117,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'\"add 40 EGP parking\" · \"finished chest day\"'**
   String get askVoiceExamples;
+
+  /// Title of the sheet shown when long-pressing an assistant message, listing that turn's model and token usage.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn details'**
+  String get askTurnDetailsTitle;
+
+  /// Label for the row naming which provider/model produced the reply.
+  ///
+  /// In en, this message translates to:
+  /// **'Answered by'**
+  String get askTurnAnsweredBy;
+
+  /// Label for total input (prompt) tokens of the turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Input tokens'**
+  String get askTurnInputTokens;
+
+  /// Label for input tokens served from the prompt cache.
+  ///
+  /// In en, this message translates to:
+  /// **'Cached'**
+  String get askTurnCached;
+
+  /// Label for input tokens billed at full price (not cached).
+  ///
+  /// In en, this message translates to:
+  /// **'Uncached'**
+  String get askTurnUncached;
+
+  /// Label for generated (output) tokens of the turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Output tokens'**
+  String get askTurnOutputTokens;
+
+  /// Label for the approximate tokens of tool-result data fed to the model.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool results'**
+  String get askTurnToolResults;
+
+  /// Label for the list of tools the model called this turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools used'**
+  String get askTurnTools;
+
+  /// Label for the number of model-tool round-trips the turn took.
+  ///
+  /// In en, this message translates to:
+  /// **'Iterations'**
+  String get askTurnIterations;
+
+  /// Label for how long the turn took.
+  ///
+  /// In en, this message translates to:
+  /// **'Latency'**
+  String get askTurnLatency;
+
+  /// Label for the estimated dollar cost of the turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Est. cost'**
+  String get askTurnCost;
+
+  /// Shown in the tools row when the turn called no tools.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get askTurnNone;
+
+  /// Shown in the turn-details sheet when no usage record exists for the message.
+  ///
+  /// In en, this message translates to:
+  /// **'No details recorded for this message.'**
+  String get askTurnUnavailable;
 
   /// The user's display name.
   ///
@@ -7157,6 +7271,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Analyzing your plan'**
   String get importAnalyzing;
+
+  /// Subtitle under 'Analyzing your plan' setting the wait expectation for the single AI call.
+  ///
+  /// In en, this message translates to:
+  /// **'This can take up to a minute'**
+  String get importAnalyzingWait;
 
   /// Abandons the import and opens the empty editor.
   ///

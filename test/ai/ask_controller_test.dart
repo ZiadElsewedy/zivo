@@ -8,6 +8,7 @@ import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_pending_action.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/ai/domain/ai_turn_usage.dart';
 import 'package:zivo/features/ai/domain/ai_usage_summary.dart';
 import 'package:zivo/features/ai/domain/body_data_writer.dart';
 import 'package:zivo/features/workout/domain/workout_import_input.dart';
@@ -22,7 +23,7 @@ import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
 import 'package:zivo/features/diet/domain/nutrition_targets.dart';
 import 'package:zivo/features/diet/domain/plan_preferences.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
-import 'package:zivo/features/ai/domain/import_progress.dart';
+import 'package:zivo/features/ai/domain/import_cancellation.dart';
 
 /// The Ask turn machinery, asserted directly.
 ///
@@ -590,6 +591,8 @@ class _FakeAi implements AiRepository {
 
   @override
   Future<List<AiProviderUsage>> usageByProvider() async => const [];
+  @override
+  Future<AiTurnUsage?> usageForTurn(String clientTurnId) async => null;
 
   @override
   Future<void> setModelSelection(String selection) async {
@@ -665,13 +668,13 @@ class _FakeAi implements AiRepository {
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
+    ImportCancellation? cancellation,
   }) => throw UnimplementedError();
 
   @override
   Future<DietImportOutcome> importDietPlan(
     DietImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
+    ImportCancellation? cancellation,
   }) =>
       throw UnimplementedError();
 

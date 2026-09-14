@@ -8,6 +8,7 @@ import '../../../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../../domain/analytics/workout_analytics.dart';
 import '../../../../domain/logged_set.dart';
 import '../../../../domain/session_exercise.dart';
+import '../../../../domain/weight_unit.dart';
 import '../../../controllers/live_session_controller.dart';
 import '../../staggered_reveal.dart';
 import '../session_effects.dart';
@@ -53,6 +54,7 @@ class CompletedPhase extends StatelessWidget {
       session: session,
       priorSessions: controller.pastSessions,
     );
+    final unit = controller.weightUnit;
     return ListView(
       key: const ValueKey('completed-list'),
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
@@ -89,7 +91,7 @@ class CompletedPhase extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         if (newPrs.isNotEmpty) ...[
-          _PrCelebration(prs: newPrs),
+          _PrCelebration(prs: newPrs, unit: unit),
           const SizedBox(height: 16),
         ],
         for (final (i, exercise) in reviewedExercises.indexed)
@@ -99,6 +101,7 @@ class CompletedPhase extends StatelessWidget {
               index: i,
               child: ReviewExerciseGroup(
                 exercise: exercise,
+                unit: unit,
                 onEditSet: (set, position) =>
                     onEditSet(exercise, set, position),
               ),
@@ -124,9 +127,10 @@ class CompletedPhase extends StatelessWidget {
 /// visible pieces of progress feedback (product brief §5, §10). Each line is
 /// the exercise and the record set; the copy is deliberately light.
 class _PrCelebration extends StatelessWidget {
-  const _PrCelebration({required this.prs});
+  const _PrCelebration({required this.prs, required this.unit});
 
   final List<PrRecord> prs;
+  final WeightUnit unit;
 
   @override
   Widget build(BuildContext context) {
@@ -177,7 +181,7 @@ class _PrCelebration extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  '${pr.name} — ${_prSetLine(pr)}',
+                  '${pr.name} — ${_prSetLine(pr, unit)}',
                   style: AppText.meta.copyWith(color: TrainColors.ink2),
                 ),
               ),
@@ -187,12 +191,9 @@ class _PrCelebration extends StatelessWidget {
     );
   }
 
-  static String _prSetLine(PrRecord pr) {
+  static String _prSetLine(PrRecord pr, WeightUnit unit) {
     final w = pr.weightKg;
     if (w == null) return '${pr.reps} reps';
-    final weight = w.truncateToDouble() == w
-        ? w.toStringAsFixed(0)
-        : w.toStringAsFixed(1);
-    return '${weight}kg × ${pr.reps}';
+    return '${unit.display(w)}${unit.symbol} × ${pr.reps}';
   }
 }

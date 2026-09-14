@@ -24,7 +24,10 @@ Each config pairs its build mode with its `config/<env>.json` dart-defines.
 | Release IPA | `make build-ipa` | `flutter build ipa --release --dart-define-from-file=config/release.json` |
 
 In **VS Code / Cursor**, the same three are in `.vscode/launch.json` — pick
-**ZIVO · Development / Profile / Release** from the Run and Debug menu.
+**ZIVO · Development / Profile / Release** from the Run and Debug menu. A fourth,
+**ZIVO · Emulator · Demo Data**, runs Development with
+`USE_FIREBASE_EMULATOR=true` against the local Emulator Suite (see the
+demo-environment section below); start `make emulators` first.
 
 ## Environment configuration
 
@@ -55,6 +58,40 @@ nothing reads `kDebugMode` or `fromEnvironment` ad-hoc anymore:
 
 Non-secret overrides live in [`config/`](../config/README.md) and are passed via
 `--dart-define-from-file`. **No secrets** are stored in code or those files.
+
+## Demo / experimentation environment — the Emulator Suite
+
+There is **one** live Firebase backend (`zivo-63f15`) and, by design, no
+separate staging project. To experiment with **real, persisted data** — seed
+demo content, exercise a feature end-to-end, try a migration — **without
+risking production**, point the app at the local **Firebase Emulator Suite**.
+
+This is a distinct, orthogonal axis to the three build configs above: it swaps
+the *backend*, not the build mode. It also differs from the in-memory demo
+(`USE_FIRESTORE=false`): the emulator runs your **real** Firestore code and
+security rules against a disposable local backend, so data actually persists
+(and resets when you want it to).
+
+```bash
+make emulators      # start Auth/Firestore/Functions/Storage + UI (http://localhost:4000)
+make dev-emulator   # in another shell: run Development pointed at the emulator
+```
+
+- Emulator data persists across restarts in `.emulator-data/` (gitignored,
+  via `--import`/`--export-on-exit`). Delete that folder for a clean slate.
+- The suite's ports live in the `emulators` block of
+  [`firebase.json`](../firebase.json); they must stay in sync with the
+  constants in [`main.dart`](../lib/main.dart).
+- Host resolution is platform-aware (`AppEnvironment.emulatorHost`): the
+  Android emulator uses `10.0.2.2`, everything else `localhost`. For a
+  **physical device**, pass your machine's LAN IP:
+  `--dart-define=FIREBASE_EMULATOR_HOST=192.168.x.y`.
+- Firestore disk persistence is turned **off** in emulator mode so an emulator
+  reset can't be masked by a stale local cache.
+
+> 🔒 **Release can never use the emulator.** `AppEnvironment.useFirebaseEmulator`
+> is hard-off in release (same guard as `useFirestore`), so a shipped build
+> never talks to a developer's laptop, whatever the dart-define says.
 
 ## App Check across modes — and why M7 isn't misled
 

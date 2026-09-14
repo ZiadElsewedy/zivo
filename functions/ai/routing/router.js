@@ -9,7 +9,7 @@
  *
  * Adding a provider for a capability is one more entry in that capability's
  * list plus a `providers/*.js` adapter — nothing in `../gateway.js`/
- * `../workout_import.js` changes.
+ * `../services/workout_import.js` changes.
  */
 
 const {isProviderFailure} = require("../providers/classify");

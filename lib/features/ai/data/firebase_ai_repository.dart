@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -22,7 +23,8 @@ import '../domain/ai_model_selection.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
 import '../domain/ai_usage_summary.dart';
-import '../domain/import_progress.dart';
+import '../domain/ai_turn_usage.dart';
+import '../domain/import_cancellation.dart';
 import '../domain/ai_response_style.dart';
 import '../domain/ai_role.dart';
 import '../domain/ai_turn_event.dart';
@@ -115,12 +117,12 @@ class FirebaseAiRepository implements AiRepository {
     invokeAction,
     Future<WorkoutImportOutcome> Function(
       WorkoutImportInput input,
-      void Function(ImportProgress)? onProgress,
+      ImportCancellation? cancellation,
     )?
     invokeImport,
     Future<DietImportOutcome> Function(
       DietImportInput input,
-      void Function(ImportProgress)? onProgress,
+      ImportCancellation? cancellation,
     )?
     invokeDietImport,
     Future<DietImportOutcome> Function(
@@ -176,12 +178,12 @@ class FirebaseAiRepository implements AiRepository {
   _invokeAction;
   final Future<WorkoutImportOutcome> Function(
     WorkoutImportInput input,
-    void Function(ImportProgress)? onProgress,
+    ImportCancellation? cancellation,
   )
   _invokeImport;
   final Future<DietImportOutcome> Function(
     DietImportInput input,
-    void Function(ImportProgress)? onProgress,
+    ImportCancellation? cancellation,
   )
   _invokeDietImport;
   final Future<DietImportOutcome> Function(
@@ -305,6 +307,15 @@ class FirebaseAiRepository implements AiRepository {
     };
   }
 
+  /// A fresh id for one import attempt — a timestamp plus a random tail, so two
+  /// attempts (or two dispatches of the same one) are trivially told apart.
+  /// Sent as `executionId` on every import call: it is the server's dedup key
+  /// (so an accidental double-dispatch runs the model once) and the cancel key
+  /// (`aiCancelImport`), and it is logged on every server event so a duplicate
+  /// is diagnosable at a glance.
+  static String _newExecutionId() =>
+      '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(0x7fffffff)}';
+
   /// The default `importWorkoutPlan` invoker — calls `aiImportWorkoutPlan`
   /// with either the file base64-encoded or the user's description as text.
   /// Like [_defaultInvokeChat], resolves [FirebaseFunctions] lazily so the
@@ -312,14 +323,23 @@ class FirebaseAiRepository implements AiRepository {
   /// kind of material; the sealed [WorkoutImportInput] makes both-at-once
   /// unrepresentable here, and the server refuses it too. Mirrors
   /// [_defaultInvokeDietImport].
+  ///
+  /// **Transport: one buffered `.call()`.** An import is a single ~minute model
+  /// call with no live sub-progress worth streaming, and callable streaming
+  /// (`.stream()`) does not reach this app's Flutter client anyway (it errored
+  /// with "Unexpected format for streamed response" on device and never
+  /// delivered chunks on the emulator). Buffered is the one transport that works
+  /// everywhere. Cancellation is transport-independent, via
+  /// [_bufferedImportWithCancel] → `aiCancelImport` on the `executionId`.
   static Future<WorkoutImportOutcome> Function(
     WorkoutImportInput input,
-    void Function(ImportProgress)? onProgress,
+    ImportCancellation? cancellation,
   )
   _defaultInvokeImport(FirebaseFunctions? functions) {
-    return (input, onProgress) async {
+    return (input, cancellation) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+      final executionId = _newExecutionId();
       final payload = <String, dynamic>{
         ...switch (input) {
           WorkoutImportDocument(:final bytes, :final mimeType) => {
@@ -328,75 +348,91 @@ class FirebaseAiRepository implements AiRepository {
           },
           WorkoutImportDescription(:final text) => {'text': text},
         },
-        if (onProgress != null) 'acceptsStreaming': true,
+        'executionId': executionId,
       };
-      final callable = f.httpsCallable('aiImportWorkoutPlan');
-      if (onProgress == null) {
-        return _importOutcomeFromJson((await callable.call(payload)).data);
-      }
-      return _streamImport(
-        callable.stream(payload),
-        onProgress,
+      // A whole-PDF extraction can run up to the callable's 180s server
+      // timeout; the client default is ~70s, so without this a slow (but
+      // succeeding) import would time out on the client.
+      final callable = f.httpsCallable(
+        'aiImportWorkoutPlan',
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 180)),
+      );
+      return _bufferedImportWithCancel(
+        f,
+        callable,
+        payload,
+        executionId,
+        cancellation,
         _importOutcomeFromJson,
       );
     };
   }
 
-  /// Drives a streaming import callable: forwards each `progress` chunk and
-  /// resolves from the terminating result.
+  /// Awaits a buffered import `.call()`, resolving to the parsed outcome — and,
+  /// when [cancellation] is given, racing it against a cancel.
   ///
-  /// The result must come from the stream's own `Result`, not from a second
-  /// buffered call — an import is an expensive whole-document model call, and
-  /// calling twice would pay for it twice.
-  ///
-  /// The terminating variant is `Result`, whose payload sits one level down
-  /// (`.result.data`, an `HttpsCallableResult`) — never `.data` on the
-  /// response itself. Both branches are statically typed on purpose: reading
-  /// that payload through `dynamic` is exactly how the getter silently went
-  /// missing and turned every successful extraction into "couldn't read that
-  /// plan" on screen.
-  static Future<T> _streamImport<T>(
-    Stream<StreamResponse> stream,
-    void Function(ImportProgress) onProgress,
+  /// On cancel it fires `aiCancelImport` for [executionId] (which aborts the
+  /// in-flight model generation server-side, independent of the transport) and
+  /// throws [ImportCancelledException]. The buffered call keeps running in the
+  /// background; its late result or `cancelled` error is swallowed by the
+  /// `isCompleted` guards, so it never surfaces after the caller has moved on.
+  static Future<T> _bufferedImportWithCancel<T>(
+    FirebaseFunctions functions,
+    HttpsCallable callable,
+    Map<String, dynamic> payload,
+    String executionId,
+    ImportCancellation? cancellation,
     T Function(Object?) parse,
   ) async {
-    Object? data;
-    var resolved = false;
-    await for (final response in stream) {
-      switch (response) {
-        case Chunk(:final partialData):
-          final progress = ImportProgress.fromChunk(partialData);
-          if (progress != null && !progress.isEmpty) onProgress(progress);
-        case Result(:final result):
-          data = result.data;
-          resolved = true;
+    if (cancellation == null) {
+      return parse((await callable.call(payload)).data);
+    }
+    final completer = Completer<T>();
+    callable.call(payload).then(
+      (r) {
+        if (!completer.isCompleted) completer.complete(parse(r.data));
+      },
+      onError: (Object e, StackTrace s) {
+        if (!completer.isCompleted) completer.completeError(e, s);
+      },
+    );
+    final cancelSub = cancellation.whenCancelled.asStream().listen((_) {
+      // Abort the backend run by id. Best-effort — the client stops regardless.
+      unawaited(
+        functions
+            .httpsCallable('aiCancelImport')
+            .call<Object?>({'executionId': executionId})
+            .then((_) => null)
+            .catchError((_) => null),
+      );
+      if (!completer.isCompleted) {
+        completer.completeError(const ImportCancelledException());
       }
+    });
+    try {
+      return await completer.future;
+    } finally {
+      await cancelSub.cancel();
     }
-    if (!resolved) {
-      // The stream ended without its terminating result — a truncated
-      // response, not a verdict on the document. Throwing keeps that an
-      // error the caller can report as one, instead of parsing `null` into
-      // a fake "this isn't a valid plan" rejection.
-      throw StateError('Import stream ended without a result.');
-    }
-    return parse(data);
   }
 
   /// The default `importDietPlan` invoker — calls `aiImportDietPlan` with
   /// either the file base64-encoded or the user's description as text.
-  /// Mirrors [_defaultInvokeImport] otherwise.
+  /// Mirrors [_defaultInvokeImport] otherwise (one buffered `.call()`,
+  /// executionId, transport-independent cancellation).
   ///
   /// The payload carries exactly one kind of material; the server refuses
   /// both-at-once, and the sealed [DietImportInput] makes it unrepresentable
   /// here in the first place.
   static Future<DietImportOutcome> Function(
     DietImportInput input,
-    void Function(ImportProgress)? onProgress,
+    ImportCancellation? cancellation,
   )
   _defaultInvokeDietImport(FirebaseFunctions? functions) {
-    return (input, onProgress) async {
+    return (input, cancellation) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+      final executionId = _newExecutionId();
       final payload = <String, dynamic>{
         ...switch (input) {
           DietImportDocument(:final bytes, :final mimeType) => {
@@ -405,15 +441,19 @@ class FirebaseAiRepository implements AiRepository {
           },
           DietImportDescription(:final text) => {'text': text},
         },
-        if (onProgress != null) 'acceptsStreaming': true,
+        'executionId': executionId,
       };
-      final callable = f.httpsCallable('aiImportDietPlan');
-      if (onProgress == null) {
-        return _dietImportOutcomeFromJson((await callable.call(payload)).data);
-      }
-      return _streamImport(
-        callable.stream(payload),
-        onProgress,
+      // Match the server's 180s timeout, like the workout importer above.
+      final callable = f.httpsCallable(
+        'aiImportDietPlan',
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 180)),
+      );
+      return _bufferedImportWithCancel(
+        f,
+        callable,
+        payload,
+        executionId,
+        cancellation,
         _dietImportOutcomeFromJson,
       );
     };
@@ -702,6 +742,53 @@ class FirebaseAiRepository implements AiRepository {
       _firestore.collection('users').doc(uid).collection('aiUsage');
 
   @override
+  Future<AiTurnUsage?> usageForTurn(String clientTurnId) async {
+    final uid = uidSource.currentUid();
+    if (uid == null || clientTurnId.isEmpty) return null;
+    // One equality filter on a single field — served by Firestore's automatic
+    // single-field index, no composite index needed.
+    final snap = await _aiUsageCollection(uid)
+        .where('clientTurnId', isEqualTo: clientTurnId)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    final d = snap.docs.first.data();
+
+    final tokensIn = _asInt(d['tokensIn']);
+    final cacheRead = _asInt(d['cacheReadTokens']);
+    final cacheWrite = _asInt(d['cacheWriteTokens']);
+    // `uncachedTokensIn` is a schema-v3 field; a pre-v3 doc doesn't carry it, so
+    // derive it from the slices it does carry rather than showing zero.
+    final uncached = d.containsKey('uncachedTokensIn')
+        ? _asInt(d['uncachedTokensIn'])
+        : (tokensIn - cacheRead - cacheWrite);
+
+    final tools = <String>[];
+    final rawTools = d['tools'];
+    if (rawTools is List) {
+      for (final t in rawTools) {
+        if (t is Map && t['name'] is String) tools.add(t['name'] as String);
+      }
+    }
+
+    return AiTurnUsage(
+      provider: (d['provider'] as String?) ??
+          _providerFromModel(d['model'] as String?),
+      model: (d['model'] as String?) ?? '',
+      tokensIn: tokensIn,
+      uncachedTokensIn: uncached,
+      cacheReadTokens: cacheRead,
+      cacheWriteTokens: cacheWrite,
+      tokensOut: _asInt(d['tokensOut']),
+      toolResultTokens: _asInt(d['toolResultTokens']),
+      tools: tools,
+      iterations: _asInt(d['iterations']),
+      latencyMs: _asInt(d['latencyMs']),
+      costUsd: _asDouble(d['costUsd']),
+    );
+  }
+
+  @override
   Future<void> confirmAction({
     required String conversationId,
     required String actionId,
@@ -716,14 +803,14 @@ class FirebaseAiRepository implements AiRepository {
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
-  }) => _invokeImport(input, onProgress);
+    ImportCancellation? cancellation,
+  }) => _invokeImport(input, cancellation);
 
   @override
   Future<DietImportOutcome> importDietPlan(
     DietImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
-  }) => _invokeDietImport(input, onProgress);
+    ImportCancellation? cancellation,
+  }) => _invokeDietImport(input, cancellation);
 
   @override
   Future<DietImportOutcome> generateDietPlan({

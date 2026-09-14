@@ -516,6 +516,90 @@ void main() {
       expect(await repo.usageByProvider(), isEmpty);
     });
 
+    test('usageForTurn returns the schema-v3 turn matched by clientTurnId',
+        () async {
+      final firestore = FakeFirebaseFirestore();
+      final usageCol = firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('aiUsage');
+      await usageCol.add({
+        'clientTurnId': 'turn-A',
+        'provider': 'gemini',
+        'model': 'gemini-flash-latest',
+        'tokensIn': 1200,
+        'uncachedTokensIn': 1200,
+        'cacheReadTokens': 0,
+        'cacheWriteTokens': 0,
+        'tokensOut': 300,
+        'toolResultTokens': 217,
+        'tools': [
+          {'name': 'get_last_workout', 'toolCallId': 'c1'},
+        ],
+        'iterations': 2,
+        'latencyMs': 5400,
+        'costUsd': 0.00111,
+      });
+
+      final repo = FirebaseAiRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+      final u = await repo.usageForTurn('turn-A');
+
+      expect(u, isNotNull);
+      expect(u!.provider, 'gemini');
+      expect(u.model, 'gemini-flash-latest');
+      expect(u.tokensIn, 1200);
+      expect(u.uncachedTokensIn, 1200);
+      expect(u.tokensOut, 300);
+      expect(u.toolResultTokens, 217);
+      expect(u.tools, ['get_last_workout']);
+      expect(u.iterations, 2);
+      expect(u.latencyMs, 5400);
+      expect(u.costUsd, closeTo(0.00111, 1e-9));
+    });
+
+    test('usageForTurn derives uncached input for a pre-v3 (legacy) doc',
+        () async {
+      final firestore = FakeFirebaseFirestore();
+      await firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('aiUsage')
+          .add({
+            'clientTurnId': 'turn-legacy',
+            'provider': 'anthropic',
+            'model': 'claude-sonnet-5',
+            'tokensIn': 13570,
+            'cacheReadTokens': 13053,
+            'cacheWriteTokens': 0,
+            'tokensOut': 149,
+            // No uncachedTokensIn / toolResultTokens (schema v2).
+          });
+
+      final repo = FirebaseAiRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+      final u = await repo.usageForTurn('turn-legacy');
+
+      expect(u, isNotNull);
+      // Derived: 13570 - 13053 - 0.
+      expect(u!.uncachedTokensIn, 517);
+      expect(u.toolResultTokens, 0);
+      expect(u.tools, isEmpty);
+    });
+
+    test('usageForTurn returns null when no doc matches', () async {
+      final repo = FirebaseAiRepository(
+        firestore: FakeFirebaseFirestore(),
+        uidSource: _signedInAs('test-uid'),
+      );
+      expect(await repo.usageForTurn('nope'), isNull);
+      expect(await repo.usageForTurn(''), isNull);
+    });
+
     test(
       'confirmAction / cancelAction call the matching callable with the ids',
       () async {
