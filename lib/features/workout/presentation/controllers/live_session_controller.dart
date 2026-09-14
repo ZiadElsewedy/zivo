@@ -16,11 +16,11 @@ import '../../domain/session_exercise.dart';
 import '../../domain/set_outcome.dart';
 import '../../domain/set_type.dart';
 import '../../domain/workout_day.dart';
+import '../../domain/weight_unit.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_repository.dart';
 import '../../domain/workout_repository.dart';
 import '../../domain/workout_session_repository.dart';
-import '../widgets/live_session/live_session_format.dart';
 
 /// Whole seconds remaining until [d] elapses, rounded up so a countdown never
 /// flashes "0" a moment before it's actually over; clamped at 0 for an
@@ -103,8 +103,29 @@ class LiveSessionController extends ChangeNotifier {
   /// The current set's reps/weight inputs. The controller owns them because
   /// it is what reads them ([setDone], [_saveDraft]) and what writes them
   /// ([_prefillInputs]); the page only hands them to a field.
+  ///
+  /// The [weight] field holds text **in the active [weightUnit]** — kg by
+  /// default, lb when the user has switched — never the canonical kilograms.
+  /// Every read of it goes through [typedWeightKg] to get back to kg, and every
+  /// write formats a kg value through the unit; the field is the one place
+  /// pounds are ever shown, so the number that reaches the session model and
+  /// Firestore is always kg.
   final TextEditingController reps = TextEditingController();
   final TextEditingController weight = TextEditingController();
+
+  /// The unit the [weight] field is shown/typed in — a device-local UI
+  /// preference (see [_loadUnitPreference]/[setUnit]), not account data.
+  /// Kilograms are still the only thing stored.
+  WeightUnit _unit = WeightUnit.kg;
+  WeightUnit get weightUnit => _unit;
+
+  /// What is currently typed in the [weight] field, converted back to canonical
+  /// kilograms — the one way set resolution and the draft save read the field.
+  /// Null when the field is empty or not a number.
+  double? get typedWeightKg {
+    final display = parseDecimal(weight.text);
+    return display == null ? null : _unit.toKg(display);
+  }
 
   /// Drives the rest countdown at frame rate (~60fps) rather than once a
   /// second. Every tick is just a notify; the displayed value is always
@@ -296,6 +317,7 @@ class LiveSessionController extends ChangeNotifier {
       _startWarmup();
     }
     unawaited(_restorePersistedRest());
+    unawaited(_loadUnitPreference());
     _prefillInputs();
 
     _pastSessionsSub = _sessions.watchAll().listen((sessions) {
@@ -409,7 +431,7 @@ class LiveSessionController extends ChangeNotifier {
     if (set.actualReps != null || set.actualWeightKg != null) {
       reps.text = set.actualReps?.toString() ?? '';
       weight.text = set.actualWeightKg != null
-          ? trimWeight(set.actualWeightKg!)
+          ? _unit.display(set.actualWeightKg!)
           : '';
       // A real, already-saved draft — not just an untouched suggestion.
       _actualsTouched = true;
@@ -433,7 +455,53 @@ class LiveSessionController extends ChangeNotifier {
     // a suggestion, not a draft: `_actualsTouched` stays false, so nothing is
     // persisted until the user commits or edits the set.
     final suggested = goal.weightKg ?? carriedWeightFor(exercise, set);
-    weight.text = suggested != null ? trimWeight(suggested) : '';
+    weight.text = suggested != null ? _unit.display(suggested) : '';
+  }
+
+  // ---- Weight unit (a device-local UI preference) --------------------------
+
+  static const _kWeightUnit = 'zivo.session.weightUnit';
+
+  /// Loads the persisted display unit and, if it differs from the default kg,
+  /// re-expresses whatever the field currently holds in it. Runs off
+  /// [start] (unawaited, after the synchronous kg prefill), so an lb user opens
+  /// straight into pounds bar a single frame — the same fire-and-forget shape
+  /// as [_restorePersistedRest].
+  Future<void> _loadUnitPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_disposed) return;
+    final stored = WeightUnit.fromName(prefs.getString(_kWeightUnit));
+    _applyUnit(stored, persist: false);
+  }
+
+  Future<void> _persistUnit() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kWeightUnit, _unit.name);
+  }
+
+  /// Switches the display unit from the UI. Converts the field in place — the
+  /// number changes, the load does not — and persists the choice.
+  void setUnit(WeightUnit unit) {
+    if (unit == _unit) return;
+    HapticFeedback.selectionClick();
+    _applyUnit(unit, persist: true);
+  }
+
+  /// Re-expresses the current field text in [unit]. Deliberately does NOT flip
+  /// [_actualsTouched] or save a draft: changing kg↔lb is a change of
+  /// representation, not of input, and the stored kilograms are untouched, so
+  /// there is nothing new to persist about the set itself.
+  void _applyUnit(WeightUnit unit, {required bool persist}) {
+    if (unit == _unit) return;
+    final display = parseDecimal(weight.text);
+    final kg = display == null ? null : _unit.toKg(display);
+    _unit = unit;
+    if (kg != null) {
+      weight.text = _unit.display(kg);
+      weight.selection = TextSelection.collapsed(offset: weight.text.length);
+    }
+    if (persist) unawaited(_persistUnit());
+    _notify();
   }
 
   /// Wired to both actual-value fields: keeps the live progression delta
@@ -457,7 +525,7 @@ class LiveSessionController extends ChangeNotifier {
     final set = _session.currentSet;
     if (exercise == null || set == null) return;
     final typedReps = parseWhole(reps.text);
-    final typedWeight = parseDecimal(weight.text);
+    final typedWeight = typedWeightKg;
     if (typedReps == set.actualReps && typedWeight == set.actualWeightKg) {
       return;
     }
@@ -510,7 +578,7 @@ class LiveSessionController extends ChangeNotifier {
       set.id,
       now: now(),
       actualReps: parseWhole(reps.text),
-      actualWeightKg: parseDecimal(weight.text),
+      actualWeightKg: typedWeightKg,
     );
     _notify();
     _afterResolvingCurrentSet(exercise.restSeconds, reducedMotion);

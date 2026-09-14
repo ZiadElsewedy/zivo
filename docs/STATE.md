@@ -94,6 +94,46 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Live session: KG/LB support + a smarter weight-adjustment UX** (2026-09-14,
+  on `feature/ai-gemini-provider`). A polish pass on the workout logging screen.
+  - **KG/LB is presentation-only; kg stays canonical.** New pure
+    `workout/domain/weight_unit.dart` (`WeightUnit`, exact `2.2046226218`,
+    gym-friendly display — kg 1-decimal, lb snapped to 0.5 lb). The
+    `LiveSessionController.weight` field now holds **display-unit** text and
+    converts at exactly two boundaries (`typedWeightKg` on read, `unit.display`
+    on write); **no model/repo/analytics/AI change, no Firestore, no rules,
+    no migration.** Unit is a **device-local UI preference**
+    (`SharedPreferences` key `zivo.session.weightUnit`), loaded off `start` like
+    the rest countdown. A polished KG/LB `UnitSelector` rides the weight field's
+    label row (neutral wash, hue-less — ember stays the commit colour). Every
+    weight surface on the session (goal hero, set chips, last-time, up-next,
+    review sheet/rows, completed PR line, rest tally) renders through the unit.
+  - **The `+2.5/−2.5` chips are replaced by two context-aware anchors — Last and
+    Goal** (`set_input.dart` `LoadAnchorRow`): Last repeats what you actually
+    lifted, Goal takes the progression target; deduped when equal, hidden with no
+    data (first-time honesty). Micro-adjustment moved to the steppers, whose ±
+    now uses an **equipment-aware increment** (kg 2.5/1, lb 5/2.5, small-muscle =
+    smaller) and **hold-to-repeat with acceleration** (`StepButton` is now
+    stateful).
+  - **KG-mode output is byte-identical to before** (the unit rode into the value
+    of the few ARB strings that baked "kg": `liveDeltaWeight`,
+    `liveRepsByWeight`), which is what keeps the existing widget suite green.
+    New ARB keys (en + ar): `liveWeight`, `unitLb`, `liveQuickLast`,
+    `liveQuickGoal`, `liveWeightFieldUnit`, `liveSetNumberUnit`.
+  - **Cover:** new `test/workout/weight_unit_test.dart` (10, pure conversion/
+    display/step) + `live_session_weight_unit_test.dart` (6, controller
+    read/write/switch/persist) + 2 widget tests in `live_session_page_test.dart`
+    (the selector converts the hero; anchors replace the ± chips). `flutter
+    analyze lib` clean; full `test/workout/` **549 pass** — the one failure,
+    `workout_import_page_test.dart`, is **pre-existing and unrelated** (it still
+    imports `lib/features/ai/domain/import_progress.dart`, deleted in `a20dc38`;
+    the test file was left behind — worth deleting).
+  - **⚠ OWNER ACTIONS.** (1) The 8 new/edited **Arabic** strings are mine, not a
+    native speaker's — `unitLb` = "رطل" especially worth a check. (2) On device:
+    confirm switching KG↔LB converts the field/hero in place, that entering e.g.
+    190 lb logs ~86.18 kg, and that the unit sticks across sessions. No Firebase
+    deploy is needed for this change.
+
 - **Plan import made observable, cancellable, idempotent — plus a save
   permission fix** (2026-09-14, on `feature/ai-gemini-provider`). Owner report:
   import sits behind a spinner for 77–93s, was logged running **twice** for one

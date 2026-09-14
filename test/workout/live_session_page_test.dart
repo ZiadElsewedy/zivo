@@ -22,6 +22,7 @@ import 'package:zivo/features/workout/domain/workout_plan.dart';
 import 'package:zivo/features/workout/domain/workout_plan_repository.dart';
 import 'package:zivo/features/workout/domain/workout_plan_source.dart';
 import 'package:zivo/features/workout/domain/workout_plan_status.dart';
+import 'package:zivo/features/workout/domain/weight_unit.dart';
 import 'package:zivo/features/workout/domain/workout_repository.dart';
 import 'package:zivo/features/workout/domain/workout_session_repository.dart';
 import 'package:zivo/features/workout/domain/workout_set.dart';
@@ -2323,4 +2324,64 @@ void main() {
       screen: 'Live session',
     );
   });
+
+  testWidgets(
+    'the weight field carries a KG/LB selector that converts the hero in place',
+    (tester) async {
+      final sessions = InMemoryWorkoutSessionRepository();
+      await sessions.saveSession(_previousSession());
+      final plan = _plan();
+      await tester.pumpWidget(
+        _wrap(
+          workouts: _RecordingWorkoutRepository(),
+          workoutPlans: _RecordingWorkoutPlanRepository(),
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+
+      // The hero starts in kg (the app default) and both segments are present.
+      final kgText = goalWeight(tester);
+      expect(find.text('KG'), findsWidgets);
+      expect(find.text('LB'), findsOneWidget); // just the selector, pre-switch
+
+      // Switch to pounds — the same load, re-expressed, not a re-log.
+      await _tap(tester, find.text('LB'));
+
+      final kg = double.parse(kgText);
+      expect(goalWeight(tester), WeightUnit.lb.display(kg));
+      // The hero's unit label flipped too (selector LB + hero LB).
+      expect(find.text('LB'), findsWidgets);
+    },
+  );
+
+  testWidgets(
+    'the load anchors are Last and Goal, not the old ± chips',
+    (tester) async {
+      final sessions = InMemoryWorkoutSessionRepository();
+      await sessions.saveSession(_previousSession()); // 55 → goal 57.5
+      final plan = _plan();
+      await tester.pumpWidget(
+        _wrap(
+          workouts: _RecordingWorkoutRepository(),
+          workoutPlans: _RecordingWorkoutPlanRepository(),
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+
+      // Both anchors show: last-lifted differs from the progression target.
+      expect(find.byKey(const Key('anchor-last')), findsOneWidget);
+      expect(find.byKey(const Key('anchor-goal')), findsOneWidget);
+
+      // The primitive ± / Same chips are gone.
+      expect(find.text('+2.5'), findsNothing);
+      expect(find.text('−2.5'), findsNothing);
+      expect(find.textContaining('Same ·'), findsNothing);
+    },
+  );
 }

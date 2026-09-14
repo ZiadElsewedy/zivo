@@ -16,6 +16,7 @@ import '../../domain/logged_set.dart';
 import '../../domain/session_exercise.dart';
 import '../../domain/session_maintenance.dart';
 import '../../domain/set_outcome.dart';
+import '../../domain/weight_unit.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_session_repository.dart';
@@ -486,7 +487,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         final reps = set.actualReps;
         final weight = set.actualWeightKg;
         if (reps != null) {
-          final load = weight == null ? '' : ' × ${trimWeight(weight)}';
+          final load = weight == null
+              ? ''
+              : ' × ${_c.weightUnit.display(weight)}';
           return l(context).liveSetLoggedDetail('$reps$load');
         }
       }
@@ -526,6 +529,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         upNextLabel: l(context).liveFirstUp,
         exercise: _c.session.currentExercise,
         set: _c.session.currentSet,
+        unit: _c.weightUnit,
         skipLabel: l(context).liveSkipWarmUp,
         adjustKeyPrefix: 'warmup',
         onTogglePause: _c.togglePause,
@@ -547,6 +551,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         upNextLabel: null,
         exercise: _c.session.currentExercise,
         set: _c.session.currentSet,
+        unit: _c.weightUnit,
         skipLabel: l(context).liveSkipRest,
         adjustKeyPrefix: 'rest',
         onTogglePause: _c.togglePause,
@@ -577,6 +582,8 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       builder: (_) => SetReviewSheet(
         title: '${exercise.name} · Set $position',
         wasSkipped: set.skipped,
+        unit: _c.weightUnit,
+        weightStep: weightStepFor(_c.weightUnit, exercise.muscleGroup),
         initialReps: set.actualReps,
         initialWeight: set.actualWeightKg,
       ),

@@ -1136,6 +1136,14 @@
   "@liveWeightKg": {
     "description": "All-caps caption on the weight field."
   },
+  "liveWeight": "WEIGHT",
+  "@liveWeight": {
+    "description": "All-caps caption on the weight field; the unit (KG/LB) sits beside it in a selector."
+  },
+  "unitLb": "lb",
+  "@unitLb": {
+    "description": "Pounds, the imperial weight unit — used when the user has switched the live session to pounds."
+  },
   "liveRepsField": "Reps",
   "@liveRepsField": {
     "description": "Sentence-case label on the reps correction field."
@@ -1306,6 +1314,50 @@
       }
     }
   },
+  "liveQuickLast": "Last · {weight}",
+  "@liveQuickLast": {
+    "description": "Load anchor chip: one tap to repeat the load you last actually lifted. {weight} is the load with its unit, e.g. '70 kg' / '155 lb'.",
+    "placeholders": {
+      "weight": {
+        "type": "String",
+        "example": "70 kg"
+      }
+    }
+  },
+  "liveQuickGoal": "Goal · {weight}",
+  "@liveQuickGoal": {
+    "description": "Load anchor chip: one tap to take the progression target. {weight} is the load with its unit, e.g. '72.5 kg' / '160 lb'.",
+    "placeholders": {
+      "weight": {
+        "type": "String",
+        "example": "72.5 kg"
+      }
+    }
+  },
+  "liveWeightFieldUnit": "Weight ({unit})",
+  "@liveWeightFieldUnit": {
+    "description": "Sentence-case label on the weight correction field, carrying the active unit symbol.",
+    "placeholders": {
+      "unit": {
+        "type": "String",
+        "example": "kg"
+      }
+    }
+  },
+  "liveSetNumberUnit": "SET {number} · {unit}",
+  "@liveSetNumberUnit": {
+    "description": "All-caps set badge with the active weight unit shown alongside.",
+    "placeholders": {
+      "number": {
+        "type": "int",
+        "example": "3"
+      },
+      "unit": {
+        "type": "String",
+        "example": "KG"
+      }
+    }
+  },
   "liveConnectMusic": "CONNECT MUSIC",
   "@liveConnectMusic": {
     "description": "Prompt to link Spotify from the rest screen."
@@ -1318,13 +1370,13 @@
   "@actionBackCaps": {
     "description": "All-caps back affordance on the live session screen."
   },
-  "liveDeltaWeight": "{delta}kg from your previous set",
+  "liveDeltaWeight": "{delta} from your previous set",
   "@liveDeltaWeight": {
-    "description": "How the load compares to the previous set today.",
+    "description": "How the load compares to the previous set today. {delta} is the signed change with its unit symbol, e.g. '+2.5kg' or '+5lb'.",
     "placeholders": {
       "delta": {
         "type": "String",
-        "example": "+2.5"
+        "example": "+2.5kg"
       }
     }
   },
@@ -1358,9 +1410,9 @@
       }
     }
   },
-  "liveRepsByWeight": "{reps} × {kg} kg",
+  "liveRepsByWeight": "{reps} × {kg}",
   "@liveRepsByWeight": {
-    "description": "Reps and load together — the usual case.",
+    "description": "Reps and load together — the usual case. {kg} is the load with its unit symbol, e.g. '60 kg' or '132 lb'.",
     "placeholders": {
       "reps": {
         "type": "int",
@@ -1368,7 +1420,7 @@
       },
       "kg": {
         "type": "String",
-        "example": "60"
+        "example": "60 kg"
       }
     }
   },

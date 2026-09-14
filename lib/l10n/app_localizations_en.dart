@@ -781,6 +781,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveWeightKg => 'WEIGHT · KG';
 
   @override
+  String get liveWeight => 'WEIGHT';
+
+  @override
+  String get unitLb => 'lb';
+
+  @override
   String get liveRepsField => 'Reps';
 
   @override
@@ -897,6 +903,26 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String liveQuickLast(String weight) {
+    return 'Last · $weight';
+  }
+
+  @override
+  String liveQuickGoal(String weight) {
+    return 'Goal · $weight';
+  }
+
+  @override
+  String liveWeightFieldUnit(String unit) {
+    return 'Weight ($unit)';
+  }
+
+  @override
+  String liveSetNumberUnit(int number, String unit) {
+    return 'SET $number · $unit';
+  }
+
+  @override
   String get liveConnectMusic => 'CONNECT MUSIC';
 
   @override
@@ -907,7 +933,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String liveDeltaWeight(String delta) {
-    return '${delta}kg from your previous set';
+    return '$delta from your previous set';
   }
 
   @override
@@ -927,7 +953,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String liveRepsByWeight(int reps, String kg) {
-    return '$reps × $kg kg';
+    return '$reps × $kg';
   }
 
   @override
