@@ -28,18 +28,18 @@
  * `estimated: true` — the same "~" the rest of the app already renders.
  *
  * Fitting the day to the calorie target and refusing an allergen are
- * deterministic and live in `./plan_fitting.js`.
+ * deterministic and live in `../analytics/plan_fitting.js`.
  *
  * Kept free of `@anthropic-ai/sdk`/`firebase-admin` (only `callModel` is
  * injected) so it runs offline under `node --test`, same seam as its
  * `./diet_import.js` sibling.
  */
 
-const {GatewayError} = require("./gateway");
-const {AnthropicProvider} = require("./providers/anthropic_provider");
-const {legacyAnthropicClient} = require("./providers/legacy_client");
-const {resolveAndCompute} = require("../nutrition/resolve");
-const {fitDayToTarget, findAllergen} = require("./plan_fitting");
+const {GatewayError} = require("../gateway");
+const {AnthropicProvider} = require("../providers/anthropic_provider");
+const {legacyAnthropicClient} = require("../providers/legacy_client");
+const {resolveAndCompute} = require("../../nutrition/resolve");
+const {fitDayToTarget, findAllergen} = require("../analytics/plan_fitting");
 
 const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 8000;
@@ -677,8 +677,9 @@ async function buildPlan(
       (item, i) => priceItem(item, customFoods, undefined, chosen.get(i)));
 
   // The safety gate, before any of it is fitted or returned. Deterministic
-  // and outside the model's discretion — see `./plan_fitting.js`. Both names
-  // are checked: the food the model asked for and the row it was priced as.
+  // and outside the model's discretion — see `../analytics/plan_fitting.js`.
+  // Both names are checked: the food the model asked for and the row it was
+  // priced as.
   const offending = findAllergen(
       priced.map((p, i) => ({...p, name: `${p.name} ${flat[i].name}`})),
       allergies);

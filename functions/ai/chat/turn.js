@@ -22,11 +22,11 @@
  * (actions.js), after the user taps Confirm. Nothing here writes user data.
  */
 
-const {dayKeyFor, localNowFacts, isUsableOffset} = require("../dates");
-const {tools} = require("../tools");
-const {mutatingTools} = require("../mutations");
-const {elicitationTools} = require("../elicitations");
-const {validateAdvice} = require("../validator");
+const {dayKeyFor, localNowFacts, isUsableOffset} = require("../shared/dates");
+const {tools} = require("../tools/read");
+const {mutatingTools} = require("../tools/mutations");
+const {elicitationTools} = require("../tools/elicitations");
+const {validateAdvice} = require("./validator");
 const {AnthropicProvider} = require("../providers/anthropic_provider");
 const {legacyAnthropicClient} = require("../providers/legacy_client");
 
@@ -106,7 +106,7 @@ const allToolsByName = new Map(allTools.map((t) => [t.name, t]));
  *   UTC while the app writes diet entries against the DEVICE's calendar date,
  *   so without this the server's "today" is a different day from the user's
  *   for anyone east or west of UTC. Untrusted input — validated in
- *   `../dates.js` and ignored when implausible.
+ *   `../shared/dates.js` and ignored when implausible.
  * @param {(!Object|undefined)} args.config Overrides for `DEFAULT_CONFIG`.
  * @param {(string|undefined)} args.clientTurnId Client-generated idempotency
  *   key for this turn. When supplied and a previous attempt of the SAME turn

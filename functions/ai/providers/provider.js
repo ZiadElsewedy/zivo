@@ -3,7 +3,7 @@
  * NormalizedResponse shape that every provider adapter speaks. Adding a
  * second real provider means writing one new adapter file (implementing
  * `generate`) plus one row in `../routing/router.js` — nothing else in
- * `../gateway.js` or `../workout_import.js` should need to change.
+ * `../gateway.js` or `../services/workout_import.js` should need to change.
  *
  * Anthropic's own content-block vocabulary (`text`, `tool_use`, `thinking`,
  * …) is deliberately reused as the normalized content-block `type` rather
@@ -116,7 +116,7 @@
 
 /**
  * The contract every provider adapter implements. Duck-typed — nothing in
- * `../gateway.js`/`../workout_import.js`/`../routing/router.js` checks
+ * `../gateway.js`/`../services/workout_import.js`/`../routing/router.js` checks
  * `instanceof AiProvider`, so a provider only needs to expose a matching
  * `generate` method. The base class exists purely to document the contract
  * in one place.

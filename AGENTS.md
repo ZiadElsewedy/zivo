@@ -128,13 +128,17 @@ repos, provides `AppScope`, a `MaterialApp` on the chosen skin, `home: AuthGate`
 | [`core/widgets/`](lib/core/widgets) | Shared widgets (RiseIn, reactive state views, toasts, loading bar, marks). **`async_action.dart` is the one re-entrancy guard for a button that commits** (`AsyncAction` mixin — `runAction(#save, …, once: true)` for anything that saves and pops); `deferred_write_reporter.dart` surfaces a deferred write that failed. **`zivo_sheet.dart` is the one way to open a bottom sheet** (`showZivoSheet`, + `ZivoSheetSurface`/`ZivoSheetHandle` for the chrome); **`zivo_field.dart` is the one filled-input decoration** (`zivoFieldDecoration`, which takes the feature's hue); **`zivo_confirm.dart` is the one destructive confirmation** (`confirmDestructive`, whose labels default to the localized `actionDelete`/`actionCancel`) |
 | [`core/util/`](lib/core/util) | Small shared functions — `parse.dart` (every number a user types), `money.dart`, `time_ago.dart`, **`deferred_write.dart`** (local-first saves: hand the durable write to `deferWrite` and pop — never `await` a repository before navigating), **`date_format.dart` is the one way to render a date, weekday or clock time** (`formatMonthDay`, `formatClockTime`, `formatWeekdayDate`, … — all take `BuildContext` and resolve through the reader's locale). Never hand-roll a `['Jan', …]` / `['Mon', …]` table or an `isPm ? 'PM' : 'AM'`: a month name that is not a string the translator can see is a bug no `.arb` key can fix |
 
-**Backend ([`functions/`](functions), Node — Cloud Functions):** `functions/ai/` —
-`gateway.js` (Ask facade → **`chat/`**: turn loop, system prompt in
-`chat/prompt/sections/`, context/token/cost logic — see `chat/README.md`),
-`tools.js` (read tools),
-`mutations.js` (confirm-gated writes), `workout_import.js`, `diet_import.js`,
-`coach_report.js`, `store.js`, `dates.js`. `functions/auth/activity.js` (auth event log +
-OTP mail). Each has a `*.test.js` (`node --test`, offline).
+**Backend ([`functions/`](functions), Node — Cloud Functions):** `functions/ai/` is
+**organized by responsibility — open [`functions/ai/README.md`](functions/ai/README.md)
+first** (it's the map): `gateway.js` (Ask facade) → **`chat/`** (turn loop + prompt +
+reply validator — see `chat/README.md`), **`tools/`** (read · mutations · elicitations —
+what the model can call), **`providers/`** + **`routing/`** (Anthropic/Gemini adapters
+behind one seam), **`services/`** (the use-cases: `workout_import`, `diet_import`,
+`diet_generate`, `coach_report`, `sleep_insights`), **`analytics/`** (deterministic
+engines mirrored from Dart, pinned by shared golden vectors), **`speech/`** (voice), and
+**`shared/`** (`store.js` Firestore seam, `dates.js`, etc.). `functions/auth/activity.js`
+(auth event log + OTP mail). Each source file has a co-located `*.test.js` (`node --test`,
+offline).
 
 ---
 

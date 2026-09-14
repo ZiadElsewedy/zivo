@@ -10,7 +10,7 @@
  * side and the other's test fails until they agree again.
  *
  * Pure: every input is passed in. The store-backed assembly lives in
- * `functions/ai/tools.js`.
+ * `functions/ai/tools/read.js`.
  */
 
 /** Consumed-basis vocabulary. Mirrors the Dart `ConsumedBasis`. */

@@ -10,20 +10,20 @@
  * (`aiConfirmAction`/`aiCancelAction`): there is no pending-action record and
  * nothing to confirm server-side, because nothing was written yet.
  *
- * Model choice: `claude-sonnet-5`, matching `./gateway.js`'s `aiChat` model —
+ * Model choice: `claude-sonnet-5`, matching `../gateway.js`'s `aiChat` model —
  * WORKOUT_SYSTEM.md §3.4 says to match the existing gateway's model unless
  * there's a reason to differ, and there isn't one strong enough to justify a
  * second model/pricing profile for a single-shot extraction call.
  *
  * Kept free of `@anthropic-ai/sdk`/`firebase-admin` (only `callModel` is
  * injected) so it runs offline under `node --test`, same seam pattern as
- * `./gateway.js`.
+ * `../gateway.js`.
  */
 
-const {GatewayError} = require("./gateway");
-const {AnthropicProvider} = require("./providers/anthropic_provider");
-const {legacyAnthropicClient} = require("./providers/legacy_client");
-const {isAbortError} = require("./abort");
+const {GatewayError} = require("../gateway");
+const {AnthropicProvider} = require("../providers/anthropic_provider");
+const {legacyAnthropicClient} = require("../providers/legacy_client");
+const {isAbortError} = require("../shared/abort");
 
 const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 8000;

@@ -20,18 +20,18 @@
  * distinctly from ones the document actually stated.
  *
  * Model choice: `claude-sonnet-5`, same as `./workout_import.js` and
- * `./gateway.js` — no reason to run a second model/pricing profile for a
+ * `../gateway.js` — no reason to run a second model/pricing profile for a
  * single-shot extraction call.
  *
  * Kept free of `@anthropic-ai/sdk`/`firebase-admin` (only `callModel` is
  * injected) so it runs offline under `node --test`, same seam pattern as
- * `./workout_import.js`/`./gateway.js`.
+ * `./workout_import.js`/`../gateway.js`.
  */
 
-const {GatewayError} = require("./gateway");
-const {AnthropicProvider} = require("./providers/anthropic_provider");
-const {legacyAnthropicClient} = require("./providers/legacy_client");
-const {isAbortError} = require("./abort");
+const {GatewayError} = require("../gateway");
+const {AnthropicProvider} = require("../providers/anthropic_provider");
+const {legacyAnthropicClient} = require("../providers/legacy_client");
+const {isAbortError} = require("../shared/abort");
 
 const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 8000;

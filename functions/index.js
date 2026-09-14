@@ -34,7 +34,7 @@ const Anthropic = require("@anthropic-ai/sdk");
 const otp = require("./auth/otp");
 const quota = require("./shared/quota");
 const {isDocumentId} = require("./shared/ids");
-const {dayKeyFor} = require("./ai/dates");
+const {dayKeyFor} = require("./ai/shared/dates");
 const {
   markEmailSent,
   markEmailVerified,
@@ -46,13 +46,13 @@ const {
   cancelAction,
   GatewayError,
 } = require("./ai/gateway");
-const {extractWorkoutPlan} = require("./ai/workout_import");
-const {extractDietPlan} = require("./ai/diet_import");
+const {extractWorkoutPlan} = require("./ai/services/workout_import");
+const {extractDietPlan} = require("./ai/services/diet_import");
 const {importKey, runImportOnce, cancelImport} =
-    require("./ai/import_runtime");
-const {generateDietPlan} = require("./ai/diet_generate");
-const {deliverWeeklyReport} = require("./ai/coach_report");
-const {FirestoreStore} = require("./ai/store");
+    require("./ai/shared/import_runtime");
+const {generateDietPlan} = require("./ai/services/diet_generate");
+const {deliverWeeklyReport} = require("./ai/services/coach_report");
+const {FirestoreStore} = require("./ai/shared/store");
 const {AnthropicProvider} = require("./ai/providers/anthropic_provider");
 const {GeminiProvider} = require("./ai/providers/gemini_provider");
 const {ProviderRegistry} = require("./ai/providers/registry");
@@ -735,7 +735,8 @@ function buildProviderRegistry(anthropic, genai) {
  * An `AiProvider`-shaped object whose `generate` resolves `capability` via
  * `./ai/routing/router.js` on every call — including the router's
  * fallback-on-error policy, transparently to `./ai/gateway.js`/
- * `./ai/workout_import.js`, which only ever see a single `provider.generate`.
+ * `./ai/services/workout_import.js`, which only ever see a single
+ * `provider.generate`.
  * @param {!ProviderRegistry} registry
  * @param {string} capability
  * @param {{forceProvider: string}=} routeOpts A manual provider override —
@@ -766,7 +767,8 @@ function forceProviderFor(selection) {
  * The "Ask" AI assistant gateway (ADR-001): a read-only, tool-mediated
  * Claude conversation over the user's own ZIVO data. All orchestration
  * (history windowing, the tool loop, cost/iteration ceilings, usage
- * logging) lives in `./ai/gateway.js`/`./ai/tools.js` so it is unit-testable
+ * logging) lives in `./ai/gateway.js`/`./ai/tools/read.js` so it is
+ * unit-testable
  * without the network or the emulator; this handler only wires the real
  * Anthropic client, provider/routing seam, and Firestore store, and maps
  * errors.
@@ -1175,7 +1177,8 @@ exports.aiCancelImport = onCall(
  * The same "human confirms before it becomes real" gate as the importer: this
  * writes nothing, and the client reviews and saves the result itself. What is
  * different is where the numbers come from — the model picks foods, and
- * `./ai/diet_generate.js` prices them through the SAME nutrition catalog the
+ * `./ai/services/diet_generate.js` prices them through the SAME nutrition
+ * catalog the
  * coach and the food log use, including the user's own custom foods. See
  * ADR-007 for why a generated plan may not carry model-stated calories.
  *
@@ -1420,7 +1423,8 @@ exports.aiTranscribe = onCall(
  * training done, diet adherence vs plan, spend — as an assistant message in
  * each user's most recent Ask conversation, so it's waiting there when they
  * next open the app. No model call per user: the text is a template over
- * real numbers (`./ai/coach_report.js`), which keeps this free to run and
+ * real numbers (`./ai/services/coach_report.js`), which keeps this free to
+ * run and
  * impossible to hallucinate.
  *
  * Delivery targets come from Auth (every real account), but only users with

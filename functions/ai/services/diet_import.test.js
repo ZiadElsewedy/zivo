@@ -14,7 +14,7 @@ const {
   DEFAULT_REJECTION_REASON,
   MAX_TEXT_CHARS,
 } = require("./diet_import");
-const {GatewayError} = require("./gateway");
+const {GatewayError} = require("../gateway");
 
 /**
  * A `callModel` fake resolving to a single scripted response, recording the

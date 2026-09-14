@@ -2093,6 +2093,18 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-14 — **Backend AI reorg: `functions/ai/` by responsibility** (on
+  `feature/ai-gemini-provider`; Node only, pure file-moves + require-path edits, zero
+  behaviour change). The ~18 files that were flat at the `functions/ai/` root are now
+  foldered: `tools/` (read/mutations/elicitations), `services/` (workout_import ·
+  diet_import · diet_generate · coach_report · sleep_insights), `analytics/`
+  (workout/exercise analytics · readiness · plan_fitting), `shared/` (store · dates ·
+  abort · import_runtime), and the reply `validator.js` moved into `chat/` beside the
+  turn loop it guards. `tools.js` → `tools/read.js`. `chat/`, `providers/`, `routing/`,
+  `speech/` unchanged; `gateway.js` stays the root entry facade. New
+  [`functions/ai/README.md`](../functions/ai/README.md) is the map. All history preserved
+  via `git mv`; `npm test` green (503), `eslint` clean. Docs synced (FEATURE.md, chat
+  README, AGENTS.md). No LangChain — confirmed unused, so no such folder was created.
 - 2026-09-11 — **Reminder UI: Apple fluid-interface polish pass** (on `feature/reminders-sync`;
   Dart only, reused existing primitives — no new deps). Applied the `apple-design` skill within
   the design system: every interactive control in the reminders sheet + list (kind/day/emoji/tone

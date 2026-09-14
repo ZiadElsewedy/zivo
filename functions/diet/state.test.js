@@ -14,7 +14,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const {buildDietState, isSupplement, mealCalories} = require("./state");
-const {resolveDietDay} = require("../ai/dates");
+const {resolveDietDay} = require("../ai/shared/dates");
 
 const REPO_ROOT = path.join(__dirname, "..", "..");
 const VECTORS = JSON.parse(fs.readFileSync(

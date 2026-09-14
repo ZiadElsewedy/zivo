@@ -1,8 +1,8 @@
 /**
  * The server-side read-only tool registry for the `aiChat` gateway
  * (`functions/ai/gateway.js`). Every tool is `uid`-scoped and reads through
- * the injected `store` seam (`functions/ai/store.js` in production, a plain
- * in-memory fake in tests) — nothing here touches Firestore or any SDK
+ * the injected `store` seam (`functions/ai/shared/store.js` in production, a
+ * plain in-memory fake in tests) — nothing here touches Firestore or any SDK
  * directly, so it runs offline under `node --test`.
  *
  * Strictly READ-ONLY: no tool writes, creates, or deletes anything.
@@ -12,7 +12,7 @@
  * 1. **Every payload states its own date.** Nothing else in a turn tells the
  *    model what day it is. A tool that resolves "today" says which day that
  *    was, in the user's timezone (`offsetMinutes`, forwarded from the client
- *    by `aiChat` — see `./dates.js`).
+ *    by `aiChat` — see `../shared/dates.js`).
  * 2. **Nutrition carries its provenance.** A calorie/macro figure that was
  *    AI-estimated at PDF import time (`FoodItem.estimated`) travels with that
  *    flag, per item and aggregated onto the day totals, so the coach can say
@@ -49,19 +49,19 @@ const {
   localHourAt,
   resolveDietDay,
   startOfDay,
-} = require("./dates");
-const {readinessFromSignals} = require("./readiness");
-const {buildDietState, summariseHistory} = require("../diet/state");
-const {calibrateMaintenance, energyFor, ageFrom} = require("../diet/energy");
-const {coachingFindings} = require("../diet/rules");
-const {analyzeTraining} = require("./workout_analytics");
-const {analyzeExercise, analyzePlanAdherence} = require("./exercise_analytics");
+} = require("../shared/dates");
+const {readinessFromSignals} = require("../analytics/readiness");
+const {buildDietState, summariseHistory} = require("../../diet/state");
+const {calibrateMaintenance, energyFor, ageFrom} = require("../../diet/energy");
+const {coachingFindings} = require("../../diet/rules");
+const {analyzeTraining} = require("../analytics/workout_analytics");
+const {analyzeExercise, analyzePlanAdherence} = require("../analytics/exercise_analytics");
 const {
   resolveComposite,
   resolveAndCompute,
   normalizeItem,
   summariseFood,
-} = require("../nutrition/resolve");
+} = require("../../nutrition/resolve");
 
 /**
  * ISO string for `date`, or null.
