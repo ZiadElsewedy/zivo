@@ -6051,8 +6051,20 @@ abstract class AppLocalizations {
   /// Title of the About page.
   ///
   /// In en, this message translates to:
-  /// **'About Me'**
+  /// **'About'**
   String get aboutTitle;
+
+  /// One-line description of ZIVO, under the app name on the About page.
+  ///
+  /// In en, this message translates to:
+  /// **'AI-powered training tracker'**
+  String get aboutAppTagline;
+
+  /// Paragraph describing what ZIVO is on the About page.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO is a training app built around an AI coach that actually knows your numbers — your splits, your logged sets, your body-weight trend, your diet. Guided live sessions, progression insights, and plan import, in one calm place. Your data stays in your own account.'**
+  String get aboutAppBody;
 
   /// The maker's role, shown under their name on the About page.
   ///
@@ -6060,11 +6072,17 @@ abstract class AppLocalizations {
   /// **'Founder & Developer'**
   String get aboutRole;
 
-  /// Intro paragraph on the About page.
+  /// Intro line above the developer's contact details on the About page.
   ///
   /// In en, this message translates to:
-  /// **'ZIVO is built and maintained by Ziad. Questions, ideas, or a bug to report — reach me directly on any of these.'**
+  /// **'Built and maintained by Ziad. Questions, ideas, or a bug to report — reach me directly on any of these.'**
   String get aboutIntro;
+
+  /// Section label above the developer's details on the About page.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer'**
+  String get aboutSectionDeveloper;
 
   /// Section label above the contact rows on the About page.
   ///

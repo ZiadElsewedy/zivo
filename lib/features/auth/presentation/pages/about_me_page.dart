@@ -53,8 +53,10 @@ class AboutMePage extends StatelessWidget {
           children: [
             TrainPageHeader(title: l(context).aboutTitle),
             const SizedBox(height: 26),
-            const RiseIn(child: _IntroCard()),
+            // What ZIVO is — the page leads with the app itself.
+            const RiseIn(child: _AppCard()),
             const SizedBox(height: 24),
+            // Then who built it and how to reach them.
             RiseIn(
               delay: const Duration(milliseconds: 90),
               child: Column(
@@ -62,7 +64,8 @@ class AboutMePage extends StatelessWidget {
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(bottom: 11),
-                    child: TrainSectionLabel(l(context).aboutSectionContact),
+                    child:
+                        TrainSectionLabel(l(context).aboutSectionDeveloper),
                   ),
                   Container(
                     clipBehavior: Clip.antiAlias,
@@ -72,7 +75,14 @@ class AboutMePage extends StatelessWidget {
                       border: Border.all(color: TrainColors.hairline),
                     ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const _DeveloperHeader(),
+                        Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: TrainColors.hairline,
+                        ),
                         _ContactRow(
                           mark: const WhatsAppMark(size: 26),
                           title: l(context).aboutWhatsapp,
@@ -107,11 +117,11 @@ class AboutMePage extends StatelessWidget {
   }
 }
 
-/// The intro block: the ZIVO mark, the maker's name and role, and a short
-/// line inviting contact. A raised card so it reads as the page's subject
-/// rather than a stray header.
-class _IntroCard extends StatelessWidget {
-  const _IntroCard();
+/// The app block: the ZIVO mark, the wordmark, a one-line tagline, and a
+/// paragraph on what ZIVO is. The page's subject — what the app is comes
+/// before who made it.
+class _AppCard extends StatelessWidget {
+  const _AppCard();
 
   @override
   Widget build(BuildContext context) {
@@ -138,18 +148,19 @@ class _IntroCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // A proper name — hardcoded like the brand names on
+                    // The wordmark — hardcoded like the brand names on
                     // Settings, not a translated string.
                     Text(
-                      'Ziad',
+                      'ZIVO',
                       style: AppText.rowTitle.copyWith(
                         fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.5,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      l(context).aboutRole,
+                      l(context).aboutAppTagline,
                       style: AppText.meta.copyWith(color: TrainColors.ink3),
                     ),
                   ],
@@ -159,8 +170,46 @@ class _IntroCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            l(context).aboutIntro,
+            l(context).aboutAppBody,
             style: AppText.body.copyWith(height: 1.6, color: TrainColors.ink2),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The developer's name, role, and the line inviting contact — the head of the
+/// Developer section, above the contact rows.
+class _DeveloperHeader extends StatelessWidget {
+  const _DeveloperHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(15, 15, 15, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // A proper name — hardcoded, not translated.
+          Text(
+            'Ziad',
+            style: TrainType.ui(
+              size: 16,
+              weight: FontWeight.w700,
+              color: TrainColors.inkPlain,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            l(context).aboutRole,
+            style: AppText.meta.copyWith(color: TrainColors.ink3),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            l(context).aboutIntro,
+            style: AppText.body.copyWith(height: 1.55, color: TrainColors.ink2),
           ),
         ],
       ),
