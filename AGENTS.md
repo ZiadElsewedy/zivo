@@ -138,6 +138,143 @@ OTP mail). Each has a `*.test.js` (`node --test`, offline).
 
 ---
 
+## AI agent workflow and tool calls
+
+> The AI coach ("Ask") and all other AI features run in the **backend**
+> ([`functions/ai/`](functions/ai)); the Flutter client only streams a turn and renders it.
+> Client seam: [`lib/features/ai/FEATURE.md`](lib/features/ai/FEATURE.md). Chat internals:
+> [`functions/ai/chat/README.md`](functions/ai/chat/README.md). ADRs:
+> [ADR-001](docs/DECISIONS/ADR-001-ai-assistant.md) (read-only V1),
+> [ADR-003](docs/DECISIONS/ADR-003-ai-mutations-v2.md) (propose→confirm→execute),
+> [ADR-005](docs/DECISIONS/ADR-005-ai-edit-delete-expenses.md) (edit/delete).
+
+**One rule above all — the model never invents a number and never writes on its own.**
+Every user figure must come from a **tool result in that turn** (the `NUMBERS` prompt
+section); every write is **confirm-gated** (ADR-003/005 — a tool only *proposes*); and the
+final reply is **validated before it's persisted** ([`validator.js`](functions/ai/validator.js),
+Phase 7) — an unsupported figure is replaced with deterministic text.
+
+### The chat turn (`aiChat` → [`chat/turn.js`](functions/ai/chat/turn.js) `runAiTurn`)
+
+```
+User message
+  ▼
+runAiTurn: SYSTEM_PROMPT (cached) + uncached CONTEXT block (user's local
+  date/weekday/time from utcOffsetMinutes) + history → call provider
+  ▼  model ↔ tool loop, bounded by cost/iteration ceilings (chat/config.js)
+  ├─ TEXT only ............ validate → persist → done            ✅
+  ├─ READ tool ........... run → feed result back → loop         🔁  (emits {step,tool,status})
+  ├─ MUTATING tool ....... propose: persist pending action, end turn, show card  ⏸️
+  └─ ELICITATION tool .... pause: persist choice/input request, end turn, ask     ⏸️
+```
+
+- **Reads never end the turn**; **writes and elicitations do** — they hand control to the user,
+  whose answer arrives as the *next* `aiChat` turn.
+- **Live progress:** only the tool *name* crosses the wire (`{type:'step',tool,status}`), never
+  its input/result; the client maps it to human copy ("Reading today's diet…").
+- **Providers:** behind a `NormalizedRequest`/`NormalizedResponse` seam
+  ([`providers/`](functions/ai/providers) + [`routing/router.js`](functions/ai/routing/router.js)) —
+  Anthropic (primary) → Gemini (fallback). Failover happens **only on a real provider failure**
+  (5xx/429/timeout); a 4xx is rethrown. A client `provider` field pins one and disables fallback.
+- **Usage** is logged per turn ([`chat/usage.js`](functions/ai/chat/usage.js), `aiUsage` v3):
+  provider/model, cached vs uncached input, output, tools, iterations, latency, cost, daily cap.
+
+### The confirm-gated write flow (ADR-003 / ADR-005)
+
+```
+Model calls a mutating tool → validate(input) [shape] → verify(input) [exists; patches payload]
+  → persist pending action + end turn → client shows proposal card
+      ├─ Confirm → aiConfirmAction → execute() writes to Firestore   ✅
+      └─ Cancel  → aiCancelAction  → nothing written                 ❌
+```
+`validate` proves shape; `verify` proves the record exists (runs before the card). Edits/deletes
+target the **exact `id`** from a read tool. Food nutrition is **computed server-side in `verify`**,
+never model-supplied, and snapshotted at propose time so it can't drift.
+
+### Read tools — [`tools.js`](functions/ai/tools.js) (uid-scoped, never mutate; every payload states its date)
+
+| Tool | Returns |
+|---|---|
+| `get_today` | Today's snapshot — diet (targets/remaining/provenance), profile/weight/age, training. Default context tool. |
+| `get_diet` | A day's `DietState` (same builder as the Diet screen): `targets`, `remaining`, `consumed.basis`, `logEntries`, `quality`. |
+| `get_workouts` | Real per-set actuals from `workoutSessions` (weight/reps/type/outcome; warm-ups flagged, skipped/pending dropped). |
+| `get_last_workout` | Just the single most recent completed session; each exercise's top working set precomputed. |
+| `get_training_analysis` | Deterministic workout analysis + typed `findings` + `planAdherence`. The model phrases, never computes. |
+| `get_exercise_analysis` | One lift by name → full session-by-session history, deltas, verdict/tone, deterministic insight. |
+| `get_readiness` | The Daily Readiness call (train hard / go light / rest), fusing sleep + load + recovery + weight. Owns "how am I today". |
+| `get_sleep_summary` | Last night vs target + rolling average, for sleep-specific questions. |
+| `get_expenses` | Expenses, each with its real `id` (so edit/delete can target it). |
+| `summarize_week` | Trailing-week rollup across surfaces. |
+| `resolve_food` | A food query → `foodId` + per-100g nutrition, or `ambiguous` / `notFound`. |
+| `calculate_meal_nutrition` | Items (foodId/query + amount) → computed kcal/macros + total. |
+
+**Token discipline:** `dropNull` strips absent fields from workout/expense/week payloads (re-sent
+each iteration) but **never from diet tools** — there `null` is a semantic signal (`targets:null` = no objective).
+
+### Write tools (propose→confirm) — [`mutations.js`](functions/ai/mutations.js)
+
+| Tool | Proposes |
+|---|---|
+| `create_expense` | A new expense (`amountMinor`, category, `spentAt`). |
+| `edit_expense` | A change to an existing expense by `expenseId`. |
+| `delete_expense` | Removal of an expense by `expenseId`. |
+| `mark_meal_eaten` | Tick/untick a *planned* meal by `mealId` (has `verify`). |
+| `log_food` | Log ad-hoc eating; nutrition resolved + computed **server-side in `verify`**, never model-supplied. |
+
+> `mark_meal_eaten` ticks a planned meal off; `log_food` records ad-hoc eating. Not interchangeable.
+
+### Elicitation tools (pause & ask) — [`elicitations.js`](functions/ai/elicitations.js)
+
+Non-executing turn-enders (`elicits: true`). No pending-action doc, no confirm half — the user's
+answer returns as the next turn.
+
+| Tool | Asks | Rendered by |
+|---|---|---|
+| `ask_choice` | A question with 2–5 option chips (Phase 1). | `choice_chips.dart` → `answerChoice` |
+| `request_input` | A 1–4 field form for a value no tool has (Phase 2). | `input_request_card.dart` → `submitInput` |
+
+**Phase 3:** a `request_input` field keyed `heightCm`/`weightKg` is persisted client-side to the
+user's own body data on submit (`AskController._persistBodyData` → `BodyDataWriter`) — height merges
+into the diet `BodyProfile`, weight becomes a weigh-in. **Targets/goal are never written**; the
+form-submit is the user's own confirmation (no ADR-003 propose→confirm). Rule: **read before you ask**.
+
+### System prompt — [`chat/prompt/`](functions/ai/chat/prompt) (composed in `system_prompt.js`, pinned by `gateway.test.js`)
+
+`persona` · `focus` (answer the exact question) · `formatting` (**plain text**, no Markdown) ·
+`numbers` (look figures up, never invent) · `training`/`coaching` (lead with deterministic
+`findings`, never contradict/invent one) · `mutations` (propose→confirm; identify by real `id`) ·
+`elicitation` (read before you ask; one question per turn) · `safety`. The prompt is static and
+cached; only the appended `CONTEXT` block carries the date.
+
+### Other AI features (separate callables — not the chat loop)
+
+| Feature | Callable / entry | Workflow |
+|---|---|---|
+| **Voice → text** | `aiTranscribe` → [`speech/gateway.js`](functions/ai/speech/gateway.js) | Audio → transcript (Gemini / OpenAI speech providers); the transcript then goes through a normal chat turn. |
+| **Workout PDF import** | `aiImportWorkoutPlan` → [`workout_import.js`](functions/ai/workout_import.js) | One-shot PDF → proposed split JSON (`toolChoice:"any"`). **No server write** — the client's `WorkoutPlanEditPage` is the human gate; saved via `WorkoutPlanRepository.saveSplit`. Streams `import_progress`. |
+| **Diet PDF/text import** | `aiImportDietPlan` → [`diet_import.js`](functions/ai/diet_import.js) | Mirrors workout import; **difference:** kcal/macros never null (schema forces an estimate; each item reports `estimated`). Reviewed in `DietPlanEditPage`, saved via `DietRepository.savePlan`. |
+| **Diet plan generation** | `aiGenerateDietPlan` → [`diet_generate.js`](functions/ai/diet_generate.js) | ADR-007: **model picks foods, catalog prices them, arithmetic fits them.** Two model calls (2nd disambiguates USDA-`ambiguous` items); fitting/allergen refusal is deterministic ([`plan_fitting.js`](functions/ai/plan_fitting.js)). Not streamed. |
+| **Weekly coach report** | `weeklyCoachReport` (scheduled) → [`coach_report.js`](functions/ai/coach_report.js) | **Proactive, deterministic template — no model call.** Pushed into the user's most recent Ask conversation; users with no conversation are skipped. |
+
+### Deterministic engines the model only *explains* (Node mirrors of Dart, pinned by shared golden vectors)
+
+| Engine | Mirrors | Feeds |
+|---|---|---|
+| [`workout_analytics.js`](functions/ai/workout_analytics.js) | `workout_analytics.dart` | `get_training_analysis` (1RM, PRs, status, trends, findings). |
+| [`exercise_analytics.js`](functions/ai/exercise_analytics.js) | `exercise_analysis.dart` + `plan_adherence.dart` | `get_exercise_analysis` + `planAdherence`. |
+| [`readiness.js`](functions/ai/readiness.js) | `readiness.dart` | `get_readiness`. |
+| [`sleep_insights.js`](functions/ai/sleep_insights.js) | `sleep_metrics.dart` | Sleep interpretation (`groundedNumerals` filters every numeral). |
+| [`../nutrition/resolve.js`](functions/nutrition/resolve.js) | `CompositeFoodResolver` | The ONE food→calories path shared by `resolve_food`, `calculate_meal_nutrition`, `log_food`. |
+| [`../diet/rules.js`](functions/diet/rules.js) | diet rules engine | The `findings` the coach leads with. |
+
+**Gotchas:** any prompt/tool change needs a `functions` deploy (owner's creds); offline
+`node --test` can't catch model-wire bugs (test against the emulator + real API too); `targets`
+(the user's objective) ≠ `nutrition.target` (a plan day's sum); read `consumed.basis` before
+characterising a diet number; don't drop the `replaced` flag in stream plumbing or the user keeps
+reading figures the server already ruled invented.
+
+---
+
 ## Commands
 
 ```bash
