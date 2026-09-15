@@ -95,6 +95,23 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Ask empty-state + header polish** (2026-09-15, on `feature/ai-gemini-provider`).
+  A design pass on the Ask tab's first impression, within the type system (still
+  Instrument Serif for ZIVO's voice — ADR-009):
+  - The greeting ("Hey, I'm ZIVO.") is a display line now — 40px, tighter
+    tracking, a violet-lit ink gradient, and a **one-shot shimmer** that sweeps
+    across it once as it settles (single `Text` under one animated `ShaderMask`;
+    no perpetual loop; honours reduce-motion → plain resting gradient).
+  - The hero glyph **springs in** with a momentum overshoot and blooms a soft
+    violet glow (the bloom overflows without inflating layout).
+  - Suggestion rows carry a leading **hue-tinted glyph** in the app's colour
+    language (money=amber, training/diet=green, week-summary=violet) and a
+    trailing caret; still send-on-tap with the Apple press (`PressableScale` +
+    haptic).
+  - Header circles are **top-lit gradient glass** (depth from light, not shadow)
+    and settle in with a light stagger. Keys/behaviour unchanged.
+  - `lib/features/ai/presentation/widgets/ask/ask_empty_state.dart` +
+    `chat_header.dart`. Analyze clean; all 146 `test/ai/` tests green.
 - **Diet Builder — one guided, number-free wizard** (2026-09-14, on
   `claude/affectionate-wozniak-wcnkpm`). The scattered "build me one" screens are
   replaced, as the primary generate entry, by a single stepped flow: **Goal →
