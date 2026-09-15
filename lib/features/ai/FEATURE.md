@@ -6,6 +6,8 @@
 > [ADR-003](../../../docs/DECISIONS/ADR-003-ai-mutations-v2.md) (V2 propose→confirm→execute),
 > [ADR-005](../../../docs/DECISIONS/ADR-005-ai-edit-delete-expenses.md) (edit/delete expenses).
 > **The model + tools live in the backend** — see `functions/ai/` (below), not just here.
+> **For the end-to-end workflow + a table of every tool call across all AI features,
+> see [`AGENTS.md` → "AI agent workflow and tool calls"](../../../AGENTS.md#ai-agent-workflow-and-tool-calls).**
 
 ## Start here
 
