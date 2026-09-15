@@ -7,9 +7,9 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-14 · **Active branch:** `feature/ai-gemini-provider`
-(cut from `feature/readiness`); Diet Builder wizard on
-`claude/affectionate-wozniak-wcnkpm`
+**Last updated:** 2026-09-15 · **Active branch:** `feature/ai-gemini-provider`
+(cut from `feature/readiness`); music-reactive session background on `upgrades`;
+Diet Builder wizard on `claude/affectionate-wozniak-wcnkpm`
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -95,6 +95,26 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Music-reactive session background — "Aurora Well"** (2026-09-15, on `upgrades`).
+  The live workout session's background now reacts to the playing Spotify track's
+  album art. The old ambience desaturated every cover to the same charcoal (sat
+  capped ≤0.16) and blended it at 0.12 — the "washed-out pink/purple" complaint.
+  Replaced with a **wide, animated field**: `session_ambience.dart` now derives a
+  `SessionField` of 1–5 tone-mapped hues from across the cover (pure, unit-tested
+  `buildSessionField`) + a derived `energy`/`warmth`/`loudness` (from the artwork's
+  colourfulness/spread/contrast — no audio features exist), published via
+  `SessionAmbience.fieldOf`/`energyOf`. New `session_aurora_field.dart` paints it:
+  a `CustomPainter` mesh of screen-blended light blobs drifting at the periphery
+  around a content-anchored **dark "well"** (legibility guaranteed at ~13:1 vs ink),
+  energy-scaled motion (high-energy cover ⇒ faster/wider/brighter), and a 1.4s
+  shortest-hue-arc **morph** on track change. Legacy `of()`/`vividOf()`/`trackKeyOf()`
+  and their consumers (`rest_ring`, strips) are byte-identical. Perpetual animation
+  only spins up with a live cover palette, so a no-music session is pixel-identical
+  to before and every widget test stays `pumpAndSettle`-safe. Tuning knobs (blob
+  peak alpha, well strength) are noted in the code; **owner: eyeball intensity on a
+  physical device** (needs Spotify Premium + a real device — App Remote can't run in
+  a simulator). Tests: 10 new in `test/workout/session_aurora_field_test.dart`;
+  full workout (576) + music (20) suites green; `flutter analyze` clean.
 - **Ask empty-state + header polish** (2026-09-15, on `feature/ai-gemini-provider`).
   A restraint-first design pass on the Ask tab's first impression, within the
   type system (still Instrument Serif for ZIVO's voice — ADR-009). An earlier

@@ -505,8 +505,9 @@ double _predictedCoreContrast(
   var r = base.r, g = base.g, b = base.b;
   // Screen-blend each stop's peripheral spill into the core.
   for (var i = 0; i < stops.length; i++) {
-    // peak alpha (≤0.14), weight-scaled, only ~35% of it reaches the centre.
-    final a = (0.14 * (0.55 + 0.45 * weights[i])) * 0.35 * fieldGain;
+    // peak alpha (matches the painter's ~0.22 base), weight-scaled; only ~35%
+    // of it reaches the content core from the edge-anchored blobs.
+    final a = (0.22 * (0.55 + 0.45 * weights[i])) * 0.35 * fieldGain;
     final s = stops[i];
     r = _screenChannel(r, s.r, a);
     g = _screenChannel(g, s.g, a);

@@ -63,6 +63,24 @@ class _SessionAuroraFieldState extends State<SessionAuroraField>
   /// motion is `sin`/`cos` of the elapsed seconds it yields.
   static const double _masterSeconds = 120;
 
+  /// The mesh advances a 120-second drift, so sampling it at the display's
+  /// 60–120Hz only burns the GPU on motion the eye can't resolve at that speed.
+  /// Both animation clocks are snapped to this cadence before they reach the
+  /// painter; [_AuroraPainter.shouldRepaint] then sees an unchanged value
+  /// between beats and skips the full-screen re-raster entirely, so the layer
+  /// re-rasters ~15×/s. At a 120s period the motion is visually identical.
+  static const int _auroraFps = 15;
+
+  /// Fraction of the DEVICE resolution the full-screen screen-blended mesh is
+  /// rasterised at before being bilinear-upscaled to fill the screen. Soft,
+  /// blurred blobs upscale invisibly, so the look is preserved while the
+  /// expensive gradient fill costs ~a quarter as much. See [_AuroraPainter].
+  static const double _auroraRenderScale = 0.5;
+
+  /// The track-change morph length — shared between the controller that drives
+  /// it and the snap that throttles it.
+  static const Duration _morphDuration = Duration(milliseconds: 1400);
+
   AnimationController? _master;
   AnimationController? _morph;
 
@@ -118,7 +136,7 @@ class _SessionAuroraFieldState extends State<SessionAuroraField>
       _to = model;
       (_morph ??= AnimationController(
         vsync: this,
-        duration: const Duration(milliseconds: 1400),
+        duration: _morphDuration,
       )..addStatusListener(_onMorphStatus)).forward(from: 0);
     }
   }
@@ -175,22 +193,34 @@ class _SessionAuroraFieldState extends State<SessionAuroraField>
 
     final master = _master!;
     final morph = _morph;
+    final dpr = MediaQuery.of(context).devicePixelRatio;
     return AnimatedBuilder(
       animation: morph == null ? master : Listenable.merge([master, morph]),
       builder: (context, _) {
+        // Throttle: snap both clocks to [_auroraFps] before they reach the
+        // painter, so shouldRepaint sees an unchanged value between beats and
+        // the full-screen mesh re-rasters ~15×/s instead of every display
+        // frame. AnimatedBuilder still ticks (cheap UI-thread work); the
+        // expensive raster is what the snap gates away.
+        final time = _snapSeconds(master.value * _masterSeconds, _auroraFps);
         final morphing = morph != null && morph.isAnimating;
+        final morphT = morphing
+            ? _snapUnit(morph.value, _morphDuration, _auroraFps)
+            : 1.0;
         final model = morphing
-            ? _FieldModel.lerp(_from!, _to!, _easeInOutCubic(morph.value))
+            ? _FieldModel.lerp(_from!, _to!, _easeInOutCubic(morphT))
             : _to!;
-        final flourish = morphing ? _flourish(morph.value) : 1.0;
+        final flourish = morphing ? _flourish(morphT) : 1.0;
         return CustomPaint(
           size: Size.infinite,
           isComplex: true,
           willChange: true,
           painter: _AuroraPainter(
             model: model,
-            time: master.value * _masterSeconds,
+            time: time,
             flourish: flourish,
+            devicePixelRatio: dpr,
+            renderScale: _auroraRenderScale,
           ),
         );
       },
@@ -200,6 +230,23 @@ class _SessionAuroraFieldState extends State<SessionAuroraField>
 
 double _easeInOutCubic(double t) =>
     Curves.easeInOutCubic.transform(t.clamp(0, 1));
+
+/// Snaps [seconds] down to the nearest `1/fps` step, so every value inside the
+/// same frame bucket is bit-identical — which is what lets the painter's
+/// shouldRepaint gate the full-screen re-raster away between beats.
+double _snapSeconds(double seconds, int fps) {
+  final step = 1 / fps;
+  return (seconds / step).floorToDouble() * step;
+}
+
+/// Snaps a 0..1 controller [value] to `fps` even steps across [span] — the
+/// morph's counterpart to [_snapSeconds], so a track change also updates at the
+/// throttled cadence rather than every display frame.
+double _snapUnit(double value, Duration span, int fps) {
+  final steps = span.inMilliseconds / 1000 * fps;
+  if (steps <= 0) return value;
+  return (value * steps).floorToDouble() / steps;
+}
 
 /// A short "lighting board dips then swells as it swaps gels" envelope over the
 /// track-change morph — restrained (≤1.08), back to 1.0 by ~⅔ of the way, so
@@ -257,9 +304,12 @@ class _FieldModel {
       final filler = j >= n;
       final w = f.weights.isEmpty ? 1.0 : f.weights[src];
       final rel = maxW > 0 ? (w / maxW).clamp(0.0, 1.0) : 1.0;
-      // Dominant hue brightest; peak alpha ceiling is 0.14.
-      var peak = 0.14 * (0.6 + 0.4 * rel);
-      if (filler) peak *= 0.5;
+      // Dominant hue brightest. Peak alpha sits at the bold end of the
+      // legibility headroom (the well still holds the core well past the 4.5:1
+      // floor), so the periphery reads as genuinely, vividly colourful rather
+      // than a faint wash — the whole point of the feature.
+      var peak = 0.22 * (0.6 + 0.4 * rel);
+      if (filler) peak *= 0.6;
       colors.add(stops[src]);
       peaks.add(peak);
     }
@@ -343,6 +393,8 @@ class _AuroraPainter extends CustomPainter {
     required this.model,
     required this.time,
     this.flourish = 1.0,
+    this.devicePixelRatio = 1.0,
+    this.renderScale = 1.0,
   });
 
   final _FieldModel model;
@@ -352,6 +404,18 @@ class _AuroraPainter extends CustomPainter {
 
   /// Track-change dip-and-swell multiplier (1.0 at rest).
   final double flourish;
+
+  /// The screen's device-pixel ratio, so [renderScale] measures against real
+  /// device pixels rather than logical ones.
+  final double devicePixelRatio;
+
+  /// Fraction of the DEVICE resolution the full-screen mesh is rasterised at
+  /// before being bilinear-upscaled to fill the screen. 1.0 paints directly at
+  /// full resolution (the single static / reduced-motion frame); the animated
+  /// path passes a smaller value so the expensive screen-blended gradient fill
+  /// runs over ~renderScale² of the pixels. Soft, blurred blobs upscale
+  /// invisibly, so the look is preserved.
+  final double renderScale;
 
   // Blob anchors in normalised [-1, 1] space, pushed to the edges/corners so
   // the most-saturated screen-blend overlaps happen in the periphery, away
@@ -371,6 +435,49 @@ class _AuroraPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    if (w <= 0 || h <= 0) return;
+
+    // Full-resolution path — the single static / reduced-motion frame.
+    if (renderScale >= 1.0) {
+      _paintScene(canvas, size);
+      return;
+    }
+
+    // Downscaled path: rasterise the whole mesh into a low-resolution offscreen
+    // and bilinear-upscale it to fill the screen. The costly gradient +
+    // screen-blend fill then runs over ~renderScale² of the pixels, and the
+    // upscale is a single cheap blit. Falls back to a direct full-res paint if
+    // the synchronous rasterise isn't available here (e.g. some test
+    // environments) — still correct, just not downscaled.
+    final lowW = math.max(1, (w * devicePixelRatio * renderScale).round());
+    final lowH = math.max(1, (h * devicePixelRatio * renderScale).round());
+    try {
+      final recorder = ui.PictureRecorder();
+      final lowCanvas = Canvas(recorder)..scale(lowW / w, lowH / h);
+      _paintScene(lowCanvas, size);
+      final picture = recorder.endRecording();
+      final image = picture.toImageSync(lowW, lowH);
+      picture.dispose();
+      canvas.drawImageRect(
+        image,
+        Rect.fromLTWH(0, 0, lowW.toDouble(), lowH.toDouble()),
+        Offset.zero & size,
+        Paint()
+          ..filterQuality = FilterQuality.low
+          ..isAntiAlias = true,
+      );
+      image.dispose();
+    } catch (_) {
+      _paintScene(canvas, size);
+    }
+  }
+
+  /// Paints the mesh — ground, blobs, well, scrims — in logical coordinates.
+  /// Called either straight onto the screen canvas (full-res / fallback) or
+  /// into a scaled-down offscreen recorder (the downscaled animated path).
+  void _paintScene(Canvas canvas, Size size) {
     final base = TrainColors.base;
     final w = size.width;
     final h = size.height;
@@ -418,7 +525,7 @@ class _AuroraPainter extends CustomPainter {
         b01 = b01 * (1 - percMix) + math.pow(b01, 2).toDouble() * percMix;
       }
       final alpha = (model.slotPeak[j] * (1 - pulse + 2 * pulse * b01) * gain)
-          .clamp(0.0, 0.16);
+          .clamp(0.0, 0.28);
       if (alpha <= 0.003) continue;
 
       final color = model.slotColors[j];
@@ -476,5 +583,9 @@ class _AuroraPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _AuroraPainter old) =>
-      old.time != time || old.flourish != flourish || old.model != model;
+      old.time != time ||
+      old.flourish != flourish ||
+      old.renderScale != renderScale ||
+      old.devicePixelRatio != devicePixelRatio ||
+      old.model != model;
 }
