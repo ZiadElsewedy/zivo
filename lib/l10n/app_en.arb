@@ -5043,6 +5043,50 @@
   "@settingsPrivacyPolicy": {
       "description": "Settings row opening the privacy policy."
   },
+  "settingsAbout": "About",
+  "@settingsAbout": {
+      "description": "Settings row opening the About page (who built ZIVO and how to reach them)."
+  },
+  "aboutTitle": "About",
+  "@aboutTitle": {
+      "description": "Title of the About page."
+  },
+  "aboutAppTagline": "AI-powered training tracker",
+  "@aboutAppTagline": {
+      "description": "One-line description of ZIVO, under the app name on the About page."
+  },
+  "aboutAppBody": "ZIVO is a training app built around an AI coach that actually knows your numbers — your splits, your logged sets, your body-weight trend, your diet. Guided live sessions, progression insights, and plan import, in one calm place. Your data stays in your own account.",
+  "@aboutAppBody": {
+      "description": "Paragraph describing what ZIVO is on the About page."
+  },
+  "aboutRole": "Founder & Developer",
+  "@aboutRole": {
+      "description": "The maker's role, shown under their name on the About page."
+  },
+  "aboutIntro": "Built and maintained by Ziad. Questions, ideas, or a bug to report — reach me directly on any of these.",
+  "@aboutIntro": {
+      "description": "Intro line above the developer's contact details on the About page."
+  },
+  "aboutSectionDeveloper": "Developer",
+  "@aboutSectionDeveloper": {
+      "description": "Section label above the developer's details on the About page."
+  },
+  "aboutSectionContact": "Contact",
+  "@aboutSectionContact": {
+      "description": "Section label above the contact rows on the About page."
+  },
+  "aboutWhatsapp": "WhatsApp",
+  "@aboutWhatsapp": {
+      "description": "Row title for the WhatsApp contact on the About page."
+  },
+  "aboutEmail": "Email",
+  "@aboutEmail": {
+      "description": "Row title for the email contact on the About page."
+  },
+  "aboutCopied": "Copied to clipboard",
+  "@aboutCopied": {
+      "description": "Toast shown after tapping a contact row copies its value."
+  },
   "settingsChangePassword": "Change password",
   "@settingsChangePassword": {
       "description": "Settings row opening the change-password flow."

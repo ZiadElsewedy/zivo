@@ -5,6 +5,7 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/widgets/rise_in.dart';
 import '../../domain/ai_model_selection.dart' show kDefaultAiModelSelection;
 import '../../../../l10n/l10n.dart';
 
@@ -71,29 +72,40 @@ class ChatHeader extends StatelessWidget {
               ),
             ),
           ),
-          _HeaderAction(
-            key: const Key('header-settings'),
-            icon: AppIcons.replyStyle,
-            tooltip: l(context).askSettings,
-            onTap: onOpenSettings,
-            // A non-Auto model means the user has pinned a specific one —
-            // surface that with a small accent dot so it's visible without
-            // opening the sheet, without a label that would crowd the row.
-            showDot: modelSelection != kDefaultAiModelSelection,
+          // The cluster settles in with a light stagger — a professional
+          // header assembling rather than blinking on. Plays once (the tab is
+          // kept alive by the shell); RiseIn no-ops under reduce motion.
+          RiseIn(
+            child: _HeaderAction(
+              key: const Key('header-settings'),
+              icon: AppIcons.replyStyle,
+              tooltip: l(context).askSettings,
+              onTap: onOpenSettings,
+              // A non-Auto model means the user has pinned a specific one —
+              // surface that with a small accent dot so it's visible without
+              // opening the sheet, without a label that would crowd the row.
+              showDot: modelSelection != kDefaultAiModelSelection,
+            ),
           ),
           const SizedBox(width: 8),
-          _HeaderAction(
-            key: const Key('header-history'),
-            icon: AppIcons.history,
-            tooltip: l(context).askChatHistory,
-            onTap: onSessions,
+          RiseIn(
+            delay: const Duration(milliseconds: 60),
+            child: _HeaderAction(
+              key: const Key('header-history'),
+              icon: AppIcons.history,
+              tooltip: l(context).askChatHistory,
+              onTap: onSessions,
+            ),
           ),
           const SizedBox(width: 8),
-          _HeaderAction(
-            key: const Key('header-new-chat'),
-            icon: AppIcons.chatNew,
-            tooltip: l(context).askNewChat,
-            onTap: onNewChat,
+          RiseIn(
+            delay: const Duration(milliseconds: 120),
+            child: _HeaderAction(
+              key: const Key('header-new-chat'),
+              icon: AppIcons.chatNew,
+              tooltip: l(context).askNewChat,
+              onTap: onNewChat,
+            ),
           ),
         ],
       ),
@@ -185,11 +197,19 @@ class _HeaderAction extends StatelessWidget {
   }
 }
 
-/// The shared skin for header controls: a flat glass circle inside a
-/// hairline. No gradient, no shadow — the screen's single radial glow is
-/// what gives this surface its depth.
+/// The shared skin for header controls: a glass circle inside a hairline,
+/// lit from the top. The depth is *light*, not a shadow (identity §5) — a
+/// two-stop vertical gradient from a brighter top to the base fill, so the
+/// circle reads as a small physical object catching the screen's glow rather
+/// than a flat sticker on it.
 BoxDecoration _glassDecoration() => BoxDecoration(
   shape: BoxShape.circle,
-  color: TrainColors.glassSoft,
-  border: Border.fromBorderSide(BorderSide(color: TrainColors.liftAt(0.09))),
+  gradient: LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [TrainColors.glassStrong, TrainColors.glassSoft],
+  ),
+  border: Border.fromBorderSide(
+    BorderSide(color: TrainColors.liftAt(0.10)),
+  ),
 );

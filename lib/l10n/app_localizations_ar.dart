@@ -3662,6 +3662,41 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settingsPrivacyPolicy => 'سياسة الخصوصية';
 
   @override
+  String get settingsAbout => 'حول';
+
+  @override
+  String get aboutTitle => 'حول';
+
+  @override
+  String get aboutAppTagline => 'متتبّع تدريب مدعوم بالذكاء الاصطناعي';
+
+  @override
+  String get aboutAppBody =>
+      'زيفو تطبيق تدريب مبنيّ حول مدرّب ذكاء اصطناعي يعرف أرقامك فعلاً — تقسيماتك، مجموعاتك المسجّلة، اتجاه وزنك، ونظامك الغذائي. جلسات مباشرة موجَّهة، ورؤى للتقدّم، واستيراد للخطط، في مكان واحد هادئ. بياناتك تبقى في حسابك الخاص.';
+
+  @override
+  String get aboutRole => 'المؤسس والمطوّر';
+
+  @override
+  String get aboutIntro =>
+      'من تطوير وصيانة زياد. لأي سؤال أو فكرة أو للإبلاغ عن خلل، تواصل معي مباشرةً عبر أيٍّ من هذه.';
+
+  @override
+  String get aboutSectionDeveloper => 'المطوّر';
+
+  @override
+  String get aboutSectionContact => 'التواصل';
+
+  @override
+  String get aboutWhatsapp => 'واتساب';
+
+  @override
+  String get aboutEmail => 'البريد الإلكتروني';
+
+  @override
+  String get aboutCopied => 'تم النسخ';
+
+  @override
   String get settingsChangePassword => 'تغيير كلمة المرور';
 
   @override

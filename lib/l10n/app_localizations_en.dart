@@ -3596,6 +3596,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPrivacyPolicy => 'Privacy policy';
 
   @override
+  String get settingsAbout => 'About';
+
+  @override
+  String get aboutTitle => 'About';
+
+  @override
+  String get aboutAppTagline => 'AI-powered training tracker';
+
+  @override
+  String get aboutAppBody =>
+      'ZIVO is a training app built around an AI coach that actually knows your numbers — your splits, your logged sets, your body-weight trend, your diet. Guided live sessions, progression insights, and plan import, in one calm place. Your data stays in your own account.';
+
+  @override
+  String get aboutRole => 'Founder & Developer';
+
+  @override
+  String get aboutIntro =>
+      'Built and maintained by Ziad. Questions, ideas, or a bug to report — reach me directly on any of these.';
+
+  @override
+  String get aboutSectionDeveloper => 'Developer';
+
+  @override
+  String get aboutSectionContact => 'Contact';
+
+  @override
+  String get aboutWhatsapp => 'WhatsApp';
+
+  @override
+  String get aboutEmail => 'Email';
+
+  @override
+  String get aboutCopied => 'Copied to clipboard';
+
+  @override
   String get settingsChangePassword => 'Change password';
 
   @override
