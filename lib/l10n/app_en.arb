@@ -1884,6 +1884,10 @@
   "@addDietGenerateDetail": {
     "description": "Subtitle of the generation route."
   },
+  "addDietRecommended": "Recommended",
+  "@addDietRecommended": {
+    "description": "Badge beside the generate route, marking it as the suggested way in."
+  },
   "addDietManual": "Build it meal by meal",
   "@addDietManual": {
     "description": "Capture route: the full editor."

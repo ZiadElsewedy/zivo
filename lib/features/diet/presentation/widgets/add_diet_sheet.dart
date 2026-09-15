@@ -21,9 +21,10 @@ import '../../../../l10n/l10n.dart';
 /// dictation by finding a mic button somewhere else, and a user with no plan
 /// at all shouldn't have to guess that ZIVO can write one.
 ///
-/// Ordered by how most plans actually arrive: people are handed a document,
-/// then they photograph one, then they describe their own — and last, for the
-/// people who have no plan at all, ZIVO builds one.
+/// The generated route leads: most people arriving here have no plan yet, so
+/// the recommended way in is to let ZIVO build one. The rest follow by how a
+/// plan already in hand arrives — a document, a spoken description, a typed
+/// one — and the full manual editor sits last for the people who want it.
 Future<void> showAddDietSheet(BuildContext context) {
   return showZivoSheet<void>(
     context: context,
@@ -66,6 +67,14 @@ class _AddDietSheet extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           AddPlanRouteTile(
+            routeKey: const Key('add-diet-generate'),
+            icon: Icons.auto_awesome_rounded,
+            label: l(context).addDietGenerate,
+            detail: l(context).addDietGenerateDetail,
+            badge: l(context).addDietRecommended,
+            onTap: () => _open(context, const DietBuilderPage()),
+          ),
+          AddPlanRouteTile(
             routeKey: const Key('add-diet-document'),
             icon: Icons.description_outlined,
             label: l(context).addDietPdfOrPhoto,
@@ -87,13 +96,6 @@ class _AddDietSheet extends StatelessWidget {
             detail: l(context).addDietTypeDetail,
             onTap: () =>
                 _open(context, const DietDictatePage(startRecording: false)),
-          ),
-          AddPlanRouteTile(
-            routeKey: const Key('add-diet-generate'),
-            icon: Icons.auto_awesome_rounded,
-            label: l(context).addDietGenerate,
-            detail: l(context).addDietGenerateDetail,
-            onTap: () => _open(context, const DietBuilderPage()),
           ),
           AddPlanRouteTile(
             routeKey: const Key('add-diet-manual'),

@@ -18,6 +18,7 @@ class AddPlanRouteTile extends StatelessWidget {
     required this.label,
     required this.detail,
     required this.onTap,
+    this.badge,
     this.last = false,
   });
 
@@ -27,6 +28,10 @@ class AddPlanRouteTile extends StatelessWidget {
   final String label;
   final String detail;
   final VoidCallback onTap;
+
+  /// An optional marker beside the label — e.g. "Recommended" — for the one
+  /// route worth nudging toward. Null on every ordinary route.
+  final String? badge;
   final bool last;
 
   @override
@@ -50,7 +55,18 @@ class AddPlanRouteTile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(label, style: AppText.rowTitle),
+                      if (badge == null)
+                        Text(label, style: AppText.rowTitle)
+                      else
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(label, style: AppText.rowTitle),
+                            ),
+                            const SizedBox(width: 8),
+                            _RecommendedBadge(label: badge!),
+                          ],
+                        ),
                       const SizedBox(height: 2),
                       Text(
                         detail,
@@ -67,6 +83,35 @@ class AddPlanRouteTile extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A small green pill that marks the one route worth nudging toward — green
+/// reads as "go this way" without needing a second meaning.
+class _RecommendedBadge extends StatelessWidget {
+  const _RecommendedBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: TrainColors.greenWash,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label.toUpperCase(),
+        style: AppText.meta.copyWith(
+          color: TrainColors.green,
+          fontWeight: FontWeight.w700,
+          fontSize: 10,
+          letterSpacing: 0.6,
+          height: 1.0,
         ),
       ),
     );

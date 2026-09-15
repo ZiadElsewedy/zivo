@@ -1293,6 +1293,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get addDietGenerateDetail => 'أخبر زيفو بما تأكله؛ وهو يصمم الخطة.';
 
   @override
+  String get addDietRecommended => 'Recommended';
+
+  @override
   String get addDietManual => 'ابنِها وجبة بوجبة';
 
   @override

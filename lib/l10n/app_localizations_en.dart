@@ -1298,6 +1298,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Tell ZIVO what you eat; it designs the plan.';
 
   @override
+  String get addDietRecommended => 'Recommended';
+
+  @override
   String get addDietManual => 'Build it meal by meal';
 
   @override

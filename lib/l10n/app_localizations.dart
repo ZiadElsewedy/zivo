@@ -2420,6 +2420,12 @@ abstract class AppLocalizations {
   /// **'Tell ZIVO what you eat; it designs the plan.'**
   String get addDietGenerateDetail;
 
+  /// Badge beside the generate route, marking it as the suggested way in.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get addDietRecommended;
+
   /// Capture route: the full editor.
   ///
   /// In en, this message translates to:
