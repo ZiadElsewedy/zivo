@@ -96,18 +96,17 @@ notifications)**.
 ## Recently landed (verified in code on `version-1`)
 
 - **Ask empty-state + header polish** (2026-09-15, on `feature/ai-gemini-provider`).
-  A design pass on the Ask tab's first impression, within the type system (still
-  Instrument Serif for ZIVO's voice — ADR-009):
-  - The greeting ("Hey, I'm ZIVO.") is a display line now — 40px, tighter
-    tracking, a violet-lit ink gradient, and a **one-shot shimmer** that sweeps
-    across it once as it settles (single `Text` under one animated `ShaderMask`;
-    no perpetual loop; honours reduce-motion → plain resting gradient).
-  - The hero glyph **springs in** with a momentum overshoot and blooms a soft
-    violet glow (the bloom overflows without inflating layout).
-  - Suggestion rows carry a leading **hue-tinted glyph** in the app's colour
-    language (money=amber, training/diet=green, week-summary=violet) and a
-    trailing caret; still send-on-tap with the Apple press (`PressableScale` +
-    haptic).
+  A restraint-first design pass on the Ask tab's first impression, within the
+  type system (still Instrument Serif for ZIVO's voice — ADR-009). An earlier
+  draft with a shimmer sweep + multi-hue icons read cheap and was cut:
+  - The greeting ("Hey, I'm ZIVO.") is a display line now — 40px, tight display
+    tracking, solid voice-ink, with a quiet one-shot **focus-in** (soft→crisp)
+    on first appearance. One `Text`, no shine, no gradient; honours reduce-motion.
+  - The hero glyph settles in with a calm fade + small scale (critically damped,
+    no bounce, no glow smudge).
+  - Suggestions are **pure text pills** — the label centred in a flat glass
+    capsule, no icons/caret; send-on-tap with the Apple press (`PressableScale`
+    + haptic).
   - Header circles are **top-lit gradient glass** (depth from light, not shadow)
     and settle in with a light stagger. Keys/behaviour unchanged.
   - `lib/features/ai/presentation/widgets/ask/ask_empty_state.dart` +
