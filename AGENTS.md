@@ -154,6 +154,30 @@ section); every write is **confirm-gated** (ADR-003/005 — a tool only *propose
 final reply is **validated before it's persisted** ([`validator.js`](functions/ai/validator.js),
 Phase 7) — an unsupported figure is replaced with deterministic text.
 
+### Use cases — what a user asks → what runs
+
+The user talks to one coach; the loop below picks the tools. These are illustrative, not
+an exhaustive routing table (the model chooses).
+
+| The user says… | Coach does | Tool(s) / feature |
+|---|---|---|
+| "How am I doing today?" / "Should I train hard today?" | Reads the daily snapshot and the fused readiness call, then explains it. | `get_today`, `get_readiness` |
+| "What did I do last workout?" | Fetches the single most recent session with top working sets. | `get_last_workout` |
+| "How's my bench progressing?" | Drills into one lift's session-by-session history + verdict. | `get_exercise_analysis` |
+| "Am I making progress / plateauing?" | Reads deterministic analysis + findings + plan adherence. | `get_training_analysis` |
+| "How did I sleep?" | Last night vs target + rolling average. | `get_sleep_summary` |
+| "How many calories do I have left?" / "What's my diet today?" | Reads the day's `DietState` (targets, remaining, provenance). | `get_diet` / `get_today` |
+| "I ate two eggs and 100g of rice — log it." | Resolves each food, computes nutrition server-side, **proposes** a food log → user confirms. | `resolve_food` → `calculate_meal_nutrition` → `log_food` (confirm) |
+| "How many calories in 200g chicken breast?" | Looks up + computes; surfaces `ambiguous`/`notFound` rather than guessing. | `resolve_food`, `calculate_meal_nutrition` |
+| "Mark my lunch as eaten." | Ticks a *planned* meal by id → user confirms. | `mark_meal_eaten` (confirm) |
+| "I spent 120 on groceries." / "Change that to 90." / "Delete it." | Proposes a create/edit/delete against the real expense `id` → user confirms. | `create_expense` / `edit_expense` / `delete_expense` (confirm) |
+| "How much did I spend this week?" | Reads expenses / weekly rollup. | `get_expenses`, `summarize_week` |
+| Coach needs a value it can't read (e.g. height) | Pauses and asks — an option chip or a small form; the answer returns as the next turn (height/weight persist to the user's own body data). | `ask_choice`, `request_input` |
+| User dictates instead of typing | Audio → transcript, then a normal chat turn. | `aiTranscribe` |
+| "Import this workout/diet PDF." | Extracts a structured plan; the client's review/edit screen is the save gate. | `aiImportWorkoutPlan` / `aiImportDietPlan` |
+| "Generate me a diet plan." | Model picks foods, catalog prices them, arithmetic fits the target. | `aiGenerateDietPlan` |
+| (Proactive, weekly) | A deterministic recap is pushed into the user's Ask conversation. | `weeklyCoachReport` |
+
 ### The chat turn (`aiChat` → [`chat/turn.js`](functions/ai/chat/turn.js) `runAiTurn`)
 
 ```
