@@ -22,6 +22,7 @@ import '../../domain/workout_plan.dart';
 import '../../domain/workout_session_repository.dart';
 import '../../../music/music_config.dart';
 import '../widgets/session_ambience.dart';
+import '../widgets/session_aurora_field.dart';
 import '../../../../l10n/l10n.dart';
 import '../controllers/live_session_controller.dart';
 import '../widgets/live_session/phases/completed_phase.dart';
@@ -240,193 +241,235 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             final vivid = SessionAmbience.vividOf(context);
             return Scaffold(
               backgroundColor: Colors.transparent,
-              body: AnimatedContainer(
-                // Each phase gets the one soft radial wash the handoff allows
-                // it — ember from below while you're logging, green from the
-                // middle while you rest. The music ambience still breathes
-                // through it, but as a whisper (0.12) rather than the wash it
-                // used to be: at full strength the track color simply replaced
-                // the design's own tint.
-                duration: reducedMotion(context)
-                    ? Duration.zero
-                    : const Duration(milliseconds: 700),
-                curve: Curves.easeOut,
-                decoration: BoxDecoration(gradient: _screenTint(accent)),
-                child: SafeArea(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
-                        child: Column(
-                          children: [
-                            SessionHeader(
-                              title: dayTitle(
-                                context,
-                                widget.day,
-                              ).toUpperCase(),
-                              elapsed: _c.session.isComplete
-                                  ? _c.session.elapsed
-                                  : _c.session.activeElapsed(now: widget.now()),
-                              isPaused: _c.session.isPaused,
-                              onClose: _onLeave,
-                              onDiscard: _onDiscard,
-                              // Offered only once there is a workout worth
-                              // keeping and sets still to go — on a session
-                              // with nothing logged, Close already does the
-                              // right thing (it discards an empty one), and
-                              // on a finished one there is nothing to cut
-                              // short.
-                              onFinishNow:
-                                  !_c.session.isComplete &&
-                                      _c.session.completedSetCount > 0
-                                  ? _onFinishNow
-                                  : null,
-                              onTogglePause: _c.session.isComplete
-                                  ? null
-                                  : _c.togglePause,
-                            ),
-                            const SizedBox(height: 20),
-                            TrainSegmentBar(
-                              total: _exerciseCount,
-                              completed: _exercisesBehind,
-                              current: _currentExerciseIndex,
-                            ),
-                            const SizedBox(height: 9),
-                            TrainSegmentCaptions(
-                              left: _exerciseCaption,
-                              right: _tallyCaption,
-                              rightColor: _c.restRemaining != null
-                                  ? TrainColors.green.withValues(alpha: 0.75)
-                                  : TrainColors.inkAt(0.35),
-                            ),
-                            // The walk-back-one-set control — reachable from
-                            // EVERY phase (rest included), and only present
-                            // when there is actually something to undo, so the
-                            // header stays exactly as designed until then.
-                            // Top-LEFT, under the segment bar: back is a
-                            // navigation control and every other one on this
-                            // screen (Close, the system edge-swipe) lives on
-                            // that side. It sat on the right purely because
-                            // the handoff had nothing there.
-                            if (_c.session.previousResolvedSet != null)
-                              Align(
-                                alignment: AlignmentDirectional.centerStart,
-                                child: SessionBackChip(
-                                  key: const Key('back-chip'),
-                                  onTap: _c.back,
-                                ),
-                              ),
-                          ],
-                        ),
+              body: Stack(
+                children: [
+                  // The reactive, artwork-adaptive atmosphere — a slow mesh of
+                  // album-light drifting at the edges around a dark readable
+                  // core. It paints only the ground when there's no live track
+                  // (so a no-music session is pixel-identical to before, and
+                  // never spins up an animation), and comes alive with colour +
+                  // motion once Spotify is playing. Isolated in its own
+                  // RepaintBoundary so its per-frame drift never repaints the
+                  // busy content above it.
+                  Positioned.fill(
+                    child: RepaintBoundary(
+                      child: SessionAuroraField(
+                        field: SessionAmbience.fieldOf(context),
+                        reduced: reducedMotion(context),
                       ),
-                      Expanded(
-                        // Paused freezes the rest/elapsed clocks (model state), but a
-                        // paused session is still visually "on hold" — dim the phase
-                        // content and block its taps, no animation (kept minimal —
-                        // prominence here is about info hierarchy, not motion).
-                        child: Stack(
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: AnimatedContainer(
+                      // The phase's own soft radial wash — ember from below
+                      // while you're logging, green from the middle while you
+                      // rest — now composited as a translucent overlay ON the
+                      // aurora: its near-base inner stops reinforce the dark
+                      // readable core where the hero number sits, and its
+                      // OUTER stop is transparent so the field's colour shows
+                      // through at the periphery (see [_screenTint]).
+                      duration: reducedMotion(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 700),
+                      curve: Curves.easeOut,
+                      decoration: BoxDecoration(gradient: _screenTint(accent)),
+                      child: SafeArea(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Positioned.fill(
-                              child: IgnorePointer(
-                                ignoring: _c.session.isPaused,
-                                child: Opacity(
-                                  opacity: _c.session.isPaused ? 0.35 : 1,
-                                  child: AnimatedSwitcher(
-                                    duration: const Duration(milliseconds: 280),
-                                    transitionBuilder: (child, animation) =>
-                                        reducedMotion(context)
-                                        ? FadeTransition(
-                                            opacity: animation,
-                                            child: child,
-                                          )
-                                        : FadeTransition(
-                                            opacity: animation,
-                                            child: SlideTransition(
-                                              position: Tween<Offset>(
-                                                begin: const Offset(0, 0.03),
-                                                end: Offset.zero,
-                                              ).animate(animation),
-                                              child: child,
-                                            ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
+                              child: Column(
+                                children: [
+                                  SessionHeader(
+                                    title: dayTitle(
+                                      context,
+                                      widget.day,
+                                    ).toUpperCase(),
+                                    elapsed: _c.session.isComplete
+                                        ? _c.session.elapsed
+                                        : _c.session.activeElapsed(
+                                            now: widget.now(),
                                           ),
-                                    child: KeyedSubtree(
-                                      key: ValueKey(_phaseKey),
-                                      child: _buildPhase(accent, vivid),
+                                    isPaused: _c.session.isPaused,
+                                    onClose: _onLeave,
+                                    onDiscard: _onDiscard,
+                                    // Offered only once there is a workout worth
+                                    // keeping and sets still to go — on a session
+                                    // with nothing logged, Close already does the
+                                    // right thing (it discards an empty one), and
+                                    // on a finished one there is nothing to cut
+                                    // short.
+                                    onFinishNow:
+                                        !_c.session.isComplete &&
+                                            _c.session.completedSetCount > 0
+                                        ? _onFinishNow
+                                        : null,
+                                    onTogglePause: _c.session.isComplete
+                                        ? null
+                                        : _c.togglePause,
+                                  ),
+                                  const SizedBox(height: 20),
+                                  TrainSegmentBar(
+                                    total: _exerciseCount,
+                                    completed: _exercisesBehind,
+                                    current: _currentExerciseIndex,
+                                  ),
+                                  const SizedBox(height: 9),
+                                  TrainSegmentCaptions(
+                                    left: _exerciseCaption,
+                                    right: _tallyCaption,
+                                    rightColor: _c.restRemaining != null
+                                        ? TrainColors.green.withValues(
+                                            alpha: 0.75,
+                                          )
+                                        : TrainColors.inkAt(0.35),
+                                  ),
+                                  // The walk-back-one-set control — reachable from
+                                  // EVERY phase (rest included), and only present
+                                  // when there is actually something to undo, so the
+                                  // header stays exactly as designed until then.
+                                  // Top-LEFT, under the segment bar: back is a
+                                  // navigation control and every other one on this
+                                  // screen (Close, the system edge-swipe) lives on
+                                  // that side. It sat on the right purely because
+                                  // the handoff had nothing there.
+                                  if (_c.session.previousResolvedSet != null)
+                                    Align(
+                                      alignment:
+                                          AlignmentDirectional.centerStart,
+                                      child: SessionBackChip(
+                                        key: const Key('back-chip'),
+                                        onTap: _c.back,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              // Paused freezes the rest/elapsed clocks (model state), but a
+                              // paused session is still visually "on hold" — dim the phase
+                              // content and block its taps, no animation (kept minimal —
+                              // prominence here is about info hierarchy, not motion).
+                              child: Stack(
+                                children: [
+                                  Positioned.fill(
+                                    child: IgnorePointer(
+                                      ignoring: _c.session.isPaused,
+                                      child: Opacity(
+                                        opacity: _c.session.isPaused ? 0.35 : 1,
+                                        child: AnimatedSwitcher(
+                                          duration: const Duration(
+                                            milliseconds: 280,
+                                          ),
+                                          transitionBuilder:
+                                              (child, animation) =>
+                                                  reducedMotion(context)
+                                                  ? FadeTransition(
+                                                      opacity: animation,
+                                                      child: child,
+                                                    )
+                                                  : FadeTransition(
+                                                      opacity: animation,
+                                                      child: SlideTransition(
+                                                        position: Tween<Offset>(
+                                                          begin: const Offset(
+                                                            0,
+                                                            0.03,
+                                                          ),
+                                                          end: Offset.zero,
+                                                        ).animate(animation),
+                                                        child: child,
+                                                      ),
+                                                    ),
+                                          child: KeyedSubtree(
+                                            key: ValueKey(_phaseKey),
+                                            child: _buildPhase(accent, vivid),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
+                                  // Paused, the whole phase is inert — so the dimmed
+                                  // area itself becomes the way back. The rest and
+                                  // warm-up phases now carry their own pause control
+                                  // (the eyebrow pill and the ring), and BOTH live
+                                  // inside that inert region: without this, tapping
+                                  // the thing you just used to pause did nothing,
+                                  // and the only exit was a header toggle that
+                                  // doesn't look like a button.
+                                  if (_c.session.isPaused &&
+                                      !_c.session.isComplete)
+                                    Positioned.fill(
+                                      child: Semantics(
+                                        button: true,
+                                        label: l(context).workoutResume,
+                                        child: GestureDetector(
+                                          key: const Key(
+                                            'paused-resume-overlay',
+                                          ),
+                                          behavior: HitTestBehavior.opaque,
+                                          onTap: () {
+                                            HapticFeedback.selectionClick();
+                                            _c.togglePause();
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
-                            // Paused, the whole phase is inert — so the dimmed
-                            // area itself becomes the way back. The rest and
-                            // warm-up phases now carry their own pause control
-                            // (the eyebrow pill and the ring), and BOTH live
-                            // inside that inert region: without this, tapping
-                            // the thing you just used to pause did nothing,
-                            // and the only exit was a header toggle that
-                            // doesn't look like a button.
-                            if (_c.session.isPaused && !_c.session.isComplete)
-                              Positioned.fill(
-                                child: Semantics(
-                                  button: true,
-                                  label: l(context).workoutResume,
-                                  child: GestureDetector(
-                                    key: const Key('paused-resume-overlay'),
-                                    behavior: HitTestBehavior.opaque,
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      _c.togglePause();
-                                    },
+                            // The persistent music companion — docked BELOW the
+                            // phase for the whole session, OUTSIDE the phase switcher
+                            // so it never fades or reflows on a phase change. It
+                            // collapses to nothing when there's no track to control.
+                            // The paused overlay dims the phase above it, not this:
+                            // playback is independent of the workout being on hold.
+                            //
+                            // Its arrival and departure are ANIMATED, because it
+                            // takes its height out of the phase above it: a track
+                            // starting or Spotify dropping mid-set otherwise
+                            // re-laid-out the whole logging screen in a single
+                            // frame, which reads as the screen glitching rather
+                            // than as a bar appearing.
+                            if (musicController != null)
+                              SizedBox(
+                                // Tight width, so the transition is HEIGHT only —
+                                // the column aligns start, and an unconstrained
+                                // AnimatedSize would grow the bar out of the left
+                                // edge as well as down.
+                                width: double.infinity,
+                                child: AnimatedSize(
+                                  duration: reducedMotion(context)
+                                      ? Duration.zero
+                                      : const Duration(milliseconds: 260),
+                                  curve: Curves.easeOut,
+                                  alignment: Alignment.topCenter,
+                                  child: SessionNowPlaying(
+                                    key: const Key('session-music-bar'),
+                                    controller: musicController,
+                                    density: SpotifyStripDensity.bar,
+                                    // A real gap above it, not a seam: at 6 the bar
+                                    // welded to whatever the phase ended with (Skip
+                                    // rest, the commit row's ember glow) and the
+                                    // two read as one stack of slabs rather than
+                                    // the workout and its companion.
+                                    padding: const EdgeInsets.fromLTRB(
+                                      22,
+                                      14,
+                                      22,
+                                      6,
+                                    ),
+                                    accent: vivid,
                                   ),
                                 ),
                               ),
                           ],
                         ),
                       ),
-                      // The persistent music companion — docked BELOW the
-                      // phase for the whole session, OUTSIDE the phase switcher
-                      // so it never fades or reflows on a phase change. It
-                      // collapses to nothing when there's no track to control.
-                      // The paused overlay dims the phase above it, not this:
-                      // playback is independent of the workout being on hold.
-                      //
-                      // Its arrival and departure are ANIMATED, because it
-                      // takes its height out of the phase above it: a track
-                      // starting or Spotify dropping mid-set otherwise
-                      // re-laid-out the whole logging screen in a single
-                      // frame, which reads as the screen glitching rather
-                      // than as a bar appearing.
-                      if (musicController != null)
-                        SizedBox(
-                          // Tight width, so the transition is HEIGHT only —
-                          // the column aligns start, and an unconstrained
-                          // AnimatedSize would grow the bar out of the left
-                          // edge as well as down.
-                          width: double.infinity,
-                          child: AnimatedSize(
-                            duration: reducedMotion(context)
-                                ? Duration.zero
-                                : const Duration(milliseconds: 260),
-                            curve: Curves.easeOut,
-                            alignment: Alignment.topCenter,
-                            child: SessionNowPlaying(
-                              key: const Key('session-music-bar'),
-                              controller: musicController,
-                              density: SpotifyStripDensity.bar,
-                              // A real gap above it, not a seam: at 6 the bar
-                              // welded to whatever the phase ended with (Skip
-                              // rest, the commit row's ember glow) and the
-                              // two read as one stack of slabs rather than
-                              // the workout and its companion.
-                              padding: const EdgeInsets.fromLTRB(22, 14, 22, 6),
-                              accent: vivid,
-                            ),
-                          ),
-                        ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             );
           },
@@ -435,18 +478,33 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     );
   }
 
-  /// The screen's background wash for the current phase, with the live
-  /// track's accent blended in as a whisper.
+  /// The phase's background wash, composited as a translucent overlay ON the
+  /// reactive aurora field ([SessionAuroraField]) behind it.
+  ///
+  /// With no live track it is the design's own opaque radial exactly as before
+  /// (the aurora behind is then just the ground, so the screen is unchanged).
+  /// With a track playing, the near-base inner stops stay — they reinforce the
+  /// dark readable core and carry the phase's own ember/green identity — while
+  /// the OUTER stop fades to transparent so the field's colour shows through at
+  /// the periphery. The ambient is only whispered in now (0.08), because the
+  /// field owns the colour; at any more the phase glow just re-tinted the whole
+  /// screen and swamped it.
   RadialGradient _screenTint(Color? accent) {
     final base = _c.restRemaining != null
         ? TrainColors.restTint
         : TrainColors.setTint;
     if (accent == null) return base;
+    final last = base.colors.length - 1;
     return RadialGradient(
       center: base.center,
       radius: base.radius,
       stops: base.stops,
-      colors: [for (final c in base.colors) Color.lerp(c, accent, 0.12)!],
+      colors: [
+        for (var i = 0; i < base.colors.length; i++)
+          i == last
+              ? Colors.transparent
+              : Color.lerp(base.colors[i], accent, 0.08)!,
+      ],
     );
   }
 
