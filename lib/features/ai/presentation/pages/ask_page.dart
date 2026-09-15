@@ -22,6 +22,7 @@ import '../controllers/ask_controller.dart';
 import '../widgets/ask/ask_empty_state.dart';
 import '../widgets/ask/error_retry.dart';
 import '../widgets/ask/message_bubble.dart';
+import '../widgets/ask/message_details_sheet.dart';
 import '../../data/repository_body_data_writer.dart';
 import '../widgets/ask/choice_chips.dart';
 import '../widgets/ask/input_request_card.dart';
@@ -761,6 +762,28 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                                   message.id == '_live' &&
                                                   _c.revealInFlight,
                                             );
+                                            // Long-press a settled assistant
+                                            // reply to see that turn's model +
+                                            // token/cost detail. The live bubble
+                                            // has no persisted usage yet, so it
+                                            // is excluded.
+                                            if (message.role ==
+                                                    AiRole.assistant &&
+                                                message.id != '_live') {
+                                              content = GestureDetector(
+                                                behavior:
+                                                    HitTestBehavior.opaque,
+                                                onLongPress: () =>
+                                                    showAskTurnDetails(
+                                                      context,
+                                                      repo: AppScope.of(
+                                                        context,
+                                                      ).ai,
+                                                      message: message,
+                                                    ),
+                                                child: content,
+                                              );
+                                            }
                                           } else {
                                             final effective =
                                                 action.status !=

@@ -22,7 +22,8 @@
  *     expensive exactly as an abuser makes it more necessary.
  *   • The window is keyed by a `dayKey` STRING, not a timestamp, so it rolls
  *     over at the *user's* midnight (the caller passes the key it already
- *     computes from the device offset — see ../ai/dates.js) rather than UTC's.
+ *     computes from the device offset — see ../ai/shared/dates.js) rather than
+ *     UTC's.
  *   • `cost` is caller-supplied so one bucket can price calls differently
  *     (a 14 MB PDF is not one transcription) without this module knowing
  *     anything about what it is metering.

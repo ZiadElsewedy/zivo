@@ -1,7 +1,8 @@
 /**
  * Bridges the pre-provider-abstraction `callModel`/`streamModel` injected
- * seams (still used by `../gateway.js`'s and `../workout_import.js`'s own
- * unit tests, and by any caller that hasn't been updated to inject a
+ * seams (still used by `../gateway.js`'s and
+ * `../services/workout_import.js`'s own unit tests, and by any caller that
+ * hasn't been updated to inject a
  * `provider` directly) into the `{messages: {create, stream}}` client shape
  * `AnthropicProvider` expects — the same shape a real `Anthropic` SDK
  * instance exposes.

@@ -15,6 +15,11 @@ These JSON files hold **non-secret** environment values, passed at build time vi
 | Key | Type | Meaning |
 |-----|------|---------|
 | `USE_FIRESTORE` | bool | Persist to Firestore (`false` = in-memory/offline dev). |
+| `USE_FIREBASE_EMULATOR` | bool | Route Firebase at the local Emulator Suite instead of the live backend (debug/profile only; ignored in release). Passed by `make dev-emulator`, not baked into these files. |
+| `FIREBASE_EMULATOR_HOST` | string | Override the emulator host — needed for a physical device (your machine's LAN IP). Defaults: `10.0.2.2` on Android emulator, `localhost` elsewhere. |
+
+See [`docs/build_configurations.md`](../docs/build_configurations.md#demo--experimentation-environment--the-emulator-suite)
+for the demo/experimentation workflow.
 
 ## No secrets here
 

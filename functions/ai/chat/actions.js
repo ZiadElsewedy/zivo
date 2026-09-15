@@ -16,8 +16,8 @@
  */
 
 const {randomUUID} = require("node:crypto");
-const {dayKeyFor, resolveDietDay} = require("../dates");
-const {mutatingToolsByName} = require("../mutations");
+const {dayKeyFor, resolveDietDay} = require("../shared/dates");
+const {mutatingToolsByName} = require("../tools/mutations");
 const {GatewayError, assertDocumentId} = require("./errors");
 
 /**

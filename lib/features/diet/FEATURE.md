@@ -28,8 +28,22 @@
   cheapest place to fix it.
 - `presentation/widgets/add_diet_sheet.dart` — every route into a plan, in one sheet (rows
   are the shared `AddPlanRouteTile`).
-- `diet_preferences_page.dart` — what ZIVO asks before it **builds** a plan (meals/day,
-  likes, won't-eats, allergies, cuisine). Pairs with `functions/ai/diet_generate.js`.
+- `diet_builder_page.dart` — **the guided "build me one" wizard** and the primary generate
+  entry (from `add_diet_sheet`). One number-free flow — Goal → About you (weight · height ·
+  age · sex · activity) → How you eat → What you avoid → How many meals → **Build** — held
+  together by `presentation/controllers/diet_builder_controller.dart` (ADR-008). It only
+  *gathers*: the deterministic target (`calculateTargets`), the generation and the review are
+  the existing engine. How-you-eat / dislikes / schedule are **free text + 🎙 voice**
+  (`capture/presentation/widgets/voice_capture_field.dart`), a deliberate reversal of the
+  chip-first intake for this flow ([ADR-016](../../../docs/DECISIONS/ADR-016-diet-builder-wizard.md)).
+- `diet_plan_reveal_page.dart` — the wizard's payoff and **its single save**: the finished
+  plan with the daily target now shown as context, a coach note, a subtle safety line, and
+  Edit / Save. Nothing (body data, target, plan) is persisted until Save here — the target
+  was computed silently and sized the generation; Save is the approval (ADR-007). Reached via
+  `DietImportPage`'s new `reviewBuilder`, which also carries the wizard's `targetOverride`.
+- `diet_preferences_page.dart` — the older chip-based generate intake (meals/day, likes,
+  won't-eats, allergies, cuisine). **Superseded by the wizard** as the generate entry but
+  retained and still tested. Pairs with `functions/ai/diet_generate.js`.
 - `presentation/widgets/todays_read_card.dart` — **Today's read**: the coaching
   engine's findings on the screen, each openable to the state fields it rests on.
 - `body_profile_page.dart` — the body data behind every energy figure (height · sex ·

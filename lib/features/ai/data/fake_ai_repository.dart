@@ -15,7 +15,8 @@ import '../domain/ai_model_selection.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
 import '../domain/ai_usage_summary.dart';
-import '../domain/import_progress.dart';
+import '../domain/ai_turn_usage.dart';
+import '../domain/import_cancellation.dart';
 import '../domain/ai_response_style.dart';
 import '../domain/ai_role.dart';
 import '../domain/ai_turn_event.dart';
@@ -211,6 +212,28 @@ class FakeAiRepository implements AiRepository {
       costUsd: 0.021,
     ),
   ];
+
+  @override
+  Future<AiTurnUsage?> usageForTurn(String clientTurnId) async {
+    // The offline fake keeps no usage log; a canned sample lets the details
+    // sheet be exercised without Firestore (tests/offline), while a real device
+    // reads the true doc through FirebaseAiRepository.
+    if (clientTurnId.isEmpty) return null;
+    return const AiTurnUsage(
+      provider: 'anthropic',
+      model: 'claude-sonnet-5',
+      tokensIn: 13570,
+      uncachedTokensIn: 517,
+      cacheReadTokens: 13053,
+      cacheWriteTokens: 0,
+      tokensOut: 149,
+      toolResultTokens: 0,
+      tools: <String>[],
+      iterations: 1,
+      latencyMs: 3227,
+      costUsd: 0.0077,
+    );
+  }
 
   @override
   Stream<List<AiConversation>> watchConversations() async* {
@@ -420,13 +443,11 @@ class FakeAiRepository implements AiRepository {
   /// (accepted, rejected, or a thrown technical error) for tests that need
   /// to exercise those paths without a live backend.
   @override
-  /// [onProgress] is accepted and ignored: the fake resolves immediately, so
-  /// there is no extraction to report. Reporting a fabricated snapshot here
-  /// would put the offline path back in the business of inventing progress —
-  /// the exact thing the real one stopped doing.
+  /// [cancellation] is accepted and ignored: the fake resolves immediately, so
+  /// there is nothing to cancel.
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
+    ImportCancellation? cancellation,
   }) => _importWorkoutPlanImpl(input);
 
   /// Offline-testable stand-in for the real `aiImportDietPlan` callable —
@@ -436,10 +457,10 @@ class FakeAiRepository implements AiRepository {
   /// (accepted, rejected, or a thrown technical error) for tests that need
   /// to exercise those paths without a live backend.
   @override
-  /// [onProgress] is accepted and ignored — see [importWorkoutPlan].
+  /// [cancellation] is accepted and ignored — see [importWorkoutPlan].
   Future<DietImportOutcome> importDietPlan(
     DietImportInput input, {
-    void Function(ImportProgress progress)? onProgress,
+    ImportCancellation? cancellation,
   }) => _importDietPlanImpl(input);
 
   /// Offline-testable stand-in for the real `aiGenerateDietPlan` callable —

@@ -21,8 +21,8 @@
  * the user's Confirm before any write happens.
  */
 
-const {dayKeyFor, resolveDietDay} = require("./dates");
-const {normalizeItem, resolveAndCompute} = require("../nutrition/resolve");
+const {dayKeyFor, resolveDietDay} = require("../shared/dates");
+const {normalizeItem, resolveAndCompute} = require("../../nutrition/resolve");
 
 const EXPENSE_CATEGORIES = ["food", "coffee", "transport", "groceries", "other"];
 const DEFAULT_CURRENCY = "EGP";

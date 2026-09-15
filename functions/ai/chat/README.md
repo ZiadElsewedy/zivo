@@ -17,7 +17,7 @@ the split is invisible to `index.js` and the other importers.
 | **Response formatting rules** | [`prompt/sections/formatting.js`](prompt/sections/formatting.js) |
 | **Relevance / "answer what was asked"** | [`prompt/sections/focus.js`](prompt/sections/focus.js) |
 | **What context/instructions the model gets each turn** | [`context.js`](context.js) — `buildSystemBlocks` |
-| **Context retrieval rules** (which tools, how far back) | [`prompt/sections/focus.js`](prompt/sections/focus.js) (policy) + [`../tools.js`](../tools.js) (the tools) |
+| **Context retrieval rules** (which tools, how far back) | [`prompt/sections/focus.js`](prompt/sections/focus.js) (policy) + [`../tools/read.js`](../tools/read.js) (the tools) |
 | **Write use-cases** (propose → confirm → execute) | [`actions.js`](actions.js) |
 | **Token / context management** (ceilings, history, cost) | [`config.js`](config.js) + [`usage.js`](usage.js) + [`messages.js`](messages.js) |
 | **What decides how much a turn may do** | [`config.js`](config.js) (`DEFAULT_CONFIG`) enforced in [`turn.js`](turn.js) |
@@ -46,6 +46,11 @@ the split is invisible to `index.js` and the other importers.
 - **`messages.js`** — history normalization, assistant-text extraction, empty
   thinking-block stripping, and tool-result capping. Pure string/array helpers.
 - **`errors.js`** — `GatewayError` (gRPC-style `code`) and the document-id guard.
+- **`validator.js`** — the advice validator + safety intercept (Diet Coach Phase 7):
+  checks a diet-reading turn's final text against the state it read and, on a
+  violation, replaces it with the findings' deterministic sentences (or a safety
+  referral). Called by `turn.js` after the model's last message; server-only, so
+  it lives with the turn loop it guards rather than at the `ai/` root.
 
 ## The prompt (`prompt/`)
 
@@ -98,7 +103,7 @@ data.** Concretely, and worth keeping intact:
   night + a rolling average for sleep questions (`get_readiness` still owns "how
   am I today", fusing sleep with load/recovery). New tools should be scoped so the
   answer they serve doesn't drag a range of unrelated rows into context.
-- **Tool results are compacted, but diet nulls are semantic.** `tools.js`'s
+- **Tool results are compacted, but diet nulls are semantic.** `tools/read.js`'s
   `dropNull` strips absent fields (a bodyweight set's null weight, a noteless
   expense) from the workout/expense/week tools — those keys cost re-sent tokens on
   every iteration and mean nothing. It is **not** applied to the diet tools: there

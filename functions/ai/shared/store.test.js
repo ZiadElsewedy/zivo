@@ -37,7 +37,7 @@ const {join} = require("node:path");
 
 const storeSource = readFileSync(join(__dirname, "store.js"), "utf8");
 const rulesSource =
-  readFileSync(join(__dirname, "..", "..", "firestore.rules"), "utf8");
+  readFileSync(join(__dirname, "..", "..", "..", "firestore.rules"), "utf8");
 
 /** Every `collection("x")` literal in store.js. */
 const collectionsUsed = [

@@ -22,11 +22,11 @@
  * (actions.js), after the user taps Confirm. Nothing here writes user data.
  */
 
-const {dayKeyFor, localNowFacts, isUsableOffset} = require("../dates");
-const {tools} = require("../tools");
-const {mutatingTools} = require("../mutations");
-const {elicitationTools} = require("../elicitations");
-const {validateAdvice} = require("../validator");
+const {dayKeyFor, localNowFacts, isUsableOffset} = require("../shared/dates");
+const {tools} = require("../tools/read");
+const {mutatingTools} = require("../tools/mutations");
+const {elicitationTools} = require("../tools/elicitations");
+const {validateAdvice} = require("./validator");
 const {AnthropicProvider} = require("../providers/anthropic_provider");
 const {legacyAnthropicClient} = require("../providers/legacy_client");
 
@@ -106,7 +106,7 @@ const allToolsByName = new Map(allTools.map((t) => [t.name, t]));
  *   UTC while the app writes diet entries against the DEVICE's calendar date,
  *   so without this the server's "today" is a different day from the user's
  *   for anyone east or west of UTC. Untrusted input — validated in
- *   `../dates.js` and ignored when implausible.
+ *   `../shared/dates.js` and ignored when implausible.
  * @param {(!Object|undefined)} args.config Overrides for `DEFAULT_CONFIG`.
  * @param {(string|undefined)} args.clientTurnId Client-generated idempotency
  *   key for this turn. When supplied and a previous attempt of the SAME turn
@@ -550,6 +550,11 @@ async function runAiTurn({
   // The provider that answered (e.g. 'anthropic' | 'gemini'), when the router
   // reported it — so a fallback is visible in usage, not silent.
   if (usedProvider) usageDoc.provider = usedProvider;
+  // The turn's idempotency key, so a client can pair this usage record with the
+  // assistant MESSAGE it produced (both carry the same clientTurnId) — that's
+  // what the per-message "turn details" view queries on. Absent on turn-less
+  // writes, exactly as on the messages themselves.
+  if (clientTurnId) usageDoc.clientTurnId = clientTurnId;
   // Recorded so the validator's real-world hit rate (and any false positives)
   // are observable in production, not a black box.
   if (validation) usageDoc.validation = validation;

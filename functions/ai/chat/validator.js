@@ -37,7 +37,7 @@
  * own day.
  */
 
-const {MINIMUM_SAFE_CALORIES} = require("../diet/rules");
+const {MINIMUM_SAFE_CALORIES} = require("../../diet/rules");
 
 // A stated total is "the same" as a state figure within the larger of an
 // absolute and a relative tolerance — the model rounds ("about 1,200"), and

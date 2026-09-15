@@ -20,18 +20,18 @@
  * distinctly from ones the document actually stated.
  *
  * Model choice: `claude-sonnet-5`, same as `./workout_import.js` and
- * `./gateway.js` — no reason to run a second model/pricing profile for a
+ * `../gateway.js` — no reason to run a second model/pricing profile for a
  * single-shot extraction call.
  *
  * Kept free of `@anthropic-ai/sdk`/`firebase-admin` (only `callModel` is
  * injected) so it runs offline under `node --test`, same seam pattern as
- * `./workout_import.js`/`./gateway.js`.
+ * `./workout_import.js`/`../gateway.js`.
  */
 
-const {GatewayError} = require("./gateway");
-const {AnthropicProvider} = require("./providers/anthropic_provider");
-const {scanDietProgress} = require("./import_progress");
-const {legacyAnthropicClient} = require("./providers/legacy_client");
+const {GatewayError} = require("../gateway");
+const {AnthropicProvider} = require("../providers/anthropic_provider");
+const {legacyAnthropicClient} = require("../providers/legacy_client");
+const {isAbortError} = require("../shared/abort");
 
 const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 8000;
@@ -344,7 +344,7 @@ const DEFAULT_REJECTION_REASON =
  */
 async function extractDietPlan({
   provider, model, callModel, pdfBase64, fileBase64, mediaType, text,
-  logEvent = () => {}, onProgress,
+  logEvent = () => {}, signal,
 }) {
   const base64 = fileBase64 || pdfBase64;
   const hasFile = typeof base64 === "string" && base64.trim() !== "";
@@ -415,25 +415,19 @@ async function extractDietPlan({
     ],
   };
 
-  // See `extractWorkoutPlan` — re-emit only when the visible numbers move,
-  // because `inputJson` fires per token.
-  let lastSignature = "";
-  const opts = typeof onProgress === "function" ? {
-    onInputJson: (_delta, snapshot) => {
-      const p = scanDietProgress(snapshot);
-      // Nothing extracted yet — an event here would say literally nothing.
-      if (!p.planName && !p.labels.length && !p.items) return;
-      const signature = `${p.planName || ""}|${p.labels.length}|${p.items}`;
-      if (signature === lastSignature) return;
-      lastSignature = signature;
-      onProgress(p);
-    },
-  } : {};
+  // The abort signal (from `import_runtime`, tripped by aiCancelImport) — see
+  // `extractWorkoutPlan`. Threaded in so cancelling aborts the generation.
+  const opts = signal ? {signal} : {};
 
   let response;
   try {
     response = await activeProvider.generate(normalizedRequest, opts);
   } catch (err) {
+    // A cancelled import is not a failure to report — the client is gone.
+    // Same handling as `extractWorkoutPlan`.
+    if (isAbortError(err) || (signal && signal.aborted)) {
+      throw new GatewayError("cancelled", "Import cancelled.");
+    }
     throw new GatewayError(
         "internal",
         err.message ||

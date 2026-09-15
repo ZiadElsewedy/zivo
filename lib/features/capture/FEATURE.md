@@ -9,6 +9,11 @@
   (route into workout / diet / expense / moment / etc. capture flows).
 - `presentation/widgets/capture_widgets.dart` — shared `CaptureTopBar` / `PillButton` /
   `SelectChip` used by the per-feature capture pages.
+- `presentation/widgets/voice_capture_field.dart` — `VoiceCaptureField`, the **inline**
+  counterpart to `plan_describe_page.dart`: a multi-line field with a 🎙 "say it instead"
+  affordance (record → transcribe → **edit before it counts**), for a form step that wants
+  the user's own words rather than a whole navigating screen. The Diet Builder's how-you-eat
+  / dislikes / allergies / schedule steps use it. Hides the mic on a host with no recorder.
 - `presentation/import/` — **the shared plan-import flow**, used by both the workout and
   diet importers so they can't drift on file types, error copy, or the analyse/reject
   screens:

@@ -324,39 +324,52 @@ class _MomentCapturePageState extends State<MomentCapturePage>
                     )
                   : null,
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 22, 24, 6),
-              child: _PhotoArea(
-                service: AppScope.of(context).requireMedia,
-                imageRef: _imageRef,
-                pickedTempPath: _pickedTempPath,
-                onAdd: _pickPhoto,
-                onEdit: _editPhoto,
-                onRetake: _retake,
-                onRemove: _removePhoto,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 18, 24, 6),
-              child: TextField(
-                controller: _caption,
-                autofocus: true,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _save(),
-                cursorColor: TrainColors.ember,
-                style: AppText.cardTitle.copyWith(fontSize: 22),
-                decoration: InputDecoration(
-                  isCollapsed: true,
-                  border: InputBorder.none,
-                  hintText: l(context).momentNoteHint,
-                  hintStyle: AppText.cardTitle.copyWith(
-                    fontSize: 22,
-                    color: TrainColors.ink3,
-                  ),
+            // The photo + caption scroll, so the keyboard (the caption
+            // autofocuses, opening it on entry) shrinks this area instead of
+            // overflowing the fixed Column — the tall 3:2 photo could not
+            // otherwise fit above the keyboard. The save button below stays
+            // pinned above the keyboard.
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 22, 24, 6),
+                      child: _PhotoArea(
+                        service: AppScope.of(context).requireMedia,
+                        imageRef: _imageRef,
+                        pickedTempPath: _pickedTempPath,
+                        onAdd: _pickPhoto,
+                        onEdit: _editPhoto,
+                        onRetake: _retake,
+                        onRemove: _removePhoto,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 18, 24, 6),
+                      child: TextField(
+                        controller: _caption,
+                        autofocus: true,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _save(),
+                        cursorColor: TrainColors.ember,
+                        style: AppText.cardTitle.copyWith(fontSize: 22),
+                        decoration: InputDecoration(
+                          isCollapsed: true,
+                          border: InputBorder.none,
+                          hintText: l(context).momentNoteHint,
+                          hintStyle: AppText.cardTitle.copyWith(
+                            fontSize: 22,
+                            color: TrainColors.ink3,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            const Spacer(),
             Padding(
               padding: EdgeInsets.fromLTRB(
                 18,

@@ -16,7 +16,7 @@ const {
   REJECT_TOOL_NAME,
   CHOOSE_TOOL_NAME,
 } = require("./diet_generate");
-const {GatewayError} = require("./gateway");
+const {GatewayError} = require("../gateway");
 
 /**
  * A `callModel` fake. The first call gets [response]; any later call is the

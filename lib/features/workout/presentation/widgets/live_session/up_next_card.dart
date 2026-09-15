@@ -5,6 +5,7 @@ import '../../../../../core/widgets/train_chrome.dart';
 import '../../../domain/logged_set.dart';
 import '../../../domain/rest_policy.dart';
 import '../../../domain/session_exercise.dart';
+import '../../../domain/weight_unit.dart';
 import '../../workout_labels.dart';
 import '../../../../music/domain/music_connection.dart';
 import '../../../../music/domain/music_controller.dart';
@@ -12,7 +13,6 @@ import '../../../../music/domain/now_playing.dart';
 import '../../../../music/presentation/music_player_page.dart';
 import '../../../../music/presentation/spotify_strip.dart';
 import '../../../../../l10n/l10n.dart';
-import 'live_session_format.dart';
 
 /// What's waiting on the other side of the rest — the exercise and the exact
 /// numbers to hit, so the countdown ends with you already knowing what to do
@@ -21,6 +21,7 @@ class UpNextCard extends StatelessWidget {
   const UpNextCard({
     required this.exercise,
     required this.set,
+    required this.unit,
 
     /// Overridden by the rest screen, which calls this card something else.
     /// Null means "UP NEXT", resolved at build time because it's localized.
@@ -30,6 +31,10 @@ class UpNextCard extends StatelessWidget {
 
   final SessionExercise? exercise;
   final LoggedSet? set;
+
+  /// The active display unit — for the target load and its "SET n · KG/LB"
+  /// caption.
+  final WeightUnit unit;
 
   /// "UP NEXT" during rest, "FIRST UP" during the warm-up — the same card
   /// answering the same question at two different points in the session.
@@ -104,14 +109,17 @@ class UpNextCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                weight == null ? reps : '$reps × ${trimWeight(weight)}',
+                weight == null ? reps : '$reps × ${unit.display(weight)}',
                 style: TrainType.mono(size: 20, color: TrainColors.ink),
               ),
               const SizedBox(height: 8),
               Text(
                 weight == null
                     ? l(context).liveSetNumberCaps(workingIndex + 1)
-                    : l(context).liveSetNumberKg(workingIndex + 1),
+                    : l(context).liveSetNumberUnit(
+                        workingIndex + 1,
+                        unit.symbolCaps,
+                      ),
                 style: TrainType.mono(
                   size: 8.5,
                   weight: FontWeight.w500,

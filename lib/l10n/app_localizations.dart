@@ -1460,6 +1460,18 @@ abstract class AppLocalizations {
   /// **'WEIGHT · KG'**
   String get liveWeightKg;
 
+  /// All-caps caption on the weight field; the unit (KG/LB) sits beside it in a selector.
+  ///
+  /// In en, this message translates to:
+  /// **'WEIGHT'**
+  String get liveWeight;
+
+  /// Pounds, the imperial weight unit — used when the user has switched the live session to pounds.
+  ///
+  /// In en, this message translates to:
+  /// **'lb'**
+  String get unitLb;
+
   /// Sentence-case label on the reps correction field.
   ///
   /// In en, this message translates to:
@@ -1670,6 +1682,30 @@ abstract class AppLocalizations {
   /// **'Same · {kg}kg'**
   String liveSameWeight(String kg);
 
+  /// Load anchor chip: one tap to repeat the load you last actually lifted. {weight} is the load with its unit, e.g. '70 kg' / '155 lb'.
+  ///
+  /// In en, this message translates to:
+  /// **'Last · {weight}'**
+  String liveQuickLast(String weight);
+
+  /// Load anchor chip: one tap to take the progression target. {weight} is the load with its unit, e.g. '72.5 kg' / '160 lb'.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal · {weight}'**
+  String liveQuickGoal(String weight);
+
+  /// Sentence-case label on the weight correction field, carrying the active unit symbol.
+  ///
+  /// In en, this message translates to:
+  /// **'Weight ({unit})'**
+  String liveWeightFieldUnit(String unit);
+
+  /// All-caps set badge with the active weight unit shown alongside.
+  ///
+  /// In en, this message translates to:
+  /// **'SET {number} · {unit}'**
+  String liveSetNumberUnit(int number, String unit);
+
   /// Prompt to link Spotify from the rest screen.
   ///
   /// In en, this message translates to:
@@ -1688,10 +1724,10 @@ abstract class AppLocalizations {
   /// **'BACK'**
   String get actionBackCaps;
 
-  /// How the load compares to the previous set today.
+  /// How the load compares to the previous set today. {delta} is the signed change with its unit symbol, e.g. '+2.5kg' or '+5lb'.
   ///
   /// In en, this message translates to:
-  /// **'{delta}kg from your previous set'**
+  /// **'{delta} from your previous set'**
   String liveDeltaWeight(String delta);
 
   /// How the reps compare to the previous set today.
@@ -1712,10 +1748,10 @@ abstract class AppLocalizations {
   /// **'{kg} kg'**
   String liveWeightValue(String kg);
 
-  /// Reps and load together — the usual case.
+  /// Reps and load together — the usual case. {kg} is the load with its unit symbol, e.g. '60 kg' or '132 lb'.
   ///
   /// In en, this message translates to:
-  /// **'{reps} × {kg} kg'**
+  /// **'{reps} × {kg}'**
   String liveRepsByWeight(int reps, String kg);
 
   /// Built-in expense category.
@@ -2383,6 +2419,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tell ZIVO what you eat; it designs the plan.'**
   String get addDietGenerateDetail;
+
+  /// Badge beside the generate route, marking it as the suggested way in.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get addDietRecommended;
 
   /// Capture route: the full editor.
   ///
@@ -4081,6 +4123,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'\"add 40 EGP parking\" · \"finished chest day\"'**
   String get askVoiceExamples;
+
+  /// Title of the sheet shown when long-pressing an assistant message, listing that turn's model and token usage.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn details'**
+  String get askTurnDetailsTitle;
+
+  /// Label for the row naming which provider/model produced the reply.
+  ///
+  /// In en, this message translates to:
+  /// **'Answered by'**
+  String get askTurnAnsweredBy;
+
+  /// Label for total input (prompt) tokens of the turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Input tokens'**
+  String get askTurnInputTokens;
+
+  /// Label for input tokens served from the prompt cache.
+  ///
+  /// In en, this message translates to:
+  /// **'Cached'**
+  String get askTurnCached;
+
+  /// Label for input tokens billed at full price (not cached).
+  ///
+  /// In en, this message translates to:
+  /// **'Uncached'**
+  String get askTurnUncached;
+
+  /// Label for generated (output) tokens of the turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Output tokens'**
+  String get askTurnOutputTokens;
+
+  /// Label for the approximate tokens of tool-result data fed to the model.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool results'**
+  String get askTurnToolResults;
+
+  /// Label for the list of tools the model called this turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools used'**
+  String get askTurnTools;
+
+  /// Label for the number of model-tool round-trips the turn took.
+  ///
+  /// In en, this message translates to:
+  /// **'Iterations'**
+  String get askTurnIterations;
+
+  /// Label for how long the turn took.
+  ///
+  /// In en, this message translates to:
+  /// **'Latency'**
+  String get askTurnLatency;
+
+  /// Label for the estimated dollar cost of the turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Est. cost'**
+  String get askTurnCost;
+
+  /// Shown in the tools row when the turn called no tools.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get askTurnNone;
+
+  /// Shown in the turn-details sheet when no usage record exists for the message.
+  ///
+  /// In en, this message translates to:
+  /// **'No details recorded for this message.'**
+  String get askTurnUnavailable;
 
   /// The user's display name.
   ///
@@ -7158,6 +7278,12 @@ abstract class AppLocalizations {
   /// **'Analyzing your plan'**
   String get importAnalyzing;
 
+  /// Subtitle under 'Analyzing your plan' setting the wait expectation for the single AI call.
+  ///
+  /// In en, this message translates to:
+  /// **'This can take up to a minute'**
+  String get importAnalyzingWait;
+
   /// Abandons the import and opens the empty editor.
   ///
   /// In en, this message translates to:
@@ -9269,6 +9395,204 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Every morning ZIVO reads the signals you already track and gives you one honest call — train hard, go light, or rest — so you walk into the gym knowing whether to push or hold back. It\'s your coach\'s opening line for the day, not another number to chase.'**
   String get readinessAboutBody;
+
+  /// Shown while a spoken description is being transcribed.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing it down…'**
+  String get describeTranscribing;
+
+  /// Title of the Diet Builder's first step, where the user picks their goal.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s your goal?'**
+  String get dietBuilderGoalTitle;
+
+  /// Prompt under the goal step title.
+  ///
+  /// In en, this message translates to:
+  /// **'What are you working toward?'**
+  String get dietBuilderGoalPrompt;
+
+  /// Title of the Diet Builder step collecting weight, height, age, sex and activity.
+  ///
+  /// In en, this message translates to:
+  /// **'About you'**
+  String get dietBuilderAboutTitle;
+
+  /// Prompt under the About-you step title.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO uses this to shape your plan around your body.'**
+  String get dietBuilderAboutPrompt;
+
+  /// Note under the age field when it was prefilled from the account's date of birth.
+  ///
+  /// In en, this message translates to:
+  /// **'From your profile — change it if it\'s wrong.'**
+  String get dietBuilderAgeFromProfile;
+
+  /// Title of the Diet Builder step where the user describes their normal eating.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell ZIVO how you eat'**
+  String get dietBuilderEatTitle;
+
+  /// Prompt under the how-you-eat step title.
+  ///
+  /// In en, this message translates to:
+  /// **'What does a normal day of eating look like? Tell ZIVO what you usually eat, how many meals you have, and anything about your routine.'**
+  String get dietBuilderEatPrompt;
+
+  /// Placeholder in the how-you-eat free-text field.
+  ///
+  /// In en, this message translates to:
+  /// **'I usually have eggs and bread for breakfast, chicken and rice for lunch, and something light at night…'**
+  String get dietBuilderEatHint;
+
+  /// Reassurance under the how-you-eat field that it can be left blank.
+  ///
+  /// In en, this message translates to:
+  /// **'The more you say, the closer the plan fits — but this is optional.'**
+  String get dietBuilderOptionalNote;
+
+  /// Title of the Diet Builder step for disliked foods and allergies.
+  ///
+  /// In en, this message translates to:
+  /// **'Anything you don\'t want?'**
+  String get dietBuilderAvoidTitle;
+
+  /// Prompt under the dislikes field.
+  ///
+  /// In en, this message translates to:
+  /// **'Foods you\'d rather ZIVO kept out of your plan.'**
+  String get dietBuilderAvoidPrompt;
+
+  /// Placeholder in the dislikes free-text field.
+  ///
+  /// In en, this message translates to:
+  /// **'I don\'t like fish, broccoli, or cottage cheese.'**
+  String get dietBuilderAvoidHint;
+
+  /// Heading of the allergies sub-section, kept separate from dislikes.
+  ///
+  /// In en, this message translates to:
+  /// **'Allergies or foods you must avoid'**
+  String get dietBuilderAllergiesTitle;
+
+  /// Note explaining that an allergy is a hard limit, not a preference.
+  ///
+  /// In en, this message translates to:
+  /// **'Different from a dislike — ZIVO will never put these in your plan.'**
+  String get dietBuilderAllergiesPrompt;
+
+  /// Placeholder in the allergies free-text field.
+  ///
+  /// In en, this message translates to:
+  /// **'Peanuts, shellfish…'**
+  String get dietBuilderAllergiesHint;
+
+  /// Heading over the optional tap-to-add common allergen chips.
+  ///
+  /// In en, this message translates to:
+  /// **'Common ones'**
+  String get dietBuilderAllergyChips;
+
+  /// Note under the common allergen chips.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap any that apply.'**
+  String get dietBuilderAllergyChipsNote;
+
+  /// Title of the Diet Builder step choosing meals per day and schedule.
+  ///
+  /// In en, this message translates to:
+  /// **'How many meals?'**
+  String get dietBuilderMealsTitle;
+
+  /// Prompt under the meals-per-day picker.
+  ///
+  /// In en, this message translates to:
+  /// **'How many meals do you want each day?'**
+  String get dietBuilderMealsPrompt;
+
+  /// Heading of the optional schedule/timing field.
+  ///
+  /// In en, this message translates to:
+  /// **'Anything about your schedule?'**
+  String get dietBuilderScheduleTitle;
+
+  /// Note under the schedule field.
+  ///
+  /// In en, this message translates to:
+  /// **'So ZIVO can place your meals around your day.'**
+  String get dietBuilderSchedulePrompt;
+
+  /// Placeholder in the schedule free-text field.
+  ///
+  /// In en, this message translates to:
+  /// **'I train at 6am and eat straight after.'**
+  String get dietBuilderScheduleHint;
+
+  /// Advances to the next step of the Diet Builder.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get dietBuilderContinue;
+
+  /// Returns to the previous step of the Diet Builder.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get dietBuilderBack;
+
+  /// Title of the finished-plan reveal screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Your plan is ready'**
+  String get dietBuilderPlanReadyTitle;
+
+  /// Subtitle under the plan-ready title.
+  ///
+  /// In en, this message translates to:
+  /// **'Built around your goal, body data, eating habits and schedule.'**
+  String get dietBuilderPlanReadySubtitle;
+
+  /// The macro line under the daily calorie target on the plan reveal.
+  ///
+  /// In en, this message translates to:
+  /// **'{protein}g protein · {carbs}g carbs · {fat}g fat'**
+  String dietBuilderMacros(String protein, String carbs, String fat);
+
+  /// Label over the coach's note on the plan reveal.
+  ///
+  /// In en, this message translates to:
+  /// **'Coach note'**
+  String get dietBuilderCoachNote;
+
+  /// The coach's note on the plan reveal.
+  ///
+  /// In en, this message translates to:
+  /// **'This plan is a starting point based on what you told ZIVO. Adjust portions as you go, based on your progress and how you feel.'**
+  String get dietBuilderCoachNoteBody;
+
+  /// The subtle medical-advice disclaimer on the plan reveal.
+  ///
+  /// In en, this message translates to:
+  /// **'Nutrition plans aren\'t a substitute for medical advice. If you have a medical condition, a food allergy, or a specific dietary requirement, talk to a doctor or a registered dietitian before following a restrictive plan.'**
+  String get dietBuilderSafetyNote;
+
+  /// Saves the generated plan and its target from the reveal.
+  ///
+  /// In en, this message translates to:
+  /// **'Save plan'**
+  String get dietBuilderSavePlan;
+
+  /// Opens the plan editor to tweak the generated plan before saving.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit plan'**
+  String get dietBuilderEditPlan;
 }
 
 class _AppLocalizationsDelegate

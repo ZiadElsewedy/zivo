@@ -1,8 +1,9 @@
 /**
  * Elicitation — how the coach ASKS instead of guessing.
  *
- * Pairs with the `ask_choice` tool (`functions/ai/elicitations.js`). Two rules
- * carry weight: read before you ask (the user's numbers are already reachable
+ * Pairs with the `ask_choice` tool
+ * (`functions/ai/tools/elicitations.js`). Two rules carry weight: read before
+ * you ask (the user's numbers are already reachable
  * through tools, so a question for something a tool has is a wasted turn), and
  * ask at most one thing at a time. The rest keeps the questions concrete and in
  * the user's language.

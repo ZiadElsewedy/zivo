@@ -114,6 +114,15 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   `ImportedDay`/`ImportedExercise`), `workout_plan_from_import.dart` (takes a
   `source`), `workout_plan_normalize.dart`, `workout_plan_source.dart`
   (`manual`/`pdf`/`photo`/`dictated`/`typed`).
+- **Weight unit: `weight_unit.dart`** — `WeightUnit { kg, lb }`, a pure,
+  Flutter-free **presentation/input** concern only. **Kilograms stay the one
+  canonical stored value everywhere** (model, repos, analytics, AI); this type
+  just converts (`toKg`/`fromKg`, exact `2.2046226218`), formats at
+  gym-friendly precision (`display` — kg 1-decimal, lb snapped to 0.5 lb), and
+  carries the equipment-aware ± step (`step`/`weightStepFor` — kg 2.5/1,
+  lb 5/2.5, small-muscle = smaller, keyed off `isSmallMuscleGroup` like the
+  progression engine). The live session owns the choice as a **device-local UI
+  preference** (`SharedPreferences`, not account data). See the gotcha below.
 
 ## Gotchas / invariants (don't re-litigate — see `docs/STATE.md` + git history)
 
@@ -211,6 +220,33 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   deliberately *inside* the group so adjusting a value doesn't yank the keyboard away.
   `RunningScaffold` detects focus with an inert `Focus` node, **not** `MediaQuery.viewInsets`
   — a resizing `Scaffold` strips that out of its own body.
+- **The weight field is shown/typed in the active unit, but only ever STORED in
+  kg.** `LiveSessionController.weight`'s text is display-unit (kg by default, lb
+  when switched), never canonical. Conversion happens at exactly two boundaries:
+  reads go through `typedWeightKg` (`unit.toKg(parsed)`) — used by `setDone` and
+  `_saveDraft` — and writes format kg through `unit.display` (`_prefillInputs`,
+  the anchors, the review sheet). `setUnit`/`_applyUnit` re-express the field in
+  place (a change of *view*, not *input* — it deliberately does NOT flip
+  `_actualsTouched` or save a draft, since the stored kg is untouched); the unit
+  loads once off `start` from `SharedPreferences` (`zivo.session.weightUnit`),
+  the same fire-and-forget shape as the rest countdown. Every widget that shows a
+  stored kg weight (`goal_block`, `set_chips`, `up_next_card`, the review
+  rows/sheet, the completed PR line, the rest tally) takes the `WeightUnit` and
+  formats through it, so a lb user sees no kg anywhere. KG-mode output is
+  byte-identical to before units existed — that's what keeps the widget suite
+  (which asserts on kg strings) green. **Do not** add a lb field to any model or
+  repo, and don't reach past `typedWeightKg`/`unit.display` to read/write the
+  field raw.
+- **The load anchors are Last and Goal, not ± chips.** The old `+2.5/−2.5`
+  `QuickWeightRow` is gone (`set_input.dart`'s `LoadAnchorRow`): micro-adjustment
+  is the steppers' job (unit-aware step + hold-to-repeat on the ± buttons —
+  `StepButton` is stateful for the accelerating repeat), and the row carries the
+  two loads that mean something — the last actually-lifted load and the
+  progression target — deduped when equal, hidden when there's no data (a
+  first-ever set with only a plan target shows one anchor, never a fake number).
+  The KG/LB selector (`UnitSelector`) rides the weight field's label row; it's a
+  neutral wash chip (page-ink text, no hue — the unit isn't a committing action)
+  so it reads on both skins.
 - **The weight field carries the last load forward** (`LiveSessionController.carriedWeightFor`).
   `computeGoal` only prices a set when it has an index-aligned set from that exercise's
   history or a plan `targetWeightKg`; a split written without loads has neither, so the

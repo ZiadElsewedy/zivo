@@ -16,7 +16,7 @@ const path = require("node:path");
 
 const {analyzeExercise, analyzePlanAdherence} = require("./exercise_analytics");
 
-const REPO_ROOT = path.join(__dirname, "..", "..");
+const REPO_ROOT = path.join(__dirname, "..", "..", "..");
 const VECTORS = JSON.parse(fs.readFileSync(
     path.join(REPO_ROOT, "test/fixtures/workout_analytics_vectors.json"),
     "utf8"));

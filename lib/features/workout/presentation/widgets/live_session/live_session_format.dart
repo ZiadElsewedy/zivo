@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
 import '../../../domain/logged_set.dart';
 import '../../../domain/progress_comparison.dart';
+import '../../../domain/weight_unit.dart';
 import '../../../domain/workout_day.dart';
 import '../../../../../l10n/l10n.dart';
-import '../../workout_format.dart';
 
 export '../../workout_format.dart' show trimWeight;
+
+/// The localized unit symbol ("kg"/"كجم", "lb"/"رطل") for the strings that
+/// weave it into a sentence — distinct from [WeightUnit.symbol], the latin
+/// symbol used where it rides a numeral as a bare symbol.
+String unitSymbol(AppLocalizations strings, WeightUnit unit) =>
+    unit == WeightUnit.kg ? strings.unitKg : strings.unitLb;
+
+/// "30 kg" / "160 lb" — a canonical kilogram value written in [unit] with its
+/// localized symbol and a space, the form the goal card's supporting cells and
+/// the quick-load chips read.
+String weightWithUnit(AppLocalizations strings, double kg, WeightUnit unit) =>
+    '${unit.display(kg)} ${unitSymbol(strings, unit)}';
 
 /// "Day A · Push". Takes a context because the separator and the word order
 /// belong to the translator, not to this function.
@@ -49,6 +61,7 @@ String formatElapsed(Duration d) {
   required LoggedSet? previous,
   required int? actualReps,
   required double? actualWeightKg,
+  required WeightUnit unit,
 }) {
   if (previous == null) return null;
   final prevWeight = previous.actualWeightKg;
@@ -56,12 +69,13 @@ String formatElapsed(Duration d) {
       actualWeightKg != null &&
       actualWeightKg != prevWeight) {
     final delta = actualWeightKg - prevWeight;
-    return (
-      label: strings.liveDeltaWeight(
-        '${delta > 0 ? '+' : ''}${trimWeight(delta)}',
-      ),
-      changed: true,
-    );
+    // The magnitude is shown in the active unit; the symbol rides the numeral
+    // (no space, localized), so this reads "+5kg" / "+5lb" — the unit moved
+    // into the delta so the sentence template stays unit-agnostic.
+    final signed =
+        '${delta > 0 ? '+' : '-'}${unit.display(delta.abs())}'
+        '${unitSymbol(strings, unit)}';
+    return (label: strings.liveDeltaWeight(signed), changed: true);
   }
   final prevReps = previous.actualReps;
   if (prevReps != null && actualReps != null && actualReps != prevReps) {
@@ -76,15 +90,19 @@ String formatElapsed(Duration d) {
 
 /// "60kg × 8" — omits either half when unset; "First time" when there's no
 /// previous performance to show at all (never trained, or never logged).
-String formatLastTime(AppLocalizations strings, LoggedSet? previous) {
+String formatLastTime(
+  AppLocalizations strings,
+  LoggedSet? previous,
+  WeightUnit unit,
+) {
   // Reps first, then load — the same reading order as the set chips and the
   // goal card's hero, so the eye never has to re-orient between them.
   final reps = previous?.actualReps;
   final weight = previous?.actualWeightKg;
   if (reps == null && weight == null) return strings.liveFirstTime;
-  if (reps == null) return strings.liveWeightValue(trimWeight(weight!));
+  if (reps == null) return weightWithUnit(strings, weight!, unit);
   if (weight == null) return strings.liveRepsValue(reps);
-  return strings.liveRepsByWeight(reps, trimWeight(weight));
+  return strings.liveRepsByWeight(reps, weightWithUnit(strings, weight, unit));
 }
 
 /// "60kg × 8" for a set's OWN actuals — omits either half when unset, "—"
@@ -92,9 +110,10 @@ String formatLastTime(AppLocalizations strings, LoggedSet? previous) {
 /// time": that means "no prior performance to compare against"; this means
 /// "nothing was typed on this set itself" (the review list's skipped-with-
 /// nothing-typed case).
-String formatSetActuals(LoggedSet set) {
+String formatSetActuals(LoggedSet set, WeightUnit unit) {
   final parts = <String>[
-    if (set.actualWeightKg != null) '${trimWeight(set.actualWeightKg!)}kg',
+    if (set.actualWeightKg != null)
+      '${unit.display(set.actualWeightKg!)}${unit.symbol}',
     if (set.actualReps != null) '× ${set.actualReps}',
   ];
   return parts.isEmpty ? '—' : parts.join(' ');

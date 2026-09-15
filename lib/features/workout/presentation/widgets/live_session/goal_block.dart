@@ -10,6 +10,7 @@ import '../../../../../core/util/parse.dart';
 import '../../../domain/logged_set.dart';
 import '../../../domain/progress_comparison.dart';
 import '../../../domain/progression.dart';
+import '../../../domain/weight_unit.dart';
 import '../verdict_style.dart';
 import '../../../../../l10n/l10n.dart';
 import 'live_session_format.dart';
@@ -38,6 +39,7 @@ class GoalBlock extends StatelessWidget {
     required this.liveReps,
     required this.liveWeight,
     required this.restSeconds,
+    required this.unit,
     this.targetText,
     this.intraSessionDelta,
     this.previous,
@@ -56,6 +58,10 @@ class GoalBlock extends StatelessWidget {
 
   /// This exercise's prescribed rest, for the third stat cell.
   final int restSeconds;
+
+  /// The active display unit — sets the hero's KG/LB label. The [liveWeight]
+  /// string is already in this unit (it comes straight from the field).
+  final WeightUnit unit;
 
   final String? targetText;
 
@@ -185,7 +191,7 @@ class GoalBlock extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  'KG',
+                  unit.symbolCaps,
                   style: TrainType.mono(
                     size: 11,
                     weight: FontWeight.w500,

@@ -16,7 +16,7 @@ const path = require("node:path");
 
 const {readinessFromSignals, readinessDeloadDueFrom} = require("./readiness");
 
-const REPO_ROOT = path.join(__dirname, "..", "..");
+const REPO_ROOT = path.join(__dirname, "..", "..", "..");
 const VECTORS = JSON.parse(fs.readFileSync(
     path.join(REPO_ROOT, "test/fixtures/readiness_vectors.json"),
     "utf8"));

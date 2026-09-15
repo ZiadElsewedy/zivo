@@ -1,7 +1,7 @@
 /**
  * `FirestoreStore` — the only file besides `index.js` that touches
  * Firestore. Implements the read/persistence seam the gateway
- * (`functions/ai/gateway.js`) and tool registry (`functions/ai/tools.js`)
+ * (`functions/ai/gateway.js`) and tool registry (`functions/ai/tools/read.js`)
  * depend on, using the Admin SDK (which bypasses security rules, so this is
  * always `uid`-scoped explicitly). Field names mirror the client
  * repositories exactly (the `FirestoreXRepository` classes under
@@ -96,8 +96,9 @@ class FirestoreStore {
   /**
    * The user's live/completed workout SESSIONS — the rich, per-set record in
    * `users/{uid}/workoutSessions` (not the lossy flat `workouts` log). This is
-   * what the workout analytics engine (`./workout_analytics.js`) reasons over,
-   * so the AI sees the real sets the user performed rather than a single
+   * what the workout analytics engine (`../analytics/workout_analytics.js`)
+   * reasons over, so the AI sees the real sets the user performed rather than a
+   * single
    * collapsed reps/weight per exercise. Ranged by `startedAt`; pass no range
    * to read the whole history (the analytics windows filter internally).
    *

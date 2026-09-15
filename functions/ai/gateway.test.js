@@ -635,6 +635,22 @@ test("usage is logged once with tokens/tools/iterations", async () => {
   assert.ok(usageDoc.toolResultTokens > 0);
 });
 
+test("the usage doc carries the turn's clientTurnId so a message can find it",
+    async () => {
+      // The per-message "turn details" view pairs an assistant message with its
+      // usage by clientTurnId — both must carry the same key.
+      const store = makeStore({findMessageByClientTurnId: async () => null});
+      const callModel = scriptedModel([
+        {stop_reason: "end_turn", content: [{type: "text", text: "hi"}],
+          usage: {input_tokens: 5, output_tokens: 2}},
+      ]);
+      await runAiTurn({
+        store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+        message: "hello", clientTurnId: "turn-xyz", now: makeClock(0),
+      });
+      assert.equal(store.calls.logUsage[0].usageDoc.clientTurnId, "turn-xyz");
+    });
+
 test("the tool schemas + system prompt are sent as a cached prefix", async () => {
   const store = makeStore();
   const callModel = scriptedModel([

@@ -6,6 +6,7 @@ import '../../../../../../core/util/parse.dart';
 import '../../../../../../l10n/l10n.dart';
 import '../../../../domain/progression.dart';
 import '../../../../domain/rep_target.dart';
+import '../../../../domain/weight_unit.dart';
 import '../../../workout_labels.dart';
 import '../../../controllers/live_session_controller.dart';
 import '../../staggered_reveal.dart';
@@ -60,6 +61,12 @@ class RunningPhase extends StatelessWidget {
     final liveReps = controller.reps.text.trim();
     final liveWeight = controller.weight.text.trim();
     final carriedWeight = controller.carriedWeightFor(exercise, set);
+    final unit = controller.weightUnit;
+    // The ± step is equipment-aware, not a hardcoded 2.5: a compound lift
+    // steps a plate-pair, an isolation movement the smaller jump, each in the
+    // active unit.
+    final weightStep = weightStepFor(unit, exercise.muscleGroup);
+    final hasAnchors = carriedWeight != null || goal.weightKg != null;
 
     return RunningScaffold(
       top: [
@@ -72,6 +79,7 @@ class RunningPhase extends StatelessWidget {
             currentSetId: set.id,
             liveReps: liveReps,
             liveWeight: liveWeight,
+            unit: unit,
           ),
         ),
       ],
@@ -81,19 +89,21 @@ class RunningPhase extends StatelessWidget {
         StaggeredReveal(
           index: 2,
           child: GoalBlock(
-            lastTimeLabel: formatLastTime(l(context), previousSet),
+            lastTimeLabel: formatLastTime(l(context), previousSet, unit),
             goal: goal,
             targetText: targetText,
             intraSessionDelta: intraSessionDeltaLabel(
               strings: l(context),
               previous: controller.previousSetInSession(exercise, set),
               actualReps: parseWhole(controller.reps.text),
-              actualWeightKg: parseDecimal(controller.weight.text),
+              actualWeightKg: controller.typedWeightKg,
+              unit: unit,
             ),
             previous: previousSet,
             restSeconds: exercise.restSeconds,
             liveReps: liveReps,
             liveWeight: liveWeight,
+            unit: unit,
             accent: accent,
           ),
         ),
@@ -112,31 +122,33 @@ class RunningPhase extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   StepperField(
-                    label: l(context).liveWeightKg,
+                    label: l(context).liveWeight,
                     controller: controller.weight,
-                    step: 2.5,
+                    step: weightStep,
                     hint: '—',
                     onChanged: controller.onActualChanged,
+                    trailing: UnitSelector(
+                      unit: unit,
+                      onChanged: controller.setUnit,
+                    ),
                   ),
                 ],
               ),
-              // One-tap load decisions — the last weight as "same", or nudge
-              // it by the stepper's own 2.5kg increment — so the common cases
-              // ("same again", "go up") never need typing or stepping.
-              //
-              // Reads the same carry-forward the prefill does, rather than
-              // only the index-aligned previous set: on a plan written without
-              // loads that alignment is null for every set, so this row — the
-              // whole point of which is "don't type the weight" — used to
-              // vanish precisely when it was needed most.
-              if (carriedWeight != null) ...[
+              // The two load anchors — Last (repeat what you lifted) and Goal
+              // (take the recommendation). They read the same carry-forward
+              // the prefill does, not just the index-aligned set: on a plan
+              // written without loads that alignment is null for every set, so
+              // an anchor row keyed only off it would vanish precisely when
+              // typing-avoidance is needed most.
+              if (hasAnchors) ...[
                 const SizedBox(height: AppSpacing.m),
-                QuickWeightRow(
-                  baseWeight: carriedWeight,
-                  stepKg: 2.5,
-                  onPick: (weight) {
+                LoadAnchorRow(
+                  last: carriedWeight,
+                  goal: goal.weightKg,
+                  unit: unit,
+                  onPick: (weightKg) {
                     HapticFeedback.selectionClick();
-                    controller.weight.text = trimWeight(weight);
+                    controller.weight.text = unit.display(weightKg);
                     controller.onActualChanged();
                   },
                 ),

@@ -1136,6 +1136,14 @@
   "@liveWeightKg": {
     "description": "All-caps caption on the weight field."
   },
+  "liveWeight": "WEIGHT",
+  "@liveWeight": {
+    "description": "All-caps caption on the weight field; the unit (KG/LB) sits beside it in a selector."
+  },
+  "unitLb": "lb",
+  "@unitLb": {
+    "description": "Pounds, the imperial weight unit — used when the user has switched the live session to pounds."
+  },
   "liveRepsField": "Reps",
   "@liveRepsField": {
     "description": "Sentence-case label on the reps correction field."
@@ -1306,6 +1314,50 @@
       }
     }
   },
+  "liveQuickLast": "Last · {weight}",
+  "@liveQuickLast": {
+    "description": "Load anchor chip: one tap to repeat the load you last actually lifted. {weight} is the load with its unit, e.g. '70 kg' / '155 lb'.",
+    "placeholders": {
+      "weight": {
+        "type": "String",
+        "example": "70 kg"
+      }
+    }
+  },
+  "liveQuickGoal": "Goal · {weight}",
+  "@liveQuickGoal": {
+    "description": "Load anchor chip: one tap to take the progression target. {weight} is the load with its unit, e.g. '72.5 kg' / '160 lb'.",
+    "placeholders": {
+      "weight": {
+        "type": "String",
+        "example": "72.5 kg"
+      }
+    }
+  },
+  "liveWeightFieldUnit": "Weight ({unit})",
+  "@liveWeightFieldUnit": {
+    "description": "Sentence-case label on the weight correction field, carrying the active unit symbol.",
+    "placeholders": {
+      "unit": {
+        "type": "String",
+        "example": "kg"
+      }
+    }
+  },
+  "liveSetNumberUnit": "SET {number} · {unit}",
+  "@liveSetNumberUnit": {
+    "description": "All-caps set badge with the active weight unit shown alongside.",
+    "placeholders": {
+      "number": {
+        "type": "int",
+        "example": "3"
+      },
+      "unit": {
+        "type": "String",
+        "example": "KG"
+      }
+    }
+  },
   "liveConnectMusic": "CONNECT MUSIC",
   "@liveConnectMusic": {
     "description": "Prompt to link Spotify from the rest screen."
@@ -1318,13 +1370,13 @@
   "@actionBackCaps": {
     "description": "All-caps back affordance on the live session screen."
   },
-  "liveDeltaWeight": "{delta}kg from your previous set",
+  "liveDeltaWeight": "{delta} from your previous set",
   "@liveDeltaWeight": {
-    "description": "How the load compares to the previous set today.",
+    "description": "How the load compares to the previous set today. {delta} is the signed change with its unit symbol, e.g. '+2.5kg' or '+5lb'.",
     "placeholders": {
       "delta": {
         "type": "String",
-        "example": "+2.5"
+        "example": "+2.5kg"
       }
     }
   },
@@ -1358,9 +1410,9 @@
       }
     }
   },
-  "liveRepsByWeight": "{reps} × {kg} kg",
+  "liveRepsByWeight": "{reps} × {kg}",
   "@liveRepsByWeight": {
-    "description": "Reps and load together — the usual case.",
+    "description": "Reps and load together — the usual case. {kg} is the load with its unit symbol, e.g. '60 kg' or '132 lb'.",
     "placeholders": {
       "reps": {
         "type": "int",
@@ -1368,7 +1420,7 @@
       },
       "kg": {
         "type": "String",
-        "example": "60"
+        "example": "60 kg"
       }
     }
   },
@@ -1831,6 +1883,10 @@
   "addDietGenerateDetail": "Tell ZIVO what you eat; it designs the plan.",
   "@addDietGenerateDetail": {
     "description": "Subtitle of the generation route."
+  },
+  "addDietRecommended": "Recommended",
+  "@addDietRecommended": {
+    "description": "Badge beside the generate route, marking it as the suggested way in."
   },
   "addDietManual": "Build it meal by meal",
   "@addDietManual": {
@@ -3247,6 +3303,58 @@
   "askVoiceExamples": "\"add 40 EGP parking\" · \"finished chest day\"",
   "@askVoiceExamples": {
       "description": "Two example utterances shown under the record button."
+  },
+  "askTurnDetailsTitle": "Turn details",
+  "@askTurnDetailsTitle": {
+      "description": "Title of the sheet shown when long-pressing an assistant message, listing that turn's model and token usage."
+  },
+  "askTurnAnsweredBy": "Answered by",
+  "@askTurnAnsweredBy": {
+      "description": "Label for the row naming which provider/model produced the reply."
+  },
+  "askTurnInputTokens": "Input tokens",
+  "@askTurnInputTokens": {
+      "description": "Label for total input (prompt) tokens of the turn."
+  },
+  "askTurnCached": "Cached",
+  "@askTurnCached": {
+      "description": "Label for input tokens served from the prompt cache."
+  },
+  "askTurnUncached": "Uncached",
+  "@askTurnUncached": {
+      "description": "Label for input tokens billed at full price (not cached)."
+  },
+  "askTurnOutputTokens": "Output tokens",
+  "@askTurnOutputTokens": {
+      "description": "Label for generated (output) tokens of the turn."
+  },
+  "askTurnToolResults": "Tool results",
+  "@askTurnToolResults": {
+      "description": "Label for the approximate tokens of tool-result data fed to the model."
+  },
+  "askTurnTools": "Tools used",
+  "@askTurnTools": {
+      "description": "Label for the list of tools the model called this turn."
+  },
+  "askTurnIterations": "Iterations",
+  "@askTurnIterations": {
+      "description": "Label for the number of model-tool round-trips the turn took."
+  },
+  "askTurnLatency": "Latency",
+  "@askTurnLatency": {
+      "description": "Label for how long the turn took."
+  },
+  "askTurnCost": "Est. cost",
+  "@askTurnCost": {
+      "description": "Label for the estimated dollar cost of the turn."
+  },
+  "askTurnNone": "None",
+  "@askTurnNone": {
+      "description": "Shown in the tools row when the turn called no tools."
+  },
+  "askTurnUnavailable": "No details recorded for this message.",
+  "@askTurnUnavailable": {
+      "description": "Shown in the turn-details sheet when no usage record exists for the message."
   },
   "profileName": "Name",
   "@profileName": {
@@ -5884,6 +5992,10 @@
   "@importAnalyzing": {
       "description": "Title of the analysing step."
   },
+  "importAnalyzingWait": "This can take up to a minute",
+  "@importAnalyzingWait": {
+      "description": "Subtitle under 'Analyzing your plan' setting the wait expectation for the single AI call."
+  },
   "importBuildManuallyInstead": "Build manually instead",
   "@importBuildManuallyInstead": {
       "description": "Abandons the import and opens the empty editor."
@@ -7740,5 +7852,142 @@
   "readinessAboutBody": "Every morning ZIVO reads the signals you already track and gives you one honest call — train hard, go light, or rest — so you walk into the gym knowing whether to push or hold back. It's your coach's opening line for the day, not another number to chase.",
   "@readinessAboutBody": {
     "description": "Body text introducing the Daily Readiness feature and what it does for the user."
+  },
+  "describeTranscribing": "Writing it down…",
+  "@describeTranscribing": {
+    "description": "Shown while a spoken description is being transcribed."
+  },
+  "dietBuilderGoalTitle": "What's your goal?",
+  "@dietBuilderGoalTitle": {
+    "description": "Title of the Diet Builder's first step, where the user picks their goal."
+  },
+  "dietBuilderGoalPrompt": "What are you working toward?",
+  "@dietBuilderGoalPrompt": {
+    "description": "Prompt under the goal step title."
+  },
+  "dietBuilderAboutTitle": "About you",
+  "@dietBuilderAboutTitle": {
+    "description": "Title of the Diet Builder step collecting weight, height, age, sex and activity."
+  },
+  "dietBuilderAboutPrompt": "ZIVO uses this to shape your plan around your body.",
+  "@dietBuilderAboutPrompt": {
+    "description": "Prompt under the About-you step title."
+  },
+  "dietBuilderAgeFromProfile": "From your profile — change it if it's wrong.",
+  "@dietBuilderAgeFromProfile": {
+    "description": "Note under the age field when it was prefilled from the account's date of birth."
+  },
+  "dietBuilderEatTitle": "Tell ZIVO how you eat",
+  "@dietBuilderEatTitle": {
+    "description": "Title of the Diet Builder step where the user describes their normal eating."
+  },
+  "dietBuilderEatPrompt": "What does a normal day of eating look like? Tell ZIVO what you usually eat, how many meals you have, and anything about your routine.",
+  "@dietBuilderEatPrompt": {
+    "description": "Prompt under the how-you-eat step title."
+  },
+  "dietBuilderEatHint": "I usually have eggs and bread for breakfast, chicken and rice for lunch, and something light at night…",
+  "@dietBuilderEatHint": {
+    "description": "Placeholder in the how-you-eat free-text field."
+  },
+  "dietBuilderOptionalNote": "The more you say, the closer the plan fits — but this is optional.",
+  "@dietBuilderOptionalNote": {
+    "description": "Reassurance under the how-you-eat field that it can be left blank."
+  },
+  "dietBuilderAvoidTitle": "Anything you don't want?",
+  "@dietBuilderAvoidTitle": {
+    "description": "Title of the Diet Builder step for disliked foods and allergies."
+  },
+  "dietBuilderAvoidPrompt": "Foods you'd rather ZIVO kept out of your plan.",
+  "@dietBuilderAvoidPrompt": {
+    "description": "Prompt under the dislikes field."
+  },
+  "dietBuilderAvoidHint": "I don't like fish, broccoli, or cottage cheese.",
+  "@dietBuilderAvoidHint": {
+    "description": "Placeholder in the dislikes free-text field."
+  },
+  "dietBuilderAllergiesTitle": "Allergies or foods you must avoid",
+  "@dietBuilderAllergiesTitle": {
+    "description": "Heading of the allergies sub-section, kept separate from dislikes."
+  },
+  "dietBuilderAllergiesPrompt": "Different from a dislike — ZIVO will never put these in your plan.",
+  "@dietBuilderAllergiesPrompt": {
+    "description": "Note explaining that an allergy is a hard limit, not a preference."
+  },
+  "dietBuilderAllergiesHint": "Peanuts, shellfish…",
+  "@dietBuilderAllergiesHint": {
+    "description": "Placeholder in the allergies free-text field."
+  },
+  "dietBuilderAllergyChips": "Common ones",
+  "@dietBuilderAllergyChips": {
+    "description": "Heading over the optional tap-to-add common allergen chips."
+  },
+  "dietBuilderAllergyChipsNote": "Tap any that apply.",
+  "@dietBuilderAllergyChipsNote": {
+    "description": "Note under the common allergen chips."
+  },
+  "dietBuilderMealsTitle": "How many meals?",
+  "@dietBuilderMealsTitle": {
+    "description": "Title of the Diet Builder step choosing meals per day and schedule."
+  },
+  "dietBuilderMealsPrompt": "How many meals do you want each day?",
+  "@dietBuilderMealsPrompt": {
+    "description": "Prompt under the meals-per-day picker."
+  },
+  "dietBuilderScheduleTitle": "Anything about your schedule?",
+  "@dietBuilderScheduleTitle": {
+    "description": "Heading of the optional schedule/timing field."
+  },
+  "dietBuilderSchedulePrompt": "So ZIVO can place your meals around your day.",
+  "@dietBuilderSchedulePrompt": {
+    "description": "Note under the schedule field."
+  },
+  "dietBuilderScheduleHint": "I train at 6am and eat straight after.",
+  "@dietBuilderScheduleHint": {
+    "description": "Placeholder in the schedule free-text field."
+  },
+  "dietBuilderContinue": "Continue",
+  "@dietBuilderContinue": {
+    "description": "Advances to the next step of the Diet Builder."
+  },
+  "dietBuilderBack": "Back",
+  "@dietBuilderBack": {
+    "description": "Returns to the previous step of the Diet Builder."
+  },
+  "dietBuilderPlanReadyTitle": "Your plan is ready",
+  "@dietBuilderPlanReadyTitle": {
+    "description": "Title of the finished-plan reveal screen."
+  },
+  "dietBuilderPlanReadySubtitle": "Built around your goal, body data, eating habits and schedule.",
+  "@dietBuilderPlanReadySubtitle": {
+    "description": "Subtitle under the plan-ready title."
+  },
+  "dietBuilderMacros": "{protein}g protein · {carbs}g carbs · {fat}g fat",
+  "@dietBuilderMacros": {
+    "description": "The macro line under the daily calorie target on the plan reveal.",
+    "placeholders": {
+      "protein": { "type": "String" },
+      "carbs": { "type": "String" },
+      "fat": { "type": "String" }
+    }
+  },
+  "dietBuilderCoachNote": "Coach note",
+  "@dietBuilderCoachNote": {
+    "description": "Label over the coach's note on the plan reveal."
+  },
+  "dietBuilderCoachNoteBody": "This plan is a starting point based on what you told ZIVO. Adjust portions as you go, based on your progress and how you feel.",
+  "@dietBuilderCoachNoteBody": {
+    "description": "The coach's note on the plan reveal."
+  },
+  "dietBuilderSafetyNote": "Nutrition plans aren't a substitute for medical advice. If you have a medical condition, a food allergy, or a specific dietary requirement, talk to a doctor or a registered dietitian before following a restrictive plan.",
+  "@dietBuilderSafetyNote": {
+    "description": "The subtle medical-advice disclaimer on the plan reveal."
+  },
+  "dietBuilderSavePlan": "Save plan",
+  "@dietBuilderSavePlan": {
+    "description": "Saves the generated plan and its target from the reveal."
+  },
+  "dietBuilderEditPlan": "Edit plan",
+  "@dietBuilderEditPlan": {
+    "description": "Opens the plan editor to tweak the generated plan before saving."
   }
 }
