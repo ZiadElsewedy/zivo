@@ -19,6 +19,7 @@ import '../../../music/domain/now_playing.dart';
 import '../../../music/music_config.dart';
 import '../../../music/presentation/music_player_page.dart';
 import '../../../reminders/presentation/pages/reminders_page.dart';
+import 'about_me_page.dart';
 import 'change_password_page.dart';
 import 'privacy_page.dart';
 import '../widgets/media_backup_section.dart';
@@ -165,6 +166,22 @@ class _SettingsPageState extends State<SettingsPage> {
                       title: l(context).settingsBuild,
                       value: AppEnvironment.name,
                     ),
+                  // Who made ZIVO and how to reach them. Sits with Privacy at
+                  // the foot of the App section — the two "about the app
+                  // itself" rows, below the ones that change how it behaves.
+                  SettingsRow(
+                    key: const Key('settings-about'),
+                    icon: AppIcons.info,
+                    title: l(context).settingsAbout,
+                    value: '',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AboutMePage(),
+                        ),
+                      );
+                    },
+                  ),
                   SettingsRow(
                     icon: AppIcons.privacy,
                     title: l(context).settingsPrivacyPolicy,

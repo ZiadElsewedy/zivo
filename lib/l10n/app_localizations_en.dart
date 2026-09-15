@@ -3596,6 +3596,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPrivacyPolicy => 'Privacy policy';
 
   @override
+  String get settingsAbout => 'About';
+
+  @override
+  String get aboutTitle => 'About Me';
+
+  @override
+  String get aboutRole => 'Founder & Developer';
+
+  @override
+  String get aboutIntro =>
+      'ZIVO is built and maintained by Ziad. Questions, ideas, or a bug to report — reach me directly on any of these.';
+
+  @override
+  String get aboutSectionContact => 'Contact';
+
+  @override
+  String get aboutWhatsapp => 'WhatsApp';
+
+  @override
+  String get aboutEmail => 'Email';
+
+  @override
+  String get aboutCopied => 'Copied to clipboard';
+
+  @override
   String get settingsChangePassword => 'Change password';
 
   @override

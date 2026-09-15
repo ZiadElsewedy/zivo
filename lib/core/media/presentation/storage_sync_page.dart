@@ -293,14 +293,15 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                               // one says the same thing twice and steals the
                               // width the title needs.
                               value: '',
-                              // Violet, like every other Settings row and like
-                              // the Drive card above. This row was amber —
-                              // money's hue — and the one below it was ember,
-                              // which Settings reserves for Delete account.
+                              // Green — the app's "on / active / safe" state
+                              // hue, the same green the connected Drive card
+                              // and the on-device badge above already carry.
+                              // Reads as "backup is live" at a glance, which is
+                              // exactly what this switch turns on.
                               last: true,
                               trailing: Switch.adaptive(
                                 value: prefs.autoUploadToDrive,
-                                activeThumbColor: TrainColors.violet,
+                                activeThumbColor: TrainColors.green,
                                 onChanged: _busy
                                     ? null
                                     : (v) => prefsRepo.save(
@@ -332,7 +333,7 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                               last: true,
                               trailing: Switch.adaptive(
                                 value: prefs.saveToPhotos,
-                                activeThumbColor: TrainColors.violet,
+                                activeThumbColor: TrainColors.green,
                                 onChanged: _busy
                                     ? null
                                     : (v) => prefsRepo.save(

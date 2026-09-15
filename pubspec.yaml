@@ -182,6 +182,8 @@ flutter:
     - assets/transparent/
     - assets/spotify/
     - assets/google/
+    # Official brand marks for the About page's contact rows.
+    - assets/brands/
     # Hub module cards — the per-section hero photographs. Their baked-in
     # titles are cropped off in-source (see the git history of assets/hub)
     # so the Hub overlays its own localized label instead.

@@ -6042,6 +6042,54 @@ abstract class AppLocalizations {
   /// **'Privacy policy'**
   String get settingsPrivacyPolicy;
 
+  /// Settings row opening the About page (who built ZIVO and how to reach them).
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get settingsAbout;
+
+  /// Title of the About page.
+  ///
+  /// In en, this message translates to:
+  /// **'About Me'**
+  String get aboutTitle;
+
+  /// The maker's role, shown under their name on the About page.
+  ///
+  /// In en, this message translates to:
+  /// **'Founder & Developer'**
+  String get aboutRole;
+
+  /// Intro paragraph on the About page.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO is built and maintained by Ziad. Questions, ideas, or a bug to report — reach me directly on any of these.'**
+  String get aboutIntro;
+
+  /// Section label above the contact rows on the About page.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact'**
+  String get aboutSectionContact;
+
+  /// Row title for the WhatsApp contact on the About page.
+  ///
+  /// In en, this message translates to:
+  /// **'WhatsApp'**
+  String get aboutWhatsapp;
+
+  /// Row title for the email contact on the About page.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get aboutEmail;
+
+  /// Toast shown after tapping a contact row copies its value.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to clipboard'**
+  String get aboutCopied;
+
   /// Settings row opening the change-password flow.
   ///
   /// In en, this message translates to:
