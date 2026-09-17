@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -39,6 +43,46 @@ void main() {
         const StandardMethodCodec().encodeSuccessEnvelope(json),
         (_) {},
       );
+
+  /// A minimal but complete player-state JSON, as the SDK's `PlayerState`
+  /// decoder expects it — one track at [positionMs].
+  String playerStateJson({
+    required int positionMs,
+    bool isPaused = false,
+    String uri = 'spotify:track:abc',
+  }) => jsonEncode({
+    'track': {
+      'album': {'name': 'Album', 'uri': 'spotify:album:x'},
+      'artist': {'name': 'Artist', 'uri': 'spotify:artist:x'},
+      'artists': <Map<String, dynamic>>[],
+      'duration_ms': 200000,
+      'image_id': {'raw': ''},
+      'is_episode': false,
+      'is_podcast': false,
+      'name': 'Song',
+      'uri': uri,
+      'linked_from_uri': null,
+    },
+    'is_paused': isPaused,
+    'playback_speed': 1.0,
+    'playback_position': positionMs,
+    'playback_options': {'shuffle': false, 'repeat': 0},
+    'playback_restrictions': {
+      'can_skip_next': true,
+      'can_skip_prev': true,
+      'can_repeat_track': true,
+      'can_repeat_context': true,
+      'can_toggle_shuffle': true,
+      'can_seek': true,
+    },
+  });
+
+  /// Pushes one player-state event, as the native side would.
+  Future<void> emitPlayerState(String json) => messenger.handlePlatformMessage(
+    'player_state_subscription',
+    const StandardMethodCodec().encodeSuccessEnvelope(json),
+    (_) {},
+  );
 
   setUp(() {
     calls = [];
@@ -134,6 +178,112 @@ void main() {
       calls.clear();
       await music.reconnectIfLinked();
       expect(calls.map((c) => c.method), ['connectToSpotify']);
+    });
+  });
+
+  group('keeping the timeline in sync', () {
+    // The App Remote player-state stream fires on discrete events, not as a
+    // position clock, so the UI only interpolates the playhead between events —
+    // and it freezes while the app is backgrounded. These cover the reconcile
+    // that re-anchors it from Spotify's real position without a pause/play.
+
+    setUp(() {
+      SharedPreferences.setMockInitialValues({
+        'zivo.spotify.device_linked': true,
+        'zivo.spotify.access_token': 'stored-token',
+      });
+    });
+
+    Future<SpotifyMusicController> connectedPlaying(int positionMs) async {
+      final music = controller();
+      addTearDown(music.dispose);
+      await pumpEventQueue();
+      expect(music.currentConnection, MusicConnection.connected);
+      await emitPlayerState(playerStateJson(positionMs: positionMs));
+      await pumpEventQueue();
+      expect(music.currentNowPlaying?.position.inMilliseconds, positionMs);
+      return music;
+    }
+
+    test('a resume re-anchors a frozen playhead from the live position',
+        () async {
+      final music = await connectedPlaying(10000);
+
+      // Spotify is really at 1:00 now; our interpolation is stuck near 0:10.
+      messenger.setMockMethodCallHandler(sdkChannel, (call) async {
+        calls.add(call);
+        return switch (call.method) {
+          'getPlayerState' => playerStateJson(positionMs: 60000),
+          'connectToSpotify' => true,
+          _ => null,
+        };
+      });
+
+      calls.clear();
+      await music.reconnectIfLinked(); // the app came back to the foreground
+      await pumpEventQueue();
+
+      expect(calls.map((c) => c.method), contains('getPlayerState'));
+      expect(
+        music.currentNowPlaying?.position.inMilliseconds,
+        60000,
+        reason: 'the playhead snapped to Spotify\'s real position, no pause/play',
+      );
+    });
+
+    test('an in-sync playhead is left alone — no needless re-publish',
+        () async {
+      final music = await connectedPlaying(10000);
+      var emissions = 0;
+      final sub = music.nowPlaying.listen((_) => emissions++);
+      addTearDown(sub.cancel);
+
+      // Spotify reports essentially where we already are (within jitter).
+      messenger.setMockMethodCallHandler(sdkChannel, (call) async {
+        calls.add(call);
+        return switch (call.method) {
+          'getPlayerState' => playerStateJson(positionMs: 10200),
+          _ => null,
+        };
+      });
+
+      calls.clear();
+      await music.reconnectIfLinked();
+      await pumpEventQueue();
+
+      expect(calls.map((c) => c.method), contains('getPlayerState'));
+      expect(emissions, 0, reason: 'no drift → no rebuild');
+      expect(music.currentNowPlaying?.position.inMilliseconds, 10000);
+    });
+
+    test('the periodic reconcile corrects drift while playing', () {
+      fakeAsync((async) {
+        final music = controller();
+        addTearDown(music.dispose);
+        async.elapse(const Duration(milliseconds: 100));
+        async.flushMicrotasks();
+        expect(music.currentConnection, MusicConnection.connected);
+
+        unawaited(emitPlayerState(playerStateJson(positionMs: 10000)));
+        async.flushMicrotasks();
+        expect(music.currentNowPlaying?.position.inMilliseconds, 10000);
+
+        messenger.setMockMethodCallHandler(sdkChannel, (call) async {
+          calls.add(call);
+          return switch (call.method) {
+            'getPlayerState' => playerStateJson(positionMs: 90000),
+            _ => null,
+          };
+        });
+
+        calls.clear();
+        // No player event ever fires — only the reconcile poll runs.
+        async.elapse(const Duration(seconds: 5));
+        async.flushMicrotasks();
+
+        expect(calls.map((c) => c.method), contains('getPlayerState'));
+        expect(music.currentNowPlaying?.position.inMilliseconds, 90000);
+      });
     });
   });
 

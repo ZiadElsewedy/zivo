@@ -23,6 +23,7 @@ class RestRing extends StatefulWidget {
     required this.total,
     this.animate = true,
     this.accent,
+    this.accent2,
     Color? hue,
     this.onTap,
     this.isPaused = false,
@@ -49,6 +50,13 @@ class RestRing extends StatefulWidget {
   /// arc into it would read as the ring dimming, not as the ring changing
   /// colour. Null → the phase's own [hue].
   final Color? accent;
+
+  /// The cover's SECOND prominent colour ([SessionAmbience.vivid2Of]), when it
+  /// has one — the sweep then runs as a gradient from [accent] through this and
+  /// back, so the timer carries more of the song's palette than a single flat
+  /// tone. Null (mono / single-hue cover, or no music) → the sweep is the flat
+  /// [accent]/[hue] exactly as before.
+  final Color? accent2;
 
   /// The phase's colour: green while resting, ember during the warm-up.
   final Color? _hue;
@@ -140,6 +148,13 @@ class _RestRingState extends State<RestRing> with TickerProviderStateMixin {
   /// warm-up exactly as before.
   Color get _sweep => widget.accent ?? widget.hue;
 
+  /// The sweep's second colour. Falls back to [_sweep] when the cover has no
+  /// distinct second hue, so the gradient collapses to a flat tone — and, when
+  /// a track that HAD a second colour is replaced by one that doesn't, the
+  /// secondary tween glides to the primary so the gradient dissolves smoothly
+  /// rather than snapping.
+  Color get _sweep2 => widget.accent2 ?? _sweep;
+
   @override
   Widget build(BuildContext context) {
     _lastProgress ??= _trueProgress;
@@ -152,32 +167,42 @@ class _RestRingState extends State<RestRing> with TickerProviderStateMixin {
         children: [
           // The colour GLIDES between tracks rather than cutting: a hard swap
           // on a 290px ring reads as a glitch, a half-second ease reads as
-          // the screen responding to the skip.
+          // the screen responding to the skip. Both sweep colours tween on the
+          // same curve, so the two-tone gradient slides from one song's palette
+          // to the next's as one motion.
           TweenAnimationBuilder<Color?>(
             tween: ColorTween(end: _sweep),
             duration: reducedMotion(context)
                 ? Duration.zero
                 : const Duration(milliseconds: 650),
             curve: Curves.easeOut,
-            builder: (context, sweep, _) => AnimatedBuilder(
-              animation: Listenable.merge([_glow, _correction]),
-              builder: (context, _) {
-                final t = widget.animate
-                    ? Curves.easeInOut.transform(_glow.value)
-                    : 0.0;
-                final progress = (_trueProgress + _correction.value).clamp(
-                  0.0,
-                  1.0,
-                );
-                return CustomPaint(
-                  size: const Size(290, 290),
-                  painter: RestRingPainter(
-                    progress: progress,
-                    glow: t,
-                    sweep: sweep ?? _sweep,
-                  ),
-                );
-              },
+            builder: (context, sweep, _) => TweenAnimationBuilder<Color?>(
+              tween: ColorTween(end: _sweep2),
+              duration: reducedMotion(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 650),
+              curve: Curves.easeOut,
+              builder: (context, sweep2, _) => AnimatedBuilder(
+                animation: Listenable.merge([_glow, _correction]),
+                builder: (context, _) {
+                  final t = widget.animate
+                      ? Curves.easeInOut.transform(_glow.value)
+                      : 0.0;
+                  final progress = (_trueProgress + _correction.value).clamp(
+                    0.0,
+                    1.0,
+                  );
+                  return CustomPaint(
+                    size: const Size(290, 290),
+                    painter: RestRingPainter(
+                      progress: progress,
+                      glow: t,
+                      sweep: sweep ?? _sweep,
+                      sweep2: sweep2 ?? _sweep2,
+                    ),
+                  );
+                },
+              ),
             ),
           ),
           // The numeral owns the ring's exact centre. It used to share a
@@ -325,6 +350,7 @@ class RestRingPainter extends CustomPainter {
     required this.progress,
     required this.glow,
     required this.sweep,
+    required this.sweep2,
   });
 
   /// 1.0 = the full rest window remains, 0.0 = rest is over.
@@ -339,6 +365,12 @@ class RestRingPainter extends CustomPainter {
   /// caller so a song change glides rather than cuts.
   final Color sweep;
 
+  /// The sweep's second colour (see `_RestRingState._sweep2`). When it differs
+  /// from [sweep] the arc is painted as a gradient [sweep] → [sweep2] → [sweep]
+  /// around the ring; when equal (mono cover / no music) the gradient is a flat
+  /// [sweep], identical to the old single-colour ring.
+  final Color sweep2;
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
@@ -352,40 +384,52 @@ class RestRingPainter extends CustomPainter {
     final clamped = progress.clamp(0.0, 1.0);
     if (clamped <= 0) return;
     final rect = Rect.fromCircle(center: center, radius: radius);
-    final sweepColor = sweep;
 
     // The bloom under the sweep — a `drop-shadow` in the handoff, a wider,
     // softer arc here. It breathes with [glow] so the countdown reads as
-    // alive without anything moving.
+    // alive without anything moving. Kept the primary tone flat: it's a heavily
+    // blurred underlay, so a second hue in it would be imperceptible and only
+    // muddy the bloom.
     canvas.drawArc(
       rect,
       -math.pi / 2,
       2 * math.pi * clamped,
       false,
       Paint()
-        ..color = sweepColor.withValues(alpha: 0.16 + 0.10 * glow)
+        ..color = sweep.withValues(alpha: 0.16 + 0.10 * glow)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 7
         ..strokeCap = StrokeCap.round
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, 6 + 3 * glow),
     );
 
-    canvas.drawArc(
-      rect,
-      -math.pi / 2,
-      2 * math.pi * clamped,
-      false,
-      Paint()
-        ..color = sweepColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 7
-        ..strokeCap = StrokeCap.round,
-    );
+    // The crisp arc carries the song's palette: a sweep gradient from the
+    // primary through the second colour and back, anchored so the gradient
+    // starts at the ring's 12-o'clock origin. When the two colours are equal
+    // (no second hue / no music) this is a flat [sweep] — pixel-identical to
+    // the old ring.
+    final arc = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 7
+      ..strokeCap = StrokeCap.round;
+    if (sweep2 == sweep) {
+      arc.color = sweep;
+    } else {
+      arc.shader = SweepGradient(
+        startAngle: 0,
+        endAngle: 2 * math.pi,
+        transform: const GradientRotation(-math.pi / 2),
+        colors: [sweep, sweep2, sweep],
+        stops: const [0.0, 0.5, 1.0],
+      ).createShader(rect);
+    }
+    canvas.drawArc(rect, -math.pi / 2, 2 * math.pi * clamped, false, arc);
   }
 
   @override
   bool shouldRepaint(covariant RestRingPainter oldDelegate) =>
       oldDelegate.progress != progress ||
       oldDelegate.glow != glow ||
-      oldDelegate.sweep != sweep;
+      oldDelegate.sweep != sweep ||
+      oldDelegate.sweep2 != sweep2;
 }

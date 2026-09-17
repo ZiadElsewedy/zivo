@@ -239,6 +239,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             // those run against the State's context, which sits ABOVE
             // SessionAmbience and would resolve to null.
             final vivid = SessionAmbience.vividOf(context);
+            // The cover's second prominent colour (null when it has none) — the
+            // countdown ring sweeps through both so the timer reacts to the
+            // song's palette, not just one flat accent.
+            final vivid2 = SessionAmbience.vivid2Of(context);
             return Scaffold(
               backgroundColor: Colors.transparent,
               body: Stack(
@@ -384,7 +388,11 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                                                     ),
                                           child: KeyedSubtree(
                                             key: ValueKey(_phaseKey),
-                                            child: _buildPhase(accent, vivid),
+                                            child: _buildPhase(
+                                            accent,
+                                            vivid,
+                                            vivid2,
+                                          ),
                                           ),
                                         ),
                                       ),
@@ -564,7 +572,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     return 'running:${_c.session.currentSet?.id}';
   }
 
-  Widget _buildPhase(Color? accent, Color? vivid) {
+  Widget _buildPhase(Color? accent, Color? vivid, Color? vivid2) {
     if (_c.session.isComplete) {
       return CompletedPhase(
         controller: _c,
@@ -581,6 +589,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         isPaused: _c.session.isPaused,
         hue: TrainColors.ember,
         accent: vivid,
+        accent2: vivid2,
         label: l(context).livePreWorkout,
         pausedLabel: l(context).livePaused,
         runningIcon: AppIcons.streak,
@@ -603,6 +612,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         isPaused: _c.session.isPaused,
         hue: TrainColors.green,
         accent: vivid,
+        accent2: vivid2,
         label: l(context).liveRest,
         pausedLabel: l(context).livePausedCaps,
         runningGlyph: TrainPauseGlyph(color: TrainColors.green, size: 11),

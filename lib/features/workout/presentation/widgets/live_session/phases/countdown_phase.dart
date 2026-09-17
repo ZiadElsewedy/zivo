@@ -40,6 +40,7 @@ class CountdownPhase extends StatelessWidget {
     required this.onAdjust,
     required this.onSkip,
     this.accent,
+    this.accent2,
     this.runningIcon,
     this.runningGlyph,
     super.key,
@@ -56,6 +57,11 @@ class CountdownPhase extends StatelessWidget {
 
   /// The ambience tint pulled from the current artwork, when there is any.
   final Color? accent;
+
+  /// The cover's second prominent colour ([SessionAmbience.vivid2Of]), when it
+  /// has one — the ring sweeps from [accent] through this so the timer carries
+  /// more of the song's palette. Null → the ring stays the single [accent].
+  final Color? accent2;
 
   final String label;
   final String pausedLabel;
@@ -114,6 +120,7 @@ class CountdownPhase extends StatelessWidget {
             animate: !isPaused,
             hue: hue,
             accent: accent,
+            accent2: accent2,
             onTap: onTogglePause,
             isPaused: isPaused,
           ),

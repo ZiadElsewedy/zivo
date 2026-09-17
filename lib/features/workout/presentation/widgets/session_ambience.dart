@@ -22,6 +22,9 @@ import '../../../../core/theme/train_tokens.dart';
 ///  * [SessionAmbience.vividOf] — a clamped-legible foreground accent (vibrant
 ///    swatch, held to a tasteful ceiling) for marks drawn ON the ground (the
 ///    rest-ring sweep, transport controls).
+///  * [SessionAmbience.vivid2Of] — a SECOND legible accent, the cover's most
+///    hue-distinct other colour, so the rest-ring can sweep a two-tone gradient
+///    of the song's palette instead of one flat accent (null for mono covers).
 ///  * [SessionAmbience.fieldOf] — a **wide, population-weighted, luminance-
 ///    ceilinged [SessionField]**: 1–5 distinct hues pulled from across the whole
 ///    cover (so a blue-and-orange album really glows blue *and* orange), plus a
@@ -71,6 +74,16 @@ class SessionAmbience extends StatefulWidget {
   static Color? vividOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_AmbienceScope>()?.data.vivid;
 
+  /// A SECOND, hue-distinct foreground accent pulled from the wide field — the
+  /// cover's other prominent colour, normalised to the same legible band as
+  /// [vividOf]. Lets a surface sweep through TWO of the song's colours (the
+  /// timer ring) instead of a single flat one, so the timer reacts as richly to
+  /// the artwork as the background does. Null when the cover has no second hue
+  /// far enough from [vividOf] to read as distinct (a monochrome / single-hue
+  /// cover), so the ring cleanly stays one colour rather than faking variety.
+  static Color? vivid2Of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_AmbienceScope>()?.data.vivid2;
+
   /// The current track's **wide, animated colour field** — 1–5 distinct hues
   /// from across the cover plus the derived energy/mood, or null when there is
   /// no live artwork. Consumed by [SessionAuroraField] to paint the reactive
@@ -101,6 +114,7 @@ class SessionAmbience extends StatefulWidget {
 class _SessionAmbienceState extends State<SessionAmbience> {
   Color? _accent;
   Color? _vivid;
+  Color? _vivid2;
   SessionField? _field;
 
   @override
@@ -129,7 +143,11 @@ class _SessionAmbienceState extends State<SessionAmbience> {
     if (bytes == null || bytes.isEmpty) return;
     final cached = _accentCache[key];
     if (cached != null) {
-      if (_accent != cached.ambient || _field != cached.field) _apply(cached);
+      if (_accent != cached.ambient ||
+          _vivid2 != cached.vivid2 ||
+          _field != cached.field) {
+        _apply(cached);
+      }
       return;
     }
     unawaited(_runExtraction(bytes, key));
@@ -166,9 +184,11 @@ class _SessionAmbienceState extends State<SessionAmbience> {
       // colour. Built from the raw population-weighted swatch list, not the
       // named ones, so it can span the whole cover.
       final field = buildSessionField(palette.paletteColors);
+      final vivid = _legible(vividRaw ?? ambientRaw);
       final accent = (
         ambient: _ambientWash(ambientRaw),
-        vivid: _legible(vividRaw ?? ambientRaw),
+        vivid: vivid,
+        vivid2: _secondaryVivid(field, vivid),
         field: field,
       );
       _accentCache[key] = accent;
@@ -183,12 +203,14 @@ class _SessionAmbienceState extends State<SessionAmbience> {
       if (!mounted) return;
       if (_accent == accent.ambient &&
           _vivid == accent.vivid &&
+          _vivid2 == accent.vivid2 &&
           _field == accent.field) {
         return;
       }
       setState(() {
         _accent = accent.ambient;
         _vivid = accent.vivid;
+        _vivid2 = accent.vivid2;
         _field = accent.field;
       });
     });
@@ -226,6 +248,28 @@ class _SessionAmbienceState extends State<SessionAmbience> {
         .toColor();
   }
 
+  /// The cover's SECOND foreground colour: the wide field's stop whose hue sits
+  /// farthest from [primary] (the main [vivid]), normalised into the same
+  /// legible band via [_legible]. Returns null when nothing is at least 40°
+  /// away — a monochrome or single-hue cover has no honest second colour, and a
+  /// near-duplicate would make the ring's two-tone sweep read as a flat colour
+  /// anyway. Feeds [SessionAmbience.vivid2Of].
+  static Color? _secondaryVivid(SessionField? field, Color primary) {
+    if (field == null || field.stops.length < 2) return null;
+    final primaryHue = HSLColor.fromColor(primary).hue;
+    Color? best;
+    var bestDist = 0.0;
+    for (final stop in field.stops) {
+      final d = _hueDist(HSLColor.fromColor(stop).hue, primaryHue);
+      if (d > bestDist) {
+        bestDist = d;
+        best = stop;
+      }
+    }
+    if (best == null || bestDist < 40) return null;
+    return _legible(best);
+  }
+
   /// Per-track extraction cache — shared across phase rebuilds so a track's
   /// palette runs exactly once per process.
   static final Map<String, _Accent> _accentCache = {};
@@ -238,6 +282,7 @@ class _SessionAmbienceState extends State<SessionAmbience> {
         data: const _AmbienceData(
           accent: null,
           vivid: null,
+          vivid2: null,
           field: null,
           trackKey: null,
         ),
@@ -253,6 +298,7 @@ class _SessionAmbienceState extends State<SessionAmbience> {
             data: const _AmbienceData(
               accent: null,
               vivid: null,
+              vivid2: null,
               field: null,
               trackKey: null,
             ),
@@ -275,6 +321,9 @@ class _SessionAmbienceState extends State<SessionAmbience> {
             final vividForTrack = playing == null
                 ? null
                 : (cached?.vivid ?? _vivid);
+            final vivid2ForTrack = playing == null
+                ? null
+                : (cached?.vivid2 ?? _vivid2);
             final fieldForTrack = playing == null
                 ? null
                 : (cached?.field ?? _field);
@@ -283,6 +332,7 @@ class _SessionAmbienceState extends State<SessionAmbience> {
               data: _AmbienceData(
                 accent: accentForTrack,
                 vivid: vividForTrack,
+                vivid2: vivid2ForTrack,
                 field: fieldForTrack,
                 trackKey: playing?.trackId,
               ),
@@ -597,18 +647,25 @@ class _HueCand {
 /// The three derivations of one track's artwork — see [SessionAmbience.of]
 /// (ambient), [SessionAmbience.vividOf] (vivid) and [SessionAmbience.fieldOf]
 /// (the wide field).
-typedef _Accent = ({Color ambient, Color vivid, SessionField? field});
+typedef _Accent = ({
+  Color ambient,
+  Color vivid,
+  Color? vivid2,
+  SessionField? field,
+});
 
 class _AmbienceData {
   const _AmbienceData({
     required this.accent,
     required this.vivid,
+    required this.vivid2,
     required this.field,
     required this.trackKey,
   });
 
   final Color? accent;
   final Color? vivid;
+  final Color? vivid2;
   final SessionField? field;
   final String? trackKey;
 }
@@ -622,6 +679,7 @@ class _AmbienceScope extends InheritedWidget {
   bool updateShouldNotify(_AmbienceScope oldWidget) =>
       oldWidget.data.accent != data.accent ||
       oldWidget.data.vivid != data.vivid ||
+      oldWidget.data.vivid2 != data.vivid2 ||
       oldWidget.data.field != data.field ||
       oldWidget.data.trackKey != data.trackKey;
 }

@@ -137,6 +137,27 @@ class SpotifyMusicController implements MusicController {
   /// can't strand the strip on "Connecting…" forever.
   static const _attachTimeout = Duration(seconds: 15);
 
+  /// Cadence of the position reconcile poll (see [_reconcilePosition]). Slow
+  /// enough to be negligible for battery — one lightweight App Remote IPC every
+  /// few seconds, and none at all while paused — but frequent enough that a
+  /// frozen/drifted timeline snaps back within a couple of seconds rather than
+  /// waiting on a pause/play.
+  static const _reconcileInterval = Duration(seconds: 4);
+
+  /// How far the interpolated playhead may drift from Spotify's real position
+  /// before a reconcile re-anchors it. Comfortably above ordinary App Remote
+  /// jitter (a few hundred ms) so steady playback re-publishes nothing, yet
+  /// small enough that a correction is imperceptible when it does happen.
+  static const _maxDrift = Duration(milliseconds: 1200);
+
+  /// The reconcile poll, live only while connected.
+  Timer? _reconcileTimer;
+
+  /// Wall-clock time [_current]'s position was last taken from Spotify (a
+  /// subscription emission or a reconcile) — lets [_reconcilePosition] predict
+  /// the interpolated playhead and re-publish only on real drift.
+  DateTime? _positionAnchoredAt;
+
   StreamSubscription<PlayerState>? _playerStateSub;
   StreamSubscription<ConnectionStatus>? _connectionStatusSub;
 
@@ -255,8 +276,13 @@ class SpotifyMusicController implements MusicController {
   @override
   Future<void> reconnectIfLinked() async {
     if (!_linked) return;
-    if (_connectionState == MusicConnection.connecting ||
-        _connectionState == MusicConnection.connected) {
+    if (_connectionState == MusicConnection.connecting) return;
+    if (_connectionState == MusicConnection.connected) {
+      // The App Remote socket survived the background, but the playhead froze
+      // while we were away (the interpolation ticker was muted) and no player
+      // event will re-anchor it. Correct it at once so the timeline is right
+      // the instant the user is looking again, instead of on the next poll.
+      await _reconcilePosition();
       return;
     }
     // A resume is a fresh chance, so the previous run's spent retry shouldn't
@@ -399,49 +425,116 @@ class SpotifyMusicController implements MusicController {
   void _subscribePlayerState() {
     if (_playerStateSub != null) return; // already live; don't stack listeners
     _playerStateSub = SpotifySdk.subscribePlayerState().listen(
-      (state) async {
-        final track = state.track;
-        if (track == null) {
+      (state) {
+        if (state.track == null) {
           // App Remote emits track-less states transiently mid-skip. Don't
           // publish them — a one-frame "Nothing playing" flash between two
           // songs reads as breakage; the real track arrives a beat later.
           return;
         }
-        // Publish the track IMMEDIATELY with whatever artwork is already
-        // cached — title/artist/duration/position must never wait on an
-        // artwork round-trip to the Spotify app. If artwork isn't cached,
-        // fetch it out-of-band and republish (see [_fetchArtworkAndRepublish]).
-        final artwork = _cachedArtworkIfAny(track);
-        _current = NowPlaying(
-          trackId: track.uri,
-          title: track.name,
-          artist: track.artist.name ?? '',
-          artworkBytes: artwork,
-          duration: Duration(milliseconds: track.duration),
-          position: Duration(milliseconds: state.playbackPosition),
-          isPaused: state.isPaused,
-          // Real, observed shuffle/repeat straight from the player state, so the
-          // controls reflect Spotify's truth (including changes made on another
-          // device), not an optimistic local toggle. `.name` sidesteps the
-          // package's two same-named `RepeatMode` types (see the import note).
-          isShuffling: state.playbackOptions.isShuffling,
-          repeatMode: _repeatFromName(state.playbackOptions.repeatMode.name),
-          // App Remote alone can't see other Spotify Connect devices — that
-          // needs the separate Web API's "available devices" endpoint, which
-          // this integration doesn't call. True is a safe default until that's
-          // added; a genuinely different active device would otherwise show as
-          // this app having control when it doesn't.
-          hasControl: true,
-        );
-        if (!_nowPlayingController.isClosed) _nowPlayingController.add(_current);
-        if (artwork == null && track.imageUri.raw.isNotEmpty) {
-          unawaited(_fetchArtworkAndRepublish(track));
-        }
+        _publishFromState(state);
       },
       onError: (Object error) {
         if (error is PlatformException) _failed(_mapErrorCode(error.code));
       },
     );
+    _startReconcile();
+  }
+
+  /// Publishes [state] as the current [NowPlaying] and re-anchors the playhead.
+  ///
+  /// Shared by the player-state subscription and the reconcile poll
+  /// ([_reconcilePosition]) so both re-anchor identically. The track is
+  /// published IMMEDIATELY with whatever artwork is already cached —
+  /// title/artist/duration/position must never wait on an artwork round-trip to
+  /// the Spotify app; if artwork isn't cached, it's fetched out-of-band and
+  /// republished (see [_fetchArtworkAndRepublish]).
+  void _publishFromState(PlayerState state) {
+    final track = state.track;
+    if (track == null) return;
+    final artwork = _cachedArtworkIfAny(track);
+    _current = NowPlaying(
+      trackId: track.uri,
+      title: track.name,
+      artist: track.artist.name ?? '',
+      artworkBytes: artwork,
+      duration: Duration(milliseconds: track.duration),
+      position: Duration(milliseconds: state.playbackPosition),
+      isPaused: state.isPaused,
+      // Real, observed shuffle/repeat straight from the player state, so the
+      // controls reflect Spotify's truth (including changes made on another
+      // device), not an optimistic local toggle. `.name` sidesteps the
+      // package's two same-named `RepeatMode` types (see the import note).
+      isShuffling: state.playbackOptions.isShuffling,
+      repeatMode: _repeatFromName(state.playbackOptions.repeatMode.name),
+      // App Remote alone can't see other Spotify Connect devices — that
+      // needs the separate Web API's "available devices" endpoint, which
+      // this integration doesn't call. True is a safe default until that's
+      // added; a genuinely different active device would otherwise show as
+      // this app having control when it doesn't.
+      hasControl: true,
+    );
+    // Wall-clock stamp of this fresh position, so [_reconcilePosition] can tell
+    // where the UI's interpolation *should* be by now and skip a needless
+    // re-publish while playback is already in sync.
+    _positionAnchoredAt = DateTime.now();
+    if (!_nowPlayingController.isClosed) _nowPlayingController.add(_current);
+    if (artwork == null && track.imageUri.raw.isNotEmpty) {
+      unawaited(_fetchArtworkAndRepublish(track));
+    }
+  }
+
+  /// Low-frequency position reconcile — the fix for a timeline that freezes or
+  /// drifts out of sync with Spotify without the user pausing/playing to force
+  /// it back.
+  ///
+  /// `subscribePlayerState` fires on discrete player *events* (track change,
+  /// play/pause, seek), NOT as a position clock, so between events every
+  /// progress display only interpolates the playhead forward from the last
+  /// emission. That interpolation drifts, and — worse — freezes outright while
+  /// the app is backgrounded (Flutter mutes its ticker) even as Spotify keeps
+  /// playing, with no fresh event to re-anchor it on resume when the App Remote
+  /// socket happened to survive. This poll fetches the real position and
+  /// re-publishes ONLY when it has drifted past [_maxDrift] (or the paused flag
+  /// changed), so the UI self-corrects continuously with no pause/play and,
+  /// because in-sync playback re-publishes nothing, no needless rebuilds.
+  void _startReconcile() {
+    _reconcileTimer?.cancel();
+    _reconcileTimer = Timer.periodic(
+      _reconcileInterval,
+      (_) => unawaited(_reconcilePosition()),
+    );
+  }
+
+  Future<void> _reconcilePosition() async {
+    if (_connectionState != MusicConnection.connected) return;
+    final current = _current;
+    // Paused playback can't drift; skip the round-trip entirely (the
+    // subscription still catches a play/pause made on another device).
+    if (current == null || current.isPaused) return;
+
+    PlayerState? state;
+    try {
+      state = await SpotifySdk.getPlayerState();
+    } on Exception {
+      // A genuine drop is [_watchConnectionStatus]'s job to report, not this
+      // poll's — stay quiet and let the next tick (or the status channel) act.
+      return;
+    }
+    final track = state?.track;
+    if (state == null || track == null) return;
+    // A track change is the subscription's business; don't race it from here.
+    if (track.uri != current.trackId) return;
+
+    final actual = Duration(milliseconds: state.playbackPosition);
+    final anchoredAt = _positionAnchoredAt;
+    // Where the UI's interpolation believes the playhead sits right now.
+    final expected = anchoredAt == null
+        ? current.position
+        : current.position + DateTime.now().difference(anchoredAt);
+    final drift = (actual - expected).abs();
+    if (state.isPaused == current.isPaused && drift <= _maxDrift) return;
+    _publishFromState(state);
   }
 
   /// Publishes a failed or lost connection, drops the track it was carrying,
@@ -455,6 +548,9 @@ class SpotifyMusicController implements MusicController {
   void _failed(MusicConnection state) {
     unawaited(_playerStateSub?.cancel());
     _playerStateSub = null;
+    _reconcileTimer?.cancel();
+    _reconcileTimer = null;
+    _positionAnchoredAt = null;
     if (_current != null) {
       _current = null;
       if (!_nowPlayingController.isClosed) _nowPlayingController.add(null);
@@ -481,6 +577,9 @@ class SpotifyMusicController implements MusicController {
   @override
   Future<void> disconnect() async {
     _retryTimer?.cancel();
+    _reconcileTimer?.cancel();
+    _reconcileTimer = null;
+    _positionAnchoredAt = null;
     _retried = false;
     _token = null;
     _setLinked(false);
@@ -591,6 +690,7 @@ class SpotifyMusicController implements MusicController {
   @override
   void dispose() {
     _retryTimer?.cancel();
+    _reconcileTimer?.cancel();
     _playerStateSub?.cancel();
     _connectionStatusSub?.cancel();
     _routeSub?.cancel();
