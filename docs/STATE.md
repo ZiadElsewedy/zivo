@@ -191,11 +191,17 @@ notifications)**.
   "Replace" button outside chat (§9's own note) — real work the brief's actual ask (the
   conversational paths) never required.
   - Tests: 545 backend pass (1 new); full suite still green.
-  - **Owner follow-up**: `search_food_product`/`create_custom_food`/
-    `suggest_meal_replacement`/`replace_meal_item` are new Firebase Functions exports, and
-    `diet_generate.js`'s and the system prompt's text changed across all four phases — need
-    a `functions` deploy (owner's creds) before any of this is live; see the diet/ai
-    `FEATURE.md`s' existing "functions deploy" gotcha.
+  - **Deployed and LIVE** (2026-09-23, `firebase deploy --only functions` on `zivo-63f15`,
+    owner's creds). All 15 functions redeployed clean (`ACTIVE`, healthy startup probes) —
+    notably `aiChat` (new tools + `GEMINI_API_KEY` secret confirmed bound for
+    `search_food_product`'s grounding call), `aiGenerateDietPlan` (`country` field) and
+    `aiConfirmAction` (the new `create_custom_food`/`replace_meal_item` write-dispatch
+    cases — easy to miss redeploying since `aiChat` proposes them but `aiConfirmAction`
+    writes them; both needed the same deploy). Required a one-time `npm install` in
+    `functions/` (no `node_modules` existed in this worktree) and fixing a dozen
+    pre-existing-uncaught `eslint max-len` (80-col) violations across the phase's new/
+    changed files — no behavior change, just line wraps; `firebase deploy`'s predeploy
+    hook runs `npm run lint` and blocks on failure.
 - **Music-reactive session background — "Aurora Well"** (2026-09-15, on `upgrades`).
   The live workout session's background now reacts to the playing Spotify track's
   album art. The old ambience desaturated every cover to the same charcoal (sat
