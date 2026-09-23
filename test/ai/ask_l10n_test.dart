@@ -218,7 +218,7 @@ void main() {
         'Concise',
         'Balanced',
         'Detailed',
-        'Auto',
+        'Active',
       ]) {
         expect(
           find.text(english),
@@ -230,8 +230,8 @@ void main() {
       expect(find.text('موجز'), findsOneWidget);
       expect(find.text('متوازن'), findsOneWidget);
       expect(find.text('مفصّل'), findsOneWidget);
-      // The model section's "Auto" word, in Arabic.
-      expect(find.text('تلقائي'), findsOneWidget);
+      // The active-model badge, in Arabic.
+      expect(find.text('نشط'), findsOneWidget);
     });
 
     testWidgets('a chat\'s relative timestamp is translated', (tester) async {

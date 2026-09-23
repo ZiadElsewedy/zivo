@@ -97,6 +97,39 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **One active AI model (no fallback), provider-named errors, working Retry,
+  per-provider usage page** (2026-09-23, on `upgrades`, follow-up to the entry
+  below — which it **supersedes** on routing). Owner decisions: exactly one active
+  model answers every request (no Auto, no silent provider switching — cost must be
+  attributable); Gemini Pro removed (never resolved for the key); Gemini Flash kept
+  (owner uses it for more detailed, better-structured replies).
+  - **Backend:** `router.js` rewritten — `resolve()` returns ONE route (the user's
+    `settings/ai.provider`, else `claude-sonnet`); cooldowns/fallback removed. A
+    provider failure → `AiUnavailableError(kind, [{provider, model}])` →
+    `HttpsError('unavailable', "<Claude|Gemini> is unavailable — …", {reason:
+    'ai_unavailable', kind, provider, model})`. `models.js`: Sonnet · Haiku · Flash;
+    `'gemini-pro'` → Flash, `'auto'` → default. Usage records dropped the fallback
+    fields. `food_search` grounding still always runs on Gemini (logged as its own
+    `food_search` record) — **open question for the owner** whether to disable it
+    while Claude is active.
+  - **App:** model list is Claude Sonnet (default) · Claude Haiku · Gemini Flash
+    with an **"Active" badge** on the live one. Chat error card now names the
+    provider and the reason ("Claude isn't available · its usage limit has been
+    reached…", "Gemini didn't respond", "Gemini is busy") with a **Switch model**
+    button. Root cause of the generic "Couldn't reach ZIVO / wasn't sent": the
+    streaming callable surfaces errors as a raw `PlatformException`, which
+    `aiFailureFrom` now maps. **Retry bug fixed:** the server saves the user
+    message before calling the model, so the optimistic bubble was already
+    cleared when the model failed and `retry()` (which read `_pendingText`) did
+    nothing; it now re-sends `_turnText` with the same turn id and the model
+    active *now*. **AI usage page** reworked: Claude | Gemini switch → estimated
+    cost, cost per completed request, requests (total · chat · generate · import ·
+    other · failed), tokens (used · input · output), recent requests.
+  - Tests: functions 554 pass; Flutter full suite passes except the pre-existing
+    `light_mode_smoke_test` Hub contrast failure.
+  - **Owner action:** `firebase deploy --only functions` — until deployed the old
+    backend still runs Claude-first and ignores the Gemini selection (that is why
+    "is that Gemini model?" failed with Claude out of credit).
 - **AI provider fallback, model selection, per-request usage + cost, clean AI
   errors; Diet Builder country picker** (2026-09-23, on `upgrades`). Owner's Claude
   credit ran low and plan generation failed with a raw
@@ -141,9 +174,8 @@ notifications)**.
     server-side until deployed (the app degrades gracefully meanwhile: an old
     backend just keeps today's behaviour); (2) Gemini prices in `routing/models.js`
     are list-price estimates for rolling aliases — confirm against the Google bill;
-    (3) `gemini-pro-latest` is unverified for this key — if it 404s the router falls
-    through to the next model, but pick Gemini Pro once and check the usage page
-    shows "Gemini Pro" answering. No Firestore rules change needed (`settings/*` is
+    (3) *(superseded: Gemini Pro removed, see the entry above)*. No Firestore
+    rules change needed (`settings/*` is
     open-shaped; `aiUsage` was already owner-readable).
 - **Fixed: error logs for the three whole-document/generate AI callables were**
   **silently swallowing the real failure reason** (2026-09-23, on

@@ -3668,18 +3668,6 @@ abstract class AppLocalizations {
   /// **'Choose which AI model ZIVO uses.'**
   String get askModelSheetSubtitle;
 
-  /// Model option: automatically pick the best model (Claude, with a Gemini fallback).
-  ///
-  /// In en, this message translates to:
-  /// **'Auto'**
-  String get askModelAuto;
-
-  /// One-line description of the Auto model option.
-  ///
-  /// In en, this message translates to:
-  /// **'Claude first — Gemini steps in automatically if Claude can\'t answer.'**
-  String get askModelAutoDesc;
-
   /// Model option: always use Claude (Anthropic). A product name — keep as-is in every language.
   ///
   /// In en, this message translates to:
@@ -3713,7 +3701,7 @@ abstract class AppLocalizations {
   /// Subtitle under the Usage section header.
   ///
   /// In en, this message translates to:
-  /// **'Tokens and estimated cost per provider, all-time.'**
+  /// **'Tap a provider for its requests, tokens and cost.'**
   String get askUsageSubtitle;
 
   /// Shown in the Usage section when the user has never used Ask.
@@ -9726,22 +9714,10 @@ abstract class AppLocalizations {
   /// **'Google\'s fast model — the lowest cost.'**
   String get askModelGeminiFlashDesc;
 
-  /// Model option: Google's Gemini Pro. Product name — keep as-is.
-  ///
-  /// In en, this message translates to:
-  /// **'Gemini Pro'**
-  String get askModelGeminiPro;
-
-  /// Description of the Gemini Pro option.
-  ///
-  /// In en, this message translates to:
-  /// **'Google\'s deepest reasoning — slower.'**
-  String get askModelGeminiProDesc;
-
   /// Note under the model list explaining scope and automatic fallback.
   ///
   /// In en, this message translates to:
-  /// **'Used for chat, plan imports and the plan builder. If your choice is unavailable, ZIVO switches to another model automatically — you still get an answer.'**
+  /// **'The active model answers everything — chat, plan imports and the plan builder. ZIVO never switches models on its own: if the active one is unavailable, you\'ll be told, and you can switch here.'**
   String get askModelAppliesNote;
 
   /// Number of AI requests, e.g. '37 requests'.
@@ -9756,29 +9732,11 @@ abstract class AppLocalizations {
   /// **'AI usage'**
   String get aiUsageTitle;
 
-  /// Row that opens the full AI usage page.
-  ///
-  /// In en, this message translates to:
-  /// **'See every request'**
-  String get aiUsageSeeAll;
-
-  /// Subtitle of the row that opens the AI usage page.
-  ///
-  /// In en, this message translates to:
-  /// **'Tokens and cost by provider, feature and request.'**
-  String get aiUsageSeeAllDesc;
-
   /// Label for the all-time total on the AI usage page.
   ///
   /// In en, this message translates to:
   /// **'Total'**
   String get aiUsageTotal;
-
-  /// Section header: usage per AI provider.
-  ///
-  /// In en, this message translates to:
-  /// **'By provider'**
-  String get aiUsageByProvider;
 
   /// Section header: usage per app feature (chat, import…).
   ///
@@ -9803,12 +9761,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{tokensIn} in · {tokensOut} out'**
   String aiUsageInOut(String tokensIn, String tokensOut);
-
-  /// Badge on a request that was answered by the fallback model.
-  ///
-  /// In en, this message translates to:
-  /// **'Backup model'**
-  String get aiUsageFellBack;
 
   /// Badge on a request that failed.
   ///
@@ -9869,24 +9821,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'AI request'**
   String get aiFeatureOther;
-
-  /// Shown when every AI model is unavailable. Never mentions providers or credits.
-  ///
-  /// In en, this message translates to:
-  /// **'ZIVO\'s AI is taking a short break. Please try again in a few minutes.'**
-  String get aiErrorUnavailable;
-
-  /// Chat error title when every AI model is unavailable.
-  ///
-  /// In en, this message translates to:
-  /// **'ZIVO\'s AI is taking a short break'**
-  String get aiErrorUnavailableTitle;
-
-  /// Chat error body when every AI model is unavailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Try again in a few minutes.'**
-  String get aiErrorUnavailableBody;
 
   /// Shown when the daily allowance is used up.
   ///
@@ -9953,6 +9887,186 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clear'**
   String get dietBuilderCountryClear;
+
+  /// Badge on the model that is currently answering every AI request.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get askModelActive;
+
+  /// Error title: the active AI provider (Claude/Gemini) can't answer.
+  ///
+  /// In en, this message translates to:
+  /// **'{provider} isn\'t available'**
+  String aiProviderUnavailableTitle(String provider);
+
+  /// Error title: the active AI provider timed out.
+  ///
+  /// In en, this message translates to:
+  /// **'{provider} didn\'t respond'**
+  String aiProviderNoResponseTitle(String provider);
+
+  /// Error title: the active AI provider is rate-limited or overloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'{provider} is busy'**
+  String aiProviderBusyTitle(String provider);
+
+  /// Stands in for the provider name when the server didn't say which.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI model'**
+  String get aiModelGeneric;
+
+  /// Provider failure: its credit/quota is used up.
+  ///
+  /// In en, this message translates to:
+  /// **'Its usage limit has been reached. Switch the active model in Ask settings, then tap Retry.'**
+  String get aiIssueOutOfCredit;
+
+  /// Provider failure: the server's key was rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'It isn\'t set up correctly right now. Switch the active model in Ask settings.'**
+  String get aiIssueNotConfigured;
+
+  /// Provider failure: rate-limited.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many requests right now — try again in a minute.'**
+  String get aiIssueBusy;
+
+  /// Provider failure: overloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'The provider is overloaded right now. Try again shortly, or switch model.'**
+  String get aiIssueOverloaded;
+
+  /// Provider failure: timed out.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI model didn\'t answer in time. Try again.'**
+  String get aiIssueNoResponse;
+
+  /// Provider failure: model id retired.
+  ///
+  /// In en, this message translates to:
+  /// **'This model is no longer offered. Pick another in Ask settings.'**
+  String get aiIssueModelRetired;
+
+  /// Provider failure: down or erroring.
+  ///
+  /// In en, this message translates to:
+  /// **'The provider is having problems right now. Try again later, or switch model in Ask settings.'**
+  String get aiIssueDown;
+
+  /// Chat error body: the phone couldn't reach the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your connection, then tap Retry.'**
+  String get aiErrorNetworkBody;
+
+  /// Chat error title with no specific cause.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong'**
+  String get aiErrorUnknownTitle;
+
+  /// Chat error body with no specific cause.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO couldn\'t finish that reply. Tap Retry.'**
+  String get aiErrorUnknownBody;
+
+  /// Button on an AI error that opens the model picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch model'**
+  String get aiSwitchModel;
+
+  /// Usage stat label.
+  ///
+  /// In en, this message translates to:
+  /// **'Total requests'**
+  String get aiUsageTotalRequests;
+
+  /// Usage stat label: Ask chat turns.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat requests'**
+  String get aiUsageChatRequests;
+
+  /// Usage stat label: diet plan builder generations.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate requests'**
+  String get aiUsageGenerateRequests;
+
+  /// Usage stat label: workout/diet plan imports.
+  ///
+  /// In en, this message translates to:
+  /// **'Import requests'**
+  String get aiUsageImportRequests;
+
+  /// Usage stat label: everything else.
+  ///
+  /// In en, this message translates to:
+  /// **'Other (food search, voice)'**
+  String get aiUsageOtherRequests;
+
+  /// Usage stat label.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed requests'**
+  String get aiUsageFailedRequests;
+
+  /// Usage stat label: input + output tokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens used'**
+  String get aiUsageTokensUsed;
+
+  /// Usage stat label.
+  ///
+  /// In en, this message translates to:
+  /// **'Input tokens'**
+  String get aiUsageInputTokens;
+
+  /// Usage stat label.
+  ///
+  /// In en, this message translates to:
+  /// **'Output tokens'**
+  String get aiUsageOutputTokens;
+
+  /// Usage stat label.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated cost'**
+  String get aiUsageEstimatedCost;
+
+  /// Usage stat label: average cost of a completed request.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost per request'**
+  String get aiUsageCostPerRequest;
+
+  /// Usage page section header.
+  ///
+  /// In en, this message translates to:
+  /// **'Requests'**
+  String get aiUsageRequestsSection;
+
+  /// Usage page section header.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens'**
+  String get aiUsageTokensSection;
+
+  /// Usage page empty state for one provider.
+  ///
+  /// In en, this message translates to:
+  /// **'No {provider} requests yet.'**
+  String aiUsageProviderEmpty(String provider);
 }
 
 class _AppLocalizationsDelegate

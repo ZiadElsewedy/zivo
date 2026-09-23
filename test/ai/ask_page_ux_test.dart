@@ -284,7 +284,7 @@ void main() {
       // The turn failed: quiet inline card, message kept in its bubble.
       expect(find.byKey(const Key('error-retry')), findsOneWidget);
       expect(find.text("Couldn't reach ZIVO"), findsOneWidget);
-      expect(find.text('Your message wasn\u2019t sent.'), findsOneWidget);
+      expect(find.text('Check your connection, then tap Retry.'), findsOneWidget);
       expect(find.text('what is due this week?'), findsOneWidget);
 
       // Retry goes through: card retires, canned reply types in.

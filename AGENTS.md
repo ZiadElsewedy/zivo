@@ -202,20 +202,22 @@ runAiTurn: SYSTEM_PROMPT (cached) + uncached CONTEXT block (user's local
   its input/result; the client maps it to human copy ("Reading today's diet…").
 - **Providers:** behind a `NormalizedRequest`/`NormalizedResponse` seam
   ([`providers/`](functions/ai/providers) + [`routing/router.js`](functions/ai/routing/router.js),
-  models + prices in [`routing/models.js`](functions/ai/routing/models.js)) — Claude Sonnet
-  (primary) → Gemini Flash (fallback), for chat **and** plan import/generation. Failover happens
-  on any failure where the *provider* can't serve us — 5xx/429/timeout, **out of credit** (Anthropic
-  reports that as a 400!), bad key, retired model — and a billing/auth failure cools that provider
-  down for 10 min. Only a malformed request (other 4xx) is rethrown. The user's model selection
-  (`settings/ai.provider`: `auto` or a catalog key) goes **first, with fallback behind it** — a
-  preference, not a pin. Every provider failing → `AiUnavailableError` → a friendly `unavailable`
-  (`details.reason: 'ai_unavailable'`); provider error text never reaches the user.
+  models + prices in [`routing/models.js`](functions/ai/routing/models.js): Claude Sonnet 5 ·
+  Claude Haiku 4.5 · Gemini Flash). **One active model per request, no fallback** (owner
+  decision 2026-09-23): the model the user marks active (`settings/ai.provider`, default
+  `claude-sonnet`) answers chat, plan import and the plan builder. If its provider can't answer
+  (out of credit — Anthropic sends that as a 400 —, bad key, rate limit, overload, timeout,
+  retired model; classified in `providers/classify.js`), the call fails with `AiUnavailableError`
+  → `HttpsError('unavailable', …, {reason:'ai_unavailable', provider, kind})`, and the app names
+  the provider and the reason with a "Switch model" action. Only `food_search`'s grounding
+  call always runs on Gemini (Anthropic has no search grounding).
 - **Usage** is logged for **every** AI request, not just chat turns (`aiUsage` v4, `feature` field:
   chat · workout_import · diet_import · diet_generate · food_search · transcribe) —
   [`shared/usage_log.js`](functions/ai/shared/usage_log.js) meters the non-chat callables,
-  [`chat/usage.js`](functions/ai/chat/usage.js) the turn: provider/model, fallback attempts,
-  tokens, cost at the answering model's rate, status. The chat daily cap counts chat records only.
-  The app reads it on the AI usage page (Settings → AI usage).
+  [`chat/usage.js`](functions/ai/chat/usage.js) the turn: provider/model, type (`feature`),
+  tokens in/out, cost at the answering model's rate, status/errorKind. The chat daily cap counts chat records only.
+  The app reads it on the AI usage page (Settings → AI usage): pick Claude or Gemini to see its
+  total/chat/generate/import requests, tokens in/out, estimated cost and cost per request.
 
 ### The confirm-gated write flow (ADR-003 / ADR-005)
 

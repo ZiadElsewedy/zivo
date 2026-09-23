@@ -36,9 +36,9 @@ class ChatHeader extends StatelessWidget {
   /// flight.
   final VoidCallback? onSessions;
 
-  /// The current model selection ('auto'|'claude'|'gemini'). Drives the small
-  /// "pinned" dot on the settings button when it's anything other than Auto —
-  /// a glance-able hint that a specific model is forced.
+  /// The active model id (see `ai_model_selection.dart`). Drives the small dot
+  /// on the settings button when it's anything other than the default (Claude
+  /// Sonnet) — a glance-able hint that another model is answering.
   final String modelSelection;
 
   /// Opens the Ask settings sheet (model + reply style). Null (disabled) while
@@ -81,9 +81,9 @@ class ChatHeader extends StatelessWidget {
               icon: AppIcons.replyStyle,
               tooltip: l(context).askSettings,
               onTap: onOpenSettings,
-              // A non-Auto model means the user has pinned a specific one —
-              // surface that with a small accent dot so it's visible without
-              // opening the sheet, without a label that would crowd the row.
+              // A non-default active model gets a small accent dot so it's
+              // visible without opening settings, without a label that would
+              // crowd the row.
               showDot: modelSelection != kDefaultAiModelSelection,
             ),
           ),

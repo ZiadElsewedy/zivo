@@ -92,7 +92,7 @@ String importErrorMessage(
   final unknown =
       unknownMessage ?? l(context).importCouldntRead(manualFallback);
   if (error is AiFailure) {
-    return aiFailureMessage(context, error.kind, unknown: unknown);
+    return aiFailureMessage(context, error, unknown: unknown);
   }
   final text = error.toString().toLowerCase();
   if (text.contains('app-check') ||

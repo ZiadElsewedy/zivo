@@ -314,7 +314,13 @@ class AskController extends ChangeNotifier {
   Timer? _landingWatchdog;
   String? _pendingText;
   bool _sendFailed = false;
-  AiFailureKind _sendFailure = AiFailureKind.network;
+  AiFailure _sendFailure = const AiFailure(AiFailureKind.network);
+  // The text of the turn in flight / last failed — kept apart from
+  // [_pendingText] because the optimistic bubble is cleared as soon as the
+  // server persists the user message, which it does BEFORE calling the model.
+  // A turn that then fails on the model left Retry with nothing to send (it
+  // read [_pendingText], already null) — the "Retry does nothing" bug.
+  String? _turnText;
   int _baselineUserCount = 0;
   int _baselineAssistantCount = 0;
   String? _activeTurnId;
@@ -339,10 +345,10 @@ class AskController extends ChangeNotifier {
   /// True when the most recent send attempt threw — shows the retry rail.
   bool get sendFailed => _sendFailed;
 
-  /// Why the most recent send failed — picks the retry card's words ("ZIVO's
-  /// AI is taking a short break" reads differently from "couldn't reach
-  /// ZIVO"). Only meaningful while [sendFailed].
-  AiFailureKind get sendFailure => _sendFailure;
+  /// Why the most recent send failed — picks the retry card's words ("Claude
+  /// isn't available: usage limit reached" reads differently from "couldn't
+  /// reach ZIVO"). Only meaningful while [sendFailed].
+  AiFailure get sendFailure => _sendFailure;
 
   /// Client-generated idempotency key for the in-flight turn.
   String? get activeTurnId => _activeTurnId;
@@ -466,14 +472,18 @@ class AskController extends ChangeNotifier {
     send();
   }
 
-  /// Re-sends the last failed text. The server persisted nothing on a network
-  /// failure, so the baseline user count from the original attempt is still
-  /// correct — no duplicate optimistic bubble. It reuses [activeTurnId], so
-  /// the server treats this as the same logical turn and a retry racing a
-  /// slow first attempt can never append a second user message.
+  /// Re-sends the last failed turn's text, with the model that is active
+  /// NOW — so "Claude isn't available → switch to Gemini → Retry" works.
+  ///
+  /// It reuses [activeTurnId], so the server treats this as the same logical
+  /// turn: if the user message already landed (the model failed after the
+  /// server saved it), the server skips re-appending it and just runs the
+  /// model; if nothing landed (a network failure), it appends it once. Either
+  /// way a retry can never double-post the message.
   Future<void> retry(String conversationId) async {
-    if (_pendingText == null) return;
-    await runSend(conversationId, _pendingText!);
+    final text = _pendingText ?? _turnText;
+    if (text == null || _sending) return;
+    await runSend(conversationId, text);
   }
 
   /// Best-effort: a failed rename just leaves the conversation titled 'New
@@ -491,6 +501,7 @@ class AskController extends ChangeNotifier {
   }
 
   Future<void> runSend(String conversationId, String text) async {
+    _turnText = text;
     _slowTurnTimer?.cancel();
     _landingWatchdog?.cancel();
     _sending = true;
@@ -533,8 +544,9 @@ class AskController extends ChangeNotifier {
         _sendFailed = true;
         // The repository hands back an [AiFailure]; anything else (a stream
         // torn down mid-turn) is treated as the connection it most likely was.
-        _sendFailure =
-            error is AiFailure ? error.kind : AiFailureKind.network;
+        _sendFailure = error is AiFailure
+            ? error
+            : const AiFailure(AiFailureKind.network);
         _turnSlow = false;
         _phase = null;
         _stepTool = null;
@@ -571,7 +583,7 @@ class AskController extends ChangeNotifier {
           .length;
       if (persistedUserCount > baselineAtSend) return;
       _sendFailed = true;
-      _sendFailure = AiFailureKind.network;
+      _sendFailure = const AiFailure(AiFailureKind.network);
       _notify();
     });
     // [pendingText] is intentionally left set — the builder's reconciliation

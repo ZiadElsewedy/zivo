@@ -1,36 +1,30 @@
-/// The user's AI model selection, persisted at `users/{uid}/settings/ai`
-/// (field `provider`) and applied to **every** AI feature: the chat forwards it
+/// The user's **active AI model**, persisted at `users/{uid}/settings/ai`
+/// (field `provider`) and used for **every** AI feature: the chat forwards it
 /// on each [AiRepository.send], and the plan import/generation callables read
 /// it from that settings doc server-side.
 ///
-/// This is the client half of the routing decision the backend makes in
-/// `functions/ai/routing/router.js`. The ids are the backend model catalog's
-/// keys (`functions/ai/routing/models.js`):
-///   - `'auto'`          → Claude Sonnet first, Gemini Flash if Claude can't
-///                         answer (the default; the server treats anything
-///                         unrecognized as this, so it's the safe value).
-///   - any model id      → that model first, the Auto order behind it. A
-///                         chosen model is a **preference, not a pin**: if its
-///                         provider is down or out of credit, the request still
-///                         lands on the next model instead of failing.
+/// Exactly one model answers every request — there is no automatic switching
+/// to another provider (owner decision, 2026-09-23: one active model keeps
+/// cost and usage attributable). If the active model's provider can't answer,
+/// the request fails with an [AiFailure] naming the provider, and the user
+/// switches model here. See `functions/ai/routing/router.js`.
 ///
-/// Like [kResponseStyles], these are persisted **ids**, not copy — their words
-/// are chosen in `presentation/ai_labels.dart` where a [BuildContext] exists.
-const kAiModelSelections = [
-  'auto',
-  'claude-sonnet',
-  'claude-haiku',
-  'gemini-flash',
-  'gemini-pro',
-];
+/// The ids are the backend model catalog's keys
+/// (`functions/ai/routing/models.js`). Like [kResponseStyles], they are
+/// persisted **ids**, not copy — their words are chosen in
+/// `presentation/ai_labels.dart` where a [BuildContext] exists.
+const kAiModelSelections = ['claude-sonnet', 'claude-haiku', 'gemini-flash'];
 
-const kDefaultAiModelSelection = 'auto';
+const kDefaultAiModelSelection = 'claude-sonnet';
 
-/// Selections saved before per-model choice existed, mapped onto today's ids —
-/// someone who picked "Claude" keeps Claude.
+/// Selections an older build may have saved, mapped onto today's ids: the
+/// original provider-level picks, the retired Auto (Claude-first), and Gemini
+/// Pro, removed because its alias never resolved for this project's key.
 const Map<String, String> _legacySelections = {
+  'auto': 'claude-sonnet',
   'claude': 'claude-sonnet',
   'gemini': 'gemini-flash',
+  'gemini-pro': 'gemini-flash',
 };
 
 /// [selection] if it's one of [kAiModelSelections] (or a legacy id, upgraded),
@@ -43,11 +37,8 @@ String validAiModelSelection(String? selection) {
       : kDefaultAiModelSelection;
 }
 
-/// The routing-layer provider behind a selection ('anthropic' | 'gemini'), or
-/// 'auto' — what the brand mark beside it shows.
+/// The routing-layer provider behind a selection: 'anthropic' | 'gemini'.
 String aiModelSelectionProvider(String selection) =>
-    switch (validAiModelSelection(selection)) {
-      'claude-sonnet' || 'claude-haiku' => 'anthropic',
-      'gemini-flash' || 'gemini-pro' => 'gemini',
-      _ => 'auto',
-    };
+    validAiModelSelection(selection).startsWith('gemini')
+    ? 'gemini'
+    : 'anthropic';

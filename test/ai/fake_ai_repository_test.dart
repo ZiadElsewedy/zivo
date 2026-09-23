@@ -170,23 +170,23 @@ void main() {
       expect(await repo.getResponseStyle(), 'balanced');
     });
 
-    test("getModelSelection defaults to 'auto'", () async {
+    test("getModelSelection defaults to 'claude-sonnet'", () async {
       final repo = FakeAiRepository();
       addTearDown(repo.dispose);
 
-      expect(await repo.getModelSelection(), 'auto');
+      expect(await repo.getModelSelection(), 'claude-sonnet');
     });
 
     test('setModelSelection persists a valid selection; an invalid one falls '
-        "back to 'auto'", () async {
+        "back to the default", () async {
       final repo = FakeAiRepository();
       addTearDown(repo.dispose);
 
-      await repo.setModelSelection('gemini-pro');
-      expect(await repo.getModelSelection(), 'gemini-pro');
+      await repo.setModelSelection('claude-haiku');
+      expect(await repo.getModelSelection(), 'claude-haiku');
 
       await repo.setModelSelection('nonsense');
-      expect(await repo.getModelSelection(), 'auto');
+      expect(await repo.getModelSelection(), 'claude-sonnet');
     });
 
     test('usageByProvider returns per-provider totals', () async {

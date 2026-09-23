@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/firebase/uid_source.dart';
 import 'package:zivo/features/ai/data/firebase_ai_repository.dart';
@@ -26,7 +27,6 @@ AiUsageRecord _record({
   tokensOut: tokensOut,
   costUsd: costUsd,
   status: 'ok',
-  fellBack: false,
   createdAt: null,
 );
 
@@ -34,17 +34,25 @@ void main() {
   group('aiFailureFrom — no transport or provider text reaches a screen', () {
     AiFailureKind kindOf(Object e) => (aiFailureFrom(e) as AiFailure).kind;
 
-    test("every provider down is 'unavailable', lost connectivity is not", () {
-      expect(
-        kindOf(
-          FirebaseFunctionsException(
-            code: 'unavailable',
-            message: "ZIVO's AI is taking a short break.",
-            details: {'reason': 'ai_unavailable', 'kind': 'billing'},
-          ),
-        ),
-        AiFailureKind.unavailable,
-      );
+    test("a provider failure is 'unavailable' with WHO and WHY; lost "
+        'connectivity is not', () {
+      final f =
+          aiFailureFrom(
+                FirebaseFunctionsException(
+                  code: 'unavailable',
+                  message: 'Claude is unavailable',
+                  details: {
+                    'reason': 'ai_unavailable',
+                    'kind': 'billing',
+                    'provider': 'anthropic',
+                    'model': 'claude-sonnet-5',
+                  },
+                ),
+              )
+              as AiFailure;
+      expect(f.kind, AiFailureKind.unavailable);
+      expect(f.provider, 'anthropic');
+      expect(f.issue, AiProviderIssue.outOfCredit);
       expect(
         kindOf(
           FirebaseFunctionsException(code: 'unavailable', message: 'offline'),
@@ -61,6 +69,53 @@ void main() {
       expect(kindOf(e('unauthenticated')), AiFailureKind.auth);
       expect(kindOf(e('not-found')), AiFailureKind.notDeployed);
       expect(kindOf(e('internal')), AiFailureKind.unknown);
+    });
+
+    test('the STREAMING call\'s raw PlatformException is mapped too', () {
+      // httpsCallable.stream() forwards native errors via `yield*` without
+      // converting them — the reason a failed streamed turn used to read as
+      // "couldn't reach ZIVO" whatever the cause.
+      final f =
+          aiFailureFrom(
+                PlatformException(
+                  code: 'firebase_functions',
+                  message: 'Gemini is getting too many requests.',
+                  details: {
+                    'code': 'unavailable',
+                    'message': 'Gemini is getting too many requests.',
+                    'additionalData': {
+                      'reason': 'ai_unavailable',
+                      'kind': 'rate_limit',
+                      'provider': 'gemini',
+                    },
+                  },
+                ),
+              )
+              as AiFailure;
+      expect(f.kind, AiFailureKind.unavailable);
+      expect(f.provider, 'gemini');
+      expect(f.issue, AiProviderIssue.busy);
+
+      expect(
+        kindOf(
+          PlatformException(
+            code: 'firebase_functions',
+            details: {'code': 'deadline-exceeded', 'message': 'x'},
+          ),
+        ),
+        AiFailureKind.timeout,
+      );
+    });
+
+    test('every backend kind maps to its issue', () {
+      expect(aiProviderIssueFrom('auth'), AiProviderIssue.notConfigured);
+      expect(aiProviderIssueFrom('overloaded'), AiProviderIssue.overloaded);
+      expect(aiProviderIssueFrom('timeout'), AiProviderIssue.noResponse);
+      expect(
+        aiProviderIssueFrom('model_unavailable'),
+        AiProviderIssue.modelRetired,
+      );
+      expect(aiProviderIssueFrom('server'), AiProviderIssue.down);
     });
 
     test('a non-transport error passes through untouched', () {
@@ -89,18 +144,26 @@ void main() {
   });
 
   group('model selection ids', () {
-    test('legacy ids upgrade; unknown ids fall back to auto', () {
+    test('one active model: three choices, Sonnet by default', () {
+      expect(kAiModelSelections, [
+        'claude-sonnet',
+        'claude-haiku',
+        'gemini-flash',
+      ]);
+      expect(validAiModelSelection(null), 'claude-sonnet');
+      expect(validAiModelSelection('gpt-9'), 'claude-sonnet');
+    });
+
+    test('retired and legacy ids upgrade to a model that exists', () {
+      expect(validAiModelSelection('auto'), 'claude-sonnet');
       expect(validAiModelSelection('claude'), 'claude-sonnet');
       expect(validAiModelSelection('gemini'), 'gemini-flash');
-      expect(validAiModelSelection('claude-haiku'), 'claude-haiku');
-      expect(validAiModelSelection('gpt-9'), 'auto');
-      expect(validAiModelSelection(null), 'auto');
+      expect(validAiModelSelection('gemini-pro'), 'gemini-flash');
     });
 
     test('each selection shows its provider mark', () {
       expect(aiModelSelectionProvider('claude-haiku'), 'anthropic');
-      expect(aiModelSelectionProvider('gemini-pro'), 'gemini');
-      expect(aiModelSelectionProvider('auto'), 'auto');
+      expect(aiModelSelectionProvider('gemini-flash'), 'gemini');
     });
   });
 
@@ -127,7 +190,6 @@ void main() {
         'tokensOut': 3000,
         'costUsd': 0.009,
         'status': 'ok',
-        'fellBack': true,
         'createdAt': Timestamp.fromDate(DateTime(2026, 9, 23)),
       });
       await log.add({
@@ -152,7 +214,6 @@ void main() {
         'workout_import',
         'chat',
       ]);
-      expect(records.first.fellBack, isTrue);
       expect(records[1].failed, isTrue);
       expect(records[1].errorKind, 'rate_limit');
       // Legacy turn: attributed to Claude by its model id, status ok.
@@ -185,6 +246,62 @@ void main() {
       expect(total.requests, 3);
       expect(total.costUsd, closeTo(0.041, 1e-9));
       expect(aiUsageGrandTotal(const []).requests, 0);
+    });
+  });
+
+  group('per-provider stats (the usage page)', () {
+    AiUsageRecord r(
+      String provider,
+      String feature, {
+      int tin = 0,
+      int tout = 0,
+      double cost = 0,
+      String status = 'ok',
+    }) => AiUsageRecord(
+      feature: feature,
+      provider: provider,
+      model: '',
+      tokensIn: tin,
+      tokensOut: tout,
+      costUsd: cost,
+      status: status,
+      createdAt: null,
+    );
+
+    final records = [
+      r('gemini', 'chat', tin: 1000, tout: 200, cost: 0.001),
+      r('gemini', 'chat', tin: 3000, tout: 400, cost: 0.003),
+      r('gemini', 'diet_generate', tin: 6000, tout: 3000, cost: 0.008),
+      r('gemini', 'diet_import', tin: 9000, tout: 1000, cost: 0.004),
+      r('gemini', 'transcribe', tin: 400, tout: 40, cost: 0.0002),
+      r('gemini', 'chat', status: 'error'),
+      r('anthropic', 'chat', tin: 13000, tout: 150, cost: 0.04),
+    ];
+
+    test('counts requests by type, tokens and cost for ONE provider', () {
+      final g = aiProviderStats(records, 'gemini');
+      expect(g.totalRequests, 6);
+      expect(g.chatRequests, 3);
+      expect(g.generateRequests, 1);
+      expect(g.importRequests, 1);
+      expect(g.otherRequests, 1);
+      expect(g.failedRequests, 1);
+      expect(g.tokensIn, 19400);
+      expect(g.tokensOut, 4640);
+      expect(g.tokensTotal, 24040);
+      expect(g.costUsd, closeTo(0.0162, 1e-9));
+    });
+
+    test('cost per request averages completed requests only', () {
+      final g = aiProviderStats(records, 'gemini');
+      // 5 completed; the failed one produced nothing and must not dilute it.
+      expect(g.costPerRequestUsd, closeTo(0.0162 / 5, 1e-9));
+    });
+
+    test('a provider with nothing logged is all zeros', () {
+      final a = aiProviderStats(const [], 'anthropic');
+      expect(a.totalRequests, 0);
+      expect(a.costPerRequestUsd, 0);
     });
   });
 }

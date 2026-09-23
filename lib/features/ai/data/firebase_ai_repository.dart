@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/services.dart' show PlatformException;
 
 import '../../../core/firebase/uid_source.dart';
 import '../../diet/domain/diet_import_input.dart';
@@ -102,7 +103,6 @@ AiUsageRecord aiUsageRecordFromMap(Map<String, dynamic> data) {
     tokensOut: _asInt(data['tokensOut']),
     costUsd: _asDouble(data['costUsd']),
     status: (data['status'] as String?) ?? 'ok',
-    fellBack: data['fellBack'] == true,
     createdAt: created is Timestamp ? created.toDate() : null,
     latencyMs: _asInt(data['latencyMs']),
     errorKind: data['errorKind'] as String?,
@@ -121,17 +121,49 @@ double _asDouble(Object? v) => v is num ? v.toDouble() : 0;
 /// low") can ever be rendered. Anything that isn't a transport error (an
 /// [ImportCancelledException], a parse error in a test fake) passes through
 /// untouched.
+///
+/// Two transport shapes arrive here: a [FirebaseFunctionsException] from a
+/// plain `.call()`, and — from the **streaming** chat call — a raw
+/// [PlatformException]. The plugin's `stream()` forwards native stream errors
+/// through `yield*` without its usual conversion, so they surface with the
+/// callable's `code`/`message`/`details` nested in `details`. Missing that
+/// second shape is why a failed streamed turn used to read as "couldn't reach
+/// ZIVO" whatever the real cause.
 Object aiFailureFrom(Object error) {
   if (error is TimeoutException) return const AiFailure(AiFailureKind.timeout);
-  if (error is! FirebaseFunctionsException) return error;
-  final details = error.details;
-  final reason = details is Map ? details['reason'] : null;
-  final text = '${error.code} ${error.message ?? ''}'.toLowerCase();
-  return AiFailure(switch (error.code) {
-    // The backend's "every provider failed" — see `aiUnavailableHttpsError`
-    // in functions/index.js. The SDK also reports lost connectivity as
-    // `unavailable`, which is why the reason is what decides.
-    'unavailable' when reason == 'ai_unavailable' => AiFailureKind.unavailable,
+  final String code;
+  final String message;
+  final Object? details;
+  if (error is FirebaseFunctionsException) {
+    code = error.code;
+    message = error.message ?? '';
+    details = error.details;
+  } else if (error is PlatformException) {
+    final nested = error.details;
+    if (nested is Map) {
+      code = (nested['code'] as String?) ?? error.code;
+      message = (nested['message'] as String?) ?? error.message ?? '';
+      details = nested['additionalData'] ?? nested['details'];
+    } else {
+      code = error.code;
+      message = error.message ?? '';
+      details = null;
+    }
+  } else {
+    return error;
+  }
+  final d = details is Map ? details : const {};
+  final text = '$code $message'.toLowerCase();
+  if (d['reason'] == 'ai_unavailable') {
+    return AiFailure(
+      AiFailureKind.unavailable,
+      provider: d['provider'] as String?,
+      issue: aiProviderIssueFrom(d['kind']),
+    );
+  }
+  return AiFailure(switch (code.toLowerCase().replaceAll('_', '-')) {
+    // The SDK reports lost connectivity as `unavailable` too — only the
+    // server's `reason` above means "the AI provider couldn't answer".
     'unavailable' => AiFailureKind.network,
     'resource-exhausted' => AiFailureKind.dailyLimit,
     'deadline-exceeded' => AiFailureKind.timeout,
@@ -139,6 +171,8 @@ Object aiFailureFrom(Object error) {
     'not-found' => AiFailureKind.notDeployed,
     _ when text.contains('app check') || text.contains('app-check') =>
       AiFailureKind.auth,
+    _ when text.contains('network') || text.contains('offline') =>
+      AiFailureKind.network,
     _ => AiFailureKind.unknown,
   });
 }

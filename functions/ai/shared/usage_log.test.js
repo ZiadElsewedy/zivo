@@ -45,32 +45,27 @@ test("a metered request records the answering model, tokens and its cost", async
   assert.equal(record.tokensOut, 200);
   assert.equal(record.calls, 1);
   assert.equal(record.latencyMs, 4000);
-  assert.equal(record.fellBack, false);
   // $3/M in + $15/M out.
   assert.ok(near(record.costUsd, 1000 * 3e-6 + 200 * 15e-6));
 });
 
-test("a fallback is visible: each call priced at its own model, attempts kept", async () => {
+test("each call is priced at the model that answered it", async () => {
   const meter = new UsageMeter();
   meter.record({provider: "gemini", model: "gemini-flash-latest",
-    usage: {inputTokens: 1000000, outputTokens: 0},
-    attempts: [{provider: "anthropic", model: "claude-sonnet-5",
-      kind: "billing"}]});
+    modelKey: "gemini-flash",
+    usage: {inputTokens: 1000000, outputTokens: 0}});
 
   const record = buildUsageRecord({feature: "workout_import", meter,
     dayKey: "d", startedAt: t0, finishedAt: t1});
 
   assert.equal(record.provider, "gemini");
-  assert.equal(record.fellBack, true);
-  assert.deepEqual(record.failedAttempts,
-      [{provider: "anthropic", model: "claude-sonnet-5", kind: "billing"}]);
+  assert.equal(record.modelKey, "gemini-flash");
   assert.ok(near(record.costUsd, 0.30), "priced at Gemini Flash, not Claude");
 });
 
-test("a request where every provider failed is recorded as an error, no raw text", async () => {
+test("a request whose provider failed is recorded as an error, no raw text", async () => {
   const meter = new UsageMeter();
   const attempts = [
-    {provider: "anthropic", model: "claude-sonnet-5", kind: "billing"},
     {provider: "gemini", model: "gemini-flash-latest", kind: "rate_limit"},
   ];
   const err = new AiUnavailableError("rate_limit", attempts,

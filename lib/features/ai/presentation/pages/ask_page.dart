@@ -631,6 +631,7 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                                 failure: _c.sendFailure,
                                                 onRetry: () =>
                                                     _c.retry(conversationId),
+                                                onSwitchModel: _openSettings,
                                               );
                                             } else {
                                               trailing = ThinkingRail(

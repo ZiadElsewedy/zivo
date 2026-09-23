@@ -9,13 +9,13 @@
  *
  *   - `UsageMeter` wraps a provider (`meter.wrap(provider)`) and records every
  *     model call that passes through it — the model that answered, its token
- *     buckets, its cost at THAT model's rate, and any fallback attempts.
+ *     buckets, its cost at THAT model's rate, and the provider it failed on.
  *   - `buildUsageRecord` turns a meter's calls into the record, including a
  *     failed request (status + a classified error kind, never the provider's
  *     raw text), so failures are visible in the log too.
  *
  * The chat turn keeps its own richer record (tools, iterations, validation)
- * and adds `feature: "chat"` plus the same fallback fields. The daily chat cap
+ * and adds `feature: "chat"` and `status`. The daily chat cap
  * counts chat records only (`FirestoreStore.getTodayUsageTotals`).
  */
 
@@ -40,7 +40,7 @@ const AiFeature = {
   TRANSCRIBE: "transcribe",
 };
 
-/** Bumped from chat's v3: adds `feature`, `modelKey`, fallback fields. */
+/** Bumped from chat's v3: adds `feature`, `modelKey`, `status`/`errorKind`. */
 const USAGE_SCHEMA_VERSION = 4;
 
 /**
@@ -51,13 +51,16 @@ class UsageMeter {
   constructor() {
     /** @type {!Array<!Object>} */
     this.calls = [];
-    /** @type {!Array<{provider: string, model: string, kind: string}>} */
+    /**
+     * The provider/model a failed call was sent to, with why it failed.
+     * @type {!Array<{provider: string, model: string, kind: string}>}
+     */
     this.failedAttempts = [];
   }
 
   /**
    * A provider whose every `generate` is recorded here. Failures are recorded
-   * too (their fallback attempts), then rethrown unchanged.
+   * too (which provider, and why), then rethrown unchanged.
    * @param {!Object} provider An `AiProvider`-shaped object.
    * @return {!Object}
    */
@@ -96,9 +99,6 @@ class UsageMeter {
       cacheWriteTokens: u.cacheWriteTokens || 0,
       costUsd: costUsd(u, provider, model),
     });
-    if (response && Array.isArray(response.attempts)) {
-      this.failedAttempts.push(...response.attempts);
-    }
   }
 
   /** @return {boolean} Whether any model call went through the meter. */
@@ -138,8 +138,7 @@ function buildUsageRecord(
   const uncached = sum("inputTokens");
   const cacheRead = sum("cacheReadTokens");
   const cacheWrite = sum("cacheWriteTokens");
-  // The model that did the work is the LAST one that answered — on a
-  // fallback, that's the fallback model.
+  // The model that did the work (one per request — see ../routing/router.js).
   const last = calls[calls.length - 1];
   const failed = meter.failedAttempts;
   const record = {
@@ -155,20 +154,15 @@ function buildUsageRecord(
     costUsd: calls.reduce((n, c) => n + c.costUsd, 0),
     calls: calls.length,
     latencyMs: finishedAt.getTime() - startedAt.getTime(),
-    fellBack: failed.length > 0,
     createdAt: finishedAt,
     schemaVersion: USAGE_SCHEMA_VERSION,
   };
-  // Who answered; on a total failure, who was tried last.
+  // Who answered; on a failure, who was asked.
   const who = last || failed[failed.length - 1];
   if (who) {
     record.provider = who.provider;
     record.model = who.model;
     if (who.modelKey) record.modelKey = who.modelKey;
-  }
-  if (failed.length > 0) {
-    record.failedAttempts = failed.map(
-        (a) => ({provider: a.provider, model: a.model, kind: a.kind}));
   }
   if (error) record.errorKind = errorKindFor(error);
   return Object.assign(record, extra || {});

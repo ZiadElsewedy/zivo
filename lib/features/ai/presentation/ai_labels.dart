@@ -33,16 +33,14 @@ String responseStyleDescription(BuildContext context, String style) =>
       _ => l(context).askReplyStyleBalancedDesc,
     };
 
-/// The name a model-selection id ([kAiModelSelections]) wears on screen.
-/// `'auto'` is a translated word; the model names are product names that stay
-/// as-is in every locale. Same id-vs-copy split as [responseStyleText].
+/// The name a model-selection id ([kAiModelSelections]) wears on screen —
+/// product names, the same in every locale, but still routed through l10n.
+/// Same id-vs-copy split as [responseStyleText].
 String aiModelSelectionText(BuildContext context, String selection) =>
     switch (validAiModelSelection(selection)) {
-      'claude-sonnet' => l(context).askModelClaudeSonnet,
       'claude-haiku' => l(context).askModelClaudeHaiku,
       'gemini-flash' => l(context).askModelGeminiFlash,
-      'gemini-pro' => l(context).askModelGeminiPro,
-      _ => l(context).askModelAuto,
+      _ => l(context).askModelClaudeSonnet,
     };
 
 /// The display name for a routing-layer provider id ('anthropic' → "Claude",
@@ -58,11 +56,9 @@ String aiProviderDisplayName(BuildContext context, String provider) =>
 /// context that makes the choice understandable at the point of decision.
 String aiModelSelectionDescription(BuildContext context, String selection) =>
     switch (validAiModelSelection(selection)) {
-      'claude-sonnet' => l(context).askModelClaudeSonnetDesc,
       'claude-haiku' => l(context).askModelClaudeHaikuDesc,
       'gemini-flash' => l(context).askModelGeminiFlashDesc,
-      'gemini-pro' => l(context).askModelGeminiProDesc,
-      _ => l(context).askModelAutoDesc,
+      _ => l(context).askModelClaudeSonnetDesc,
     };
 
 /// A human name for a provider-native model id as the usage log records it
@@ -74,9 +70,6 @@ String aiModelIdText(BuildContext context, String modelId) {
   if (id.startsWith('claude-haiku')) return l(context).askModelClaudeHaiku;
   if (id.startsWith('gemini') && id.contains('flash')) {
     return l(context).askModelGeminiFlash;
-  }
-  if (id.startsWith('gemini') && id.contains('pro')) {
-    return l(context).askModelGeminiPro;
   }
   return modelId;
 }
@@ -95,20 +88,77 @@ String aiFeatureText(BuildContext context, String feature) =>
       _ => l(context).aiFeatureOther,
     };
 
-/// The one line a failed AI request shows, by why it failed — never the
-/// transport's or a provider's own text. [unknown] is the caller's own
-/// fallback for a failure with no specific cause (an import says "couldn't
+/// The provider's display name in a failure, or "The AI model" when the
+/// server didn't say which.
+String _failedProviderName(BuildContext context, AiFailure f) =>
+    switch (f.provider) {
+      'anthropic' || 'gemini' => aiProviderDisplayName(context, f.provider!),
+      _ => l(context).aiModelGeneric,
+    };
+
+/// The headline for a failed AI request — for a provider failure, the
+/// provider by name ("Claude isn't available", "Gemini didn't respond"), so
+/// it's obvious the AI model is what failed, not the phone or the message.
+String aiFailureTitle(BuildContext context, AiFailure f) {
+  final name = _failedProviderName(context, f);
+  return switch (f.kind) {
+    AiFailureKind.unavailable => switch (f.issue) {
+      AiProviderIssue.noResponse => l(context).aiProviderNoResponseTitle(name),
+      AiProviderIssue.busy ||
+      AiProviderIssue.overloaded => l(context).aiProviderBusyTitle(name),
+      _ => l(context).aiProviderUnavailableTitle(name),
+    },
+    AiFailureKind.dailyLimit => l(context).aiErrorDailyLimitTitle,
+    AiFailureKind.timeout => l(context).aiErrorTimeoutTitle,
+    AiFailureKind.network ||
+    AiFailureKind.auth ||
+    AiFailureKind.notDeployed => l(context).askUnreachableTitle,
+    AiFailureKind.unknown => l(context).aiErrorUnknownTitle,
+  };
+}
+
+/// The explanation under [aiFailureTitle]: what happened and what to do.
+/// Never the transport's or a provider's own text.
+String aiFailureBody(BuildContext context, AiFailure f) => switch (f.kind) {
+  AiFailureKind.unavailable => switch (f.issue ?? AiProviderIssue.down) {
+    AiProviderIssue.outOfCredit => l(context).aiIssueOutOfCredit,
+    AiProviderIssue.notConfigured => l(context).aiIssueNotConfigured,
+    AiProviderIssue.busy => l(context).aiIssueBusy,
+    AiProviderIssue.overloaded => l(context).aiIssueOverloaded,
+    AiProviderIssue.noResponse => l(context).aiIssueNoResponse,
+    AiProviderIssue.modelRetired => l(context).aiIssueModelRetired,
+    AiProviderIssue.down => l(context).aiIssueDown,
+  },
+  AiFailureKind.dailyLimit => l(context).aiErrorDailyLimitBody,
+  AiFailureKind.timeout => l(context).aiErrorTimeout,
+  AiFailureKind.network => l(context).aiErrorNetworkBody,
+  AiFailureKind.auth => l(context).importAppCheckFailed,
+  AiFailureKind.notDeployed => l(context).importServiceUnavailable,
+  AiFailureKind.unknown => l(context).aiErrorUnknownBody,
+};
+
+/// Whether switching the active model could fix [f] — the error surfaces
+/// then offer a "Switch model" action.
+bool aiFailureSuggestsSwitch(AiFailure f) =>
+    f.kind == AiFailureKind.unavailable &&
+    f.issue != AiProviderIssue.busy &&
+    f.issue != AiProviderIssue.noResponse;
+
+/// The single line a failed AI request shows on the full-screen import/
+/// generation error — title and explanation joined. [unknown] is the caller's
+/// own line for a failure with no specific cause (an import says "couldn't
 /// read that plan", generation says something else).
 String aiFailureMessage(
   BuildContext context,
-  AiFailureKind kind, {
+  AiFailure f, {
   required String unknown,
-}) => switch (kind) {
-  AiFailureKind.unavailable => l(context).aiErrorUnavailable,
+}) => switch (f.kind) {
+  AiFailureKind.unknown => unknown,
   AiFailureKind.dailyLimit => l(context).aiErrorDailyLimit,
-  AiFailureKind.timeout => l(context).aiErrorTimeout,
   AiFailureKind.network => l(context).aiErrorNetwork,
   AiFailureKind.auth => l(context).importAppCheckFailed,
   AiFailureKind.notDeployed => l(context).importServiceUnavailable,
-  AiFailureKind.unknown => unknown,
+  AiFailureKind.timeout => l(context).aiErrorTimeout,
+  AiFailureKind.unavailable =>
+    '${aiFailureTitle(context, f)}. ${aiFailureBody(context, f)}',
 };

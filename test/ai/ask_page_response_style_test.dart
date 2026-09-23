@@ -179,7 +179,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Model group and reply-style group both render.
-    expect(find.byKey(const Key('model-auto')), findsOneWidget);
+    expect(find.byKey(const Key('model-claude-sonnet')), findsOneWidget);
     expect(find.byKey(const Key('model-gemini-flash')), findsOneWidget);
     expect(find.byKey(const Key('style-concise')), findsOneWidget);
     expect(find.byKey(const Key('style-detailed')), findsOneWidget);
@@ -197,7 +197,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(await inner.getResponseStyle(), 'concise');
     expect(
-      find.byKey(const Key('model-auto')),
+      find.byKey(const Key('model-claude-sonnet')),
       findsOneWidget,
       reason: 'page stays open',
     );
@@ -219,7 +219,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(ai.sentStyles, ['concise']);
-    expect(ai.sentModels, ['auto'], reason: 'model untouched, still Auto');
+    expect(ai.sentModels, ['claude-sonnet'],
+        reason: 'model untouched, still the default');
   });
 
   testWidgets('picking a model on the settings page persists it and is '
@@ -234,11 +235,19 @@ void main() {
     await tester.tap(find.byKey(const Key('header-settings')));
     await tester.pumpAndSettle();
 
-    // Auto is the default, shown checked in the model group.
+    // Claude Sonnet is the default active model: checked AND badged.
     expect(
       find.descendant(
-        of: find.byKey(const Key('model-auto')),
+        of: find.byKey(const Key('model-claude-sonnet')),
         matching: find.byIcon(AppIcons.check),
+      ),
+      findsOneWidget,
+    );
+
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('model-claude-sonnet')),
+        matching: find.byKey(const Key('model-active-badge')),
       ),
       findsOneWidget,
     );
@@ -246,6 +255,15 @@ void main() {
     await tester.tap(find.byKey(const Key('model-gemini-flash')));
     await tester.pumpAndSettle();
     expect(await inner.getModelSelection(), 'gemini-flash');
+    // Exactly one model is active — the badge moved.
+    expect(find.byKey(const Key('model-active-badge')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('model-gemini-flash')),
+        matching: find.byKey(const Key('model-active-badge')),
+      ),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byIcon(Icons.arrow_back_rounded));
     await tester.pumpAndSettle();

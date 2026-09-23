@@ -215,8 +215,8 @@ class FakeAiRepository implements AiRepository {
 
   @override
   Future<List<AiUsageRecord>> usageRecords({int limit = 1000}) async {
-    // A canned sample so the usage page can be exercised offline — one of
-    // each feature, including a fallback and a failure.
+    // A canned sample so the usage page can be exercised offline — every
+    // request type on both providers, including a failure.
     final now = DateTime.now();
     final sample = <AiUsageRecord>[
       AiUsageRecord(
@@ -227,7 +227,6 @@ class FakeAiRepository implements AiRepository {
         tokensOut: 149,
         costUsd: 0.0063,
         status: 'ok',
-        fellBack: false,
         createdAt: now.subtract(const Duration(minutes: 4)),
         latencyMs: 4200,
       ),
@@ -239,7 +238,6 @@ class FakeAiRepository implements AiRepository {
         tokensOut: 3100,
         costUsd: 0.0096,
         status: 'ok',
-        fellBack: true,
         createdAt: now.subtract(const Duration(hours: 2)),
         latencyMs: 38000,
       ),
@@ -251,7 +249,6 @@ class FakeAiRepository implements AiRepository {
         tokensOut: 2400,
         costUsd: 0.099,
         status: 'ok',
-        fellBack: false,
         createdAt: now.subtract(const Duration(days: 1)),
         latencyMs: 52000,
       ),
@@ -263,7 +260,6 @@ class FakeAiRepository implements AiRepository {
         tokensOut: 38,
         costUsd: 0.0002,
         status: 'ok',
-        fellBack: false,
         createdAt: now.subtract(const Duration(days: 2)),
         latencyMs: 1900,
       ),
@@ -275,7 +271,6 @@ class FakeAiRepository implements AiRepository {
         tokensOut: 0,
         costUsd: 0,
         status: 'error',
-        fellBack: true,
         createdAt: now.subtract(const Duration(days: 3)),
         errorKind: 'rate_limit',
       ),

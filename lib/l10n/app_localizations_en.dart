@@ -2091,13 +2091,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askModelSheetSubtitle => 'Choose which AI model ZIVO uses.';
 
   @override
-  String get askModelAuto => 'Auto';
-
-  @override
-  String get askModelAutoDesc =>
-      'Claude first — Gemini steps in automatically if Claude can\'t answer.';
-
-  @override
   String get askModelClaude => 'Claude';
 
   @override
@@ -2114,7 +2107,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get askUsageSubtitle =>
-      'Tokens and estimated cost per provider, all-time.';
+      'Tap a provider for its requests, tokens and cost.';
 
   @override
   String get askUsageEmpty => 'No usage yet — ask something to get started.';
@@ -5849,14 +5842,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Google\'s fast model — the lowest cost.';
 
   @override
-  String get askModelGeminiPro => 'Gemini Pro';
-
-  @override
-  String get askModelGeminiProDesc => 'Google\'s deepest reasoning — slower.';
-
-  @override
   String get askModelAppliesNote =>
-      'Used for chat, plan imports and the plan builder. If your choice is unavailable, ZIVO switches to another model automatically — you still get an answer.';
+      'The active model answers everything — chat, plan imports and the plan builder. ZIVO never switches models on its own: if the active one is unavailable, you\'ll be told, and you can switch here.';
 
   @override
   String askUsageRequests(int count) {
@@ -5873,17 +5860,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiUsageTitle => 'AI usage';
 
   @override
-  String get aiUsageSeeAll => 'See every request';
-
-  @override
-  String get aiUsageSeeAllDesc =>
-      'Tokens and cost by provider, feature and request.';
-
-  @override
   String get aiUsageTotal => 'Total';
-
-  @override
-  String get aiUsageByProvider => 'By provider';
 
   @override
   String get aiUsageByFeature => 'By feature';
@@ -5898,9 +5875,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String aiUsageInOut(String tokensIn, String tokensOut) {
     return '$tokensIn in · $tokensOut out';
   }
-
-  @override
-  String get aiUsageFellBack => 'Backup model';
 
   @override
   String get aiUsageFailed => 'Failed';
@@ -5932,16 +5906,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiFeatureOther => 'AI request';
-
-  @override
-  String get aiErrorUnavailable =>
-      'ZIVO\'s AI is taking a short break. Please try again in a few minutes.';
-
-  @override
-  String get aiErrorUnavailableTitle => 'ZIVO\'s AI is taking a short break';
-
-  @override
-  String get aiErrorUnavailableBody => 'Try again in a few minutes.';
 
   @override
   String get aiErrorDailyLimit =>
@@ -5979,4 +5943,110 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dietBuilderCountryClear => 'Clear';
+
+  @override
+  String get askModelActive => 'Active';
+
+  @override
+  String aiProviderUnavailableTitle(String provider) {
+    return '$provider isn\'t available';
+  }
+
+  @override
+  String aiProviderNoResponseTitle(String provider) {
+    return '$provider didn\'t respond';
+  }
+
+  @override
+  String aiProviderBusyTitle(String provider) {
+    return '$provider is busy';
+  }
+
+  @override
+  String get aiModelGeneric => 'The AI model';
+
+  @override
+  String get aiIssueOutOfCredit =>
+      'Its usage limit has been reached. Switch the active model in Ask settings, then tap Retry.';
+
+  @override
+  String get aiIssueNotConfigured =>
+      'It isn\'t set up correctly right now. Switch the active model in Ask settings.';
+
+  @override
+  String get aiIssueBusy =>
+      'Too many requests right now — try again in a minute.';
+
+  @override
+  String get aiIssueOverloaded =>
+      'The provider is overloaded right now. Try again shortly, or switch model.';
+
+  @override
+  String get aiIssueNoResponse =>
+      'The AI model didn\'t answer in time. Try again.';
+
+  @override
+  String get aiIssueModelRetired =>
+      'This model is no longer offered. Pick another in Ask settings.';
+
+  @override
+  String get aiIssueDown =>
+      'The provider is having problems right now. Try again later, or switch model in Ask settings.';
+
+  @override
+  String get aiErrorNetworkBody => 'Check your connection, then tap Retry.';
+
+  @override
+  String get aiErrorUnknownTitle => 'Something went wrong';
+
+  @override
+  String get aiErrorUnknownBody =>
+      'ZIVO couldn\'t finish that reply. Tap Retry.';
+
+  @override
+  String get aiSwitchModel => 'Switch model';
+
+  @override
+  String get aiUsageTotalRequests => 'Total requests';
+
+  @override
+  String get aiUsageChatRequests => 'Chat requests';
+
+  @override
+  String get aiUsageGenerateRequests => 'Generate requests';
+
+  @override
+  String get aiUsageImportRequests => 'Import requests';
+
+  @override
+  String get aiUsageOtherRequests => 'Other (food search, voice)';
+
+  @override
+  String get aiUsageFailedRequests => 'Failed requests';
+
+  @override
+  String get aiUsageTokensUsed => 'Tokens used';
+
+  @override
+  String get aiUsageInputTokens => 'Input tokens';
+
+  @override
+  String get aiUsageOutputTokens => 'Output tokens';
+
+  @override
+  String get aiUsageEstimatedCost => 'Estimated cost';
+
+  @override
+  String get aiUsageCostPerRequest => 'Cost per request';
+
+  @override
+  String get aiUsageRequestsSection => 'Requests';
+
+  @override
+  String get aiUsageTokensSection => 'Tokens';
+
+  @override
+  String aiUsageProviderEmpty(String provider) {
+    return 'No $provider requests yet.';
+  }
 }

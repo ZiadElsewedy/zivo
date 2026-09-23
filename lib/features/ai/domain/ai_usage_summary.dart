@@ -35,7 +35,7 @@ class AiProviderUsage {
 
 /// One AI request as the backend logged it (`functions/ai/shared/
 /// usage_log.js` and, for chat, `chat/turn.js`): what it was for, which model
-/// did the work, what it cost, and whether it failed or fell back.
+/// did the work, what it cost, and whether it failed.
 class AiUsageRecord {
   const AiUsageRecord({
     required this.feature,
@@ -45,7 +45,6 @@ class AiUsageRecord {
     required this.tokensOut,
     required this.costUsd,
     required this.status,
-    required this.fellBack,
     required this.createdAt,
     this.latencyMs = 0,
     this.errorKind,
@@ -57,7 +56,7 @@ class AiUsageRecord {
   final String feature;
 
   /// Routing-layer provider that answered ('anthropic' | 'gemini'); on a
-  /// failed request, the last one tried.
+  /// failed request, the one that failed.
   final String provider;
 
   /// Provider-native model id, e.g. 'claude-sonnet-5'. May be empty.
@@ -69,9 +68,6 @@ class AiUsageRecord {
 
   /// 'ok' | 'error' | 'cancelled'.
   final String status;
-
-  /// Whether the preferred model failed and a backup answered.
-  final bool fellBack;
 
   /// Null only for a record whose timestamp couldn't be read.
   final DateTime? createdAt;
@@ -149,4 +145,99 @@ AiUsageTotals aiUsageGrandTotal(Iterable<AiUsageRecord> records) {
           costUsd: 0,
         )
       : all.first;
+}
+
+/// What a request was for, grouped the way the usage page counts them.
+enum AiRequestType { chat, generate, import, other }
+
+/// [feature] → its [AiRequestType]. Food search and voice-to-text, and any
+/// feature a newer backend adds, count as [AiRequestType.other].
+AiRequestType aiRequestTypeOf(String feature) => switch (feature) {
+  'chat' => AiRequestType.chat,
+  'diet_generate' => AiRequestType.generate,
+  'workout_import' || 'diet_import' => AiRequestType.import,
+  _ => AiRequestType.other,
+};
+
+/// One provider's usage, the way the AI usage page shows it: how many
+/// requests of each type, the tokens, the cost, and what an average request
+/// costs.
+class AiProviderStats {
+  const AiProviderStats({
+    required this.provider,
+    required this.totalRequests,
+    required this.chatRequests,
+    required this.generateRequests,
+    required this.importRequests,
+    required this.otherRequests,
+    required this.failedRequests,
+    required this.tokensIn,
+    required this.tokensOut,
+    required this.costUsd,
+    required this.costPerRequestUsd,
+  });
+
+  final String provider;
+  final int totalRequests;
+  final int chatRequests;
+  final int generateRequests;
+  final int importRequests;
+  final int otherRequests;
+  final int failedRequests;
+  final int tokensIn;
+  final int tokensOut;
+  final double costUsd;
+
+  /// Average cost of a **completed** request — a failed or cancelled one
+  /// generated nothing and costs ~nothing, so counting it would make the
+  /// average look cheaper than a real answer is.
+  final double costPerRequestUsd;
+
+  int get tokensTotal => tokensIn + tokensOut;
+}
+
+/// [provider]'s stats over [records] (records of other providers are
+/// ignored).
+AiProviderStats aiProviderStats(
+  Iterable<AiUsageRecord> records,
+  String provider,
+) {
+  var total = 0, chat = 0, generate = 0, imports = 0, other = 0, failed = 0;
+  var completed = 0, tokensIn = 0, tokensOut = 0;
+  var cost = 0.0, completedCost = 0.0;
+  for (final r in records) {
+    if (r.provider != provider) continue;
+    total++;
+    switch (aiRequestTypeOf(r.feature)) {
+      case AiRequestType.chat:
+        chat++;
+      case AiRequestType.generate:
+        generate++;
+      case AiRequestType.import:
+        imports++;
+      case AiRequestType.other:
+        other++;
+    }
+    if (r.failed) failed++;
+    if (!r.failed && !r.cancelled) {
+      completed++;
+      completedCost += r.costUsd;
+    }
+    tokensIn += r.tokensIn;
+    tokensOut += r.tokensOut;
+    cost += r.costUsd;
+  }
+  return AiProviderStats(
+    provider: provider,
+    totalRequests: total,
+    chatRequests: chat,
+    generateRequests: generate,
+    importRequests: imports,
+    otherRequests: other,
+    failedRequests: failed,
+    tokensIn: tokensIn,
+    tokensOut: tokensOut,
+    costUsd: cost,
+    costPerRequestUsd: completed == 0 ? 0 : completedCost / completed,
+  );
 }

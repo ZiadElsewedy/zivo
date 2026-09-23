@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/l10n/app_localizations_en.dart';
 import 'package:zivo/features/ai/domain/ai_conversation.dart';
+import 'package:zivo/features/ai/domain/ai_failure.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_pending_action.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
@@ -247,6 +248,46 @@ void main() {
     );
   });
 
+  test('Retry works when the message landed before the model failed', () async {
+    // The real-world shape: the server saves the user message, THEN the
+    // model call fails (Claude out of credit). The page clears the optimistic
+    // bubble the moment the saved message lands — which used to leave Retry
+    // with nothing to send, so tapping it did nothing.
+    final ai = _FakeAi(
+      failWith: const AiFailure(
+        AiFailureKind.unavailable,
+        provider: 'anthropic',
+        issue: AiProviderIssue.outOfCredit,
+      ),
+    );
+    final c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+
+    c.input.text = 'is that the Gemini model?';
+    await c.send();
+    expect(c.sendFailed, isTrue);
+    expect(c.sendFailure.provider, 'anthropic',
+        reason: 'the card can name the provider that failed');
+    expect(c.sendFailure.issue, AiProviderIssue.outOfCredit);
+
+    // The persisted user message landed → the page retires the bubble.
+    c.clearPending();
+    expect(c.pendingText, isNull);
+
+    // The user switches model and retries: it must actually re-send, with
+    // the NEW model and the SAME turn id (so the server doesn't re-append).
+    ai.failWith = null;
+    await c.setModelSelection('gemini-flash');
+    await c.retry(c.activeConversationId!);
+
+    expect(ai.sent, hasLength(2));
+    expect(ai.sent.last.text, 'is that the Gemini model?');
+    expect(ai.sent.last.turnId, ai.sent.first.turnId);
+    expect(ai.sent.last.modelSelection, 'gemini-flash');
+    expect(c.sendFailed, isFalse);
+  });
+
   test('a retry reuses the turn id, so the server can dedupe it', () async {
     final ai = _FakeAi(failSend: true);
     final c = _controller(ai);
@@ -341,16 +382,17 @@ void main() {
     final c = _controller(ai);
     addTearDown(c.dispose);
     await c.load();
-    expect(c.modelSelection, 'auto', reason: 'default before any choice');
+    expect(c.modelSelection, 'claude-sonnet',
+        reason: 'default before any choice');
 
-    await c.setModelSelection('gemini');
-    expect(c.modelSelection, 'gemini');
-    expect(await ai.getModelSelection(), 'gemini', reason: 'persisted');
+    await c.setModelSelection('gemini-flash');
+    expect(c.modelSelection, 'gemini-flash');
+    expect(await ai.getModelSelection(), 'gemini-flash', reason: 'persisted');
 
     c.input.text = 'hello';
     await c.send();
 
-    expect(ai.sent.single.modelSelection, 'gemini',
+    expect(ai.sent.single.modelSelection, 'gemini-flash',
         reason: 'the chosen provider rides along on send');
   });
 
@@ -362,7 +404,7 @@ void main() {
     await c.load();
     final original = c.modelSelection;
 
-    await c.setModelSelection('claude');
+    await c.setModelSelection('claude-haiku');
 
     expect(c.modelSelection, original);
     expect(reported, isNotNull);
@@ -540,6 +582,7 @@ typedef _Sent = ({
 /// implemented; the import/generate surface throws if ever reached.
 class _FakeAi implements AiRepository {
   _FakeAi({
+    this.failWith,
     this.latest,
     this.responseStyle = kDefaultResponseStyle,
     this.failSend = false,
@@ -558,6 +601,10 @@ class _FakeAi implements AiRepository {
   /// controller *mid-turn*. Without it `send()` returns with the turn already
   /// over and every intermediate label lost.
   final void Function()? afterEachEvent;
+
+  /// When set, [send] throws it (after recording the call) — a typed
+  /// [AiFailure] the way the real repository reports one.
+  Object? failWith;
 
   final AiConversation? latest;
   String responseStyle;
@@ -643,6 +690,7 @@ class _FakeAi implements AiRepository {
       afterEachEvent?.call();
     }
     if (failSend) throw StateError('offline');
+    if (failWith != null) throw failWith!;
   }
 
   @override

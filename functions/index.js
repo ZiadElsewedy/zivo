@@ -86,7 +86,7 @@ const OTP_PEPPER = defineSecret("OTP_PEPPER");
 // via `.value()` inside the handler below — never hardcoded or logged.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 // The Google Gemini API key. Backs the DEFAULT `aiTranscribe` STT route AND
-// the `aiChat` gateway's Gemini fallback/manual-select route (see
+// every AI callable when Gemini is the user's active model (see
 // `ai/routing/router.js`'s `chat` capability). Read only via `.value()` inside
 // the handlers below — never hardcoded or logged.
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
@@ -718,36 +718,72 @@ const toHttpsError = (err) => {
 };
 
 /**
- * The one user-facing answer for "every AI provider failed" — Claude out of
- * credit AND Gemini down, say. Deliberately says nothing about providers,
- * credits or quotas: that's ZIVO's problem to fix, not the user's to read.
- * `details.reason` lets the client pick its own localized copy instead of
- * showing this English line; `details.kind` is the classified cause (billing,
- * rate_limit, …) for the app's diagnostics, never shown raw.
- *
- * The provider errors themselves are logged here, once, with every attempt —
- * the only place their text goes.
+ * Display names for the providers — the only provider words the user sees.
+ * @const {!Object<string, string>}
+ */
+const PROVIDER_NAMES = {anthropic: "Claude", gemini: "Gemini"};
+
+/**
+ * One line per failure kind, naming the provider, for the English `message`
+ * a client falls back to. The app builds its own localized line from
+ * `details` (provider + kind); this is for anything that only reads
+ * `message`.
+ * @param {string} name
+ * @param {string} kind
+ * @return {string}
+ */
+function unavailableMessage(name, kind) {
+  switch (kind) {
+    case "billing":
+      return `${name} is unavailable — its usage limit has been reached. ` +
+        "Switch the active model in Ask settings.";
+    case "auth":
+      return `${name} isn't set up correctly right now. ` +
+        "Switch the active model in Ask settings.";
+    case "rate_limit":
+      return `${name} is getting too many requests. Try again in a minute.`;
+    case "timeout":
+      return `${name} didn't respond in time. Try again.`;
+    case "model_unavailable":
+      return `That ${name} model isn't available anymore. ` +
+        "Pick another in Ask settings.";
+    default:
+      return `${name} is unavailable right now. Try again in a few minutes.`;
+  }
+}
+
+/**
+ * The user-facing answer for "the active model's provider couldn't answer":
+ * it names the provider and says why in plain words (usage limit reached,
+ * busy, didn't respond) — never the provider's raw error text, which is
+ * logged here, once, and nowhere else. `details` carries
+ * `{reason: "ai_unavailable", provider, model, kind}` so the app can show
+ * its own localized line.
  * @param {!AiUnavailableError} err
  * @return {!HttpsError}
  */
 function aiUnavailableHttpsError(err) {
-  logger.error("AI providers unavailable", {
+  const attempt = err.attempts[err.attempts.length - 1] || {};
+  logger.error("AI provider unavailable", {
     kind: err.kind,
-    attempts: err.attempts,
+    provider: attempt.provider,
+    model: attempt.model,
     errorMessage: err.cause && err.cause.message,
   });
-  return new HttpsError(
-      "unavailable",
-      "ZIVO's AI is taking a short break. Please try again in a few minutes.",
-      {reason: "ai_unavailable", kind: err.kind});
+  const name = PROVIDER_NAMES[attempt.provider] || "The AI model";
+  return new HttpsError("unavailable", unavailableMessage(name, err.kind), {
+    reason: "ai_unavailable",
+    kind: err.kind,
+    provider: attempt.provider,
+    model: attempt.model,
+  });
 }
 
 /**
- * How long ONE provider attempt may run before the router abandons it and
- * tries the next model — per capability, sized so the fallback still has
- * time inside the callable's own `timeoutSeconds`. The common failure (no
- * credit, bad key) is instant and never waits on these; they only matter
- * when a provider hangs.
+ * How long ONE model call may run before the router abandons it with a clean
+ * `timeout` ("Gemini didn't respond in time") — per capability, inside the
+ * callable's own `timeoutSeconds`, so a hung provider never surfaces as the
+ * client's opaque DEADLINE_EXCEEDED.
  * @const {!Object<string, number>}
  */
 const ATTEMPT_TIMEOUT_MS = {
@@ -807,13 +843,12 @@ async function logMeteredUsage(
 }
 
 /**
- * Builds a `ProviderRegistry` backed by the real chat `AiProvider` adapters:
- * Anthropic (primary) and, when a Gemini client is supplied, Gemini (the
- * fallback / manual-select route). Which one runs — and in what order — is
- * decided entirely by `./ai/routing/router.js`'s capability table and the
- * caller's route options, not here; this only supplies the real network
- * seams. A third provider is a new adapter file plus one more `.register()`
- * call here and one route entry.
+ * Builds a `ProviderRegistry` backed by the real `AiProvider` adapters:
+ * Anthropic and, when a Gemini client is supplied, Gemini. Which one runs is
+ * decided entirely by `./ai/routing/router.js` from the user's active model,
+ * not here; this only supplies the real network seams. A third provider is a
+ * new adapter file plus one more `.register()` call here and catalog
+ * entries.
  * @param {!Anthropic} anthropic
  * @param {?GoogleGenAI=} genai The Gemini client, or null to register
  *   Anthropic only (the router then skips the unregistered Gemini route).
@@ -831,8 +866,8 @@ function buildProviderRegistry(anthropic, genai) {
 
 /**
  * An `AiProvider`-shaped object whose `generate` resolves `capability` via
- * `./ai/routing/router.js` on every call — including the router's
- * fallback-on-error policy, transparently to `./ai/gateway.js`/
+ * `./ai/routing/router.js` on every call — including its failure
+ * classification, transparently to `./ai/gateway.js`/
  * `./ai/services/workout_import.js`, which only ever see a single
  * `provider.generate`.
  * @param {!ProviderRegistry} registry
@@ -860,14 +895,12 @@ function providerForCapability(registry, capability, routeOpts) {
  */
 exports.aiChat = onCall(
     {
-      // Anthropic is primary; Gemini backs the fallback + the Gemini model
-      // selections (see ./ai/routing/router.js). Both keys are bound so
-      // either provider can serve a turn.
+      // Whichever model the user marked active answers (see
+      // ./ai/routing/router.js). Both keys are bound so either can.
       secrets: [ANTHROPIC_API_KEY, GEMINI_API_KEY],
       region: "us-central1",
-      // Room for a fallback: a hung first provider is abandoned at
-      // ATTEMPT_TIMEOUT_MS.chat and the next one still has time to answer
-      // inside this deadline (the platform default is 60s).
+      // Several model calls per turn (the tool loop); a hung one is
+      // abandoned at ATTEMPT_TIMEOUT_MS.chat with a clean "didn't respond".
       timeoutSeconds: 120,
     },
     async (request, response) => {
@@ -880,11 +913,10 @@ exports.aiChat = onCall(
       const conversationId = (data.conversationId || "").toString();
       const message = (data.message || "").toString();
       const responseStyle = (data.responseStyle || "").toString();
-      // The user's model selection ('auto' or a ./ai/routing/models.js key;
-      // older builds send 'claude'/'gemini'). Untrusted like every other
-      // field; `preferredModelKey` maps anything unrecognized to Auto. The
-      // chosen model goes FIRST, with the defaults behind it as fallback — a
-      // pinned Claude that's out of credit still gets the user an answer.
+      // The user's active model (a ./ai/routing/models.js key; older builds
+      // send 'claude'/'gemini'/'auto'). Untrusted like every other field;
+      // `preferredModelKey` maps anything unrecognized to undefined, and the
+      // router then uses the default model. ONE model answers — no fallback.
       const preferModel = preferredModelKey((data.provider || "").toString());
       // Client-generated idempotency key — makes a retried turn safe.
       const clientTurnId =
@@ -1096,13 +1128,12 @@ const MAX_PDF_BASE64_CHARS = 14 * 1024 * 1024;
  */
 exports.aiImportWorkoutPlan = onCall(
     {
-      // Claude first, Gemini as the fallback (and for a Gemini selection).
+      // The user's active model — Claude or Gemini — reads the document.
       secrets: [ANTHROPIC_API_KEY, GEMINI_API_KEY],
       region: "us-central1",
       // A single model call reading a whole PDF (native document input,
-      // every page) can run well past the platform's 60s default, and a
-      // hung first provider must leave the fallback time to answer (see
-      // ATTEMPT_TIMEOUT_MS). The client waits the same 300s.
+      // every page) can run well past the platform's 60s default. The
+      // client waits the same 300s.
       timeoutSeconds: 300,
     },
     async (request) => {
@@ -1227,7 +1258,7 @@ exports.aiImportDietPlan = onCall(
       secrets: [ANTHROPIC_API_KEY, GEMINI_API_KEY],
       region: "us-central1",
       // Same reasoning as aiImportWorkoutPlan: a single whole-PDF read can
-      // run well past the platform's 60s default, with room for a fallback.
+      // run well past the platform's 60s default.
       timeoutSeconds: 300,
     },
     async (request) => {
@@ -1357,8 +1388,8 @@ exports.aiGenerateDietPlan = onCall(
     {
       secrets: [ANTHROPIC_API_KEY, GEMINI_API_KEY],
       region: "us-central1",
-      // Two sequential model calls (design + disambiguation), each of which
-      // may need a fallback — the client waits the same 300s. It used to use
+      // Two sequential model calls (design + disambiguation) — the client
+      // waits the same 300s. It used to use
       // the client's ~70s default and a Sonnet-built plan routinely ran past
       // it ("DEADLINE EXCEEDED" on a plan the server was still building).
       timeoutSeconds: 300,

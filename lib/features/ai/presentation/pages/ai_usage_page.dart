@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
@@ -16,18 +17,24 @@ import '../ai_labels.dart';
 import '../widgets/ask/ai_detail_row.dart';
 import '../widgets/ask/provider_mark.dart';
 
-/// Every AI request ZIVO has made for this user — what it was for, which model
-/// did the work, the tokens it used and what it cost — read from the
-/// owner-readable `aiUsage` log that every AI callable now writes
-/// (`functions/ai/shared/usage_log.js`).
+/// The providers the usage page can be switched between, in display order.
+const _kUsageProviders = ['anthropic', 'gemini'];
+
+/// Where the AI money goes, one provider at a time.
 ///
-/// Top to bottom: the all-time total, totals per provider, totals per feature
-/// (chat, plan import, plan builder, food search, voice), then the latest
-/// requests one by one — with a "backup model" badge where Auto fell back and
-/// a "failed" badge where nothing could answer. Costs are the backend's
-/// estimates from list prices, and the footnote says so.
+/// Pick **Claude** or **Gemini** at the top and everything below is that
+/// provider only: its estimated cost and the average cost of a request, how
+/// many requests of each type it served (chat · generate · import · other,
+/// plus how many failed), the tokens in and out, and its latest requests one
+/// by one. Read from the owner-readable `aiUsage` log, which every AI request
+/// writes with its provider, type, tokens and cost
+/// (`functions/ai/shared/usage_log.js`). Costs are the backend's estimates
+/// from list prices, and the footnote says so.
 class AiUsagePage extends StatefulWidget {
-  const AiUsagePage({super.key});
+  const AiUsagePage({this.initialProvider = 'anthropic', super.key});
+
+  /// The provider selected on open ('anthropic' | 'gemini').
+  final String initialProvider;
 
   @override
   State<AiUsagePage> createState() => _AiUsagePageState();
@@ -35,9 +42,12 @@ class AiUsagePage extends StatefulWidget {
 
 class _AiUsagePageState extends State<AiUsagePage> {
   Future<List<AiUsageRecord>>? _records;
+  late String _provider = _kUsageProviders.contains(widget.initialProvider)
+      ? widget.initialProvider
+      : _kUsageProviders.first;
 
-  /// How many individual requests the "Recent" list shows. The totals above
-  /// it are computed over everything loaded, not just these.
+  /// How many individual requests the "Recent" list shows. The stats above it
+  /// are computed over everything loaded, not just these.
   static const int _recentShown = 60;
 
   @override
@@ -65,17 +75,24 @@ class _AiUsagePageState extends State<AiUsagePage> {
             ),
             children: [
               RiseIn(child: TrainPageHeader(title: l(context).aiUsageTitle)),
-              const SizedBox(height: 22),
+              const SizedBox(height: 20),
+              _ProviderSwitch(
+                selected: _provider,
+                onSelect: (p) {
+                  if (p == _provider) return;
+                  HapticFeedback.selectionClick();
+                  setState(() => _provider = p);
+                },
+              ),
+              const SizedBox(height: 18),
               if (snapshot.hasError)
-                _Quiet(text: l(context).aiErrorGeneric)
+                _Quiet(text: l(context).aiErrorUnknownBody)
               else if (records == null)
                 // Loading — reserve a little height, no spinner (a settings
                 // page shouldn't feel busy).
                 const SizedBox(height: 120)
-              else if (records.isEmpty)
-                _Quiet(text: l(context).aiUsageEmpty)
               else
-                ..._sections(context, records),
+                ..._providerSections(context, records),
             ],
           );
         },
@@ -83,121 +100,210 @@ class _AiUsagePageState extends State<AiUsagePage> {
     );
   }
 
-  List<Widget> _sections(BuildContext context, List<AiUsageRecord> records) {
-    final total = aiUsageGrandTotal(records);
-    final byProvider = aiUsageTotalsBy(records, (r) => r.provider);
-    final byFeature = aiUsageTotalsBy(records, (r) => r.feature);
-    final recent = records.take(_recentShown).toList();
+  List<Widget> _providerSections(
+    BuildContext context,
+    List<AiUsageRecord> records,
+  ) {
+    final name = aiProviderDisplayName(context, _provider);
+    final stats = aiProviderStats(records, _provider);
+    if (stats.totalRequests == 0) {
+      return [_Quiet(text: l(context).aiUsageProviderEmpty(name))];
+    }
+    final recent = records
+        .where((r) => r.provider == _provider)
+        .take(_recentShown)
+        .toList();
+    final requestRows = <(String, int)>[
+      (l(context).aiUsageTotalRequests, stats.totalRequests),
+      (l(context).aiUsageChatRequests, stats.chatRequests),
+      (l(context).aiUsageGenerateRequests, stats.generateRequests),
+      (l(context).aiUsageImportRequests, stats.importRequests),
+      (l(context).aiUsageOtherRequests, stats.otherRequests),
+      if (stats.failedRequests > 0)
+        (l(context).aiUsageFailedRequests, stats.failedRequests),
+    ];
+    final tokenRows = <(String, int)>[
+      (l(context).aiUsageTokensUsed, stats.tokensTotal),
+      (l(context).aiUsageInputTokens, stats.tokensIn),
+      (l(context).aiUsageOutputTokens, stats.tokensOut),
+    ];
     return [
-      RiseIn(
-        delay: const Duration(milliseconds: 40),
-        child: _TotalCard(total: total),
-      ),
-      const SizedBox(height: 22),
-      RiseIn(
-        delay: const Duration(milliseconds: 80),
-        child: SettingsSectionCard(
-          label: l(context).aiUsageByProvider,
-          children: [
-            for (var i = 0; i < byProvider.length; i++)
-              AiDetailRow(
-                leading: ProviderMark(provider: byProvider[i].key),
-                title: aiProviderDisplayName(context, byProvider[i].key),
-                subtitle: _groupSubtitle(context, byProvider[i]),
-                last: i == byProvider.length - 1,
-                trailing: _Cost(byProvider[i].costUsd),
-              ),
-          ],
-        ),
+      _CostCard(stats: stats),
+      const SizedBox(height: 20),
+      SettingsSectionCard(
+        label: l(context).aiUsageRequestsSection,
+        children: [
+          for (var i = 0; i < requestRows.length; i++)
+            _StatRow(
+              key: Key('stat-requests-$i'),
+              label: requestRows[i].$1,
+              value: ltrFor(context, _grouped(requestRows[i].$2)),
+              emphasis: i == 0,
+              last: i == requestRows.length - 1,
+            ),
+        ],
       ),
       const SizedBox(height: 20),
-      RiseIn(
-        delay: const Duration(milliseconds: 120),
-        child: SettingsSectionCard(
-          label: l(context).aiUsageByFeature,
-          children: [
-            for (var i = 0; i < byFeature.length; i++)
-              AiDetailRow(
-                leading: _FeatureIcon(byFeature[i].key),
-                title: aiFeatureText(context, byFeature[i].key),
-                subtitle: _groupSubtitle(context, byFeature[i]),
-                last: i == byFeature.length - 1,
-                trailing: _Cost(byFeature[i].costUsd),
-              ),
-          ],
-        ),
+      SettingsSectionCard(
+        label: l(context).aiUsageTokensSection,
+        children: [
+          for (var i = 0; i < tokenRows.length; i++)
+            _StatRow(
+              key: Key('stat-tokens-$i'),
+              label: tokenRows[i].$1,
+              value: ltrFor(context, _grouped(tokenRows[i].$2)),
+              emphasis: i == 0,
+              last: i == tokenRows.length - 1,
+            ),
+        ],
       ),
       const SizedBox(height: 20),
-      RiseIn(
-        delay: const Duration(milliseconds: 160),
-        child: SettingsSectionCard(
-          label: l(context).aiUsageRecent,
-          children: [
-            for (var i = 0; i < recent.length; i++)
-              _RequestRow(record: recent[i], last: i == recent.length - 1),
-          ],
-        ),
+      SettingsSectionCard(
+        label: l(context).aiUsageRecent,
+        children: [
+          for (var i = 0; i < recent.length; i++)
+            _RequestRow(record: recent[i], last: i == recent.length - 1),
+        ],
       ),
       const SizedBox(height: 14),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: Text(
           l(context).aiUsageCostNote,
-          style: AppText.meta.copyWith(color: TrainColors.ink3, height: 1.4),
+          style: AppText.meta.copyWith(color: TrainColors.ink2, height: 1.4),
         ),
       ),
     ];
   }
-
-  String _groupSubtitle(BuildContext context, AiUsageTotals t) =>
-      _requestsAndTokens(context, t);
 }
 
-/// "12 requests · 40.1K in · 2.2K out". Only the figures are LTR-isolated —
-/// wrapping the whole line would reverse the Arabic words around them.
-String _requestsAndTokens(BuildContext context, AiUsageTotals t) =>
-    '${l(context).askUsageRequests(t.requests)} · ${_inOut(context, t.tokensIn, t.tokensOut)}';
+/// 1234567 → "1,234,567" — exact counts, not the compact "1.2M", because this
+/// page is where the precise number is wanted.
+String _grouped(int n) {
+  final s = n.toString();
+  final out = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) out.write(',');
+    out.write(s[i]);
+  }
+  return out.toString();
+}
 
-String _inOut(BuildContext context, int tokensIn, int tokensOut) =>
-    l(context).aiUsageInOut(
-      ltrFor(context, compactTokens(tokensIn)),
-      ltrFor(context, compactTokens(tokensOut)),
+/// The Claude | Gemini switch — two pills with the provider marks.
+class _ProviderSwitch extends StatelessWidget {
+  const _ProviderSwitch({required this.selected, required this.onSelect});
+
+  final String selected;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: TrainColors.sectionFill,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: TrainColors.hairline),
+      ),
+      child: Row(
+        children: [
+          for (final p in _kUsageProviders)
+            Expanded(
+              child: GestureDetector(
+                key: Key('usage-provider-$p'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => onSelect(p),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: p == selected
+                        ? TrainColors.raisedStrong
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ProviderMark(provider: p),
+                      const SizedBox(width: 8),
+                      Text(
+                        aiProviderDisplayName(context, p),
+                        style: TrainType.ui(
+                          size: 15,
+                          weight: p == selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: p == selected
+                              ? TrainColors.inkPlain
+                              : TrainColors.ink2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
+  }
+}
 
-/// The headline: all-time estimated cost, with requests and tokens under it.
-class _TotalCard extends StatelessWidget {
-  const _TotalCard({required this.total});
+/// The headline: this provider's estimated cost, and what a completed request
+/// costs on average.
+class _CostCard extends StatelessWidget {
+  const _CostCard({required this.stats});
 
-  final AiUsageTotals total;
+  final AiProviderStats stats;
 
   @override
   Widget build(BuildContext context) {
     return TrainCard(
       radius: 20,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(
-            l(context).aiUsageTotal.toUpperCase(),
-            style: TrainType.caption(size: 9, tracking: 0.16),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            l(
-              context,
-            ).askUsageEstCost(ltrFor(context, formatUsd(total.costUsd))),
-            key: const Key('ai-usage-total-cost'),
-            style: TrainType.mono(
-              size: 30,
-              color: TrainColors.inkPlain,
-              height: 1.05,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l(context).aiUsageEstimatedCost.toUpperCase(),
+                  style: TrainType.caption(size: 9, tracking: 0.16),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  ltrFor(context, formatUsd(stats.costUsd)),
+                  key: const Key('ai-usage-total-cost'),
+                  style: TrainType.mono(
+                    size: 30,
+                    color: TrainColors.inkPlain,
+                    height: 1.05,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            _requestsAndTokens(context, total),
-            style: AppText.meta.copyWith(color: TrainColors.ink2),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                l(context).aiUsageCostPerRequest.toUpperCase(),
+                style: TrainType.caption(size: 9, tracking: 0.16),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                ltrFor(context, formatUsd(stats.costPerRequestUsd)),
+                key: const Key('ai-usage-cost-per-request'),
+                style: TrainType.mono(
+                  size: 17,
+                  color: TrainColors.ink,
+                  height: 1.1,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -205,8 +311,62 @@ class _TotalCard extends StatelessWidget {
   }
 }
 
+/// A label on the left, an exact figure on the right.
+class _StatRow extends StatelessWidget {
+  const _StatRow({
+    required this.label,
+    required this.value,
+    required this.last,
+    this.emphasis = false,
+    super.key,
+  });
+
+  final String label;
+  final String value;
+  final bool last;
+  final bool emphasis;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 17),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: TrainType.ui(
+                    size: 15,
+                    weight: emphasis ? FontWeight.w700 : FontWeight.w500,
+                    color: emphasis ? TrainColors.inkPlain : TrainColors.ink,
+                  ),
+                ),
+              ),
+              Text(
+                value,
+                style: TrainType.mono(
+                  size: 15,
+                  color: TrainColors.inkPlain,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (!last)
+          Padding(
+            padding: const EdgeInsetsDirectional.only(start: 17),
+            child: Divider(height: 1, thickness: 1, color: TrainColors.hairline),
+          ),
+      ],
+    );
+  }
+}
+
 /// One logged request: what it was for, the model that answered, tokens,
-/// when — and a badge if it fell back to a backup model or failed.
+/// when — and a badge if it failed or was cancelled.
 class _RequestRow extends StatelessWidget {
   const _RequestRow({required this.record, required this.last});
 
@@ -227,15 +387,16 @@ class _RequestRow extends StatelessWidget {
     final parts = <String>[
       if (record.model.isNotEmpty) aiModelIdText(context, record.model),
       if (record.tokensTotal > 0)
-        _inOut(context, record.tokensIn, record.tokensOut),
+        l(context).aiUsageInOut(
+          ltrFor(context, compactTokens(record.tokensIn)),
+          ltrFor(context, compactTokens(record.tokensOut)),
+        ),
       if (record.createdAt != null) _when(context, record.createdAt!),
     ];
     final badge = record.failed
         ? _Badge(text: l(context).aiUsageFailed, color: TrainColors.ember)
         : record.cancelled
         ? _Badge(text: l(context).aiUsageCancelled, color: TrainColors.ink3)
-        : record.fellBack
-        ? _Badge(text: l(context).aiUsageFellBack, color: TrainColors.violet)
         : null;
     return AiDetailRow(
       leading: _FeatureIcon(record.feature),
@@ -246,7 +407,14 @@ class _RequestRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          _Cost(record.costUsd),
+          Text(
+            ltrFor(context, formatUsd(record.costUsd)),
+            style: TrainType.mono(
+              size: 13.5,
+              color: TrainColors.inkPlain,
+              height: 1.1,
+            ),
+          ),
           if (badge != null) ...[const SizedBox(height: 4), badge],
         ],
       ),
@@ -272,18 +440,6 @@ class _FeatureIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       Icon(_icon, size: 19, color: TrainColors.ink2);
-}
-
-class _Cost extends StatelessWidget {
-  const _Cost(this.usd);
-
-  final double usd;
-
-  @override
-  Widget build(BuildContext context) => Text(
-    ltrFor(context, formatUsd(usd)),
-    style: TrainType.mono(size: 13.5, color: TrainColors.inkPlain, height: 1.1),
-  );
 }
 
 class _Badge extends StatelessWidget {

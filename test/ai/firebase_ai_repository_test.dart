@@ -134,14 +134,14 @@ void main() {
         },
       );
 
-      // Defaults: balanced style, 'auto' provider.
+      // Defaults: balanced style, the default active model.
       await repo.send(conversationId: 'conv-1', text: '  hello there  ');
       // Explicit style + forced Gemini.
       await repo.send(
         conversationId: 'conv-1',
         text: 'again',
         responseStyle: 'concise',
-        modelSelection: 'gemini-pro',
+        modelSelection: 'gemini-flash',
       );
       // A legacy selection from before per-model choice is upgraded.
       await repo.send(
@@ -149,7 +149,7 @@ void main() {
         text: 'legacy',
         modelSelection: 'claude',
       );
-      // An unknown selection is coerced to 'auto' before it reaches the wire.
+      // An unknown selection is coerced to the default before the wire.
       await repo.send(
         conversationId: 'conv-1',
         text: 'garbage',
@@ -157,10 +157,10 @@ void main() {
       );
 
       expect(calls, [
-        ('conv-1', 'hello there', 'balanced', 'auto'),
-        ('conv-1', 'again', 'concise', 'gemini-pro'),
+        ('conv-1', 'hello there', 'balanced', 'claude-sonnet'),
+        ('conv-1', 'again', 'concise', 'gemini-flash'),
         ('conv-1', 'legacy', 'balanced', 'claude-sonnet'),
-        ('conv-1', 'garbage', 'balanced', 'auto'),
+        ('conv-1', 'garbage', 'balanced', 'claude-sonnet'),
       ]);
     });
 
@@ -412,7 +412,7 @@ void main() {
       expect(data['unrelatedField'], 'keep-me');
     });
 
-    test("getModelSelection defaults to 'auto' when unset, and ignores garbage",
+    test("getModelSelection defaults to 'claude-sonnet' when unset, and ignores garbage",
         () async {
       final firestore = FakeFirebaseFirestore();
       final repo = FirebaseAiRepository(
@@ -420,7 +420,7 @@ void main() {
         uidSource: _signedInAs('test-uid'),
       );
 
-      expect(await repo.getModelSelection(), 'auto');
+      expect(await repo.getModelSelection(), 'claude-sonnet');
 
       await repo.setModelSelection('gemini-flash');
       expect(await repo.getModelSelection(), 'gemini-flash');
@@ -440,7 +440,7 @@ void main() {
           .collection('settings')
           .doc('ai')
           .set({'provider': 'nonsense'});
-      expect(await repo.getModelSelection(), 'auto');
+      expect(await repo.getModelSelection(), 'claude-sonnet');
     });
 
     test('setModelSelection writes provider to users/{uid}/settings/ai '

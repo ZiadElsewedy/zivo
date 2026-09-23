@@ -76,22 +76,6 @@ const MODELS = {
       cacheReadMultiplier: 0.25,
     },
   },
-  // The Pro-tier rolling alias. Priced at Gemini 2.5 Pro's standard-tier list
-  // rates ($1.25 / $10 per 1M, ≤200k context) — an estimate for the same
-  // reason as Flash. If Google ever retires the alias for this key, the
-  // router classifies the 404 as `model_unavailable` and falls through to the
-  // next route instead of failing the user's request.
-  "gemini-pro": {
-    provider: "gemini",
-    id: "gemini-pro-latest",
-    label: "Gemini Pro",
-    pricing: {
-      inputPerMTok: 1.25,
-      outputPerMTok: 10,
-      cacheWriteMultiplier: 1.0,
-      cacheReadMultiplier: 0.25,
-    },
-  },
 };
 
 /**
@@ -110,8 +94,11 @@ const DEFAULT_MODEL_FOR_PROVIDER = {
  * @const {!Object<string, string>}
  */
 const LEGACY_SELECTIONS = {
-  claude: "claude-sonnet",
-  gemini: "gemini-flash",
+  "claude": "claude-sonnet",
+  "gemini": "gemini-flash",
+  // Offered briefly, removed 2026-09-23 (the alias never resolved for this
+  // key) — its users land on the Gemini model that works.
+  "gemini-pro": "gemini-flash",
 };
 
 /**
@@ -134,9 +121,10 @@ function keyForModelId(id) {
 }
 
 /**
- * Maps the client's untrusted selection (`'auto'`, a catalog key, or a legacy
- * `'claude'`/`'gemini'`) to a catalog key, or undefined for Auto. Anything
- * unrecognized is Auto — never trust the raw value.
+ * Maps the client's untrusted selection (a catalog key, or a legacy
+ * `'claude'`/`'gemini'`/`'gemini-pro'`) to a catalog key, or undefined when
+ * it names nothing we serve (including the retired `'auto'`) — the caller
+ * then uses the capability's default model. Never trust the raw value.
  * @param {*} selection
  * @return {(string|undefined)}
  */

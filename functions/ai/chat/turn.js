@@ -268,10 +268,6 @@ async function runAiTurn({
   let usedProvider = null;
   let usedModel = null;
   let usedModelKey = null;
-  // Provider attempts that failed before a route answered (Auto falling back
-  // from an out-of-credit Claude, say) — recorded so a fallback is visible in
-  // the usage log instead of silent.
-  const failedAttempts = [];
   const toolCalls = [];
   // Total characters of tool-result JSON fed back to the model this turn, so
   // the usage log can report roughly how much of the input was tool output
@@ -315,7 +311,6 @@ async function runAiTurn({
     if (resp.provider) usedProvider = resp.provider;
     if (resp.model) usedModel = resp.model;
     if (resp.modelKey) usedModelKey = resp.modelKey;
-    if (Array.isArray(resp.attempts)) failedAttempts.push(...resp.attempts);
     usage.add(resp.usage, resp.provider, resp.model);
 
     if (resp.stopReason === "refusal") {
@@ -576,7 +571,6 @@ async function runAiTurn({
     // turn), not always Anthropic. Null (legacy seam) prices at the default.
     costUsd: totalCostUsd(usage, usedProvider),
     calls: iterations,
-    fellBack: failedAttempts.length > 0,
     tools: toolCalls,
     iterations,
     latencyMs: finishedAt.getTime() - turnNow.getTime(),
@@ -585,10 +579,6 @@ async function runAiTurn({
     schemaVersion: USAGE_SCHEMA_VERSION,
   };
   if (usedModelKey) usageDoc.modelKey = usedModelKey;
-  if (failedAttempts.length > 0) {
-    usageDoc.failedAttempts = failedAttempts.map(
-        (a) => ({provider: a.provider, model: a.model, kind: a.kind}));
-  }
   // The provider that answered (e.g. 'anthropic' | 'gemini'), when the router
   // reported it — so a fallback is visible in usage, not silent.
   if (usedProvider) usageDoc.provider = usedProvider;

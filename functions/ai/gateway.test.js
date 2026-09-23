@@ -639,7 +639,6 @@ test("usage is logged once with tokens/tools/iterations", async () => {
   // v4: every AI request logs to aiUsage; a chat turn says it's chat.
   assert.equal(usageDoc.feature, "chat");
   assert.equal(usageDoc.status, "ok");
-  assert.equal(usageDoc.fellBack, false);
   // Phase 3 observability: the input slices and the tool-output estimate are
   // reported so cache effect and tool cost are measurable per turn.
   assert.equal(usageDoc.uncachedTokensIn, 13); // no cache in the fake usage

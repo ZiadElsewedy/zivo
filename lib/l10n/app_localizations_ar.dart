@@ -2115,13 +2115,6 @@ class AppLocalizationsAr extends AppLocalizations {
       'اختر نموذج الذكاء الاصطناعي الذي يستخدمه ZIVO.';
 
   @override
-  String get askModelAuto => 'تلقائي';
-
-  @override
-  String get askModelAutoDesc =>
-      'Claude أولًا — ويتولى Gemini تلقائيًا إن تعذّر على Claude الإجابة.';
-
-  @override
   String get askModelClaude => 'Claude';
 
   @override
@@ -2137,8 +2130,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get askUsage => 'الاستخدام';
 
   @override
-  String get askUsageSubtitle =>
-      'الرموز والتكلفة التقديرية لكل مزوّد، منذ البداية.';
+  String get askUsageSubtitle => 'اضغط على مزوّد لعرض طلباته ورموزه وتكلفته.';
 
   @override
   String get askUsageEmpty => 'لا يوجد استخدام بعد — اسأل شيئًا لتبدأ.';
@@ -5969,14 +5961,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get askModelGeminiFlashDesc => 'نموذج Google السريع — الأقل تكلفة.';
 
   @override
-  String get askModelGeminiPro => 'Gemini Pro';
-
-  @override
-  String get askModelGeminiProDesc => 'أعمق تفكير لدى Google — أبطأ.';
-
-  @override
   String get askModelAppliesNote =>
-      'يُستخدم في المحادثة واستيراد الخطط ومنشئ الخطط. إذا لم يكن اختيارك متاحًا، ينتقل ZIVO تلقائيًا إلى نموذج آخر — وتحصل على إجابتك على أي حال.';
+      'النموذج النشط يجيب على كل شيء — المحادثة واستيراد الخطط ومنشئ الخطط. لا يغيّر ZIVO النموذج من تلقاء نفسه: إذا لم يكن النموذج النشط متاحًا فسيُخبرك، ويمكنك تغييره من هنا.';
 
   @override
   String askUsageRequests(int count) {
@@ -5997,16 +5983,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get aiUsageTitle => 'استخدام الذكاء الاصطناعي';
 
   @override
-  String get aiUsageSeeAll => 'عرض كل الطلبات';
-
-  @override
-  String get aiUsageSeeAllDesc => 'الرموز والتكلفة حسب المزوّد والميزة والطلب.';
-
-  @override
   String get aiUsageTotal => 'الإجمالي';
-
-  @override
-  String get aiUsageByProvider => 'حسب المزوّد';
 
   @override
   String get aiUsageByFeature => 'حسب الميزة';
@@ -6021,9 +5998,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String aiUsageInOut(String tokensIn, String tokensOut) {
     return '$tokensIn دخل · $tokensOut خرج';
   }
-
-  @override
-  String get aiUsageFellBack => 'نموذج احتياطي';
 
   @override
   String get aiUsageFailed => 'فشل';
@@ -6055,16 +6029,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get aiFeatureOther => 'طلب ذكاء اصطناعي';
-
-  @override
-  String get aiErrorUnavailable =>
-      'ذكاء ZIVO في استراحة قصيرة. حاول مرة أخرى بعد دقائق.';
-
-  @override
-  String get aiErrorUnavailableTitle => 'ذكاء ZIVO في استراحة قصيرة';
-
-  @override
-  String get aiErrorUnavailableBody => 'حاول مرة أخرى بعد دقائق.';
 
   @override
   String get aiErrorDailyLimit => 'وصلت إلى حد اليوم لهذه الميزة. يتجدد غدًا.';
@@ -6100,4 +6064,109 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get dietBuilderCountryClear => 'مسح';
+
+  @override
+  String get askModelActive => 'نشط';
+
+  @override
+  String aiProviderUnavailableTitle(String provider) {
+    return '$provider غير متاح';
+  }
+
+  @override
+  String aiProviderNoResponseTitle(String provider) {
+    return 'لم يستجب $provider';
+  }
+
+  @override
+  String aiProviderBusyTitle(String provider) {
+    return '$provider مشغول';
+  }
+
+  @override
+  String get aiModelGeneric => 'نموذج الذكاء الاصطناعي';
+
+  @override
+  String get aiIssueOutOfCredit =>
+      'تم الوصول إلى حد الاستخدام. غيّر النموذج النشط من إعدادات Ask ثم اضغط إعادة المحاولة.';
+
+  @override
+  String get aiIssueNotConfigured =>
+      'غير مُعدّ بشكل صحيح حاليًا. غيّر النموذج النشط من إعدادات Ask.';
+
+  @override
+  String get aiIssueBusy => 'طلبات كثيرة الآن — حاول مجددًا بعد دقيقة.';
+
+  @override
+  String get aiIssueOverloaded =>
+      'المزوّد مُثقل حاليًا. حاول بعد قليل، أو غيّر النموذج.';
+
+  @override
+  String get aiIssueNoResponse =>
+      'لم يُجب نموذج الذكاء الاصطناعي في الوقت المحدد. حاول مرة أخرى.';
+
+  @override
+  String get aiIssueModelRetired =>
+      'لم يعد هذا النموذج متاحًا. اختر غيره من إعدادات Ask.';
+
+  @override
+  String get aiIssueDown =>
+      'يواجه المزوّد مشكلة حاليًا. حاول لاحقًا، أو غيّر النموذج من إعدادات Ask.';
+
+  @override
+  String get aiErrorNetworkBody => 'تحقق من اتصالك ثم اضغط إعادة المحاولة.';
+
+  @override
+  String get aiErrorUnknownTitle => 'حدث خطأ ما';
+
+  @override
+  String get aiErrorUnknownBody =>
+      'تعذّر على ZIVO إكمال الرد. اضغط إعادة المحاولة.';
+
+  @override
+  String get aiSwitchModel => 'تغيير النموذج';
+
+  @override
+  String get aiUsageTotalRequests => 'إجمالي الطلبات';
+
+  @override
+  String get aiUsageChatRequests => 'طلبات المحادثة';
+
+  @override
+  String get aiUsageGenerateRequests => 'طلبات الإنشاء';
+
+  @override
+  String get aiUsageImportRequests => 'طلبات الاستيراد';
+
+  @override
+  String get aiUsageOtherRequests => 'أخرى (بحث الأطعمة، الصوت)';
+
+  @override
+  String get aiUsageFailedRequests => 'طلبات فاشلة';
+
+  @override
+  String get aiUsageTokensUsed => 'الرموز المستخدمة';
+
+  @override
+  String get aiUsageInputTokens => 'رموز الإدخال';
+
+  @override
+  String get aiUsageOutputTokens => 'رموز الإخراج';
+
+  @override
+  String get aiUsageEstimatedCost => 'التكلفة التقديرية';
+
+  @override
+  String get aiUsageCostPerRequest => 'التكلفة لكل طلب';
+
+  @override
+  String get aiUsageRequestsSection => 'الطلبات';
+
+  @override
+  String get aiUsageTokensSection => 'الرموز';
+
+  @override
+  String aiUsageProviderEmpty(String provider) {
+    return 'لا توجد طلبات $provider بعد.';
+  }
 }

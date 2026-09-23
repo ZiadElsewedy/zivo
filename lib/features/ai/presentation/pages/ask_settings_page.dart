@@ -19,11 +19,11 @@ import '../widgets/ask/provider_mark.dart';
 import 'ai_usage_page.dart';
 import '../../../../l10n/l10n.dart';
 
-/// The Ask settings **page** (pushed, not a sheet): pick which AI model ZIVO
-/// uses (Auto or one of four models, each with its brand mark and a one-line
-/// description — the choice applies to every AI feature, with automatic
-/// fallback), the reply style, and see tokens + cost per provider, with a way
-/// into the full per-request log ([AiUsagePage]).
+/// The Ask settings **page** (pushed, not a sheet): pick the **active** AI
+/// model (each with its brand mark, a one-line description, and an "Active"
+/// badge on the live one — the choice applies to every AI feature, and ZIVO
+/// never switches on its own), the reply style, and see tokens + cost per
+/// provider; tapping a provider opens its full breakdown ([AiUsagePage]).
 ///
 /// Reached from the Ask header's settings button. Selections apply in place via
 /// [onSelectModel]/[onSelectStyle] — the same controller setters the header
@@ -105,6 +105,9 @@ class _AskSettingsPageState extends State<AskSettingsPage> {
                         kAiModelSelections[i],
                       ),
                       selected: kAiModelSelections[i] == _model,
+                      // The model answering everything wears a word, not
+                      // just a tick — which one is live must be unmissable.
+                      activeBadge: kAiModelSelections[i] == _model,
                       last: i == kAiModelSelections.length - 1,
                       onTap: () => _pickModel(kAiModelSelections[i]),
                     ),
@@ -150,31 +153,7 @@ class _AskSettingsPageState extends State<AskSettingsPage> {
               delay: const Duration(milliseconds: 130),
               child: SettingsSectionCard(
                 label: l(context).askUsage,
-                children: [
-                  _UsageList(future: _usage),
-                  Divider(height: 1, thickness: 1, color: TrainColors.hairline),
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      key: const Key('ai-usage-see-all'),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const AiUsagePage(),
-                        ),
-                      ),
-                      child: AiDetailRow(
-                        title: l(context).aiUsageSeeAll,
-                        subtitle: l(context).aiUsageSeeAllDesc,
-                        last: true,
-                        trailing: Icon(
-                          AppIcons.chevron,
-                          size: 16,
-                          color: TrainColors.ink3,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                children: [_UsageList(future: _usage)],
               ),
             ),
           ],
@@ -235,17 +214,37 @@ class _UsageRow extends StatelessWidget {
     final subtitle =
         '${l(context).askUsageRequests(usage.turns)} · '
         '${l(context).askUsageEstCost(formatUsd(usage.costUsd))}';
-    return AiDetailRow(
-      leading: ProviderMark(provider: usage.provider),
-      title: aiProviderDisplayName(context, usage.provider),
-      subtitle: subtitle,
-      last: last,
-      trailing: Text(
-        ltrFor(context, compactTokens(usage.tokensTotal)),
-        style: TrainType.mono(
-          size: 15,
-          color: TrainColors.inkPlain,
-          height: 1.1,
+    // Tapping a provider opens its full breakdown — requests by type,
+    // tokens in/out, cost and cost per request.
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: Key('usage-row-${usage.provider}'),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => AiUsagePage(initialProvider: usage.provider),
+          ),
+        ),
+        child: AiDetailRow(
+          leading: ProviderMark(provider: usage.provider),
+          title: aiProviderDisplayName(context, usage.provider),
+          subtitle: subtitle,
+          last: last,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                ltrFor(context, compactTokens(usage.tokensTotal)),
+                style: TrainType.mono(
+                  size: 15,
+                  color: TrainColors.inkPlain,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(AppIcons.chevron, size: 14, color: TrainColors.ink3),
+            ],
+          ),
         ),
       ),
     );
@@ -253,7 +252,8 @@ class _UsageRow extends StatelessWidget {
 }
 
 /// A selectable settings row: an optional leading [leading] mark, a bold
-/// [title] over a [subtitle] description, and an iris check when [selected].
+/// [title] over a [subtitle] description, and an iris check when [selected]
+/// — plus an "Active" badge when [activeBadge] (the model picker).
 class _SelectRow extends StatelessWidget {
   const _SelectRow({
     required this.title,
@@ -262,9 +262,11 @@ class _SelectRow extends StatelessWidget {
     required this.onTap,
     required this.last,
     this.leading,
+    this.activeBadge = false,
     super.key,
   });
 
+  final bool activeBadge;
   final Widget? leading;
   final String title;
   final String subtitle;
@@ -288,9 +290,36 @@ class _SelectRow extends StatelessWidget {
             subtitle: subtitle,
             selectedTitle: selected,
             last: last,
-            trailing: selected
-                ? Icon(AppIcons.check, size: 18, color: TrainColors.violet)
-                : null,
+            trailing: !selected
+                ? null
+                : activeBadge
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        key: const Key('model-active-badge'),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: TrainColors.violetWash,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          l(context).askModelActive,
+                          style: AppText.meta.copyWith(
+                            color: TrainColors.violet,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(AppIcons.check, size: 18, color: TrainColors.violet),
+                    ],
+                  )
+                : Icon(AppIcons.check, size: 18, color: TrainColors.violet),
           ),
         ),
       ),

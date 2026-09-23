@@ -41,16 +41,15 @@ ai/
 │
 ├─ providers/        model adapters behind one NormalizedRequest/Response seam
 │  ├─ anthropic_provider.js   (primary)
-│  ├─ gemini_provider.js      (fallback / manual route; also the only adapter that
+│  ├─ gemini_provider.js      (when Gemini is the active model; also the only adapter that
 │  │                          understands `grounding: {googleSearch}`)
 │  └─ provider.js · registry.js · classify.js · legacy_client.js
 ├─ routing/          models.js — the model catalog: ids + per-model prices (the ONE
-│                    place pricing lives). router.js — capability → ordered models,
-│                    the user's selection first; fails over whenever the provider can't
-│                    serve us (incl. out-of-credit, which Anthropic sends as a 400),
-│                    cools a billing/auth-failed provider down, per-attempt deadlines,
-│                    all-fail → AiUnavailableError. `food_search` is Gemini-only (no
-│                    fallback — search grounding has no Anthropic equivalent)
+│                    place pricing lives). router.js — ONE model per request: the
+│                    user's active model, else Claude Sonnet; no fallback. A provider
+│                    that can't answer (incl. out-of-credit, which Anthropic sends as a
+│                    400) → AiUnavailableError naming provider + reason. `food_search`
+│                    is Gemini-only (search grounding has no Anthropic equivalent)
 │
 ├─ services/         the AI USE-CASES (one per callable capability)
 │  ├─ workout_import.js · diet_import.js   PDF/text → structured plan
