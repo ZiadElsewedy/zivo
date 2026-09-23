@@ -10,7 +10,8 @@
 **Last updated:** 2026-09-23 · **Active branch:** `feature/ai-gemini-provider`
 (cut from `feature/readiness`); music-reactive session background on `upgrades`;
 Diet Builder wizard on `claude/affectionate-wozniak-wcnkpm`; AI food/diet
-interaction layer (Phase 2 of 5) on `worktree-diet-ai-food-assistant`
+interaction layer — all 5 phases shipped and deployed, on
+`worktree-diet-ai-food-assistant`
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -96,6 +97,22 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Fixed: error logs for the three whole-document/generate AI callables were**
+  **silently swallowing the real failure reason** (2026-09-23, on
+  `worktree-diet-ai-food-assistant`, deployed). Found while live-testing the
+  Diet Builder wizard: a plan-generation failure showed the user a generic
+  "couldn't read that plan" and the server logs showed only
+  `{"message":"aiGenerateDietPlan","stage":"error"}` — no trace of what
+  actually failed. Root cause, present since 2026-08-31 in
+  `aiImportWorkoutPlan`/`aiImportDietPlan`/`aiGenerateDietPlan`'s catch
+  blocks: `logger.info("<name>", {stage: "error", message: err.message})` —
+  the data object's own `message` key collides with the logger call's first
+  argument and is lost. Renamed to `errorMessage` in all three; no behavior
+  change, only what reaches the logs. Deployed
+  (`firebase deploy --only functions:aiImportWorkoutPlan,...`). The original
+  crash that surfaced this is still unexplained (no console.error was logged
+  either, and the Phase 3 `country` change was ruled out as trivial string
+  concatenation) — next failure will actually be diagnosable.
 - **AI food/diet interaction layer — design doc + all 5 phases**
   (2026-09-23, on `worktree-diet-ai-food-assistant`, branched from
   `claude/diet-feature-workflow-32f82a`). Owner asked for a redesign of the AI food/diet
