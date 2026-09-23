@@ -3944,6 +3944,12 @@ abstract class AppLocalizations {
   /// **'Searching for that product…'**
   String get askSearchingForProduct;
 
+  /// Progress line: the assistant is ranking meal-replacement alternatives for a plan item. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Finding alternatives…'**
+  String get askFindingAlternatives;
+
   /// A proposed change the user accepted.
   ///
   /// In en, this message translates to:

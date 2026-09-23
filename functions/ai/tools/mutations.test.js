@@ -15,6 +15,7 @@ const deleteExpense = mutatingToolsByName.get("delete_expense");
 const markMealEaten = mutatingToolsByName.get("mark_meal_eaten");
 const logFood = mutatingToolsByName.get("log_food");
 const createCustomFood = mutatingToolsByName.get("create_custom_food");
+const replaceMealItem = mutatingToolsByName.get("replace_meal_item");
 
 test("create_expense: valid input normalizes; currency defaults to EGP", () => {
   const v = createExpense.validate({amountMinor: 1200, category: "coffee"});
@@ -230,3 +231,55 @@ test("create_custom_food: rejects a missing name and an out-of-range macro", () 
       })),
       ValidationError);
 });
+
+test("replace_meal_item: valid input normalizes the item reference and the replacement",
+    () => {
+      const v = replaceMealItem.validate({
+        mealId: "dinner", itemIndex: 0, itemName: "Chicken",
+        foodId: "usda:171477", quantity: 200, unit: "g",
+      });
+      assert.deepEqual(v, {
+        mealId: "dinner",
+        itemIndex: 0,
+        itemName: "Chicken",
+        item: {foodId: "usda:171477", quantity: 200, unit: "g"},
+        dateIso: null,
+      });
+    });
+
+test("replace_meal_item: rejects a missing/negative item index", () => {
+  const base = {
+    mealId: "dinner", itemName: "Chicken",
+    foodId: "usda:171477", quantity: 200, unit: "g",
+  };
+  assert.throws(
+      () => replaceMealItem.validate(base), ValidationError);
+  assert.throws(
+      () => replaceMealItem.validate(Object.assign({}, base, {itemIndex: -1})),
+      ValidationError);
+  assert.throws(
+      () => replaceMealItem.validate(Object.assign({}, base, {itemIndex: 1.5})),
+      ValidationError);
+});
+
+test("replace_meal_item: rejects a missing mealId, itemName, or replacement reference",
+    () => {
+      assert.throws(
+          () => replaceMealItem.validate({
+            itemIndex: 0, itemName: "Chicken",
+            foodId: "usda:171477", quantity: 200, unit: "g",
+          }),
+          ValidationError);
+      assert.throws(
+          () => replaceMealItem.validate({
+            mealId: "dinner", itemIndex: 0,
+            foodId: "usda:171477", quantity: 200, unit: "g",
+          }),
+          ValidationError);
+      assert.throws(
+          () => replaceMealItem.validate({
+            mealId: "dinner", itemIndex: 0, itemName: "Chicken",
+            quantity: 200, unit: "g", // no foodId or query
+          }),
+          ValidationError);
+    });

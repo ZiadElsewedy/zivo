@@ -244,6 +244,25 @@ class FirestoreStore {
   }
 
   /**
+   * Overwrites the `days` field of an active `dietPlans` doc in place —
+   * `replace_meal_item`'s confirm write. Deliberately narrower than
+   * `FirestoreDietRepository.savePlan`'s client-side write: saving an ACTIVE
+   * plan there archives whatever was active before (correct for creating or
+   * replacing a whole plan), which is wrong here — this is tweaking one item
+   * of the plan that is ALREADY active, not proposing a new one. Firestore has
+   * no per-element array update, so the whole mutated `days` array is written
+   * back; nothing else on the doc is touched.
+   * @param {string} uid
+   * @param {string} planId
+   * @param {!Array<Object>} days The plan's `days`, with the one item already
+   *   replaced in place by the caller.
+   * @return {!Promise<void>}
+   */
+  async savePlanDays(uid, planId, days) {
+    await this._user(uid).collection("dietPlans").doc(planId).update({days});
+  }
+
+  /**
    * The user's nutrition targets (`dietTargets/current`), or null when they
    * haven't set any.
    *

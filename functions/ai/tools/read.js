@@ -62,6 +62,7 @@ const {
   normalizeItem,
   summariseFood,
 } = require("../../nutrition/resolve");
+const {rankAlternatives} = require("../../nutrition/meal_replacement");
 
 /**
  * ISO string for `date`, or null.
@@ -917,7 +918,12 @@ const DIET_TOOL = {
       planItems: !dietDay ? [] : dietDay.meals.map((m) => ({
         id: m.id,
         label: m.label,
-        items: m.items.map((it) => ({
+        items: m.items.map((it, index) => ({
+          // Position within THIS meal's items — a FoodItem has no id of its
+          // own (unlike a Meal), so this is what suggest_meal_replacement /
+          // replace_meal_item address it by. Not stable across a plan edit,
+          // which is why both re-check the name at that index before writing.
+          index,
           name: it.name,
           quantity: it.quantity,
           unit: it.unit,
@@ -1091,6 +1097,133 @@ const CALCULATE_MEAL_TOOL = {
         fatG: Math.round(fatG * 10) / 10,
       } : null,
       allResolved,
+    };
+  },
+};
+
+const SUGGEST_MEAL_REPLACEMENT_TOOL = {
+  name: "suggest_meal_replacement",
+  description:
+    "Given one item in the user's active plan they want out (\"I don't want " +
+    "eggs\"), returns nutritionally comparable alternatives — same macro role " +
+    "(protein/carb/fat source), ranked by how alike their calories' " +
+    "composition is. Does not change the plan; call replace_meal_item with " +
+    "the user's pick (a `foodId` from the returned alternatives) to actually " +
+    "swap it. Identify the item with mealId, itemIndex and itemName EXACTLY " +
+    "as they appeared in get_today/get_diet's planItems — a stale reference " +
+    "comes back as notFound rather than a guess. If the user has stated " +
+    "foods they avoid or are allergic to earlier in this conversation, pass " +
+    "them so this doesn't suggest those back — this tool does not know the " +
+    "user's preferences on its own.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      mealId: {type: "string", description: "exact id from get_today/get_diet"},
+      itemIndex: {
+        type: "integer",
+        description: "the item's `index` from get_today/get_diet, within that meal",
+      },
+      itemName: {
+        type: "string",
+        description: "the item's exact name from get_today/get_diet, to catch a stale reference",
+      },
+      reason: {type: "string", description: "optional, why the user wants it swapped"},
+      avoid: {type: "array", items: {type: "string"}},
+      allergies: {type: "array", items: {type: "string"}},
+      day: {type: "string", description: "optional 'yyyy-MM-dd', default today"},
+    },
+    required: ["mealId", "itemIndex", "itemName"],
+  },
+  /**
+   * @param {!Object} store
+   * @param {string} uid
+   * @param {!Object} input
+   * @param {Date} now
+   * @param {number=} offsetMinutes
+   * @return {!Promise<!Object>}
+   */
+  async execute(store, uid, input, now, offsetMinutes) {
+    const mealId = typeof input.mealId === "string" ? input.mealId.trim() : "";
+    const itemIndex = Number.isInteger(input.itemIndex) ? input.itemIndex : -1;
+    const itemName = typeof input.itemName === "string" ?
+      input.itemName.trim() : "";
+    if (!mealId || itemIndex < 0 || !itemName) {
+      return {
+        outcome: "invalidInput",
+        note: "Need mealId, itemIndex and itemName, all from get_today/get_diet.",
+      };
+    }
+
+    const requested = typeof input.day === "string" ?
+      /^\d{4}-\d{2}-\d{2}$/.exec(input.day.trim()) : null;
+    const date = requested ? new Date(`${requested[0]}T12:00:00Z`) : now;
+    const dateOffset = requested ? 0 : offsetMinutes;
+
+    const plan = await store.getActiveDietPlan(uid);
+    if (!plan) {
+      return {
+        outcome: "notFound",
+        note: "There's no active diet plan, so there's nothing to replace.",
+      };
+    }
+    const day = resolveDietDay(plan.days || [], date, dateOffset);
+    const meals = day && Array.isArray(day.meals) ? day.meals : [];
+    const meal = meals.find((m) => m && m.id === mealId);
+    if (!meal) {
+      return {
+        outcome: "notFound",
+        note: `No meal with id "${mealId}" exists for that day. Call ` +
+          "get_diet and use an exact id and index from it.",
+      };
+    }
+    const items = Array.isArray(meal.items) ? meal.items : [];
+    const item = items[itemIndex];
+    if (!item ||
+        String(item.name || "").trim().toLowerCase() !== itemName.toLowerCase()) {
+      return {
+        outcome: "notFound",
+        note: "That item isn't there any more — the plan may have changed. " +
+          "Call get_diet again and use its current index/name.",
+      };
+    }
+
+    const customFoods = await store.listCustomFoods(uid);
+    const {role, alternatives} = rankAlternatives({
+      originalName: item.name,
+      originalMacros: {
+        proteinG: item.proteinG, carbsG: item.carbsG, fatG: item.fatG,
+      },
+      customFoods,
+      avoid: Array.isArray(input.avoid) ? input.avoid : [],
+      allergies: Array.isArray(input.allergies) ? input.allergies : [],
+    });
+
+    if (role === "unknown") {
+      return {
+        outcome: "noNutritionData",
+        note: `"${item.name}" has no calorie/macro figures to compare ` +
+          "against — resolve_food it first, or ask the user what to " +
+          "replace it with instead.",
+      };
+    }
+    if (alternatives.length === 0) {
+      return {
+        outcome: "noAlternatives",
+        note: "Nothing close enough survived the avoid/allergy filter. " +
+          "Ask the user for a food to try instead.",
+      };
+    }
+    return {
+      outcome: "found",
+      original: {
+        name: item.name,
+        calories: item.calories,
+        proteinG: item.proteinG,
+        carbsG: item.carbsG,
+        fatG: item.fatG,
+        macroRole: role,
+      },
+      alternatives,
     };
   },
 };
@@ -1323,6 +1456,7 @@ const tools = [
   DIET_TOOL,
   RESOLVE_FOOD_TOOL,
   CALCULATE_MEAL_TOOL,
+  SUGGEST_MEAL_REPLACEMENT_TOOL,
   SUMMARIZE_WEEK_TOOL,
 ];
 

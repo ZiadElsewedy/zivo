@@ -2246,6 +2246,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askSearchingForProduct => 'Searching for that product…';
 
   @override
+  String get askFindingAlternatives => 'Finding alternatives…';
+
+  @override
   String get askProposalConfirmed => 'Confirmed';
 
   @override

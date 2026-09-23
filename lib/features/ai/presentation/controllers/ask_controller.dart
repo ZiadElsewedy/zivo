@@ -381,6 +381,7 @@ class AskController extends ChangeNotifier {
     'resolve_food' => _strings.askLookingUpFood,
     'calculate_meal_nutrition' => _strings.askCalculating,
     'search_food_product' => _strings.askSearchingForProduct,
+    'suggest_meal_replacement' => _strings.askFindingAlternatives,
     _ => _strings.askWorking,
   };
 

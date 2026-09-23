@@ -79,41 +79,70 @@ second/replacement backing search provider is one adapter change, never a tool-c
 prompt change.
 
 **`suggest_meal_replacement`** — read tool, `functions/ai/tools/read.js` (new export).
+**As built (2026-09-23), differs from the sketch below**: a `FoodItem` (`food_item.dart`)
+has no `id` of its own, unlike a `Meal` — so `itemId` doesn't exist to ask for. The real
+handle is `{mealId, itemIndex, itemName}`: position within that meal's items, plus the name
+as a staleness check, both read straight from `get_today`/`get_diet`'s `planItems` (which
+gained an `index` field on each item for exactly this). No `planId`/`dayId` either — every
+other plan-touching tool (`mark_meal_eaten`) already resolves against the ACTIVE plan +
+an optional `date`, and this follows the same convention rather than inventing a new one.
 
 ```
 name: "suggest_meal_replacement"
-description: "Given a food the user wants out of their plan, return nutritionally
-  comparable alternatives from the catalog — same macro role (protein/carb/fat source),
-  respecting the plan's avoid list and allergies. Does not modify the plan; call
+description: "Given one item in the user's active plan they want out, return
+  nutritionally comparable alternatives — same macro role (protein/carb/fat source),
+  ranked by how alike their calories' composition is. Does not modify the plan; call
   replace_meal_item with the user's pick to actually change it."
-inputSchema: { planId, dayId, mealId, itemId (all required — identifies the exact plan
-  item), reason?: string }
-returns: { original: {name, calories, macros}, alternatives: [{foodId, name, per100g,
-  macroRole, similarityNote}] (3-5) }
+inputSchema: { mealId, itemIndex, itemName (all required — itemIndex/itemName from
+  get_today/get_diet's planItems), reason?: string, avoid?: string[], allergies?: string[],
+  day?: 'yyyy-MM-dd' }
+returns:
+  { outcome: "found", original: {name, calories, proteinG, carbsG, fatG, macroRole},
+      alternatives: [{foodId, name, per100g, macroRole, similarityNote}] (up to 5) }
+  | { outcome: "noNutritionData", note }   // the item has no macros to rank against
+  | { outcome: "noAlternatives", note }    // nothing survived the avoid/allergy filter
+  | { outcome: "notFound", note }          // no active plan, or a stale reference
 ```
 
-Ranking is **pure and deterministic** (`domain/analysis/meal_replacement.dart` mirrored in
-`functions/diet/`, same "pure function, model doesn't decide" pattern as
-`plan_verdict.dart`/`coaching/rules.dart`): dominant-macro classification (protein/carb/fat/
-mixed) by share of calories, then rank same-role catalog foods by macro-vector distance,
-filtered against `PlanPreferences.avoid` + `allergies`.
+`avoid`/`allergies` are tool **inputs**, not something the tool reads from a stored
+preference — there is no persisted `PlanPreferences` anywhere server-side (it has always
+been a per-generation, in-memory-only input; confirmed by grep before building this). The
+model passes what it already knows from the conversation; the prompt says so explicitly
+(§"Phase 4" below) so this isn't a silent safety gap.
+
+Ranking is **pure and deterministic**, `functions/nutrition/meal_replacement.js` — dominant
+macro-role classification by share of calories (Atwater 4/4/9, the same factors
+`food_db.js`'s `KCAL_PER_GRAM` already uses), then same-role catalog + custom foods ranked
+by macro-share Euclidean distance. **No Dart mirror yet** — see that file's own doc comment
+for why (only the AI tool path exists; a future in-app "Replace" button would need one).
 
 **`replace_meal_item`** — mutation, `functions/ai/tools/mutations.js` (new export), same
-propose→confirm→execute shape as `log_food`.
+propose→confirm→execute shape as `log_food`, identifying the item the same
+`{mealId, itemIndex, itemName}` way.
 
 ```
 name: "replace_meal_item"
 mutating: true
 description: "Propose swapping one item in the active plan for an alternative — does not
-  save until confirmed. Use after suggest_meal_replacement and the user has picked one."
-inputSchema: { planId, dayId, mealId, itemId, foodId (from suggest_meal_replacement,
-  required), quantity, unit }
-verify(): resolves foodId through the SAME catalog path as log_food, recomputes macros,
-  throws ValidationError on anything unresolved — the trust boundary is identical to
-  log_food, just writing to a plan item instead of the food log.
-execute(): DietRepository gains one narrow method, `replacePlanItem(planId, dayId, mealId,
-  itemId, newItem)` — a targeted item swap, not a full savePlan, so it can't disturb the
-  "exactly one plan active" invariant or unrelated meals.
+  save until confirmed. Use after suggest_meal_replacement and the user has picked one
+  (or after resolve_food, for a food not among its alternatives)."
+inputSchema: { mealId, itemIndex, itemName, foodId (from suggest_meal_replacement or
+  resolve_food, required), quantity, unit, date?: 'yyyy-MM-dd' }
+verify(): re-locates the item against the REAL active plan (mirrors mark_meal_eaten's
+  "a string is exactly what a model can invent" discipline) AND resolves+prices the
+  replacement through the same catalog path log_food uses — two independent proofs, since
+  neither half of this proposal (which item, what it becomes) can be trusted from the
+  model alone.
+confirm-time write (functions/ai/chat/actions.js): re-checks the SAME two things again —
+  mirrors mark_meal_eaten's requireMealInPlan exactly, for the same reason (a pending
+  action can sit up to an hour; the write is the last moment the reference can be
+  proven) — then a narrow `store.savePlanDays(uid, planId, days)` overwrites just the
+  `days` field of the ALREADY-active plan doc. Deliberately not `DietRepository.savePlan`
+  (client) or a save through the same machinery server-side: saving an active plan there
+  means "this plan is now active, archive whatever was" — correct for creating/replacing a
+  whole plan, wrong for tweaking one item of the plan that's already active. Firestore has
+  no per-element array update, so the whole mutated `days` array is the smallest possible
+  write that doesn't touch the plan's other fields.
 ```
 
 `read_user_context` is **not a tool** — see §10; it's a plain server-side fetch folded into
@@ -210,21 +239,25 @@ the "Gotchas" section of `lib/features/diet/FEATURE.md` once implemented):
 
 ### 9. Meal replacement mechanics
 
-Two-step, mirroring `log_food`'s propose→confirm split: `suggest_meal_replacement` (read,
-ranks alternatives, nothing saved) → `replace_meal_item` (mutation, confirm-gated, verified
-server-side). Ranking considers the *item's role* (its dominant macro share), not just
+**Shipped 2026-09-23.** Two-step, mirroring `log_food`'s propose→confirm split:
+`suggest_meal_replacement` (read, ranks alternatives, nothing saved) → `replace_meal_item`
+(mutation, confirm-gated, verified server-side twice — see §1–2's "as built" note). Ranking
+considers the *item's role* (its dominant macro share, classified by Atwater kcal
+contribution — `classifyMacroRole` in `functions/nutrition/meal_replacement.js`), not just
 matching calories — swapping eggs (protein) for a candy bar (carb, same calories) would be a
-range-matched but nutritionally wrong suggestion. `PlanPreferences.avoid`/`allergies` filter
-candidates before ranking, not after, so an allergen is never even shown as a choice — same
-gate discipline as generation already has in `plan_fitting.js`.
+calorie-matched but nutritionally wrong suggestion. `avoid`/`allergies` (passed by the model,
+not read from a stored preference — see §1–2) filter candidates before ranking, not after,
+so an excluded food never even reaches the choice list.
 
-**Also expose it outside chat**: `suggest_meal_replacement`'s ranking function is pure
-Dart/JS mirrored code (like everything else in `domain/analysis/`), so
-`diet_plan_edit_page.dart` / `meal_detail_page.dart` gets a plain "Replace" button calling
-the same function directly — no model round-trip needed for a UI-initiated replacement, only
-for the conversational "I don't want eggs" path. One ranking function, two entry points —
-consistent with the feature's existing rule of building a surface from one shared source
-rather than two parallel implementations.
+**"Also expose it outside chat" — deferred, not shipped.** The original sketch here proposed
+a plain "Replace" button in `diet_plan_edit_page.dart`/`meal_detail_page.dart` reusing the
+same ranking function directly. That needs a Dart port of `classifyMacroRole`/
+`rankAlternatives` with golden vectors (the same rigor `coaching/rules.dart`/`diet/state.js`
+already have) — real work, and out of scope for what the brief actually asked for: the
+conversational "I don't want eggs" path. `functions/nutrition/meal_replacement.js`'s own doc
+comment flags this as the natural next step once (if) a direct in-app entry point is wanted;
+the ranking logic is already isolated in one pure module specifically so that port, when it
+happens, is additive rather than a rewrite.
 
 ### 10. Diet generation + culture/location
 
@@ -280,13 +313,14 @@ source, or the user's own hand-entry — never a number the model typed.
 ### 12. Flutter frontend consumption
 
 No new consumption model — `AskController` already maps `step` tool names to copy
-("Reading today's diet…") for the phase/step stream; add three entries
-(`search_food_product` → "Searching for that product…",
-`suggest_meal_replacement` → "Finding alternatives…", `replace_meal_item` → "Swapping it in…").
-`choice_chips.dart` renders the new optional `subtitle`/`sourceTag` when present, unchanged
-otherwise. `input_request_card.dart` is untouched. The only new widget-level work is the
-plain "Replace" button in the meal detail page (§9), which is ordinary Flutter state, not
-AI-stream consumption.
+("Reading today's diet…") for the phase/step stream; two entries added
+(`search_food_product` → "Searching for that product…", `suggest_meal_replacement` →
+"Finding alternatives…"). `replace_meal_item` gets no entry — like every mutating tool it
+proposes rather than executes, so it emits no `step` event (`preparing_change` already covers
+it). `choice_chips.dart` renders the new optional `subtitle` when present, unchanged
+otherwise (no `sourceTag` shipped — §3's original sketch, not built; the subtitle line alone
+turned out to be enough). `input_request_card.dart` is untouched. The plain "Replace" button
+in the meal detail page (§9) is deferred, not built.
 
 ## What this design deliberately does not do
 
@@ -537,8 +571,10 @@ Gemini-select route) is byte-for-byte unaffected since it never sets that field.
 3. **Context-aware generation** ✅ shipped 2026-09-23 (§10's "As built" note) — `country` on
    `PlanPreferences`, captured in the Diet Builder wizard's "How you eat" step, sent to
    `diet_generate.js` alongside `cuisine`.
-4. **Meal replacement** — not started. `suggest_meal_replacement` + `replace_meal_item` +
-   `DietRepository.replacePlanItem` + the plain UI "Replace" entry point.
+4. **Meal replacement** ✅ shipped 2026-09-23 (§9's "as built" note) —
+   `suggest_meal_replacement` + `replace_meal_item` + `functions/nutrition/meal_replacement.js`
+   (the ranking engine) + `MEAL REPLACEMENT` prompt section. The plain UI "Replace" entry
+   point outside chat is deliberately deferred — see §9.
 5. **Quantity-as-presets polish** — not started. The `ask_choice`-with-counts guidance
    (§6.4).
 

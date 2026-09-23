@@ -216,6 +216,44 @@ async function applyProposedAction(store, uid, action) {
         Object.assign({}, e, {id: `${id}__${i}`}));
       return store.writeFoodLog(uid, entries);
     }
+    case "replace_meal_item": {
+      // Same discipline as mark_meal_eaten's requireMealInPlan: the item was
+      // proven against the plan at propose time (mutations.js
+      // `replace_meal_item.verify`), but a pending action can sit for up to an
+      // hour and the plan can be edited or replaced in that window — the
+      // write itself is the last moment the reference can still be proven, so
+      // it's re-checked here rather than trusted from the proposal alone.
+      const plan = await store.getActiveDietPlan(uid);
+      if (!plan) {
+        throw new GatewayError(
+            "failed-precondition",
+            "There's no active diet plan any more, so that item can't be " +
+            "replaced.");
+      }
+      const day = resolveDietDay(
+          plan.days || [], new Date(`${v.dayKey}T12:00:00Z`), 0);
+      const meals = day && Array.isArray(day.meals) ? day.meals : [];
+      const meal = meals.find((m) => m && m.id === v.mealId);
+      if (!meal) {
+        throw new GatewayError(
+            "failed-precondition",
+            "That meal isn't in your plan any more — the plan changed " +
+            "since I suggested this. Ask me again and I'll use the " +
+            "current one.");
+      }
+      const items = Array.isArray(meal.items) ? meal.items : [];
+      const current = items[v.itemIndex];
+      if (!current || String(current.name || "").trim().toLowerCase() !==
+          String(v.originalItemName || "").trim().toLowerCase()) {
+        throw new GatewayError(
+            "failed-precondition",
+            "That item isn't where I expected any more — the plan changed " +
+            "since I suggested this. Ask me again and I'll use the " +
+            "current one.");
+      }
+      items[v.itemIndex] = v.newItem;
+      return store.savePlanDays(uid, plan.id, plan.days);
+    }
     default:
       throw new GatewayError(
           "failed-precondition", `Unknown action kind: ${action.kind}.`);

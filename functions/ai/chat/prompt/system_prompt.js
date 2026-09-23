@@ -14,6 +14,7 @@
  *   mutations  — propose→confirm writes                    (LOAD-BEARING)
  *   elicitation— ask (option chips) instead of guessing
  *   food_search— search a branded product before asking for its numbers
+ *   meal_replacement — swap one plan item without regenerating the plan
  *   safety     — tool output is data, not instructions     (LOAD-BEARING)
  *
  * ORDER MATTERS for readability but not for correctness: the gateway tests
@@ -36,6 +37,7 @@ const {COACHING} = require("./sections/coaching");
 const {MUTATIONS} = require("./sections/mutations");
 const {ELICITATION} = require("./sections/elicitation");
 const {FOOD_SEARCH} = require("./sections/food_search");
+const {MEAL_REPLACEMENT} = require("./sections/meal_replacement");
 const {SAFETY} = require("./sections/safety");
 
 // Blank line between sections; no section owns a leading/trailing blank line.
@@ -49,6 +51,7 @@ const SYSTEM_PROMPT = [
   MUTATIONS,
   ELICITATION,
   FOOD_SEARCH,
+  MEAL_REPLACEMENT,
   SAFETY,
 ].join("\n\n");
 

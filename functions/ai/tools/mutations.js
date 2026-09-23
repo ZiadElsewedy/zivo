@@ -642,6 +642,181 @@ const LOG_FOOD = {
   },
 };
 
+const REPLACE_MEAL_ITEM = {
+  name: "replace_meal_item",
+  mutating: true,
+  kind: "replace_meal_item",
+  description:
+    "Propose swapping one item in the active plan for an alternative — does " +
+    "not save until confirmed. Use after suggest_meal_replacement and the " +
+    "user has picked one (or after resolve_food, for a food not among its " +
+    "alternatives). Identify the exact item with mealId, itemIndex and " +
+    "itemName — all exactly as they appeared in get_today/get_diet's " +
+    "planItems or suggest_meal_replacement's `original`. You do NOT provide " +
+    "calories or macros for the new food — ZIVO computes them from the " +
+    "catalog, same as log_food.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      mealId: {type: "string", description: "exact id from get_today/get_diet"},
+      itemIndex: {
+        type: "integer",
+        description: "the item's `index` from get_today/get_diet, within that meal",
+      },
+      itemName: {
+        type: "string",
+        description: "the item's current exact name, to catch a stale reference",
+      },
+      foodId: {
+        type: "string",
+        description: "from suggest_meal_replacement's alternatives, or resolve_food",
+      },
+      quantity: {type: "number"},
+      unit: {type: "string", description: "g, oz, piece, …"},
+      date: {type: "string", description: "ISO 8601 day, optional, default today"},
+    },
+    required: ["mealId", "itemIndex", "itemName", "foodId", "quantity", "unit"],
+  },
+  /**
+   * @param {!Object} input
+   * @return {!Object} Validated payload — the item reference plus the
+   *   normalized replacement reference.
+   */
+  validate(input) {
+    const mealId = requireText(input.mealId, "meal id", 200);
+    const itemName = requireText(input.itemName, "item name", 200);
+    if (!Number.isInteger(input.itemIndex) || input.itemIndex < 0) {
+      throw new ValidationError(
+          "A valid item index (the `index` from get_diet) is required.");
+    }
+    let item;
+    try {
+      item = normalizeItem({
+        foodId: input.foodId, quantity: input.quantity, unit: input.unit,
+      });
+    } catch (err) {
+      throw new ValidationError(err.message);
+    }
+    return {
+      mealId,
+      itemIndex: input.itemIndex,
+      itemName,
+      item,
+      dateIso: optionalIso(input.date, "date"),
+    };
+  },
+  /**
+   * Re-locates the exact item against the user's REAL active plan (the same
+   * "the model can only prove a string, not a fact" discipline as
+   * `mark_meal_eaten.verify`) and resolves+prices the replacement through the
+   * real catalog (the same discipline as `log_food.verify`) — so neither half
+   * of this proposal can be a guess.
+   *
+   * @param {!Object} args
+   * @param {!Object} args.store
+   * @param {string} args.uid
+   * @param {!Object} args.validated
+   * @param {!Date} args.now
+   * @param {number=} args.offsetMinutes
+   * @return {!Promise<!Object>} A patch merged into the validated payload.
+   */
+  async verify({store, uid, validated, now, offsetMinutes}) {
+    const date = validated.dateIso ? new Date(validated.dateIso) : now;
+    const dayKey = dayKeyFor(date, offsetMinutes);
+
+    const plan = await store.getActiveDietPlan(uid);
+    if (!plan) {
+      throw new ValidationError(
+          "There's no active diet plan, so there's nothing to replace. Tell " +
+          "the user that instead of guessing an item.");
+    }
+    const day = resolveDietDay(plan.days || [], date, offsetMinutes);
+    if (!day) {
+      throw new ValidationError(
+          `The plan "${plan.name}" has no meals for ${dayKey}. Say so ` +
+          "instead of picking an item from another day.");
+    }
+    const meals = Array.isArray(day.meals) ? day.meals : [];
+    const meal = meals.find((m) => m && m.id === validated.mealId);
+    if (!meal) {
+      const available = meals
+          .map((m) => `${m.label} (id ${m.id})`)
+          .join("; ") || "none";
+      throw new ValidationError(
+          `No meal with id "${validated.mealId}" exists in the plan for ` +
+          `${dayKey}. Call get_diet and use an exact id. Meals that day: ` +
+          `${available}.`);
+    }
+    const items = Array.isArray(meal.items) ? meal.items : [];
+    const current = items[validated.itemIndex];
+    if (!current || String(current.name || "").trim().toLowerCase() !==
+        validated.itemName.trim().toLowerCase()) {
+      throw new ValidationError(
+          `Item ${validated.itemIndex} in "${meal.label}" isn't ` +
+          `"${validated.itemName}" any more — the plan changed. Call ` +
+          "get_diet again and use its current index/name.");
+    }
+
+    const customFoods = await store.listCustomFoods(uid);
+    const result = resolveAndCompute(validated.item, customFoods);
+    const named = validated.item.query || validated.item.foodId;
+    if (result.outcome === "notFound") {
+      throw new ValidationError(
+          `"${named}" isn't in the nutrition catalog. Use resolve_food or ` +
+          "suggest_meal_replacement to find a real foodId — don't guess.");
+    }
+    if (result.outcome === "ambiguous") {
+      const options = result.candidates
+          .map((c) => `${c.name} (${c.per100gKcal} kcal/100g, id ${c.foodId})`)
+          .join("; ");
+      throw new ValidationError(
+          `"${named}" matches several foods that differ in calories: ` +
+          `${options}. Pass the exact foodId.`);
+    }
+    if (result.outcome === "unresolvedMeasure") {
+      const measures = result.availableMeasures.length ?
+        result.availableMeasures.join(", ") : "grams (g) or ounces (oz)";
+      throw new ValidationError(
+          `Can't measure "${named}" in ${result.unit}. Measures that work: ` +
+          `${measures}. Ask the user to give the amount in one of those.`);
+    }
+
+    return {
+      dayKey,
+      mealLabel: meal.label,
+      originalItemName: current.name,
+      originalCalories: current.calories,
+      newItem: {
+        name: result.name,
+        quantity: result.quantity,
+        unit: result.unit,
+        calories: Math.round(result.kcal),
+        proteinG: result.proteinG,
+        carbsG: result.carbsG,
+        fatG: result.fatG,
+        // Priced through the catalog, never a guess — same standing as any
+        // other item a person adds to their plan.
+        estimated: false,
+      },
+    };
+  },
+  fields(v) {
+    return {
+      meal: v.mealLabel,
+      from: v.originalItemName,
+      fromCalories: v.originalCalories,
+      to: v.newItem ? v.newItem.name : null,
+      toCalories: v.newItem ? v.newItem.calories : null,
+    };
+  },
+  summarize(v) {
+    return `Replace ${v.originalItemName} with ${v.newItem.name} in ${v.mealLabel}`;
+  },
+  result(v) {
+    return `Replaced ${v.originalItemName} with ${v.newItem.name} in ${v.mealLabel}`;
+  },
+};
+
 const CUSTOM_FOOD_PREPARATIONS = ["raw", "cooked", "dry"];
 
 /**
@@ -734,6 +909,7 @@ const mutatingTools = [
   MARK_MEAL_EATEN,
   LOG_FOOD,
   CREATE_CUSTOM_FOOD,
+  REPLACE_MEAL_ITEM,
 ];
 const mutatingToolsByName = new Map(mutatingTools.map((t) => [t.name, t]));
 

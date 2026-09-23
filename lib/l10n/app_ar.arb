@@ -641,6 +641,7 @@
   "askLookingUpFood": "يبحث عن هذا الطعام…",
   "askCalculating": "يحسب الأرقام…",
   "askSearchingForProduct": "يبحث عن هذا المنتج…",
+  "askFindingAlternatives": "يبحث عن بدائل…",
   "askProposalConfirmed": "تم التأكيد",
   "askProposalCancelled": "أُلغيت",
   "askProposalExpired": "انتهت صلاحيتها",

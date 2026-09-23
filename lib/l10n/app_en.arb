@@ -3169,6 +3169,10 @@
   "@askSearchingForProduct": {
       "description": "Progress line: the assistant is searching the web for a branded/packaged food not in ZIVO's catalog. Keep the ellipsis."
   },
+  "askFindingAlternatives": "Finding alternatives…",
+  "@askFindingAlternatives": {
+      "description": "Progress line: the assistant is ranking meal-replacement alternatives for a plan item. Keep the ellipsis."
+  },
   "askProposalConfirmed": "Confirmed",
   "@askProposalConfirmed": {
       "description": "A proposed change the user accepted."

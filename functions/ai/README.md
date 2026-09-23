@@ -30,9 +30,10 @@ ai/
 │  └─ prompt/        the system prompt, composed from sections/
 │
 ├─ tools/            everything the model can call
-│  ├─ read.js                 read-only tools (get_today, get_workouts, resolve_food, …)
+│  ├─ read.js                 read-only tools (get_today, get_workouts, resolve_food,
+│  │                          suggest_meal_replacement, …)
 │  ├─ mutations.js            confirm-gated writes (create_expense, log_food,
-│  │                          create_custom_food, … — ADR-003)
+│  │                          create_custom_food, replace_meal_item, … — ADR-003)
 │  ├─ elicitations.js         turn-enders that ask the user (ask_choice, request_input)
 │  └─ food_search_product.js  search_food_product — a branded product resolve_food can't
 │                              find, via a dedicated Gemini Google Search grounding call

@@ -18,6 +18,13 @@
 - `presentation/today_diet.dart` — the Diet glance embedded in Today (calorie ring,
   macro chips, completion state).
 - `diet_plan_edit_page.dart`, `meal_detail_page.dart` — edit plan / drill into a meal.
+  **Meal replacement is Ask-only for now**: "swap the chicken for something else" in
+  chat calls `suggest_meal_replacement`/`replace_meal_item`
+  (`functions/ai/tools/read.js`/`mutations.js`, ranked by
+  `functions/nutrition/meal_replacement.js` — same macro role, closest macro-share
+  distance). No in-app "Replace" button here yet; see
+  [`docs/DIET_AI_FOOD_ASSISTANT_ARCHITECTURE.md`](../../../docs/DIET_AI_FOOD_ASSISTANT_ARCHITECTURE.md)
+  §9 for why that's deliberately deferred rather than half-built.
 - `diet_import_page.dart` — the one analysis + review flow every capture route lands in
   (pairs with `functions/ai/diet_import.js`). With no `input` it opens the file picker; with
   one, the material was gathered before the push. Its picker, error copy and analyse/reject

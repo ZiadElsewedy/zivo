@@ -37,7 +37,10 @@ function makeClock(startMs) {
 function makeStore(overrides) {
   const messages = [];
   const pendingActions = new Map();
-  const writes = {expenses: [], edits: [], deletes: [], foodLogs: [], customFoods: []};
+  const writes = {
+    expenses: [], edits: [], deletes: [], foodLogs: [], customFoods: [],
+    planDays: [],
+  };
 
   const store = {
     messages,
@@ -89,6 +92,8 @@ function makeStore(overrides) {
     listCustomFoods: async () => [],
     writeFoodLog: async (uid, entries) => writes.foodLogs.push(...entries),
     saveCustomFood: async (uid, data) => writes.customFoods.push(data),
+    savePlanDays: async (uid, planId, days) =>
+      writes.planDays.push({uid, planId, days}),
   };
   return Object.assign(store, overrides || {});
 }
@@ -488,6 +493,160 @@ test("confirm re-checks the plan: a meal deleted after the proposal is " +
       (err) => err instanceof GatewayError &&
         err.code === "failed-precondition");
   assert.deepEqual(writes.entries, []);
+  assert.equal(store.pendingActions.get(actionId).status, "pending");
+});
+
+/**
+ * A fresh plan with one real item to replace, for replace_meal_item's tests.
+ * A factory, not a shared constant: `applyProposedAction`'s
+ * "replace_meal_item" case mutates `meal.items` in place before persisting it
+ * (harmless in production, where every request re-fetches its own copy from
+ * Firestore) — a shared object here would let one test's confirm silently
+ * corrupt every later test's fixture.
+ * @return {!Object}
+ */
+function itemPlan() {
+  return {
+    id: "plan-1",
+    name: "Cut",
+    status: "active",
+    days: [{
+      weekday: null,
+      label: "Every day",
+      meals: [{
+        id: "dinner-3",
+        label: "Dinner",
+        items: [
+          {name: "Chicken", quantity: 200, unit: "g", calories: 330,
+            proteinG: 62, carbsG: 0, fatG: 7},
+        ],
+      }],
+    }],
+  };
+}
+
+test("replace_meal_item: propose then confirm swaps exactly that item", async () => {
+  const store = dietStore({getActiveDietPlan: async () => itemPlan()});
+  const callModel = scriptedModel([
+    toolUse("replace_meal_item", {
+      mealId: "dinner-3", itemIndex: 0, itemName: "Chicken",
+      foodId: "usda:171477", quantity: 200, unit: "g",
+    }),
+  ]);
+
+  const {actionId} = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "swap the chicken for something else", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0},
+  });
+  assert.ok(actionId);
+  assert.equal(store.writes.planDays.length, 0, "nothing written before confirm");
+
+  const confirmed = await confirmAction({
+    store, uid: UID, conversationId: CONVERSATION_ID, actionId,
+    now: makeClock(2000),
+  });
+  assert.equal(confirmed.status, "applied");
+  assert.equal(store.writes.planDays.length, 1);
+  const write = store.writes.planDays[0];
+  assert.equal(write.planId, "plan-1");
+  const newItem = write.days[0].meals[0].items[0];
+  assert.notEqual(newItem.name, "Chicken");
+  // Priced through the real catalog, not the model's own arithmetic.
+  assert.equal(newItem.estimated, false);
+  assert.ok(newItem.calories > 0);
+  assert.match(confirmed.assistantText, /^Replaced Chicken with/);
+});
+
+test("replace_meal_item: a stale item reference is refused, not swapped", async () => {
+  // `validate` can only prove itemIndex/itemName are the right TYPES — a
+  // model can still invent or misremember either. Before verify, a stale
+  // reference would silently overwrite whatever item is actually there.
+  const store = dietStore({getActiveDietPlan: async () => itemPlan()});
+  const callModel = scriptedModel([
+    toolUse("replace_meal_item", {
+      mealId: "dinner-3", itemIndex: 0, itemName: "Salmon", // not what's there
+      foodId: "usda:171477", quantity: 200, unit: "g",
+    }),
+    {
+      stop_reason: "end_turn",
+      content: [{type: "text", text: "That item isn't there any more."}],
+      usage: {input_tokens: 1, output_tokens: 1},
+    },
+  ]);
+
+  const result = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "swap the salmon", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0},
+  });
+  assert.equal(result.actionId, null);
+  assert.equal(store.pendingActions.size, 0);
+  assert.equal(store.writes.planDays.length, 0);
+});
+
+test("replace_meal_item: an unresolvable replacement food is refused", async () => {
+  const store = dietStore({getActiveDietPlan: async () => itemPlan()});
+  const callModel = scriptedModel([
+    toolUse("replace_meal_item", {
+      mealId: "dinner-3", itemIndex: 0, itemName: "Chicken",
+      query: "koshari", quantity: 1, unit: "bowl", // notFound in the catalog
+    }),
+    {
+      stop_reason: "end_turn",
+      content: [{type: "text", text: "I can't find that food."}],
+      usage: {input_tokens: 1, output_tokens: 1},
+    },
+  ]);
+
+  const result = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "swap the chicken for koshari", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0},
+  });
+  assert.equal(result.actionId, null);
+  assert.equal(store.pendingActions.size, 0);
+  assert.equal(store.writes.planDays.length, 0);
+});
+
+test("replace_meal_item: confirm re-checks the item — edited after the " +
+    "proposal is refused and writes nothing", async () => {
+  let plan = itemPlan();
+  const store = dietStore({getActiveDietPlan: async () => plan});
+  const callModel = scriptedModel([
+    toolUse("replace_meal_item", {
+      mealId: "dinner-3", itemIndex: 0, itemName: "Chicken",
+      foodId: "usda:171477", quantity: 200, unit: "g",
+    }),
+  ]);
+  const {actionId} = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "swap the chicken", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0},
+  });
+  assert.ok(actionId);
+
+  // The user edits the item themselves before confirming.
+  plan = {
+    id: "plan-1",
+    name: "Cut",
+    status: "active",
+    days: [{weekday: null, label: "Every day", meals: [{
+      id: "dinner-3",
+      label: "Dinner",
+      items: [{name: "Turkey", quantity: 200, unit: "g", calories: 300,
+        proteinG: 55, carbsG: 0, fatG: 5}],
+    }]}],
+  };
+
+  await assert.rejects(
+      () => confirmAction({
+        store, uid: UID, conversationId: CONVERSATION_ID, actionId,
+        now: makeClock(2000),
+      }),
+      (err) => err instanceof GatewayError &&
+        err.code === "failed-precondition");
+  assert.equal(store.writes.planDays.length, 0);
   assert.equal(store.pendingActions.get(actionId).status, "pending");
 });
 

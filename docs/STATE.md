@@ -96,7 +96,7 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
-- **AI food/diet interaction layer — design doc + Phases 2–3**
+- **AI food/diet interaction layer — design doc + Phases 2–4**
   (2026-09-23, on `worktree-diet-ai-food-assistant`, branched from
   `claude/diet-feature-workflow-32f82a`). Owner asked for a redesign of the AI food/diet
   layer (context-aware generation, meal replacement, structured clarification instead of
@@ -148,12 +148,44 @@ notifications)**.
     sketch.
   - Tests: 519 backend pass (2 new); `flutter analyze` clean; `test/diet/diet_builder_*`
     + `test/diet/diet_l10n_test.dart` green.
-  - **Not started**: Phases 4–5 (meal replacement, quantity-as-presets UX polish) — scoped
-    in the design doc, deliberately not touched this pass.
-  - **Owner follow-up**: `search_food_product`/`create_custom_food` are new Firebase
-    Functions exports, and `diet_generate.js`'s prompt changed — need a `functions` deploy
-    (owner's creds) before any of this is live; see the diet/ai `FEATURE.md`s' existing
-    "functions deploy" gotcha.
+  **Phase 4 also shipped** (meal replacement — "swap the chicken for something else"):
+  - `functions/nutrition/meal_replacement.js` (new, pure, no Dart mirror yet — see its own
+    doc comment for why): classifies a plan item's dominant macro role by calorie share
+    (Atwater 4/4/9), then ranks same-role catalog + custom foods by macro-share distance.
+    "Mixed" items (no clear lead, like an omelette) aren't force-fit into one role.
+  - `suggest_meal_replacement` (`tools/read.js`, new): a `FoodItem` turned out to have no
+    `id` of its own (unlike a `Meal`) — so items are addressed by `{mealId, itemIndex,
+    itemName}`, the last a staleness check, all read from `get_today`/`get_diet`'s
+    `planItems` (which gained an `index` field on each item for exactly this). `avoid`/
+    `allergies` are tool **inputs** the model supplies from the conversation, not read from
+    a stored preference — there's no persisted `PlanPreferences` anywhere server-side
+    (confirmed before building, not assumed).
+  - `replace_meal_item` (`tools/mutations.js`, new): same propose→confirm→execute shape as
+    `log_food`, but checked TWICE like `mark_meal_eaten` — once at propose (`verify()`),
+    once again at confirm (`actions.js`, mirroring `requireMealInPlan` exactly) — since a
+    pending action can sit an hour and the plan can change under it. The confirm write is a
+    new narrow `store.savePlanDays(uid, planId, days)`, deliberately NOT going through
+    `savePlan`'s "this plan is now active, archive whatever was" semantics — correct for
+    creating a plan, wrong for tweaking one item of the plan already active.
+  - New `MEAL REPLACEMENT` prompt section; `create_custom_food`/`replace_meal_item` added
+    to `MUTATIONS`' tool list.
+  - **Deferred, not built**: the plain in-app "Replace" button (`diet_plan_edit_page.dart`/
+    `meal_detail_page.dart`) the design doc originally sketched — it needs a Dart port of
+    the ranking engine with golden vectors, real work the brief's actual ask (the
+    conversational path) doesn't require. `meal_replacement.js` is deliberately isolated so
+    that port is additive later, not a rewrite.
+  - Tests: 544 backend pass (25 new — 12 for the ranking engine, 13 for the tools/gateway
+    flow, including a caught test-fixture bug: the confirm-time write mutates the plan
+    object it's handed in place, harmless in production where every request re-fetches its
+    own copy, but it silently corrupted a shared test fixture across tests until switched
+    to a factory function); `flutter analyze` clean; `test/ai/` + l10n suites green (same
+    pre-existing `addDietRecommended` gap, unrelated).
+  - **Not started**: Phase 5 (quantity-as-presets UX polish) — scoped in the design doc.
+  - **Owner follow-up**: `search_food_product`/`create_custom_food`/
+    `suggest_meal_replacement`/`replace_meal_item` are new Firebase Functions exports, and
+    both `diet_generate.js`'s and the system prompt's text changed — need a `functions`
+    deploy (owner's creds) before any of this is live; see the diet/ai `FEATURE.md`s'
+    existing "functions deploy" gotcha.
 - **Music-reactive session background — "Aurora Well"** (2026-09-15, on `upgrades`).
   The live workout session's background now reacts to the playing Spotify track's
   album art. The old ambience desaturated every cover to the same charcoal (sat

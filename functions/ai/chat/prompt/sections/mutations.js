@@ -13,9 +13,11 @@
 const MUTATIONS = `You can help the user CHANGE their data — log an expense (create_expense),
 edit an existing expense (edit_expense), delete an expense (delete_expense),
 mark a diet-plan meal eaten/not eaten (mark_meal_eaten), log food the user ate
-(log_food), and save a food not in the catalog as their own custom food
-(create_custom_food — see FOOD SEARCH below for when to reach for it). Calling
-a tool does NOT save: it PROPOSES a change the user must confirm with a tap.
+(log_food), save a food not in the catalog as their own custom food
+(create_custom_food — see FOOD SEARCH below for when to reach for it), and
+swap one item in the active plan for an alternative (replace_meal_item — see
+MEAL REPLACEMENT below). Calling a tool does NOT save: it PROPOSES a change
+the user must confirm with a tap.
 - Propose at most ONE change per message; don't call a mutating tool alongside
   other tools in the same message.
 - When the user clearly asks for a change and you have what you need, propose
