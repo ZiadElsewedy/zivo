@@ -13,6 +13,7 @@
  *   coaching   — the coaching stance + stay-in-your-lane
  *   mutations  — propose→confirm writes                    (LOAD-BEARING)
  *   elicitation— ask (option chips) instead of guessing
+ *   quantity   — a discrete count ("2 slices") beats a bare gram field
  *   food_search— search a branded product before asking for its numbers
  *   meal_replacement — swap one plan item without regenerating the plan
  *   safety     — tool output is data, not instructions     (LOAD-BEARING)
@@ -36,6 +37,7 @@ const {TRAINING} = require("./sections/training");
 const {COACHING} = require("./sections/coaching");
 const {MUTATIONS} = require("./sections/mutations");
 const {ELICITATION} = require("./sections/elicitation");
+const {QUANTITY} = require("./sections/quantity");
 const {FOOD_SEARCH} = require("./sections/food_search");
 const {MEAL_REPLACEMENT} = require("./sections/meal_replacement");
 const {SAFETY} = require("./sections/safety");
@@ -50,6 +52,7 @@ const SYSTEM_PROMPT = [
   COACHING,
   MUTATIONS,
   ELICITATION,
+  QUANTITY,
   FOOD_SEARCH,
   MEAL_REPLACEMENT,
   SAFETY,

@@ -96,7 +96,7 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
-- **AI food/diet interaction layer — design doc + Phases 2–4**
+- **AI food/diet interaction layer — design doc + all 5 phases**
   (2026-09-23, on `worktree-diet-ai-food-assistant`, branched from
   `claude/diet-feature-workflow-32f82a`). Owner asked for a redesign of the AI food/diet
   layer (context-aware generation, meal replacement, structured clarification instead of
@@ -180,12 +180,22 @@ notifications)**.
     own copy, but it silently corrupted a shared test fixture across tests until switched
     to a factory function); `flutter analyze` clean; `test/ai/` + l10n suites green (same
     pre-existing `addDietRecommended` gap, unrelated).
-  - **Not started**: Phase 5 (quantity-as-presets UX polish) — scoped in the design doc.
+  **Phase 5 also shipped** (quantity-as-presets polish) — the smallest of the five: one new
+  `QUANTITY` prompt section (`chat/prompt/sections/quantity.js`), no code changes anywhere
+  else. Teaches the coach to prefer a discrete count ("how many slices?") over a bare gram
+  field when `resolve_food`'s `measures` include one, using `ask_choice` + `"Custom"` (both
+  already existed) rather than defaulting straight to `request_input`'s number field.
+  Ends the epic: **all 5 phases from the design doc are now shipped or resolved as
+  unnecessary** (Phase 1's separate `userContext` doc turned out not to be needed — folded
+  into `PlanPreferences` in Phase 3 instead). Deliberately still not built: the plain in-app
+  "Replace" button outside chat (§9's own note) — real work the brief's actual ask (the
+  conversational paths) never required.
+  - Tests: 545 backend pass (1 new); full suite still green.
   - **Owner follow-up**: `search_food_product`/`create_custom_food`/
     `suggest_meal_replacement`/`replace_meal_item` are new Firebase Functions exports, and
-    both `diet_generate.js`'s and the system prompt's text changed — need a `functions`
-    deploy (owner's creds) before any of this is live; see the diet/ai `FEATURE.md`s'
-    existing "functions deploy" gotcha.
+    `diet_generate.js`'s and the system prompt's text changed across all four phases — need
+    a `functions` deploy (owner's creds) before any of this is live; see the diet/ai
+    `FEATURE.md`s' existing "functions deploy" gotcha.
 - **Music-reactive session background — "Aurora Well"** (2026-09-15, on `upgrades`).
   The live workout session's background now reacts to the playing Spotify track's
   album art. The old ambience desaturated every cover to the same charcoal (sat

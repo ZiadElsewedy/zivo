@@ -1,8 +1,15 @@
 # AI food/diet interaction layer — architecture
 
-> Design doc, not a build log. Written before any implementation. Supersedes nothing;
-> extends [ADR-001](DECISIONS/ADR-001-ai-assistant.md), [ADR-003](DECISIONS/ADR-003-ai-mutations-v2.md)
+> Started as a design doc written before any implementation; now also the build log, kept
+> current as each phase landed — sections marked "as built" record where reality corrected
+> the original sketch. Supersedes nothing; extends
+> [ADR-001](DECISIONS/ADR-001-ai-assistant.md), [ADR-003](DECISIONS/ADR-003-ai-mutations-v2.md)
 > and [ADR-007](DECISIONS/ADR-007-diet-onboarding-body-data-and-generation.md).
+>
+> **Status (2026-09-23): all five phases shipped or resolved as unnecessary.** Phase 1
+> (a separate `userContext` doc) turned out not to be needed — §10. Phases 2–5 (external
+> food search, context-aware generation, meal replacement, quantity-as-presets) all shipped;
+> see the "Phased build order" section at the bottom for the one-line status of each.
 
 ## The one finding that reshapes the brief
 
@@ -182,10 +189,12 @@ message, not a pending action, same as `resolve_food`'s ambiguous outcome does t
 
 ### 6. Answer / call tool / ask question / show UI — decision procedure
 
-This is prompt guidance, not new plumbing. Extend
-`functions/ai/chat/prompt/sections/elicitation.js` with a food-specific precedence block
-(new sibling file `food_resolution.js`), stated as an explicit order so the model isn't
-inferring it turn-to-turn:
+This is prompt guidance, not new plumbing. **As built**: not one `food_resolution.js` as
+first sketched, but three focused sibling sections next to `elicitation.js` — `food_search.js`
+(Phase 2), `meal_replacement.js` (Phase 4), `quantity.js` (Phase 5) — one per capability
+rather than one growing file, matching how every other concern here already gets its own
+section (`mutations.js`, `elicitation.js`, `safety.js`, …). Stated as an explicit order so
+the model isn't inferring it turn-to-turn:
 
 1. **Answer directly** only if every needed fact is already in this turn's tool results or
    `read_user_context` — never re-ask for country, allergies, or targets those already carry.
@@ -194,11 +203,12 @@ inferring it turn-to-turn:
 3. **`notFound`** → `search_food_product` (new step) **before** offering hand-entry.
    Found → `ask_choice` over candidates (with `subtitle`/`sourceTag`). Still not found →
    fall back to today's behavior, offer a hand-entered custom food via `request_input`.
-4. **Quantity missing**: if the resolved food's `measures` include a discrete unit
-   (`piece`, `slice`, `cup`...), prefer `ask_choice` with 3–4 common counts + `"Custom"`
-   over a bare numeric `request_input`. Otherwise (loose/weighed foods) go straight to
-   `request_input` with a gram field — asking "how many grams of soup" as preset buttons
-   would be worse UX than the field it replaces.
+4. **Quantity missing** ✅ shipped 2026-09-23 (`sections/quantity.js`): if the resolved
+   food's `measures` include a discrete unit (`piece`, `slice`, `cup`...), prefer
+   `ask_choice` with 3–4 common counts + `"Custom"` over a bare numeric `request_input`.
+   Otherwise (loose/weighed foods) go straight to `request_input` with a gram field —
+   asking "how many grams of soup" as preset buttons would be worse UX than the field it
+   replaces.
 5. **Never** call `search_food_product` when `resolve_food` already returned `resolved` —
    matches the brief's "don't call tools unnecessarily" rule and costs nothing new to state,
    since it's the same "read before you ask" discipline the prompt already enforces for
@@ -575,8 +585,10 @@ Gemini-select route) is byte-for-byte unaffected since it never sets that field.
    `suggest_meal_replacement` + `replace_meal_item` + `functions/nutrition/meal_replacement.js`
    (the ranking engine) + `MEAL REPLACEMENT` prompt section. The plain UI "Replace" entry
    point outside chat is deliberately deferred — see §9.
-5. **Quantity-as-presets polish** — not started. The `ask_choice`-with-counts guidance
-   (§6.4).
+5. **Quantity-as-presets polish** ✅ shipped 2026-09-23 — exactly §6.4 as sketched, and
+   nothing more: a new `QUANTITY` prompt section (`chat/prompt/sections/quantity.js`), no
+   code changes anywhere else. `resolve_food`'s existing `measures` field and `ask_choice`'s
+   existing `subtitle` (from Phase 2) already carried everything this needed.
 
 Each phase ships independently and is individually testable against the existing
 `test/diet/` and `functions/ai/tools/*.test.js` suites' patterns — no phase depends on a

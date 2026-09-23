@@ -533,6 +533,16 @@ test("the system prompt teaches the log_food flow", async () => {
   assert.match(SYSTEM_PROMPT, /as opposed to ticking a planned meal/);
 });
 
+test("the system prompt prefers a discrete count over a bare gram field " +
+    "when a food's quantity is missing", async () => {
+  // Phase 5: "how many slices?" beats "how many grams?" for a food that has
+  // an obvious countable unit — but only when it does.
+  assert.match(SYSTEM_PROMPT, /check its measures first/);
+  assert.match(SYSTEM_PROMPT, /call ask_choice with 3–4 common counts/);
+  assert.match(SYSTEM_PROMPT, /skip straight to request_input with a gram field/);
+  assert.match(SYSTEM_PROMPT, /don't guess at what "Custom" means/);
+});
+
 test("the system prompt hands the model the quality flags rather than " +
     "leaving it to infer them", async () => {
   assert.match(
