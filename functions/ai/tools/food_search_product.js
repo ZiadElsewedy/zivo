@@ -142,7 +142,8 @@ function num(v) {
  * show, dropping anything missing a required macro rather than defaulting it
  * to zero (a silent zero is as much an invented number as a guessed one).
  * @param {*} rawCandidates
- * @param {!Array<string>} sourceUrls Shared citation list (see `citationsFrom`).
+ * @param {!Array<string>} sourceUrls Shared citation list (see
+ *   `citationsFrom`).
  * @return {!Array<Object>}
  */
 function normalizeCandidates(rawCandidates, sourceUrls) {

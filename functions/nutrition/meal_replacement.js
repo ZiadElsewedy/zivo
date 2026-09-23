@@ -33,7 +33,7 @@ const ROLES = ["protein", "carbs", "fat"];
  */
 const DOMINANCE_MARGIN = 0.10;
 
-/** @const {number} Alternatives returned, at most — mirrors `MAX_CANDIDATES`. */
+/** @const {number} Alternatives returned, at most — mirrors `food_db.js`'s. */
 const MAX_ALTERNATIVES = 5;
 
 /**
@@ -45,8 +45,10 @@ const MAX_ALTERNATIVES = 5;
  * @return {?{protein: number, carbs: number, fat: number}}
  */
 function macroShares(macros) {
-  const proteinKcal = Math.max(0, Number(macros.proteinG) || 0) * KCAL_PER_GRAM.protein;
-  const carbsKcal = Math.max(0, Number(macros.carbsG) || 0) * KCAL_PER_GRAM.carbs;
+  const proteinKcal =
+    Math.max(0, Number(macros.proteinG) || 0) * KCAL_PER_GRAM.protein;
+  const carbsKcal =
+    Math.max(0, Number(macros.carbsG) || 0) * KCAL_PER_GRAM.carbs;
   const fatKcal = Math.max(0, Number(macros.fatG) || 0) * KCAL_PER_GRAM.fat;
   const total = proteinKcal + carbsKcal + fatKcal;
   if (total <= 0) return null;
@@ -126,7 +128,8 @@ function nameMatchesAny(name, avoidTokens) {
  * @param {!Object} args
  * @param {string} args.originalName The item being replaced, for the
  *   "don't just suggest the same food back" exclusion.
- * @param {{proteinG: ?number, carbsG: ?number, fatG: ?number}} args.originalMacros
+ * @param {{proteinG: ?number, carbsG: ?number, fatG: ?number}}
+ *   args.originalMacros
  * @param {!Array<Object>=} args.customFoods The user's own foods
  *   (`store.listCustomFoods` rows), layered in as candidates too.
  * @param {!Array<string>=} args.avoid Foods to exclude — the model's own
@@ -186,20 +189,22 @@ function rankAlternatives({
     });
   }
 
-  scored.sort((a, b) => a.distance - b.distance || (a.food.id < b.food.id ? -1 : 1));
+  scored.sort((a, b) =>
+    a.distance - b.distance || (a.food.id < b.food.id ? -1 : 1));
 
-  const alternatives = scored.slice(0, MAX_ALTERNATIVES).map(({food, candidateRole}) => ({
-    foodId: food.id,
-    name: food.name,
-    per100g: {
-      kcal: Math.round(food.kcalPer100g),
-      proteinG: food.proteinPer100g,
-      carbsG: food.carbsPer100g,
-      fatG: food.fatPer100g,
-    },
-    macroRole: candidateRole,
-    similarityNote: similarityNoteFor(role),
-  }));
+  const alternatives = scored.slice(0, MAX_ALTERNATIVES)
+      .map(({food, candidateRole}) => ({
+        foodId: food.id,
+        name: food.name,
+        per100g: {
+          kcal: Math.round(food.kcalPer100g),
+          proteinG: food.proteinPer100g,
+          carbsG: food.carbsPer100g,
+          fatG: food.fatPer100g,
+        },
+        macroRole: candidateRole,
+        similarityNote: similarityNoteFor(role),
+      }));
 
   return {role, alternatives};
 }

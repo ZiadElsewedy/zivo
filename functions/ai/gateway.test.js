@@ -539,7 +539,7 @@ test("the system prompt prefers a discrete count over a bare gram field " +
   // an obvious countable unit — but only when it does.
   assert.match(SYSTEM_PROMPT, /check its measures first/);
   assert.match(SYSTEM_PROMPT, /call ask_choice with 3–4 common counts/);
-  assert.match(SYSTEM_PROMPT, /skip straight to request_input with a gram field/);
+  assert.match(SYSTEM_PROMPT, /skip straight to request_input with a gram/);
   assert.match(SYSTEM_PROMPT, /don't guess at what "Custom" means/);
 });
 

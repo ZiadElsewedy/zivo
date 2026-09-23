@@ -85,7 +85,9 @@ test("rankAlternatives: a protein-role item gets protein-role alternatives only,
   for (let i = 1; i < alternatives.length; i++) {
     const distOf = (a) => {
       const shares = macroShares({
-        proteinG: a.per100g.proteinG, carbsG: a.per100g.carbsG, fatG: a.per100g.fatG,
+        proteinG: a.per100g.proteinG,
+        carbsG: a.per100g.carbsG,
+        fatG: a.per100g.fatG,
       });
       return shareDistance({protein: 1, carbs: 0, fat: 0}, shares);
     };

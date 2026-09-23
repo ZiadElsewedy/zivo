@@ -882,7 +882,8 @@ const CREATE_CUSTOM_FOOD = {
       proteinPer100g,
       carbsPer100g,
       fatPer100g,
-      preparation: prep && CUSTOM_FOOD_PREPARATIONS.includes(prep) ? prep : null,
+      preparation:
+        prep && CUSTOM_FOOD_PREPARATIONS.includes(prep) ? prep : null,
     };
   },
   fields(v) {

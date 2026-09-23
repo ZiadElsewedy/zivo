@@ -15,6 +15,11 @@ const {
 
 const searchFoodProduct = foodSearchToolsByName.get("search_food_product");
 
+/** @const {!Object} A zeroed `NormalizedUsage` — irrelevant to these tests. */
+const NO_USAGE = {
+  inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0,
+};
+
 /**
  * A fake `AiProvider` whose `generate` returns `response` (or throws
  * `response` if it's an Error), recording every call it received.
@@ -43,7 +48,7 @@ function groundResponse(text) {
   return {
     stopReason: "end",
     content: [{type: "text", text}],
-    usage: {inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0},
+    usage: NO_USAGE,
     raw: {
       candidates: [{
         groundingMetadata: {
@@ -65,9 +70,12 @@ function extractResponse(candidates) {
   return {
     stopReason: "tool_use",
     content: [
-      {type: "tool_use", id: "t1", name: "emit_food_candidates", input: {candidates}},
+      {
+        type: "tool_use", id: "t1", name: "emit_food_candidates",
+        input: {candidates},
+      },
     ],
-    usage: {inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0},
+    usage: NO_USAGE,
     raw: {},
   };
 }
