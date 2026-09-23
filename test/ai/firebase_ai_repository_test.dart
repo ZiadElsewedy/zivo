@@ -141,7 +141,13 @@ void main() {
         conversationId: 'conv-1',
         text: 'again',
         responseStyle: 'concise',
-        modelSelection: 'gemini',
+        modelSelection: 'gemini-pro',
+      );
+      // A legacy selection from before per-model choice is upgraded.
+      await repo.send(
+        conversationId: 'conv-1',
+        text: 'legacy',
+        modelSelection: 'claude',
       );
       // An unknown selection is coerced to 'auto' before it reaches the wire.
       await repo.send(
@@ -152,7 +158,8 @@ void main() {
 
       expect(calls, [
         ('conv-1', 'hello there', 'balanced', 'auto'),
-        ('conv-1', 'again', 'concise', 'gemini'),
+        ('conv-1', 'again', 'concise', 'gemini-pro'),
+        ('conv-1', 'legacy', 'balanced', 'claude-sonnet'),
         ('conv-1', 'garbage', 'balanced', 'auto'),
       ]);
     });
@@ -415,8 +422,17 @@ void main() {
 
       expect(await repo.getModelSelection(), 'auto');
 
-      await repo.setModelSelection('gemini');
-      expect(await repo.getModelSelection(), 'gemini');
+      await repo.setModelSelection('gemini-flash');
+      expect(await repo.getModelSelection(), 'gemini-flash');
+
+      // A selection saved by an older build reads back upgraded.
+      await firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('settings')
+          .doc('ai')
+          .set({'provider': 'gemini'});
+      expect(await repo.getModelSelection(), 'gemini-flash');
 
       await firestore
           .collection('users')
@@ -441,10 +457,10 @@ void main() {
         uidSource: _signedInAs('test-uid'),
       );
 
-      await repo.setModelSelection('claude');
+      await repo.setModelSelection('claude-haiku');
 
       final data = (await doc.get()).data()!;
-      expect(data['provider'], 'claude');
+      expect(data['provider'], 'claude-haiku');
       expect(data['responseStyle'], 'concise');
     });
 

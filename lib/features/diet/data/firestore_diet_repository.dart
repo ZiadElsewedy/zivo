@@ -773,6 +773,34 @@ class FirestoreDietRepository implements DietRepository {
       .collection('dietTargets')
       .doc('current');
 
+  @override
+  Future<String?> fetchHomeCountry() async {
+    final uid = uidSource.currentUid();
+    if (uid == null) return null;
+    final snapshot = await _dietSettingsDoc(uid).get();
+    final code = snapshot.data()?['countryCode'];
+    return code is String && code.isNotEmpty ? code : null;
+  }
+
+  @override
+  Future<void> saveHomeCountry(String? countryCode) {
+    final uid = _requireUid();
+    // `settings/{id}` is the rules' deliberately open-shaped preferences
+    // store (firestore.rules), so a new remembered preference needs no rules
+    // deploy.
+    return _dietSettingsDoc(uid).set({
+      'countryCode': countryCode,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  DocumentReference<Map<String, dynamic>> _dietSettingsDoc(String uid) =>
+      _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('settings')
+          .doc('diet');
+
   DocumentReference<Map<String, dynamic>> _bodyProfileDoc(String uid) =>
       _firestore
           .collection('users')

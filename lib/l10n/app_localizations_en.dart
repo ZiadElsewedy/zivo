@@ -2088,14 +2088,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askModel => 'Model';
 
   @override
-  String get askModelSheetSubtitle => 'Choose which AI answers your questions.';
+  String get askModelSheetSubtitle => 'Choose which AI model ZIVO uses.';
 
   @override
   String get askModelAuto => 'Auto';
 
   @override
   String get askModelAutoDesc =>
-      'Best available — Claude, with Gemini as backup.';
+      'Claude first — Gemini steps in automatically if Claude can\'t answer.';
 
   @override
   String get askModelClaude => 'Claude';
@@ -2113,7 +2113,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askUsage => 'Usage';
 
   @override
-  String get askUsageSubtitle => 'Tokens used per model, all-time.';
+  String get askUsageSubtitle =>
+      'Tokens and estimated cost per provider, all-time.';
 
   @override
   String get askUsageEmpty => 'No usage yet — ask something to get started.';
@@ -5745,7 +5746,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dietBuilderCountryNote =>
-      'Helps ZIVO suggest foods that are actually realistic and available where you are — optional.';
+      'Helps ZIVO suggest foods that are realistic and easy to find where you live. ZIVO remembers it for next time.';
 
   @override
   String get dietBuilderAvoidTitle => 'Anything you don\'t want?';
@@ -5825,4 +5826,157 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dietBuilderEditPlan => 'Edit plan';
+
+  @override
+  String get askModelClaudeSonnet => 'Claude Sonnet';
+
+  @override
+  String get askModelClaudeSonnetDesc =>
+      'Anthropic\'s most capable everyday model — the best answers.';
+
+  @override
+  String get askModelClaudeHaiku => 'Claude Haiku';
+
+  @override
+  String get askModelClaudeHaikuDesc =>
+      'Faster and cheaper than Sonnet, still sharp.';
+
+  @override
+  String get askModelGeminiFlash => 'Gemini Flash';
+
+  @override
+  String get askModelGeminiFlashDesc =>
+      'Google\'s fast model — the lowest cost.';
+
+  @override
+  String get askModelGeminiPro => 'Gemini Pro';
+
+  @override
+  String get askModelGeminiProDesc => 'Google\'s deepest reasoning — slower.';
+
+  @override
+  String get askModelAppliesNote =>
+      'Used for chat, plan imports and the plan builder. If your choice is unavailable, ZIVO switches to another model automatically — you still get an answer.';
+
+  @override
+  String askUsageRequests(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count requests',
+      one: '1 request',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get aiUsageTitle => 'AI usage';
+
+  @override
+  String get aiUsageSeeAll => 'See every request';
+
+  @override
+  String get aiUsageSeeAllDesc =>
+      'Tokens and cost by provider, feature and request.';
+
+  @override
+  String get aiUsageTotal => 'Total';
+
+  @override
+  String get aiUsageByProvider => 'By provider';
+
+  @override
+  String get aiUsageByFeature => 'By feature';
+
+  @override
+  String get aiUsageRecent => 'Recent requests';
+
+  @override
+  String get aiUsageEmpty => 'No AI requests yet.';
+
+  @override
+  String aiUsageInOut(String tokensIn, String tokensOut) {
+    return '$tokensIn in · $tokensOut out';
+  }
+
+  @override
+  String get aiUsageFellBack => 'Backup model';
+
+  @override
+  String get aiUsageFailed => 'Failed';
+
+  @override
+  String get aiUsageCancelled => 'Cancelled';
+
+  @override
+  String get aiUsageCostNote =>
+      'Costs are estimates from list prices (Gemini\'s especially). Your provider\'s billing page is the source of truth.';
+
+  @override
+  String get aiFeatureChat => 'Ask chat';
+
+  @override
+  String get aiFeatureWorkoutImport => 'Workout plan import';
+
+  @override
+  String get aiFeatureDietImport => 'Diet plan import';
+
+  @override
+  String get aiFeatureDietGenerate => 'Diet plan builder';
+
+  @override
+  String get aiFeatureFoodSearch => 'Food search';
+
+  @override
+  String get aiFeatureTranscribe => 'Voice to text';
+
+  @override
+  String get aiFeatureOther => 'AI request';
+
+  @override
+  String get aiErrorUnavailable =>
+      'ZIVO\'s AI is taking a short break. Please try again in a few minutes.';
+
+  @override
+  String get aiErrorUnavailableTitle => 'ZIVO\'s AI is taking a short break';
+
+  @override
+  String get aiErrorUnavailableBody => 'Try again in a few minutes.';
+
+  @override
+  String get aiErrorDailyLimit =>
+      'You\'ve reached today\'s limit for this. It resets tomorrow.';
+
+  @override
+  String get aiErrorDailyLimitTitle => 'Today\'s limit reached';
+
+  @override
+  String get aiErrorDailyLimitBody => 'Ask resets tomorrow.';
+
+  @override
+  String get aiErrorTimeout =>
+      'That took longer than it should. Please try again.';
+
+  @override
+  String get aiErrorTimeoutTitle => 'That took too long';
+
+  @override
+  String get aiErrorNetwork =>
+      'Couldn\'t reach ZIVO — check your connection and try again.';
+
+  @override
+  String get aiErrorGeneric =>
+      'Something went wrong on our side. Please try again.';
+
+  @override
+  String get dietBuilderCountryPick => 'Choose your country';
+
+  @override
+  String get dietBuilderCountrySearch => 'Search countries';
+
+  @override
+  String get dietBuilderCountryNone => 'No country matches that.';
+
+  @override
+  String get dietBuilderCountryClear => 'Clear';
 }

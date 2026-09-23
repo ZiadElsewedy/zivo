@@ -49,7 +49,13 @@ const {
   toNormalizedMessage,
   capToolResult,
 } = require("./messages");
-const {TurnUsage, isOverDailyCap, approxTokensFromChars} = require("./usage");
+const {
+  TurnUsage,
+  totalCostUsd,
+  isOverDailyCap,
+  approxTokensFromChars,
+} = require("./usage");
+const {AiFeature, USAGE_SCHEMA_VERSION} = require("../shared/usage_log");
 const {buildSystemBlocks} = require("./context");
 const {persistProposal, persistElicitation} = require("./actions");
 
@@ -244,12 +250,28 @@ async function runAiTurn({
   const systemBlocks = buildSystemBlocks({responseStyle, facts: nowFacts});
 
   const usage = new TurnUsage();
+  // The chat provider as the tools see it (`search_food_product`'s extraction
+  // call): the same router-backed provider, but its tokens are folded into
+  // THIS turn's usage — the turn's recorded cost is everything spent
+  // answering, not just the loop's own calls.
+  const toolChatProvider = {
+    generate: async (request, opts) => {
+      const r = await activeProvider.generate(request, opts);
+      usage.add(r.usage, r.provider, r.model);
+      return r;
+    },
+  };
   let iterations = 0;
   // The provider/model that actually answered, captured from the response the
   // router stamps. `activeModel` is the requested default; on an `Auto` turn
   // that fell back, these hold what really ran, so the usage log is truthful.
   let usedProvider = null;
   let usedModel = null;
+  let usedModelKey = null;
+  // Provider attempts that failed before a route answered (Auto falling back
+  // from an out-of-credit Claude, say) — recorded so a fallback is visible in
+  // the usage log instead of silent.
+  const failedAttempts = [];
   const toolCalls = [];
   // Total characters of tool-result JSON fed back to the model this turn, so
   // the usage log can report roughly how much of the input was tool output
@@ -292,7 +314,9 @@ async function runAiTurn({
 
     if (resp.provider) usedProvider = resp.provider;
     if (resp.model) usedModel = resp.model;
-    usage.add(resp.usage);
+    if (resp.modelKey) usedModelKey = resp.modelKey;
+    if (Array.isArray(resp.attempts)) failedAttempts.push(...resp.attempts);
+    usage.add(resp.usage, resp.provider, resp.model);
 
     if (resp.stopReason === "refusal") {
       refusal = true;
@@ -392,7 +416,7 @@ async function runAiTurn({
         try {
           resultPayload = await tool.execute(
               store, uid, block.input || {}, turnNow, offsetMinutes,
-              {chatProvider: activeProvider, foodSearchProvider});
+              {chatProvider: toolChatProvider, foodSearchProvider});
           // Keep the structured diet state+findings so the reply can be checked
           // against what the model actually read (Phase 7). The last one wins —
           // the reply is about the most recently loaded day.
@@ -532,6 +556,8 @@ async function runAiTurn({
   }
 
   const usageDoc = {
+    feature: AiFeature.CHAT,
+    status: "ok",
     dayKey,
     // `tokensIn` is the total input volume (uncached + cache read + cache
     // write) the daily cap and the client usage summary read; the three slices
@@ -548,14 +574,21 @@ async function runAiTurn({
     toolResultTokens: approxTokensFromChars(toolResultChars),
     // Priced at the provider that actually answered (Gemini on a fallback
     // turn), not always Anthropic. Null (legacy seam) prices at the default.
-    costUsd: usage.costUsd(usedProvider),
+    costUsd: totalCostUsd(usage, usedProvider),
+    calls: iterations,
+    fellBack: failedAttempts.length > 0,
     tools: toolCalls,
     iterations,
     latencyMs: finishedAt.getTime() - turnNow.getTime(),
     model: usedModel || activeModel,
     createdAt: finishedAt,
-    schemaVersion: 3,
+    schemaVersion: USAGE_SCHEMA_VERSION,
   };
+  if (usedModelKey) usageDoc.modelKey = usedModelKey;
+  if (failedAttempts.length > 0) {
+    usageDoc.failedAttempts = failedAttempts.map(
+        (a) => ({provider: a.provider, model: a.model, kind: a.kind}));
+  }
   // The provider that answered (e.g. 'anthropic' | 'gemini'), when the router
   // reported it — so a fallback is visible in usage, not silent.
   if (usedProvider) usageDoc.provider = usedProvider;

@@ -56,7 +56,15 @@ const {FirestoreStore} = require("./ai/shared/store");
 const {AnthropicProvider} = require("./ai/providers/anthropic_provider");
 const {GeminiProvider} = require("./ai/providers/gemini_provider");
 const {ProviderRegistry} = require("./ai/providers/registry");
+const {AiUnavailableError} = require("./ai/providers/classify");
 const router = require("./ai/routing/router");
+const {preferredModelKey} = require("./ai/routing/models");
+const {
+  AiFeature,
+  UsageMeter,
+  buildUsageRecord,
+  saveUsageRecord,
+} = require("./ai/shared/usage_log");
 const {OpenAI, toFile} = require("openai");
 const {GoogleGenAI} = require("@google/genai");
 const {transcribeAudio, SpeechError} = require("./ai/speech/gateway");
@@ -703,22 +711,112 @@ exports.deleteAccount = onCall(
  */
 const toHttpsError = (err) => {
   if (err instanceof GatewayError) return new HttpsError(err.code, err.message);
+  if (err instanceof AiUnavailableError) return aiUnavailableHttpsError(err);
   console.error("aiChat: unhandled error", err);
   return new HttpsError(
       "internal", "Ask couldn't answer that. Please try again.");
 };
 
 /**
+ * The one user-facing answer for "every AI provider failed" — Claude out of
+ * credit AND Gemini down, say. Deliberately says nothing about providers,
+ * credits or quotas: that's ZIVO's problem to fix, not the user's to read.
+ * `details.reason` lets the client pick its own localized copy instead of
+ * showing this English line; `details.kind` is the classified cause (billing,
+ * rate_limit, …) for the app's diagnostics, never shown raw.
+ *
+ * The provider errors themselves are logged here, once, with every attempt —
+ * the only place their text goes.
+ * @param {!AiUnavailableError} err
+ * @return {!HttpsError}
+ */
+function aiUnavailableHttpsError(err) {
+  logger.error("AI providers unavailable", {
+    kind: err.kind,
+    attempts: err.attempts,
+    errorMessage: err.cause && err.cause.message,
+  });
+  return new HttpsError(
+      "unavailable",
+      "ZIVO's AI is taking a short break. Please try again in a few minutes.",
+      {reason: "ai_unavailable", kind: err.kind});
+}
+
+/**
+ * How long ONE provider attempt may run before the router abandons it and
+ * tries the next model — per capability, sized so the fallback still has
+ * time inside the callable's own `timeoutSeconds`. The common failure (no
+ * credit, bad key) is instant and never waits on these; they only matter
+ * when a provider hangs.
+ * @const {!Object<string, number>}
+ */
+const ATTEMPT_TIMEOUT_MS = {
+  chat: 50 * 1000,
+  workout_import: 150 * 1000,
+  diet_import: 150 * 1000,
+  diet_generate: 120 * 1000,
+  food_search: 30 * 1000,
+};
+
+/**
+ * The route options for a capability: the user's preferred model (a catalog
+ * key or undefined for Auto) and the capability's per-attempt deadline.
+ * @param {string} capability
+ * @param {(string|undefined)} preferModel
+ * @return {!Object}
+ */
+function routeOptionsFor(capability, preferModel) {
+  return {preferModel, attemptTimeoutMs: ATTEMPT_TIMEOUT_MS[capability]};
+}
+
+/**
+ * The user's saved model selection, read from their settings doc — for the
+ * callables whose client request doesn't carry it (imports, generation), so
+ * one choice in the app steers every AI feature.
+ * @param {!FirestoreStore} store
+ * @param {string} uid
+ * @return {!Promise<(string|undefined)>} A catalog key, or undefined (Auto).
+ */
+async function savedModelPreference(store, uid) {
+  const settings = await store.getAiSettings(uid);
+  return preferredModelKey(settings.provider);
+}
+
+/**
+ * Writes the usage record for one metered, non-chat AI request. Skipped when
+ * nothing reached a model (a deduplicated import attaching to an earlier run,
+ * a quota refusal) — there is nothing to account for.
+ * @param {{store: !FirestoreStore, uid: string, feature: string,
+ *   meter: !UsageMeter, startedAt: !Date, offsetMinutes: (number|undefined),
+ *   error: *, extra: (!Object|undefined)}} args
+ * @return {!Promise<void>}
+ */
+async function logMeteredUsage(
+    {store, uid, feature, meter, startedAt, offsetMinutes, error, extra}) {
+  if (!meter.used) return;
+  const finishedAt = new Date();
+  await saveUsageRecord(store, uid, buildUsageRecord({
+    feature,
+    meter,
+    dayKey: dayKeyFor(startedAt, offsetMinutes),
+    startedAt,
+    finishedAt,
+    error,
+    extra,
+  }), (msg, data) => logger.warn(msg, data));
+}
+
+/**
  * Builds a `ProviderRegistry` backed by the real chat `AiProvider` adapters:
  * Anthropic (primary) and, when a Gemini client is supplied, Gemini (the
  * fallback / manual-select route). Which one runs — and in what order — is
  * decided entirely by `./ai/routing/router.js`'s capability table and the
- * caller's `forceProvider`, not here; this only supplies the real network
+ * caller's route options, not here; this only supplies the real network
  * seams. A third provider is a new adapter file plus one more `.register()`
  * call here and one route entry.
  * @param {!Anthropic} anthropic
- * @param {?GoogleGenAI} genai The Gemini client, or null to register Anthropic
- *   only (the router then skips the unregistered Gemini route).
+ * @param {?GoogleGenAI=} genai The Gemini client, or null to register
+ *   Anthropic only (the router then skips the unregistered Gemini route).
  * @return {!ProviderRegistry}
  */
 function buildProviderRegistry(anthropic, genai) {
@@ -739,8 +837,8 @@ function buildProviderRegistry(anthropic, genai) {
  * `provider.generate`.
  * @param {!ProviderRegistry} registry
  * @param {string} capability
- * @param {{forceProvider: string}=} routeOpts A manual provider override —
- *   pins the turn to one provider and disables Auto's fallback.
+ * @param {!Object=} routeOpts The router's `RouteOptions` — the user's
+ *   preferred model and the per-attempt deadline (`routeOptionsFor`).
  * @return {!Object}
  */
 function providerForCapability(registry, capability, routeOpts) {
@@ -748,19 +846,6 @@ function providerForCapability(registry, capability, routeOpts) {
     generate: (normalizedRequest, opts) =>
       router.generate(registry, capability, normalizedRequest, opts, routeOpts),
   };
-}
-
-/**
- * Maps the client's manual model selection ('auto'|'claude'|'gemini') to the
- * router's `forceProvider`. Anything unrecognized (including omitted) is
- * `Auto` — Anthropic-first with the Gemini fallback. Never trust the raw value.
- * @param {*} selection
- * @return {(string|undefined)} The provider to force, or undefined for Auto.
- */
-function forceProviderFor(selection) {
-  if (selection === "claude") return "anthropic";
-  if (selection === "gemini") return "gemini";
-  return undefined;
 }
 
 /**
@@ -775,11 +860,15 @@ function forceProviderFor(selection) {
  */
 exports.aiChat = onCall(
     {
-      // Anthropic is primary; Gemini backs the fallback + manual "Gemini"
-      // select route (see ./ai/routing/router.js). Both keys are bound so
+      // Anthropic is primary; Gemini backs the fallback + the Gemini model
+      // selections (see ./ai/routing/router.js). Both keys are bound so
       // either provider can serve a turn.
       secrets: [ANTHROPIC_API_KEY, GEMINI_API_KEY],
       region: "us-central1",
+      // Room for a fallback: a hung first provider is abandoned at
+      // ATTEMPT_TIMEOUT_MS.chat and the next one still has time to answer
+      // inside this deadline (the platform default is 60s).
+      timeoutSeconds: 120,
     },
     async (request, response) => {
       const auth = request.auth;
@@ -791,10 +880,12 @@ exports.aiChat = onCall(
       const conversationId = (data.conversationId || "").toString();
       const message = (data.message || "").toString();
       const responseStyle = (data.responseStyle || "").toString();
-      // The user's manual model selection ('auto'|'claude'|'gemini'). Untrusted
-      // like every other field; `forceProviderFor` maps anything unrecognized
-      // (or omitted) to Auto (Anthropic-first with the Gemini fallback).
-      const forceProvider = forceProviderFor((data.provider || "").toString());
+      // The user's model selection ('auto' or a ./ai/routing/models.js key;
+      // older builds send 'claude'/'gemini'). Untrusted like every other
+      // field; `preferredModelKey` maps anything unrecognized to Auto. The
+      // chosen model goes FIRST, with the defaults behind it as fallback — a
+      // pinned Claude that's out of credit still gets the user an answer.
+      const preferModel = preferredModelKey((data.provider || "").toString());
       // Client-generated idempotency key — makes a retried turn safe.
       const clientTurnId =
         (data.clientTurnId || "").toString() || undefined;
@@ -814,6 +905,14 @@ exports.aiChat = onCall(
       const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic, genai);
       const store = new FirestoreStore(db);
+      const startedAt = new Date();
+      // The turn logs its own usage record; this meter only sees the turn's
+      // provider calls so a turn that FAILS outright (every provider down)
+      // still leaves a record of what was tried.
+      const chatMeter = new UsageMeter();
+      // `search_food_product`'s grounded Gemini call is metered separately
+      // and logged as its own `food_search` record.
+      const foodSearchMeter = new UsageMeter();
 
       // When the client opts into streaming (`httpsCallable.stream()`), forward
       // the gateway's phase/delta events as chunks and stream the model. A
@@ -826,16 +925,18 @@ exports.aiChat = onCall(
         data.acceptsStreaming === true && !!response;
 
       try {
-        return await runAiTurn({
+        const result = await runAiTurn({
           store,
-          provider: providerForCapability(registry, "chat", {forceProvider}),
-          model: router.resolve("chat", forceProvider).model,
+          provider: chatMeter.wrap(providerForCapability(registry, "chat",
+              routeOptionsFor("chat", preferModel))),
+          model: router.resolve("chat", {preferModel}).model,
           // Gemini-only, no fallback (see `food_search` in
           // `./ai/routing/router.js`) — `search_food_product` degrades to its
           // `unavailable` outcome when the registry has no "gemini" entry
           // (e.g. no GEMINI_API_KEY bound), which `providerForCapability`
           // itself doesn't need to know about.
-          foodSearchProvider: providerForCapability(registry, "food_search"),
+          foodSearchProvider: foodSearchMeter.wrap(providerForCapability(
+              registry, "food_search", routeOptionsFor("food_search"))),
           stream: streaming,
           onEvent: streaming ? (event) => response.sendChunk(event) : undefined,
           uid: auth.uid,
@@ -846,7 +947,26 @@ exports.aiChat = onCall(
           clientClock,
           now: () => new Date(),
         });
+        await logMeteredUsage({
+          store, uid: auth.uid, feature: AiFeature.FOOD_SEARCH,
+          meter: foodSearchMeter, startedAt,
+          offsetMinutes: clientClock.offsetMinutes,
+        });
+        return result;
       } catch (err) {
+        await logMeteredUsage({
+          store, uid: auth.uid, feature: AiFeature.FOOD_SEARCH,
+          meter: foodSearchMeter, startedAt,
+          offsetMinutes: clientClock.offsetMinutes,
+        });
+        // A turn that died on the model call leaves a failed chat record, so
+        // "what happened to that message?" has an answer in the usage log.
+        // (Kept out of the daily cap — see `getTodayUsageTotals`.)
+        await logMeteredUsage({
+          store, uid: auth.uid, feature: AiFeature.CHAT, meter: chatMeter,
+          startedAt, offsetMinutes: clientClock.offsetMinutes, error: err,
+          extra: clientTurnId ? {clientTurnId} : undefined,
+        });
         throw toHttpsError(err);
       }
     },
@@ -976,13 +1096,14 @@ const MAX_PDF_BASE64_CHARS = 14 * 1024 * 1024;
  */
 exports.aiImportWorkoutPlan = onCall(
     {
-      secrets: [ANTHROPIC_API_KEY],
+      // Claude first, Gemini as the fallback (and for a Gemini selection).
+      secrets: [ANTHROPIC_API_KEY, GEMINI_API_KEY],
       region: "us-central1",
-      // A single Claude call reading a whole PDF (native document input,
-      // every page) can run well past the platform's 60s default — unlike
-      // aiChat's short per-turn tool calls, there's no streaming/chunking
-      // here to keep each round-trip small.
-      timeoutSeconds: 180,
+      // A single model call reading a whole PDF (native document input,
+      // every page) can run well past the platform's 60s default, and a
+      // hung first provider must leave the fallback time to answer (see
+      // ATTEMPT_TIMEOUT_MS). The client waits the same 300s.
+      timeoutSeconds: 300,
     },
     async (request) => {
       const auth = request.auth;
@@ -1013,7 +1134,13 @@ exports.aiImportWorkoutPlan = onCall(
       const key = importKey(auth.uid, executionId);
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
-      const registry = buildProviderRegistry(anthropic);
+      const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
+      const registry = buildProviderRegistry(anthropic, genai);
+      const store = new FirestoreStore(db);
+      const preferModel = await savedModelPreference(store, auth.uid);
+      const meter = new UsageMeter();
+      const startedAt = new Date();
+      const inputKind = text ? "description" : "document";
       // base64 runs ~4/3 the raw byte size — approximate, but enough to spot
       // "why did this reject" patterns (e.g. a suspiciously tiny upload).
       const approxPdfBytes = Math.round(pdfBase64.length * 3 / 4);
@@ -1032,8 +1159,10 @@ exports.aiImportWorkoutPlan = onCall(
           await enforceDailyQuota(
               auth.uid, "workoutImport", offsetFromData(data));
           return extractWorkoutPlan({
-            provider: providerForCapability(registry, "workout_import"),
-            model: router.resolve("workout_import").model,
+            provider: meter.wrap(providerForCapability(registry,
+                "workout_import",
+                routeOptionsFor("workout_import", preferModel))),
+            model: router.resolve("workout_import", {preferModel}).model,
             fileBase64: pdfBase64,
             mediaType: mimeType,
             text,
@@ -1043,13 +1172,23 @@ exports.aiImportWorkoutPlan = onCall(
             logEvent: (event) => logger.info("aiImportWorkoutPlan", {
               approxPdfBytes,
               executionId,
-              inputKind: text ? "description" : "document",
+              inputKind,
               ...event,
             }),
           });
         });
+        await logMeteredUsage({
+          store, uid: auth.uid, feature: AiFeature.WORKOUT_IMPORT, meter,
+          startedAt, offsetMinutes: offsetFromData(data),
+          extra: {inputKind},
+        });
         return result;
       } catch (err) {
+        await logMeteredUsage({
+          store, uid: auth.uid, feature: AiFeature.WORKOUT_IMPORT, meter,
+          startedAt, offsetMinutes: offsetFromData(data), error: err,
+          extra: {inputKind},
+        });
         // A cancellation is expected, not a failure — log it as one and don't
         // route it through the "unhandled error" console.error in toHttpsError.
         const cancelled = err && err.code === "cancelled";
@@ -1085,11 +1224,11 @@ exports.aiImportWorkoutPlan = onCall(
  */
 exports.aiImportDietPlan = onCall(
     {
-      secrets: [ANTHROPIC_API_KEY],
+      secrets: [ANTHROPIC_API_KEY, GEMINI_API_KEY],
       region: "us-central1",
       // Same reasoning as aiImportWorkoutPlan: a single whole-PDF read can
-      // run well past the platform's 60s default.
-      timeoutSeconds: 180,
+      // run well past the platform's 60s default, with room for a fallback.
+      timeoutSeconds: 300,
     },
     async (request) => {
       const auth = request.auth;
@@ -1115,7 +1254,13 @@ exports.aiImportDietPlan = onCall(
       const key = importKey(auth.uid, executionId);
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
-      const registry = buildProviderRegistry(anthropic);
+      const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
+      const registry = buildProviderRegistry(anthropic, genai);
+      const store = new FirestoreStore(db);
+      const preferModel = await savedModelPreference(store, auth.uid);
+      const meter = new UsageMeter();
+      const startedAt = new Date();
+      const inputKind = text ? "description" : "document";
       const approxPdfBytes = Math.round(pdfBase64.length * 3 / 4);
 
       try {
@@ -1125,8 +1270,9 @@ exports.aiImportDietPlan = onCall(
           // Charged inside the run so a deduped duplicate isn't charged twice.
           await enforceDailyQuota(auth.uid, "dietImport", offsetFromData(data));
           return extractDietPlan({
-            provider: providerForCapability(registry, "diet_import"),
-            model: router.resolve("diet_import").model,
+            provider: meter.wrap(providerForCapability(registry,
+                "diet_import", routeOptionsFor("diet_import", preferModel))),
+            model: router.resolve("diet_import", {preferModel}).model,
             fileBase64: pdfBase64,
             mediaType: mimeType,
             text,
@@ -1134,13 +1280,23 @@ exports.aiImportDietPlan = onCall(
             logEvent: (event) => logger.info("aiImportDietPlan", {
               approxPdfBytes,
               executionId,
-              inputKind: text ? "description" : "document",
+              inputKind,
               ...event,
             }),
           });
         });
+        await logMeteredUsage({
+          store, uid: auth.uid, feature: AiFeature.DIET_IMPORT, meter,
+          startedAt, offsetMinutes: offsetFromData(data),
+          extra: {inputKind},
+        });
         return result;
       } catch (err) {
+        await logMeteredUsage({
+          store, uid: auth.uid, feature: AiFeature.DIET_IMPORT, meter,
+          startedAt, offsetMinutes: offsetFromData(data), error: err,
+          extra: {inputKind},
+        });
         const cancelled = err && err.code === "cancelled";
         logger.info("aiImportDietPlan", {
           approxPdfBytes,
@@ -1199,9 +1355,13 @@ exports.aiCancelImport = onCall(
  */
 exports.aiGenerateDietPlan = onCall(
     {
-      secrets: [ANTHROPIC_API_KEY],
+      secrets: [ANTHROPIC_API_KEY, GEMINI_API_KEY],
       region: "us-central1",
-      timeoutSeconds: 180,
+      // Two sequential model calls (design + disambiguation), each of which
+      // may need a fallback — the client waits the same 300s. It used to use
+      // the client's ~70s default and a Sonnet-built plan routinely ran past
+      // it ("DEADLINE EXCEEDED" on a plan the server was still building).
+      timeoutSeconds: 300,
     },
     async (request) => {
       const auth = request.auth;
@@ -1221,8 +1381,12 @@ exports.aiGenerateDietPlan = onCall(
       await enforceDailyQuota(auth.uid, "dietGenerate", offsetFromData(data));
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
-      const registry = buildProviderRegistry(anthropic);
+      const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
+      const registry = buildProviderRegistry(anthropic, genai);
       const store = new FirestoreStore(db);
+      const preferModel = await savedModelPreference(store, auth.uid);
+      const meter = new UsageMeter();
+      const startedAt = new Date();
 
       try {
         // The user's own foods are layered over USDA here exactly as they are
@@ -1230,16 +1394,25 @@ exports.aiGenerateDietPlan = onCall(
         // definition they wrote rather than estimated.
         const customFoods = await store.listCustomFoods(auth.uid);
         const result = await generateDietPlan({
-          provider: providerForCapability(registry, "diet_import"),
-          model: router.resolve("diet_import").model,
+          provider: meter.wrap(providerForCapability(registry,
+              "diet_generate", routeOptionsFor("diet_generate", preferModel))),
+          model: router.resolve("diet_generate", {preferModel}).model,
           preferences,
           targets: data.targets && typeof data.targets === "object" ?
             data.targets : null,
           customFoods,
           logEvent: (event) => logger.info("aiGenerateDietPlan", event),
         });
+        await logMeteredUsage({
+          store, uid: auth.uid, feature: AiFeature.DIET_GENERATE, meter,
+          startedAt, offsetMinutes: offsetFromData(data),
+        });
         return result;
       } catch (err) {
+        await logMeteredUsage({
+          store, uid: auth.uid, feature: AiFeature.DIET_GENERATE, meter,
+          startedAt, offsetMinutes: offsetFromData(data), error: err,
+        });
         logger.info("aiGenerateDietPlan", {
           stage: "error",
           // NOT `message` — see aiImportWorkoutPlan's identical catch above.
@@ -1269,9 +1442,12 @@ exports.aiGenerateDietPlan = onCall(
  * @param {?OpenAI} openai The OpenAI client, or null when the optional
  *   fallback key isn't configured — then only Gemini is registered and the
  *   router skips the (unregistered) OpenAI route.
+ * @param {function(!Object): void=} onUsage Receives each successful Gemini
+ *   transcription's `{provider, model, usage}` for the usage log. OpenAI's
+ *   transcription API reports no tokens, so it isn't metered.
  * @return {!ProviderRegistry}
  */
-function buildSpeechRegistry(genai, openai) {
+function buildSpeechRegistry(genai, openai, onUsage) {
   const registry = new ProviderRegistry()
       .register("gemini", new GeminiSpeechProvider({
         transcribe: async ({buffer, mimeType, model, prompt}) => {
@@ -1290,6 +1466,20 @@ function buildSpeechRegistry(genai, openai) {
             }],
             config: {temperature: 0, thinkingConfig: {thinkingBudget: 0}},
           });
+          if (onUsage) {
+            const u = response.usageMetadata || {};
+            onUsage({
+              provider: "gemini",
+              model,
+              usage: {
+                inputTokens: u.promptTokenCount || 0,
+                outputTokens: (u.candidatesTokenCount || 0) +
+                  (u.thoughtsTokenCount || 0),
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+              },
+            });
+          }
           return {text: response.text};
         },
       }));
@@ -1404,11 +1594,18 @@ exports.aiTranscribe = onCall(
       // it's null and the router runs Gemini-only, skipping the OpenAI route.
       const openaiKey = process.env.OPENAI_API_KEY;
       const openai = openaiKey ? new OpenAI({apiKey: openaiKey}) : null;
-      const registry = buildSpeechRegistry(genai, openai);
+      // Transcription is metered like every other AI call. Priced at the
+      // Gemini Flash TEXT rate — audio input bills somewhat higher, so the
+      // recorded cost is a slight under-estimate for this one feature.
+      const meter = new UsageMeter();
+      const startedAt = new Date();
+      const store = new FirestoreStore(db);
+      const registry = buildSpeechRegistry(genai, openai,
+          (response) => meter.record(response));
       const route = speechRouter.resolve("speech_to_text");
 
       try {
-        return await transcribeAudio({
+        const result = await transcribeAudio({
           provider: speechProviderForCapability(registry, "speech_to_text"),
           audioBase64,
           mimeType,
@@ -1423,7 +1620,16 @@ exports.aiTranscribe = onCall(
             ...event,
           }),
         });
+        await logMeteredUsage({
+          store, uid: auth.uid, feature: AiFeature.TRANSCRIBE, meter,
+          startedAt, offsetMinutes: offsetFromData(data),
+        });
+        return result;
       } catch (err) {
+        await logMeteredUsage({
+          store, uid: auth.uid, feature: AiFeature.TRANSCRIBE, meter,
+          startedAt, offsetMinutes: offsetFromData(data), error: err,
+        });
         throw toSpeechHttpsError(err);
       }
     },

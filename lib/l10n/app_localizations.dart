@@ -3665,7 +3665,7 @@ abstract class AppLocalizations {
   /// Subtitle under the Model section header in the settings sheet.
   ///
   /// In en, this message translates to:
-  /// **'Choose which AI answers your questions.'**
+  /// **'Choose which AI model ZIVO uses.'**
   String get askModelSheetSubtitle;
 
   /// Model option: automatically pick the best model (Claude, with a Gemini fallback).
@@ -3677,7 +3677,7 @@ abstract class AppLocalizations {
   /// One-line description of the Auto model option.
   ///
   /// In en, this message translates to:
-  /// **'Best available — Claude, with Gemini as backup.'**
+  /// **'Claude first — Gemini steps in automatically if Claude can\'t answer.'**
   String get askModelAutoDesc;
 
   /// Model option: always use Claude (Anthropic). A product name — keep as-is in every language.
@@ -3713,7 +3713,7 @@ abstract class AppLocalizations {
   /// Subtitle under the Usage section header.
   ///
   /// In en, this message translates to:
-  /// **'Tokens used per model, all-time.'**
+  /// **'Tokens and estimated cost per provider, all-time.'**
   String get askUsageSubtitle;
 
   /// Shown in the Usage section when the user has never used Ask.
@@ -9549,7 +9549,7 @@ abstract class AppLocalizations {
   /// Reassurance under the country/location field that it can be left blank.
   ///
   /// In en, this message translates to:
-  /// **'Helps ZIVO suggest foods that are actually realistic and available where you are — optional.'**
+  /// **'Helps ZIVO suggest foods that are realistic and easy to find where you live. ZIVO remembers it for next time.'**
   String get dietBuilderCountryNote;
 
   /// Title of the Diet Builder step for disliked foods and allergies.
@@ -9689,6 +9689,270 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Edit plan'**
   String get dietBuilderEditPlan;
+
+  /// Model option: Anthropic's Claude Sonnet. Product name — keep as-is.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Sonnet'**
+  String get askModelClaudeSonnet;
+
+  /// Description of the Claude Sonnet option.
+  ///
+  /// In en, this message translates to:
+  /// **'Anthropic\'s most capable everyday model — the best answers.'**
+  String get askModelClaudeSonnetDesc;
+
+  /// Model option: Anthropic's Claude Haiku. Product name — keep as-is.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Haiku'**
+  String get askModelClaudeHaiku;
+
+  /// Description of the Claude Haiku option.
+  ///
+  /// In en, this message translates to:
+  /// **'Faster and cheaper than Sonnet, still sharp.'**
+  String get askModelClaudeHaikuDesc;
+
+  /// Model option: Google's Gemini Flash. Product name — keep as-is.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemini Flash'**
+  String get askModelGeminiFlash;
+
+  /// Description of the Gemini Flash option.
+  ///
+  /// In en, this message translates to:
+  /// **'Google\'s fast model — the lowest cost.'**
+  String get askModelGeminiFlashDesc;
+
+  /// Model option: Google's Gemini Pro. Product name — keep as-is.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemini Pro'**
+  String get askModelGeminiPro;
+
+  /// Description of the Gemini Pro option.
+  ///
+  /// In en, this message translates to:
+  /// **'Google\'s deepest reasoning — slower.'**
+  String get askModelGeminiProDesc;
+
+  /// Note under the model list explaining scope and automatic fallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Used for chat, plan imports and the plan builder. If your choice is unavailable, ZIVO switches to another model automatically — you still get an answer.'**
+  String get askModelAppliesNote;
+
+  /// Number of AI requests, e.g. '37 requests'.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 request} other{{count} requests}}'**
+  String askUsageRequests(int count);
+
+  /// Title of the AI usage page (tokens + cost per provider/feature, recent requests).
+  ///
+  /// In en, this message translates to:
+  /// **'AI usage'**
+  String get aiUsageTitle;
+
+  /// Row that opens the full AI usage page.
+  ///
+  /// In en, this message translates to:
+  /// **'See every request'**
+  String get aiUsageSeeAll;
+
+  /// Subtitle of the row that opens the AI usage page.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens and cost by provider, feature and request.'**
+  String get aiUsageSeeAllDesc;
+
+  /// Label for the all-time total on the AI usage page.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get aiUsageTotal;
+
+  /// Section header: usage per AI provider.
+  ///
+  /// In en, this message translates to:
+  /// **'By provider'**
+  String get aiUsageByProvider;
+
+  /// Section header: usage per app feature (chat, import…).
+  ///
+  /// In en, this message translates to:
+  /// **'By feature'**
+  String get aiUsageByFeature;
+
+  /// Section header: the latest individual AI requests.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent requests'**
+  String get aiUsageRecent;
+
+  /// Empty state on the AI usage page.
+  ///
+  /// In en, this message translates to:
+  /// **'No AI requests yet.'**
+  String get aiUsageEmpty;
+
+  /// Input/output token counts, pre-formatted (e.g. '12.4K in · 820 out').
+  ///
+  /// In en, this message translates to:
+  /// **'{tokensIn} in · {tokensOut} out'**
+  String aiUsageInOut(String tokensIn, String tokensOut);
+
+  /// Badge on a request that was answered by the fallback model.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup model'**
+  String get aiUsageFellBack;
+
+  /// Badge on a request that failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get aiUsageFailed;
+
+  /// Badge on a request the user cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get aiUsageCancelled;
+
+  /// Footnote on the AI usage page about cost accuracy.
+  ///
+  /// In en, this message translates to:
+  /// **'Costs are estimates from list prices (Gemini\'s especially). Your provider\'s billing page is the source of truth.'**
+  String get aiUsageCostNote;
+
+  /// Usage feature label: a chat turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask chat'**
+  String get aiFeatureChat;
+
+  /// Usage feature label.
+  ///
+  /// In en, this message translates to:
+  /// **'Workout plan import'**
+  String get aiFeatureWorkoutImport;
+
+  /// Usage feature label.
+  ///
+  /// In en, this message translates to:
+  /// **'Diet plan import'**
+  String get aiFeatureDietImport;
+
+  /// Usage feature label.
+  ///
+  /// In en, this message translates to:
+  /// **'Diet plan builder'**
+  String get aiFeatureDietGenerate;
+
+  /// Usage feature label.
+  ///
+  /// In en, this message translates to:
+  /// **'Food search'**
+  String get aiFeatureFoodSearch;
+
+  /// Usage feature label.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice to text'**
+  String get aiFeatureTranscribe;
+
+  /// Usage feature label for an unknown feature.
+  ///
+  /// In en, this message translates to:
+  /// **'AI request'**
+  String get aiFeatureOther;
+
+  /// Shown when every AI model is unavailable. Never mentions providers or credits.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO\'s AI is taking a short break. Please try again in a few minutes.'**
+  String get aiErrorUnavailable;
+
+  /// Chat error title when every AI model is unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO\'s AI is taking a short break'**
+  String get aiErrorUnavailableTitle;
+
+  /// Chat error body when every AI model is unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again in a few minutes.'**
+  String get aiErrorUnavailableBody;
+
+  /// Shown when the daily allowance is used up.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve reached today\'s limit for this. It resets tomorrow.'**
+  String get aiErrorDailyLimit;
+
+  /// Chat error title for the daily limit.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s limit reached'**
+  String get aiErrorDailyLimitTitle;
+
+  /// Chat error body for the daily limit.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask resets tomorrow.'**
+  String get aiErrorDailyLimitBody;
+
+  /// Shown when an AI request timed out.
+  ///
+  /// In en, this message translates to:
+  /// **'That took longer than it should. Please try again.'**
+  String get aiErrorTimeout;
+
+  /// Chat error title for a timeout.
+  ///
+  /// In en, this message translates to:
+  /// **'That took too long'**
+  String get aiErrorTimeoutTitle;
+
+  /// Shown when the phone couldn't reach the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach ZIVO — check your connection and try again.'**
+  String get aiErrorNetwork;
+
+  /// Generic AI failure with no more specific cause.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong on our side. Please try again.'**
+  String get aiErrorGeneric;
+
+  /// Placeholder of the country picker in the Diet Builder.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose your country'**
+  String get dietBuilderCountryPick;
+
+  /// Search field hint in the country picker sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Search countries'**
+  String get dietBuilderCountrySearch;
+
+  /// Shown when the country search finds nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No country matches that.'**
+  String get dietBuilderCountryNone;
+
+  /// Clears the chosen country.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get dietBuilderCountryClear;
 }
 
 class _AppLocalizationsDelegate

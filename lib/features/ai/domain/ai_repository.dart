@@ -69,11 +69,18 @@ abstract interface class AiRepository {
   Future<void> setModelSelection(String selection);
 
   /// All-time AI usage grouped by provider ('anthropic', 'gemini', …), read
-  /// from the owner-readable `aiUsage` log. Only providers with at least one
-  /// turn are returned, sorted by total tokens (most-used first). Empty when
-  /// the user has never used Ask. Used by the Ask settings page's usage
-  /// section.
+  /// from the owner-readable `aiUsage` log — every AI feature's requests, not
+  /// only chat. Only providers with at least one request are returned, sorted
+  /// by total tokens (most-used first). Empty when nothing has been logged.
+  /// Used by the Ask settings page's usage section.
   Future<List<AiProviderUsage>> usageByProvider();
+
+  /// Every logged AI request — chat, plan import, plan generation, food
+  /// search, voice-to-text — newest first, read from the owner-readable
+  /// `aiUsage` log (at most the latest [limit]). Powers the AI usage page:
+  /// per-provider and per-feature totals (`aiUsageTotalsBy`) and the list of
+  /// recent requests. Empty when nothing has been logged.
+  Future<List<AiUsageRecord>> usageRecords({int limit = 1000});
 
   /// The recorded telemetry of the turn identified by [clientTurnId] — the same
   /// key the produced assistant [AiMessage] carries — or null when none is
@@ -102,8 +109,8 @@ abstract interface class AiRepository {
   ///
   /// [modelSelection] is the caller's current [getModelSelection] value
   /// (defaulting to [kDefaultAiModelSelection]) — forwarded to the gateway,
-  /// which routes the turn accordingly ('auto' = Anthropic-first with Gemini
-  /// fallback; 'claude'/'gemini' force that provider). See
+  /// which tries that model first ('auto' = Claude Sonnet first) and falls
+  /// back to the next model if its provider can't answer. See
   /// `functions/ai/routing/router.js`.
   Future<void> send({
     required String conversationId,

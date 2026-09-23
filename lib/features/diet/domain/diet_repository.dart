@@ -81,6 +81,16 @@ abstract interface class DietRepository {
   /// Removes it, back to the unset state.
   Future<void> clearBodyProfile();
 
+  /// The country the user said they live in, as an ISO 3166-1 alpha-2 code
+  /// ("EG"), or null when they haven't said. Remembered so the Diet Builder
+  /// asks once — it steers generated plans toward foods that are realistic
+  /// where the user shops (see `PlanPreferences.country`). A preference, not
+  /// body data: it lives in the user's settings, not in [BodyProfile].
+  Future<String?> fetchHomeCountry();
+
+  /// Remembers [countryCode] (null clears it).
+  Future<void> saveHomeCountry(String? countryCode);
+
   /// The set of meal ids marked eaten on [day].
   Stream<Set<String>> watchConsumed(DateTime day);
 

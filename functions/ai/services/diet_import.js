@@ -32,6 +32,7 @@ const {GatewayError} = require("../gateway");
 const {AnthropicProvider} = require("../providers/anthropic_provider");
 const {legacyAnthropicClient} = require("../providers/legacy_client");
 const {isAbortError} = require("../shared/abort");
+const {AiUnavailableError} = require("../providers/classify");
 
 const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 8000;
@@ -428,12 +429,14 @@ async function extractDietPlan({
     if (isAbortError(err) || (signal && signal.aborted)) {
       throw new GatewayError("cancelled", "Import cancelled.");
     }
+    // See `extractWorkoutPlan`: all-providers-down passes through for the
+    // friendly message; the provider's own error text is never forwarded.
+    if (err instanceof AiUnavailableError) throw err;
     throw new GatewayError(
         "internal",
-        err.message ||
-          (hasText ?
-            "Couldn't read that description. Please try again." :
-            "Couldn't read that PDF. Please try again."));
+        hasText ?
+          "Couldn't read that description. Please try again." :
+          "Couldn't read that plan. Please try again.");
   }
 
   if (response.stopReason === "refusal") {

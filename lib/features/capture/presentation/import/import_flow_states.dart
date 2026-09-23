@@ -271,7 +271,6 @@ class ImportErrorState extends StatelessWidget {
   const ImportErrorState({
     required this.message,
     required this.onRetry,
-    this.detail,
     Color? retryColor,
     super.key,
     // `this._x`, which the lint asks for here, is not a thing Dart will
@@ -281,9 +280,13 @@ class ImportErrorState extends StatelessWidget {
     // ignore: prefer_initializing_formals
   }) : _retryColor = retryColor;
 
+  /// The one friendly line — already phrased for a person. There is
+  /// deliberately no "technical detail" slot: this screen used to render the
+  /// raw exception and its stack trace under the message in debug builds,
+  /// which overflowed the screen and read as a crash. The cause is in the
+  /// debug console (`debugPrint`) and the server log, where it belongs.
   final String message;
   final VoidCallback onRetry;
-  final String? detail;
   final Color? _retryColor;
 
   /// Defaults to the active skin's `ember` — resolved on read
@@ -293,44 +296,45 @@ class ImportErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ImportPhaseIcon(
-              icon: Icons.cloud_off_rounded,
-              color: TrainColors.ink3,
-            ),
-            const SizedBox(height: 18),
-            Text(
-              message,
-              style: AppText.aside(context).copyWith(color: TrainColors.ink2),
-              textAlign: TextAlign.center,
-            ),
-            if (detail != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                detail!,
-                style: AppText.aside(
-                  context,
-                ).copyWith(color: TrainColors.ink3, fontSize: 11),
-                textAlign: TextAlign.center,
+    // Scrolls rather than overflows: a long localized message, a large text
+    // scale or a short screen must never paint the overflow stripes.
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ImportPhaseIcon(
+                    icon: Icons.cloud_off_rounded,
+                    color: TrainColors.ink3,
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    message,
+                    style: AppText.aside(context).copyWith(
+                      color: TrainColors.ink,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    width: 180,
+                    child: PillButton(
+                      label: l(context).actionRetry,
+                      icon: Icons.refresh_rounded,
+                      color: retryColor,
+                      enabled: true,
+                      onTap: onRetry,
+                    ),
+                  ),
+                ],
               ),
-            ],
-            const SizedBox(height: 18),
-            SizedBox(
-              width: 180,
-              child: PillButton(
-                label: l(context).actionRetry,
-                icon: Icons.refresh_rounded,
-                color: retryColor,
-                enabled: true,
-                onTap: onRetry,
-              ),
             ),
-          ],
+          ),
         ),
       ),
     );

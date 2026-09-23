@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../../../l10n/l10n.dart';
+import '../../../ai/domain/ai_failure.dart';
+import '../../../ai/presentation/ai_labels.dart';
 
 /// The file-picking half of a plan import, shared by the workout and diet
 /// import flows. Both read the *same* document types the *same* way and map
@@ -74,11 +76,24 @@ Future<PickedImportFile?> pickImportFile() async {
 ///
 /// [manualFallback] is the one clause that differs between importers — the
 /// "…or build the split/plan manually" tail on the generic message.
+///
+/// An [AiFailure] — what the AI repository now throws for every callable
+/// failure — is phrased by its kind (`aiFailureMessage`), so "all AI models
+/// are down", "daily limit" and "timed out" each read as themselves instead
+/// of being guessed from an exception's text. [unknownMessage] replaces the
+/// "couldn't read that plan" line for a caller that wasn't reading anything
+/// (plan generation).
 String importErrorMessage(
   BuildContext context,
   Object error, {
   required String manualFallback,
+  String? unknownMessage,
 }) {
+  final unknown =
+      unknownMessage ?? l(context).importCouldntRead(manualFallback);
+  if (error is AiFailure) {
+    return aiFailureMessage(context, error.kind, unknown: unknown);
+  }
   final text = error.toString().toLowerCase();
   if (text.contains('app-check') ||
       text.contains('app check') ||
@@ -100,7 +115,7 @@ String importErrorMessage(
       text.contains('timeout') ||
       text.contains('unavailable') ||
       text.contains('network')) {
-    return l(context).importNetworkProblem;
+    return l(context).aiErrorNetwork;
   }
-  return l(context).importCouldntRead(manualFallback);
+  return unknown;
 }

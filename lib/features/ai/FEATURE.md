@@ -52,10 +52,18 @@ answered via `AskController.submitInput`), `body_data_writer.dart` (Phase 3 — 
 input form persists height/weight through; impl `data/repository_body_data_writer.dart`
 composes the diet `BodyProfile` + workout `BodyWeightRepository`, the same user-owned
 writes the manual capture screens use; **never writes targets/goal**),
-`ai_response_style.dart`, `ai_model_selection.dart` (the manual model switch —
-`'auto'`|`'claude'`|`'gemini'`, persisted at `users/{uid}/settings/ai` field
-`provider` and forwarded on every `send`), and STT: `stt_outcome.dart`,
-`stt_error.dart`.
+`ai_response_style.dart`, `ai_model_selection.dart` (the model switch —
+`'auto'` or a backend model-catalog key: `'claude-sonnet'`|`'claude-haiku'`|
+`'gemini-flash'`|`'gemini-pro'`; legacy `'claude'`/`'gemini'` are upgraded on read.
+Persisted at `users/{uid}/settings/ai` field `provider`, forwarded on every `send`,
+and read server-side by the plan import/generation callables — one choice steers
+every AI feature. A **preference, not a pin**: the backend still falls back),
+`ai_failure.dart` (`AiFailure(kind)` — what every AI repository method throws in
+place of a transport error: `unavailable` (all models down) · `dailyLimit` ·
+`timeout` · `network` · `auth` · `notDeployed` · `unknown`; phrased by
+`aiFailureMessage` in `ai_labels.dart`, so no SDK/provider text is ever shown),
+`ai_usage_summary.dart` (`AiUsageRecord` + `aiUsageTotalsBy`), and STT:
+`stt_outcome.dart`, `stt_error.dart`.
 
 Plan import (workout + diet) is a single buffered model call — one long,
 opaque extraction (~a minute for a real document) with no observable sub-steps,
@@ -74,11 +82,14 @@ the model isn't Auto). Each model row carries its provider's brand mark
 (`widgets/ask/provider_mark.dart` — code-drawn Gemini spark / Anthropic burst,
 no image assets). Selecting a row applies in place via the controller's
 `setModelSelection`/`setResponseStyle`; there is no separate Save. The page also
-shows a **per-provider usage** section — total tokens, turns, and est. cost —
-read via `AiRepository.usageByProvider()` (domain `ai_usage_summary.dart`),
-which aggregates the owner-readable `aiUsage` log (turns before the backend
-recorded a `provider` field are attributed by their `model` id). Cost is
-approximate for Gemini (usage logging still prices at Anthropic rates).
+shows a **per-provider usage** section — total tokens, requests, and est. cost —
+read via `AiRepository.usageByProvider()`, with a "See every request" row into
+**`pages/ai_usage_page.dart`** (also reachable from Settings → AI usage): the
+all-time total, totals by provider and by feature, and the latest requests one by
+one (feature · model · tokens · time · cost, with "Backup model"/"Failed" badges),
+read via `AiRepository.usageRecords()` from the owner-readable `aiUsage` log —
+which now holds **every** AI request (chat, imports, plan builder, food search,
+voice), each priced by the backend at the rate of the model that answered.
 
 ## Backend — the real brain ([`functions/ai/`](../../../functions/ai))
 
@@ -106,15 +117,19 @@ approximate for Gemini (usage logging still prices at Anthropic rates).
 
 **Providers & routing (`functions/ai/providers/` + `routing/router.js`).** The
 model call is behind a `NormalizedRequest`/`NormalizedResponse` seam so a turn's
-orchestration never names a vendor. `anthropic_provider.js` (primary) and
-`gemini_provider.js` (fallback / manual `Gemini` route, `gemini-flash-latest`
-— a rolling alias, since pinned ids like `gemini-2.5-pro` get 404'd for new
-projects) are the
-two real adapters; `router.js`'s `chat` capability lists Anthropic → Gemini and
-**fails over only on a real provider failure** (5xx/429/timeout/no-response, via
-`providers/classify.js`) — a 4xx is rethrown, never masked. A `forceProvider`
-(from the client's `provider` field) pins one provider and disables fallback.
-Adding OpenAI/DeepSeek later is one adapter file + one route entry. See
+orchestration never names a vendor. `anthropic_provider.js` and
+`gemini_provider.js` are the two real adapters; `routing/models.js` is the model
+catalog (Claude Sonnet 5 · Claude Haiku 4.5 · Gemini Flash · Gemini Pro — ids and
+per-model prices, the one place pricing lives). `router.js` routes `chat`,
+`workout_import`, `diet_import` and `diet_generate` Claude Sonnet → Gemini Flash,
+with the user's selected model tried **first**. It fails over whenever the
+provider can't serve us — 5xx/429/timeout/no-response **and** billing (Anthropic's
+out-of-credit is a *400*), auth and retired-model errors, classified in
+`providers/classify.js`; only a malformed request is rethrown. A billing/auth
+failure cools that provider down for 10 minutes (tried last), and each attempt has
+a deadline so a hung provider leaves time for the fallback. All routes failing →
+`AiUnavailableError` → `unavailable` with `details.reason: 'ai_unavailable'`.
+Adding OpenAI/DeepSeek later is one adapter file + catalog entries. See
 `gateway.js`/`chat/turn.js` (both take an injected `provider`).
 
 Each has a `*.test.js` (`node --test`, offline — canned fake model, no live API).

@@ -293,6 +293,15 @@ class InMemoryDietRepository implements DietRepository {
     _bodyProfileController.add(null);
   }
 
+  String? _homeCountry;
+
+  @override
+  Future<String?> fetchHomeCountry() async => _homeCountry;
+
+  @override
+  Future<void> saveHomeCountry(String? countryCode) async =>
+      _homeCountry = countryCode;
+
   @override
   Stream<Set<String>> watchConsumed(DateTime day) async* {
     final key = _dayKey(day);

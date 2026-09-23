@@ -182,8 +182,8 @@ void main() {
       final repo = FakeAiRepository();
       addTearDown(repo.dispose);
 
-      await repo.setModelSelection('gemini');
-      expect(await repo.getModelSelection(), 'gemini');
+      await repo.setModelSelection('gemini-pro');
+      expect(await repo.getModelSelection(), 'gemini-pro');
 
       await repo.setModelSelection('nonsense');
       expect(await repo.getModelSelection(), 'auto');

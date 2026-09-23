@@ -687,6 +687,25 @@ class FirestoreStore {
   }
 
   /**
+   * The user's AI settings doc (`users/{uid}/settings/ai`) — the model
+   * selection (`provider`, a `../routing/models.js` key or `"auto"`) and the
+   * reply style. Read server-side by the callables whose client call doesn't
+   * carry the selection (imports, plan generation), so one choice in the app
+   * steers every AI feature. Empty when unset or unreadable — a settings read
+   * must never fail the AI request it only steers.
+   * @param {string} uid
+   * @return {!Promise<!Object>}
+   */
+  async getAiSettings(uid) {
+    try {
+      const snap = await this._user(uid).collection("settings").doc("ai").get();
+      return (snap.exists && snap.data()) || {};
+    } catch (_err) {
+      return {};
+    }
+  }
+
+  /**
    * Running totals for `dayKey`, used to enforce the per-day cap.
    * @param {string} uid
    * @param {string} dayKey
@@ -701,6 +720,15 @@ class FirestoreStore {
     let tokens = 0;
     snap.forEach((doc) => {
       const d = doc.data();
+      // The same collection now also logs imports, plan generation, food
+      // search and transcription (`./usage_log.js`) — each of those is capped
+      // by its own quota bucket, so only CHAT turns count toward Ask's daily
+      // turn/token cap. A record with no `feature` predates the field and was
+      // always a chat turn.
+      if (d.feature && d.feature !== "chat") return;
+      // A turn that died on the model call (every provider down) spent
+      // nothing and answered nothing — it must not eat the user's allowance.
+      if (d.status === "error" || d.status === "cancelled") return;
       turns += 1;
       tokens += (d.tokensIn || 0) + (d.tokensOut || 0);
     });

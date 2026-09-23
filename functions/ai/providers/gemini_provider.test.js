@@ -13,6 +13,7 @@ const {
   toGeminiRequest,
   toNormalizedResponse,
   sanitizeSchema,
+  THINKING_HEADROOM_TOKENS,
 } = require("./gemini_provider");
 
 /**
@@ -70,7 +71,8 @@ test("toGeminiRequest maps maxTokens, system, and message roles", () => {
   });
 
   assert.equal(req.model, "gemini-2.5-pro");
-  assert.equal(req.config.maxOutputTokens, 2048);
+  // The answer keeps its 2048; Gemini's thinking gets headroom on top.
+  assert.equal(req.config.maxOutputTokens, 2048 + THINKING_HEADROOM_TOKENS);
   // System blocks are joined into one instruction; cache breakpoints dropped.
   assert.equal(req.config.systemInstruction, "You are ZIVO.\n\nBe concise.");
   // "assistant" becomes Gemini's "model" role; "user" stays.
@@ -123,6 +125,32 @@ test("sanitizeSchema strips JSON-Schema keys Gemini rejects, recursively", () =>
   assert.equal(cleaned.properties.name.default, undefined);
   assert.equal(cleaned.properties.name.type, "string");
   assert.equal(cleaned.properties.items.items.additionalProperties, undefined);
+});
+
+test("sanitizeSchema rewrites a nullable type union into Gemini's nullable form", () => {
+  const cleaned = sanitizeSchema({
+    type: "object",
+    properties: {
+      reps: {type: ["integer", "null"]},
+      note: {type: ["string", "null"], description: "free text"},
+      both: {type: ["number", "integer"]},
+    },
+  });
+  assert.deepEqual(cleaned.properties.reps, {type: "integer", nullable: true});
+  assert.deepEqual(cleaned.properties.note,
+      {type: "string", nullable: true, description: "free text"});
+  assert.deepEqual(cleaned.properties.both, {type: "number"});
+});
+
+test("generate threads the abort signal into the Gemini config", async () => {
+  const client = fakeClient({response: textResponse("ok")});
+  const provider = new GeminiProvider(client);
+  const controller = new AbortController();
+  await provider.generate(
+      {model: "gemini-flash-latest", maxTokens: 8, messages: [
+        {role: "user", content: "hi"}]},
+      {signal: controller.signal});
+  assert.equal(client.calls[0].config.abortSignal, controller.signal);
 });
 
 test("toGeminiRequest turns a tool_result into a functionResponse matched by call name", () => {

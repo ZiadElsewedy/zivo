@@ -628,6 +628,7 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                             Widget trailing;
                                             if (_c.sendFailed) {
                                               trailing = ErrorRetry(
+                                                failure: _c.sendFailure,
                                                 onRetry: () =>
                                                     _c.retry(conversationId),
                                               );

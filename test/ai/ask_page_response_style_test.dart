@@ -139,6 +139,10 @@ class _RecordingAi implements AiRepository {
 
   @override
   Future<List<AiProviderUsage>> usageByProvider() async => const [];
+
+  @override
+  Future<List<AiUsageRecord>> usageRecords({int limit = 1000}) async =>
+      const [];
   @override
   Future<AiTurnUsage?> usageForTurn(String clientTurnId) async => null;
 
@@ -176,7 +180,7 @@ void main() {
 
     // Model group and reply-style group both render.
     expect(find.byKey(const Key('model-auto')), findsOneWidget);
-    expect(find.byKey(const Key('model-gemini')), findsOneWidget);
+    expect(find.byKey(const Key('model-gemini-flash')), findsOneWidget);
     expect(find.byKey(const Key('style-concise')), findsOneWidget);
     expect(find.byKey(const Key('style-detailed')), findsOneWidget);
     // 'Balanced' is checked by default.
@@ -239,9 +243,9 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.byKey(const Key('model-gemini')));
+    await tester.tap(find.byKey(const Key('model-gemini-flash')));
     await tester.pumpAndSettle();
-    expect(await inner.getModelSelection(), 'gemini');
+    expect(await inner.getModelSelection(), 'gemini-flash');
 
     await tester.tap(find.byIcon(Icons.arrow_back_rounded));
     await tester.pumpAndSettle();
@@ -251,14 +255,14 @@ void main() {
     await tester.tap(find.byKey(const Key('composer-send')));
     await tester.pumpAndSettle();
 
-    expect(ai.sentModels, ['gemini']);
+    expect(ai.sentModels, ['gemini-flash']);
 
     // Reopening shows Gemini checked now.
     await tester.tap(find.byKey(const Key('header-settings')));
     await tester.pumpAndSettle();
     expect(
       find.descendant(
-        of: find.byKey(const Key('model-gemini')),
+        of: find.byKey(const Key('model-gemini-flash')),
         matching: find.byIcon(AppIcons.check),
       ),
       findsOneWidget,

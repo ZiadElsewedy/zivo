@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/util/countries.dart';
 import '../../../../core/util/parse.dart';
 import '../../domain/body_profile.dart';
 import '../../domain/diet_goal.dart';
@@ -51,7 +52,7 @@ class DietBuilderResult {
 /// to the generator and the reveal.
 class DietBuilderController extends ChangeNotifier {
   DietBuilderController() {
-    for (final c in [_weight, _height, _age, eatingHabits, country, dislikes, allergies, schedule]) {
+    for (final c in [_weight, _height, _age, eatingHabits, dislikes, allergies, schedule]) {
       c.addListener(notifyListeners);
     }
   }
@@ -104,11 +105,30 @@ class DietBuilderController extends ChangeNotifier {
   // --- How you eat / what you avoid / schedule (free text, spoken or typed) --
   final TextEditingController eatingHabits = TextEditingController();
 
-  /// Where the user lives, in their own words — "Egypt", "the UK". Optional,
-  /// asked alongside how-you-eat so a plan can be steered toward foods
-  /// actually realistic and commonly available where they are, not a
-  /// generic Western default (see [PlanPreferences.country]).
-  final TextEditingController country = TextEditingController();
+  /// Where the user lives, as an ISO country code ("EG") picked from the full
+  /// country list — not typed. Optional, asked alongside how-you-eat so a plan
+  /// can be steered toward foods actually realistic and commonly available
+  /// where they are, not a generic Western default (see
+  /// [PlanPreferences.country]). Seeded from the remembered choice
+  /// ([seedCountry]) so the user picks it once, not every build.
+  String? _countryCode;
+  String? get countryCode => _countryCode;
+  set countryCode(String? value) {
+    if (_countryCode == value) return;
+    _countryCode = value;
+    notifyListeners();
+  }
+
+  /// The picked country, or null.
+  Country? get country => countryByCode(_countryCode);
+
+  /// Prefills the country from what the user chose last time. A choice the
+  /// user already made this session wins over a late-arriving seed.
+  void seedCountry(String? code) {
+    if (_countryCode != null || countryByCode(code) == null) return;
+    _countryCode = code!.toUpperCase();
+    notifyListeners();
+  }
   final TextEditingController dislikes = TextEditingController();
   final TextEditingController allergies = TextEditingController();
   final TextEditingController schedule = TextEditingController();
@@ -200,7 +220,9 @@ class DietBuilderController extends ChangeNotifier {
     avoid: splitNaturalFoodList(dislikes.text),
     allergies: _allergyTokens(),
     eatingHabits: _trimmedOrNull(eatingHabits.text),
-    country: _trimmedOrNull(country.text),
+    // The English name: the generator reasons in English, and the name is
+    // what it knows the food culture by — a bare "EG" is a weaker steer.
+    country: country?.en,
     scheduleNotes: _trimmedOrNull(schedule.text),
   );
 
@@ -257,7 +279,7 @@ class DietBuilderController extends ChangeNotifier {
 
   @override
   void dispose() {
-    for (final c in [_weight, _height, _age, eatingHabits, country, dislikes, allergies, schedule]) {
+    for (final c in [_weight, _height, _age, eatingHabits, dislikes, allergies, schedule]) {
       c.removeListener(notifyListeners);
       c.dispose();
     }

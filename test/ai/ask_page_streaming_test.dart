@@ -66,6 +66,10 @@ class _StreamingAi implements AiRepository {
 
   @override
   Future<List<AiProviderUsage>> usageByProvider() async => const [];
+
+  @override
+  Future<List<AiUsageRecord>> usageRecords({int limit = 1000}) async =>
+      const [];
   @override
   Future<AiTurnUsage?> usageForTurn(String clientTurnId) async => null;
 

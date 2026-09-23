@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../../l10n/l10n.dart';
 
@@ -66,10 +65,6 @@ enum _ImportPhase { selecting, analyzing, preview, done, rejected, error }
 class _WorkoutImportPageState extends State<WorkoutImportPage> {
   _ImportPhase _phase = _ImportPhase.selecting;
   String? _errorMessage;
-  // The raw failure text, shown only in debug builds so a real backend cause
-  // (App Check, network) is visible on-device instead of hidden behind the
-  // friendly line. Never surfaced in release.
-  String? _errorDetail;
   String? _rejectionReason;
   WorkoutPlan? _draft;
   bool _saving = false;
@@ -107,7 +102,6 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
     setState(() {
       _phase = _ImportPhase.selecting;
       _errorMessage = null;
-      _errorDetail = null;
       _rejectionReason = null;
       _draft = null;
       _saving = false;
@@ -132,7 +126,6 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
         setState(() {
           _phase = _ImportPhase.error;
           _errorMessage = l(context).importCouldntReadFile;
-          _errorDetail = kDebugMode ? error.toString() : null;
         });
         return;
       }
@@ -215,7 +208,6 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
           error,
           manualFallback: l(context).importBuildManually,
         );
-        _errorDetail = kDebugMode ? error.toString() : null;
       });
     } finally {
       // The attempt is over — clear the handle so a later X just pops instead
@@ -393,7 +385,6 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
       case _ImportPhase.error:
         return ImportErrorState(
           message: _errorMessage!,
-          detail: _errorDetail,
           onRetry: _restart,
         );
     }

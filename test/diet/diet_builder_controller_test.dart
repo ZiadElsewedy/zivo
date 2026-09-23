@@ -149,4 +149,28 @@ void main() {
       expect(notes, contains('I train at 6am'));
     });
   });
+
+  test('the picked country reaches the generator by its English name', () {
+    final c = complete();
+    addTearDown(c.dispose);
+    expect(c.finalize(now)!.preferences.country, isNull);
+
+    c.countryCode = 'EG';
+    expect(c.finalize(now)!.preferences.country, 'Egypt');
+    expect(c.finalize(now)!.preferences.toPayload()['country'], 'Egypt');
+  });
+
+  test('seedCountry prefills once, never over a pick, and ignores junk', () {
+    final c = DietBuilderController();
+    addTearDown(c.dispose);
+    c.seedCountry('zz');
+    expect(c.countryCode, isNull);
+    c.seedCountry('gb');
+    expect(c.countryCode, 'GB');
+
+    final picked = DietBuilderController()..countryCode = 'EG';
+    addTearDown(picked.dispose);
+    picked.seedCountry('GB');
+    expect(picked.countryCode, 'EG');
+  });
 }

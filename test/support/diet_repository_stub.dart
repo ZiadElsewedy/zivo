@@ -66,6 +66,12 @@ abstract class DietRepositoryStub implements DietRepository {
   Future<void> clearBodyProfile() async {}
 
   @override
+  Future<String?> fetchHomeCountry() async => null;
+
+  @override
+  Future<void> saveHomeCountry(String? countryCode) async {}
+
+  @override
   Stream<Set<String>> watchConsumed(DateTime day) =>
       Stream.value(const <String>{});
 

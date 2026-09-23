@@ -16,6 +16,7 @@ import '../../workout/domain/workout_import_input.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
 import '../domain/ai_conversation.dart';
+import '../domain/ai_failure.dart';
 import '../domain/ai_choice_request.dart';
 import '../domain/ai_input_request.dart';
 import '../domain/ai_message.dart';
@@ -85,11 +86,85 @@ String _providerFromModel(String? model) {
   return 'anthropic';
 }
 
+/// Reads one `aiUsage` doc — any schema version — as an [AiUsageRecord].
+/// A pre-v4 doc has no `feature` (it was always a chat turn) and no `status`
+/// (only successful turns were logged); a pre-`provider` doc is attributed by
+/// its model id.
+AiUsageRecord aiUsageRecordFromMap(Map<String, dynamic> data) {
+  final created = data['createdAt'];
+  return AiUsageRecord(
+    feature: (data['feature'] as String?) ?? 'chat',
+    provider:
+        (data['provider'] as String?) ??
+        _providerFromModel(data['model'] as String?),
+    model: (data['model'] as String?) ?? '',
+    tokensIn: _asInt(data['tokensIn']),
+    tokensOut: _asInt(data['tokensOut']),
+    costUsd: _asDouble(data['costUsd']),
+    status: (data['status'] as String?) ?? 'ok',
+    fellBack: data['fellBack'] == true,
+    createdAt: created is Timestamp ? created.toDate() : null,
+    latencyMs: _asInt(data['latencyMs']),
+    errorKind: data['errorKind'] as String?,
+  );
+}
+
 /// Firestore may hand a number back as int or double; coerce to int safely.
 int _asInt(Object? v) => v is num ? v.toInt() : 0;
 
 /// Firestore may hand a number back as int or double; coerce to double safely.
 double _asDouble(Object? v) => v is num ? v.toDouble() : 0;
+
+/// Translates a failed AI callable into an [AiFailure] — the only error shape
+/// a screen sees, so neither the SDK's text ("[firebase_functions/deadline-
+/// exceeded] DEADLINE EXCEEDED") nor a provider's ("credit balance is too
+/// low") can ever be rendered. Anything that isn't a transport error (an
+/// [ImportCancelledException], a parse error in a test fake) passes through
+/// untouched.
+Object aiFailureFrom(Object error) {
+  if (error is TimeoutException) return const AiFailure(AiFailureKind.timeout);
+  if (error is! FirebaseFunctionsException) return error;
+  final details = error.details;
+  final reason = details is Map ? details['reason'] : null;
+  final text = '${error.code} ${error.message ?? ''}'.toLowerCase();
+  return AiFailure(switch (error.code) {
+    // The backend's "every provider failed" — see `aiUnavailableHttpsError`
+    // in functions/index.js. The SDK also reports lost connectivity as
+    // `unavailable`, which is why the reason is what decides.
+    'unavailable' when reason == 'ai_unavailable' => AiFailureKind.unavailable,
+    'unavailable' => AiFailureKind.network,
+    'resource-exhausted' => AiFailureKind.dailyLimit,
+    'deadline-exceeded' => AiFailureKind.timeout,
+    'unauthenticated' || 'permission-denied' => AiFailureKind.auth,
+    'not-found' => AiFailureKind.notDeployed,
+    _ when text.contains('app check') || text.contains('app-check') =>
+      AiFailureKind.auth,
+    _ => AiFailureKind.unknown,
+  });
+}
+
+/// Runs [call], rethrowing a transport failure as its [AiFailure].
+Future<T> _asAiFailure<T>(Future<T> Function() call) async {
+  try {
+    return await call();
+  } catch (error, stack) {
+    final mapped = aiFailureFrom(error);
+    if (identical(mapped, error)) rethrow;
+    Error.throwWithStackTrace(mapped, stack);
+  }
+}
+
+/// How long the client waits for the plan callables. Matches their server
+/// `timeoutSeconds` (functions/index.js): a whole-document read or a two-call
+/// plan build, with time left for the backend's fallback model if the first
+/// one hangs. The SDK's default (~70s) is shorter than a normal Sonnet-built
+/// plan, which surfaced as "DEADLINE EXCEEDED" on a plan the server was
+/// still happily building.
+const Duration kAiPlanCallTimeout = Duration(seconds: 300);
+
+/// How long the client waits for one chat turn — the `aiChat` callable's
+/// `timeoutSeconds`.
+const Duration kAiChatCallTimeout = Duration(seconds: 120);
 
 class FirebaseAiRepository implements AiRepository {
   FirebaseAiRepository({
@@ -215,7 +290,12 @@ class FirebaseAiRepository implements AiRepository {
     return (conversationId, message, responseStyle, provider, clientTurnId) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
-      await f.httpsCallable('aiChat').call({
+      await f
+          .httpsCallable(
+            'aiChat',
+            options: HttpsCallableOptions(timeout: kAiChatCallTimeout),
+          )
+          .call({
         'conversationId': conversationId,
         'message': message,
         'responseStyle': responseStyle,
@@ -255,7 +335,12 @@ class FirebaseAiRepository implements AiRepository {
     ) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
-      final stream = f.httpsCallable('aiChat').stream({
+      final stream = f
+          .httpsCallable(
+            'aiChat',
+            options: HttpsCallableOptions(timeout: kAiChatCallTimeout),
+          )
+          .stream({
         'conversationId': conversationId,
         'message': message,
         'responseStyle': responseStyle,
@@ -349,13 +434,15 @@ class FirebaseAiRepository implements AiRepository {
           WorkoutImportDescription(:final text) => {'text': text},
         },
         'executionId': executionId,
+        // So the server's usage record lands on the user's own calendar day.
+        ...clientClockFields(),
       };
-      // A whole-PDF extraction can run up to the callable's 180s server
-      // timeout; the client default is ~70s, so without this a slow (but
-      // succeeding) import would time out on the client.
+      // A whole-PDF extraction can run up to the callable's server timeout;
+      // the client default is ~70s, so without this a slow (but succeeding)
+      // import would time out on the client. See [kAiPlanCallTimeout].
       final callable = f.httpsCallable(
         'aiImportWorkoutPlan',
-        options: HttpsCallableOptions(timeout: const Duration(seconds: 180)),
+        options: HttpsCallableOptions(timeout: kAiPlanCallTimeout),
       );
       return _bufferedImportWithCancel(
         f,
@@ -442,11 +529,12 @@ class FirebaseAiRepository implements AiRepository {
           DietImportDescription(:final text) => {'text': text},
         },
         'executionId': executionId,
+        ...clientClockFields(),
       };
-      // Match the server's 180s timeout, like the workout importer above.
+      // Match the server's timeout, like the workout importer above.
       final callable = f.httpsCallable(
         'aiImportDietPlan',
-        options: HttpsCallableOptions(timeout: const Duration(seconds: 180)),
+        options: HttpsCallableOptions(timeout: kAiPlanCallTimeout),
       );
       return _bufferedImportWithCancel(
         f,
@@ -470,8 +558,14 @@ class FirebaseAiRepository implements AiRepository {
     return (preferences, targets) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
-      final result = await f.httpsCallable('aiGenerateDietPlan').call({
+      final result = await f
+          .httpsCallable(
+            'aiGenerateDietPlan',
+            options: HttpsCallableOptions(timeout: kAiPlanCallTimeout),
+          )
+          .call({
         'preferences': preferences.toPayload(),
+        ...clientClockFields(),
         if (targets != null)
           'targets': {
             'calories': targets.calories,
@@ -659,17 +753,24 @@ class FirebaseAiRepository implements AiRepository {
     final provider = validAiModelSelection(modelSelection);
     // Stream only when the caller wants live events; otherwise the plain
     // `.call()` path keeps the buffered behavior (and its cheaper transport).
-    return onEvent == null
-        ? _invokeChat(conversationId, trimmed, responseStyle, provider,
-            clientTurnId)
-        : _invokeChatStream(
-            conversationId,
-            trimmed,
-            responseStyle,
-            provider,
-            clientTurnId,
-            onEvent,
-          );
+    return _asAiFailure(
+      () => onEvent == null
+          ? _invokeChat(
+              conversationId,
+              trimmed,
+              responseStyle,
+              provider,
+              clientTurnId,
+            )
+          : _invokeChatStream(
+              conversationId,
+              trimmed,
+              responseStyle,
+              provider,
+              clientTurnId,
+              onEvent,
+            ),
+    );
   }
 
   @override
@@ -699,9 +800,12 @@ class FirebaseAiRepository implements AiRepository {
   @override
   Future<void> setModelSelection(String selection) async {
     final uid = _requireUid();
-    await _aiSettingsDoc(
-      uid,
-    ).set({'provider': selection}, SetOptions(merge: true));
+    // Stored validated (a legacy 'claude' upgraded to 'claude-sonnet'): the
+    // plan callables read this doc server-side, so it should hold a clean
+    // model-catalog key.
+    await _aiSettingsDoc(uid).set({
+      'provider': validAiModelSelection(selection),
+    }, SetOptions(merge: true));
   }
 
   @override
@@ -736,6 +840,18 @@ class FirebaseAiRepository implements AiRepository {
         .toList()
       ..sort((a, b) => b.tokensTotal.compareTo(a.tokensTotal));
     return list;
+  }
+
+  @override
+  Future<List<AiUsageRecord>> usageRecords({int limit = 1000}) async {
+    final uid = uidSource.currentUid();
+    if (uid == null) return const [];
+    // One orderBy on a single field — served by Firestore's automatic
+    // single-field index, no composite index needed.
+    final snapshot = await _aiUsageCollection(
+      uid,
+    ).orderBy('createdAt', descending: true).limit(limit).get();
+    return [for (final doc in snapshot.docs) aiUsageRecordFromMap(doc.data())];
   }
 
   CollectionReference<Map<String, dynamic>> _aiUsageCollection(String uid) =>
@@ -804,19 +920,19 @@ class FirebaseAiRepository implements AiRepository {
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
     ImportCancellation? cancellation,
-  }) => _invokeImport(input, cancellation);
+  }) => _asAiFailure(() => _invokeImport(input, cancellation));
 
   @override
   Future<DietImportOutcome> importDietPlan(
     DietImportInput input, {
     ImportCancellation? cancellation,
-  }) => _invokeDietImport(input, cancellation);
+  }) => _asAiFailure(() => _invokeDietImport(input, cancellation));
 
   @override
   Future<DietImportOutcome> generateDietPlan({
     required PlanPreferences preferences,
     NutritionTargets? targets,
-  }) => _invokeDietGenerate(preferences, targets);
+  }) => _asAiFailure(() => _invokeDietGenerate(preferences, targets));
 
   @override
   Future<SttOutcome> transcribe({

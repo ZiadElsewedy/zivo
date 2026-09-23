@@ -97,6 +97,54 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **AI provider fallback, model selection, per-request usage + cost, clean AI
+  errors; Diet Builder country picker** (2026-09-23, on `upgrades`). Owner's Claude
+  credit ran low and plan generation failed with a raw
+  "[firebase_functions/deadline-exceeded] DEADLINE EXCEEDED" + stack trace on screen.
+  Root causes: (a) `aiGenerateDietPlan` had no client timeout (SDK default ~70s < a
+  Sonnet-built plan); (b) Anthropic reports out-of-credit as a **400**, which
+  `classify.js` read as "our request is bad" → no Gemini fallback; (c) the plan
+  import/generate callables were Anthropic-only; (d) the services forwarded the
+  provider's raw `err.message` to the user. What changed:
+  - **Backend:** `routing/models.js` (new) is the model catalog + per-model pricing
+    (Sonnet 5 · Haiku 4.5 · Gemini Flash · Gemini Pro). `classify.js` now classifies
+    (billing · auth · model_unavailable · rate_limit · overloaded · server · timeout ·
+    network · bad_request) and fails over on everything but bad_request. `router.js`:
+    chat + workout/diet import + new `diet_generate` capability are all Sonnet → Flash;
+    the user's selection goes first with fallback behind it (a preference, not a pin —
+    the old `forceProvider` pin is no longer used by the app); billing/auth failures
+    cool a provider down 10 min; per-attempt deadlines; all-fail → `AiUnavailableError`
+    → `HttpsError('unavailable', …, {reason:'ai_unavailable'})`. Gemini adapter: abort
+    signal, nullable type unions (`["integer","null"]` 400'd Gemini), +8192 output
+    headroom for thinking. Plan callables read the selection from
+    `settings/ai.provider`, bind `GEMINI_API_KEY`, and run 300s (chat 120s).
+  - **Usage log:** `shared/usage_log.js` (new) — every AI request (chat, imports,
+    plan builder, food search, voice) writes `aiUsage` **v4** with `feature`, model,
+    tokens, cost at the answering model's rate, fallback attempts, status/errorKind.
+    The chat daily cap counts chat `ok` records only.
+  - **App:** 5-way model picker (Auto + 4 models) in Ask settings, applying to every
+    AI feature; new **AI usage page** (Settings → AI usage, or Ask settings → See every
+    request): total, by provider, by feature, recent requests with Backup/Failed
+    badges. `AiFailure` (new) replaces raw errors everywhere; chat's retry card and
+    the import/generation error screen say *why* (AI resting · daily limit · timeout ·
+    connection); the import error screen no longer renders the exception/stack trace
+    and scrolls instead of overflowing.
+  - **Diet Builder:** "Where do you live?" is a searchable pick from all 200
+    countries (`core/util/countries.dart`, en + ar), remembered at
+    `settings/diet.countryCode` and prefilled next time; question prompts at full ink
+    and helper notes brighter/larger. Avoid + allergies fields unchanged.
+  - Also fixed the pre-existing missing Arabic `addDietRecommended`.
+  - Tests: functions 567 pass (router/classify/usage_log/store/gemini added to);
+    Flutter full suite passes except the **pre-existing** `light_mode_smoke_test`
+    "the Hub reads on paper" contrast failure (fails on a clean checkout too).
+  - **Owner actions:** (1) `firebase deploy --only functions` — nothing above works
+    server-side until deployed (the app degrades gracefully meanwhile: an old
+    backend just keeps today's behaviour); (2) Gemini prices in `routing/models.js`
+    are list-price estimates for rolling aliases — confirm against the Google bill;
+    (3) `gemini-pro-latest` is unverified for this key — if it 404s the router falls
+    through to the next model, but pick Gemini Pro once and check the usage page
+    shows "Gemini Pro" answering. No Firestore rules change needed (`settings/*` is
+    open-shaped; `aiUsage` was already owner-readable).
 - **Fixed: error logs for the three whole-document/generate AI callables were**
   **silently swallowing the real failure reason** (2026-09-23, on
   `worktree-diet-ai-food-assistant`, deployed). Found while live-testing the

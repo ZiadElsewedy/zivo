@@ -4,10 +4,21 @@
  */
 
 const assert = require("node:assert/strict");
-const {test} = require("node:test");
+const {test, beforeEach} = require("node:test");
 
-const {resolve, generate, CAPABILITY_ROUTES} = require("./router");
+const {
+  resolve,
+  generate,
+  routesFor,
+  resetCooldowns,
+  CAPABILITY_ROUTES,
+  COOLDOWN_MS,
+} = require("./router");
 const {ProviderRegistry} = require("../providers/registry");
+const {AiUnavailableError} = require("../providers/classify");
+
+// The cool-down map is module state — every test starts from a clean slate.
+beforeEach(() => resetCooldowns());
 
 /**
  * A fake provider whose `generate` either resolves to `response` or, when
@@ -44,10 +55,11 @@ test("resolve throws for an unknown capability", () => {
   assert.throws(() => resolve("not_a_real_capability"));
 });
 
-test("chat, workout_import, and diet_import all route to anthropic today", () => {
-  assert.equal(resolve("chat").provider, "anthropic");
-  assert.equal(resolve("workout_import").provider, "anthropic");
-  assert.equal(resolve("diet_import").provider, "anthropic");
+test("every selectable capability is Claude-first with a Gemini fallback", () => {
+  for (const cap of ["chat", "workout_import", "diet_import", "diet_generate"]) {
+    assert.deepEqual(CAPABILITY_ROUTES[cap].map((r) => r.provider),
+        ["anthropic", "gemini"], cap);
+  }
 });
 
 test("generate resolves the capability's provider and stamps the route's model onto the request", async () => {
@@ -101,7 +113,9 @@ test("generate rethrows the last route's error once every route has failed", asy
 
     await assert.rejects(
         () => generate(registry, "chat", {maxTokens: 10, messages: []}),
-        (err) => err.message === "backup down too",
+        (err) => err instanceof AiUnavailableError &&
+          err.cause.message === "backup down too" &&
+          err.attempts.length === 2,
     );
   } finally {
     CAPABILITY_ROUTES.chat.length = 0;
@@ -198,7 +212,8 @@ test("Manual Gemini failure does NOT fall back to Claude", async () => {
   await assert.rejects(
       () => generate(registry, "chat", {maxTokens: 10, messages: []}, undefined,
           {forceProvider: "gemini"}),
-      (err) => err.message === "gemini down");
+      (err) => err instanceof AiUnavailableError &&
+        err.cause.message === "gemini down");
   assert.equal(anthropic.calls.length, 0);
 });
 
@@ -210,4 +225,138 @@ test("resolve(capability, forceProvider) returns the forced provider's route", (
 
 test("forcing a provider with no configured route throws", () => {
   assert.throws(() => resolve("chat", "openai"));
+});
+
+// --- Billing/auth failures fall back (the "Claude is out of credit" case) ----
+
+test("Claude out of credit (a 400!) falls back to Gemini", async () => {
+  const registry = new ProviderRegistry();
+  const anthropic = fakeProvider({fail: {status: 400, message:
+    "400 {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\"," +
+    "\"message\":\"Your credit balance is too low to access the Anthropic " +
+    "API.\"}}"}});
+  const gemini = fakeProvider({response: {stopReason: "end"}});
+  registry.register("anthropic", anthropic).register("gemini", gemini);
+
+  const resp = await generate(registry, "diet_generate",
+      {maxTokens: 10, messages: []});
+
+  assert.equal(resp.provider, "gemini");
+  assert.equal(resp.fellBack, true);
+  assert.deepEqual(resp.attempts.map((a) => a.kind), ["billing"]);
+});
+
+test("a billing failure cools Anthropic down: the next call goes to Gemini first", async () => {
+  const registry = new ProviderRegistry();
+  const anthropic = fakeProvider({fail: {status: 400,
+    message: "Your credit balance is too low"}});
+  const gemini = fakeProvider({response: {stopReason: "end"}});
+  registry.register("anthropic", anthropic).register("gemini", gemini);
+  let t = 1000;
+  const now = () => t;
+
+  await generate(registry, "chat", {maxTokens: 10, messages: []}, undefined,
+      {now});
+  assert.equal(anthropic.calls.length, 1);
+
+  const second = await generate(registry, "chat",
+      {maxTokens: 10, messages: []}, undefined, {now});
+  assert.equal(anthropic.calls.length, 1, "Claude skipped while cooling");
+  assert.equal(second.provider, "gemini");
+  assert.equal(second.fellBack, false);
+
+  // After the window, Claude is first again (recovery is automatic).
+  t += COOLDOWN_MS + 1;
+  assert.equal(routesFor("chat", {now})[0].provider, "anthropic");
+});
+
+test("a cooling provider is still tried last when everything else fails", async () => {
+  const registry = new ProviderRegistry();
+  const anthropic = fakeProvider({fail: {status: 401, message: "invalid x-api-key"}});
+  const gemini = fakeProvider({fail: {status: 503, message: "unavailable"}});
+  registry.register("anthropic", anthropic).register("gemini", gemini);
+
+  await assert.rejects(() => generate(registry, "chat",
+      {maxTokens: 10, messages: []}), AiUnavailableError);
+  await assert.rejects(() => generate(registry, "chat",
+      {maxTokens: 10, messages: []}), AiUnavailableError);
+  assert.equal(anthropic.calls.length, 2);
+  assert.equal(gemini.calls.length, 2);
+});
+
+// --- The user's model selection (preferModel) ------------------------------
+
+test("preferModel puts the chosen model first and keeps the defaults as fallback", () => {
+  const routes = routesFor("chat", {preferModel: "gemini-pro"});
+  assert.deepEqual(routes.map((r) => r.model),
+      ["gemini-pro-latest", "claude-sonnet-5", "gemini-flash-latest"]);
+});
+
+test("preferring a default model doesn't duplicate its route", () => {
+  const routes = routesFor("chat", {preferModel: "gemini-flash"});
+  assert.deepEqual(routes.map((r) => r.model),
+      ["gemini-flash-latest", "claude-sonnet-5"]);
+});
+
+test("preferModel is ignored for food_search and for an unknown key", () => {
+  assert.deepEqual(routesFor("food_search", {preferModel: "claude-haiku"})
+      .map((r) => r.provider), ["gemini"]);
+  assert.equal(routesFor("chat", {preferModel: "gpt-9"})[0].model,
+      "claude-sonnet-5");
+});
+
+test("a preferred Claude Haiku out of credit still lands on Gemini", async () => {
+  const registry = new ProviderRegistry();
+  const anthropic = fakeProvider({fail: {status: 402, message: "payment"}});
+  const gemini = fakeProvider({response: {stopReason: "end"}});
+  registry.register("anthropic", anthropic).register("gemini", gemini);
+
+  const resp = await generate(registry, "workout_import",
+      {maxTokens: 10, messages: []}, undefined, {preferModel: "claude-haiku"});
+
+  assert.equal(anthropic.calls[0].model, "claude-haiku-4-5-20251001");
+  assert.equal(resp.provider, "gemini");
+  assert.equal(resp.modelKey, "gemini-flash");
+});
+
+// --- Per-attempt deadline + cancellation ------------------------------------
+
+test("a hung provider is abandoned at attemptTimeoutMs and the next route answers", async () => {
+  const registry = new ProviderRegistry();
+  let sawSignal = null;
+  const hung = {
+    generate: (_req, opts) => {
+      sawSignal = opts && opts.signal;
+      return new Promise(() => {});
+    },
+  };
+  const gemini = fakeProvider({response: {stopReason: "end"}});
+  registry.register("anthropic", hung).register("gemini", gemini);
+
+  const resp = await generate(registry, "chat", {maxTokens: 10, messages: []},
+      undefined, {attemptTimeoutMs: 20});
+
+  assert.equal(resp.provider, "gemini");
+  assert.equal(resp.attempts[0].kind, "timeout");
+  assert.equal(sawSignal.aborted, true, "the hung call was told to abort");
+});
+
+test("a user cancel is rethrown, never failed over", async () => {
+  const registry = new ProviderRegistry();
+  const controller = new AbortController();
+  const anthropic = {
+    generate: async () => {
+      controller.abort();
+      const err = new Error("aborted");
+      err.name = "AbortError";
+      throw err;
+    },
+  };
+  const gemini = fakeProvider({response: {stopReason: "end"}});
+  registry.register("anthropic", anthropic).register("gemini", gemini);
+
+  await assert.rejects(() => generate(registry, "chat",
+      {maxTokens: 10, messages: []}, {signal: controller.signal}),
+  (err) => err.name === "AbortError");
+  assert.equal(gemini.calls.length, 0);
 });

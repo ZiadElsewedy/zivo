@@ -61,6 +61,15 @@ Future<void> _fillToBuild(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// The "How you eat" step's own scroll view — the PageView keeps every step's
+/// list alive, so a bare `scrollUntilVisible` finds several.
+Finder _eatStepScrollable() => find
+    .descendant(
+      of: find.byKey(const Key('builder-eat')),
+      matching: find.byType(Scrollable),
+    )
+    .first;
+
 void main() {
   testWidgets('gates Continue on goal, then on complete body data', (
     tester,
@@ -117,5 +126,69 @@ void main() {
     // Target and an active plan are now persisted.
     expect(diet.currentTargets, isNotNull);
     expect(diet.activePlan, isNotNull);
+  });
+
+  testWidgets('the country is picked from a list, remembered, and prefilled '
+      'on the next build', (tester) async {
+    final diet = InMemoryDietRepository();
+    await tester.pumpWidget(_wrap(diet));
+    await tester.pumpAndSettle();
+
+    // Through goal + about-you to "How you eat".
+    await tester.tap(find.byKey(const Key('builder-goal-maintain')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('builder-next')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('builder-weight')), '81');
+    await tester.enterText(find.byKey(const Key('builder-height')), '178');
+    await tester.enterText(find.byKey(const Key('builder-age')), '30');
+    await tester.tap(find.byKey(const Key('builder-sex-male')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('builder-next')));
+    await tester.pumpAndSettle();
+
+    // No free-text box — a picker.
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('builder-country-field')),
+      200,
+      scrollable: _eatStepScrollable(),
+    );
+    await tester.tap(find.byKey(const Key('builder-country-field')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('country-search')), 'egy');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('country-EG')));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<Text>(find.byKey(const Key('builder-country-value'))).data,
+      'Egypt',
+    );
+    expect(await diet.fetchHomeCountry(), 'EG');
+
+    // A fresh builder remembers it — no re-entering.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_wrap(diet));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('builder-goal-maintain')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('builder-next')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('builder-weight')), '81');
+    await tester.enterText(find.byKey(const Key('builder-height')), '178');
+    await tester.enterText(find.byKey(const Key('builder-age')), '30');
+    await tester.tap(find.byKey(const Key('builder-sex-male')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('builder-next')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('builder-country-value')),
+      200,
+      scrollable: _eatStepScrollable(),
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const Key('builder-country-value'))).data,
+      'Egypt',
+    );
   });
 }

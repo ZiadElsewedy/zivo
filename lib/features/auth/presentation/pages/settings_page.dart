@@ -18,6 +18,7 @@ import '../../../music/domain/music_controller.dart';
 import '../../../music/domain/now_playing.dart';
 import '../../../music/music_config.dart';
 import '../../../music/presentation/music_player_page.dart';
+import '../../../ai/presentation/pages/ai_usage_page.dart';
 import '../../../reminders/presentation/pages/reminders_page.dart';
 import 'about_me_page.dart';
 import 'change_password_page.dart';
@@ -146,6 +147,22 @@ class _SettingsPageState extends State<SettingsPage> {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const RemindersPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  // Every AI request's tokens and estimated cost, by
+                  // provider and by feature — the owner's view of what the
+                  // AI features are spending.
+                  SettingsRow(
+                    key: const Key('settings-ai-usage'),
+                    icon: AppIcons.ask,
+                    title: l(context).aiUsageTitle,
+                    value: '',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AiUsagePage(),
                         ),
                       );
                     },

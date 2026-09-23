@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
@@ -107,10 +106,6 @@ const _kGeneratingStatusCount = 3;
 class _DietImportPageState extends State<DietImportPage> {
   _ImportPhase _phase = _ImportPhase.selecting;
   String? _errorMessage;
-  // The raw failure text, shown only in debug builds so a real backend cause
-  // (App Check, network) is visible on-device instead of hidden behind the
-  // friendly line. Never surfaced in release.
-  String? _errorDetail;
   String? _rejectionReason;
 
   Timer? _analyzingTimer;
@@ -169,7 +164,6 @@ class _DietImportPageState extends State<DietImportPage> {
     setState(() {
       _phase = _ImportPhase.selecting;
       _errorMessage = null;
-      _errorDetail = null;
       _rejectionReason = null;
     });
 
@@ -201,7 +195,6 @@ class _DietImportPageState extends State<DietImportPage> {
         setState(() {
           _phase = _ImportPhase.error;
           _errorMessage = strings.dietFileReadFailed;
-          _errorDetail = kDebugMode ? error.toString() : null;
         });
         return;
       }
@@ -295,8 +288,12 @@ class _DietImportPageState extends State<DietImportPage> {
           context,
           error,
           manualFallback: strings.dietBuildManually,
+          // Generation reads no document — "couldn't read that plan" would
+          // blame one that doesn't exist.
+          unknownMessage: widget.generateFrom != null
+              ? strings.aiErrorGeneric
+              : null,
         );
-        _errorDetail = kDebugMode ? error.toString() : null;
       });
     } finally {
       _cancellation = null;
@@ -412,7 +409,6 @@ class _DietImportPageState extends State<DietImportPage> {
       case _ImportPhase.error:
         return ImportErrorState(
           message: _errorMessage!,
-          detail: _errorDetail,
           onRetry: _retry,
           retryColor: TrainColors.green,
         );

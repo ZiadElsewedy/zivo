@@ -4,17 +4,51 @@ import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/theme/train_tokens.dart';
 import '../../../../../core/widgets/pressable_scale.dart';
 import '../../../../../l10n/l10n.dart';
+import '../../../domain/ai_failure.dart';
 
 /// Shown in the trailing slot after a failed send — a quiet, modern inline
 /// card (not a 2010 banner): the user's text stays in its optimistic bubble
 /// above, this explains what happened and offers a one-tap retry.
+///
+/// The words follow [failure]: every AI model being down, the daily limit
+/// and a timeout each say what they are. None of them names a provider or a
+/// bill — that's ZIVO's problem, not the reader's.
 class ErrorRetry extends StatelessWidget {
-  const ErrorRetry({required this.onRetry, super.key});
+  const ErrorRetry({
+    required this.onRetry,
+    this.failure = AiFailureKind.network,
+    super.key,
+  });
 
   final VoidCallback onRetry;
+  final AiFailureKind failure;
+
+  (String, String) _copy(BuildContext context) => switch (failure) {
+    AiFailureKind.unavailable => (
+      l(context).aiErrorUnavailableTitle,
+      l(context).aiErrorUnavailableBody,
+    ),
+    AiFailureKind.dailyLimit => (
+      l(context).aiErrorDailyLimitTitle,
+      l(context).aiErrorDailyLimitBody,
+    ),
+    AiFailureKind.timeout => (
+      l(context).aiErrorTimeoutTitle,
+      l(context).aiErrorTimeout,
+    ),
+    AiFailureKind.unknown => (
+      l(context).askUnreachableTitle,
+      l(context).aiErrorGeneric,
+    ),
+    _ => (
+      l(context).askUnreachableTitle,
+      l(context).askUnreachableBody,
+    ),
+  };
 
   @override
   Widget build(BuildContext context) {
+    final (title, body) = _copy(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
       child: Container(
@@ -34,7 +68,7 @@ class ErrorRetry extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    l(context).askUnreachableTitle,
+                    title,
                     style: AppText.rowTitle.copyWith(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w600,
@@ -43,7 +77,7 @@ class ErrorRetry extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    l(context).askUnreachableBody,
+                    body,
                     style: AppText.body.copyWith(
                       fontSize: 13,
                       height: 1.3,

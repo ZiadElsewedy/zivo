@@ -38,48 +38,39 @@ const DEFAULT_CONFIG = {
   pendingActionTtlMs: 60 * 60 * 1000,
 };
 
-// Claude Sonnet 5 pricing (owner-confirmed, 2026-08-15): $3 / 1M input
-// tokens, $15 / 1M output tokens. Cost is computed and logged, never shown
-// to the model.
-const INPUT_COST_PER_TOKEN_USD = 3 / 1000000;
-const OUTPUT_COST_PER_TOKEN_USD = 15 / 1000000;
-// Prompt-caching multipliers on the base input price (Anthropic pricing):
-// writing a cache entry costs 1.25x, reading one back costs 0.1x.
-const CACHE_WRITE_MULTIPLIER = 1.25;
-const CACHE_READ_MULTIPLIER = 0.1;
+// Pricing lives in ONE place — the model catalog (`../routing/models.js`) —
+// and the per-provider table below is derived from it: a provider is priced at
+// its default chat model (Anthropic → Claude Sonnet 5, Gemini → Gemini Flash).
+// A turn whose calls were stamped with the exact model that answered is priced
+// per model instead (see `usage.js` `TurnUsage.add`); these per-provider rates
+// are the fallback for an unstamped call (the legacy seam, test fakes).
+const {MODELS, DEFAULT_MODEL_FOR_PROVIDER} = require("../routing/models");
 
-// Per-provider token pricing, so a turn's cost is logged at the rate of the
-// provider that ACTUALLY answered (the router stamps it as `usedProvider`; an
-// `Auto` turn that fell back to Gemini is priced as Gemini). Anthropic reuses
-// the constants above unchanged, so existing cost behaviour and the cost test
-// are preserved exactly.
+/**
+ * @param {string} provider
+ * @return {{inputPerToken: number, outputPerToken: number,
+ *   cacheWriteMultiplier: number, cacheReadMultiplier: number}}
+ */
+function providerPricing(provider) {
+  const p = MODELS[DEFAULT_MODEL_FOR_PROVIDER[provider]].pricing;
+  return {
+    inputPerToken: p.inputPerMTok / 1000000,
+    outputPerToken: p.outputPerMTok / 1000000,
+    cacheWriteMultiplier: p.cacheWriteMultiplier,
+    cacheReadMultiplier: p.cacheReadMultiplier,
+  };
+}
+
 const PRICING = {
-  anthropic: {
-    inputPerToken: INPUT_COST_PER_TOKEN_USD,
-    outputPerToken: OUTPUT_COST_PER_TOKEN_USD,
-    cacheWriteMultiplier: CACHE_WRITE_MULTIPLIER,
-    cacheReadMultiplier: CACHE_READ_MULTIPLIER,
-  },
-  // `gemini-flash-latest` is a ROLLING ALIAS (see routing/router.js) → whatever
-  // Google's current Flash is. These are Google's published Gemini 2.5 Flash
-  // list rates, standard tier (≤200k-token context): $0.30 / 1M input,
-  // $2.50 / 1M output. Two deliberate caveats:
-  //   1. Owner-confirm these the way the Anthropic rate was — they are
-  //      published list prices, not a billed invoice. Adjust the two numbers
-  //      if the actual rate differs; nothing else needs to change.
-  //   2. The model id is a rolling alias, so the rate can move under it.
-  //      Revisit when the alias points at a new Flash tier.
-  // Cache multipliers are INERT today: the chat path reports no cache
-  // read/write tokens for Gemini (confirmed by the validation telemetry), so a
-  // Gemini turn's cost depends only on the input/output rates. They are set to
-  // sane values for the day a Gemini cache path exists, not because one does.
-  gemini: {
-    inputPerToken: 0.30 / 1000000,
-    outputPerToken: 2.50 / 1000000,
-    cacheWriteMultiplier: 1.0,
-    cacheReadMultiplier: 0.25,
-  },
+  anthropic: providerPricing("anthropic"),
+  gemini: providerPricing("gemini"),
 };
+
+// Kept as named exports for existing callers/tests: Claude Sonnet 5's rates.
+const INPUT_COST_PER_TOKEN_USD = PRICING.anthropic.inputPerToken;
+const OUTPUT_COST_PER_TOKEN_USD = PRICING.anthropic.outputPerToken;
+const CACHE_WRITE_MULTIPLIER = PRICING.anthropic.cacheWriteMultiplier;
+const CACHE_READ_MULTIPLIER = PRICING.anthropic.cacheReadMultiplier;
 
 // The provider a turn is priced at when the response carried no provider stamp
 // — the legacy `callModel` seam and every buffered test fake. Anthropic is

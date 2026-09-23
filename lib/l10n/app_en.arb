@@ -2973,7 +2973,7 @@
   "@askModel": {
       "description": "Section header for the model choice in the Ask settings sheet."
   },
-  "askModelSheetSubtitle": "Choose which AI answers your questions.",
+  "askModelSheetSubtitle": "Choose which AI model ZIVO uses.",
   "@askModelSheetSubtitle": {
       "description": "Subtitle under the Model section header in the settings sheet."
   },
@@ -2981,7 +2981,7 @@
   "@askModelAuto": {
       "description": "Model option: automatically pick the best model (Claude, with a Gemini fallback)."
   },
-  "askModelAutoDesc": "Best available — Claude, with Gemini as backup.",
+  "askModelAutoDesc": "Claude first — Gemini steps in automatically if Claude can't answer.",
   "@askModelAutoDesc": {
       "description": "One-line description of the Auto model option."
   },
@@ -3005,7 +3005,7 @@
   "@askUsage": {
       "description": "Section header for the AI token-usage list on the Ask settings page."
   },
-  "askUsageSubtitle": "Tokens used per model, all-time.",
+  "askUsageSubtitle": "Tokens and estimated cost per provider, all-time.",
   "@askUsageSubtitle": {
       "description": "Subtitle under the Usage section header."
   },
@@ -7953,7 +7953,7 @@
   "@dietBuilderCountryHint": {
     "description": "Placeholder in the optional country/location field."
   },
-  "dietBuilderCountryNote": "Helps ZIVO suggest foods that are actually realistic and available where you are — optional.",
+  "dietBuilderCountryNote": "Helps ZIVO suggest foods that are realistic and easy to find where you live. ZIVO remembers it for next time.",
   "@dietBuilderCountryNote": {
     "description": "Reassurance under the country/location field that it can be left blank."
   },
@@ -8053,5 +8053,93 @@
   "dietBuilderEditPlan": "Edit plan",
   "@dietBuilderEditPlan": {
     "description": "Opens the plan editor to tweak the generated plan before saving."
-  }
+  },
+  "askModelClaudeSonnet": "Claude Sonnet",
+  "@askModelClaudeSonnet": {"description": "Model option: Anthropic's Claude Sonnet. Product name — keep as-is."},
+  "askModelClaudeSonnetDesc": "Anthropic's most capable everyday model — the best answers.",
+  "@askModelClaudeSonnetDesc": {"description": "Description of the Claude Sonnet option."},
+  "askModelClaudeHaiku": "Claude Haiku",
+  "@askModelClaudeHaiku": {"description": "Model option: Anthropic's Claude Haiku. Product name — keep as-is."},
+  "askModelClaudeHaikuDesc": "Faster and cheaper than Sonnet, still sharp.",
+  "@askModelClaudeHaikuDesc": {"description": "Description of the Claude Haiku option."},
+  "askModelGeminiFlash": "Gemini Flash",
+  "@askModelGeminiFlash": {"description": "Model option: Google's Gemini Flash. Product name — keep as-is."},
+  "askModelGeminiFlashDesc": "Google's fast model — the lowest cost.",
+  "@askModelGeminiFlashDesc": {"description": "Description of the Gemini Flash option."},
+  "askModelGeminiPro": "Gemini Pro",
+  "@askModelGeminiPro": {"description": "Model option: Google's Gemini Pro. Product name — keep as-is."},
+  "askModelGeminiProDesc": "Google's deepest reasoning — slower.",
+  "@askModelGeminiProDesc": {"description": "Description of the Gemini Pro option."},
+  "askModelAppliesNote": "Used for chat, plan imports and the plan builder. If your choice is unavailable, ZIVO switches to another model automatically — you still get an answer.",
+  "@askModelAppliesNote": {"description": "Note under the model list explaining scope and automatic fallback."},
+  "askUsageRequests": "{count, plural, =1{1 request} other{{count} requests}}",
+  "@askUsageRequests": {"description": "Number of AI requests, e.g. '37 requests'.", "placeholders": {"count": {"type": "int"}}},
+  "aiUsageTitle": "AI usage",
+  "@aiUsageTitle": {"description": "Title of the AI usage page (tokens + cost per provider/feature, recent requests)."},
+  "aiUsageSeeAll": "See every request",
+  "@aiUsageSeeAll": {"description": "Row that opens the full AI usage page."},
+  "aiUsageSeeAllDesc": "Tokens and cost by provider, feature and request.",
+  "@aiUsageSeeAllDesc": {"description": "Subtitle of the row that opens the AI usage page."},
+  "aiUsageTotal": "Total",
+  "@aiUsageTotal": {"description": "Label for the all-time total on the AI usage page."},
+  "aiUsageByProvider": "By provider",
+  "@aiUsageByProvider": {"description": "Section header: usage per AI provider."},
+  "aiUsageByFeature": "By feature",
+  "@aiUsageByFeature": {"description": "Section header: usage per app feature (chat, import…)."},
+  "aiUsageRecent": "Recent requests",
+  "@aiUsageRecent": {"description": "Section header: the latest individual AI requests."},
+  "aiUsageEmpty": "No AI requests yet.",
+  "@aiUsageEmpty": {"description": "Empty state on the AI usage page."},
+  "aiUsageInOut": "{tokensIn} in · {tokensOut} out",
+  "@aiUsageInOut": {"description": "Input/output token counts, pre-formatted (e.g. '12.4K in · 820 out').", "placeholders": {"tokensIn": {"type": "String"}, "tokensOut": {"type": "String"}}},
+  "aiUsageFellBack": "Backup model",
+  "@aiUsageFellBack": {"description": "Badge on a request that was answered by the fallback model."},
+  "aiUsageFailed": "Failed",
+  "@aiUsageFailed": {"description": "Badge on a request that failed."},
+  "aiUsageCancelled": "Cancelled",
+  "@aiUsageCancelled": {"description": "Badge on a request the user cancelled."},
+  "aiUsageCostNote": "Costs are estimates from list prices (Gemini's especially). Your provider's billing page is the source of truth.",
+  "@aiUsageCostNote": {"description": "Footnote on the AI usage page about cost accuracy."},
+  "aiFeatureChat": "Ask chat",
+  "@aiFeatureChat": {"description": "Usage feature label: a chat turn."},
+  "aiFeatureWorkoutImport": "Workout plan import",
+  "@aiFeatureWorkoutImport": {"description": "Usage feature label."},
+  "aiFeatureDietImport": "Diet plan import",
+  "@aiFeatureDietImport": {"description": "Usage feature label."},
+  "aiFeatureDietGenerate": "Diet plan builder",
+  "@aiFeatureDietGenerate": {"description": "Usage feature label."},
+  "aiFeatureFoodSearch": "Food search",
+  "@aiFeatureFoodSearch": {"description": "Usage feature label."},
+  "aiFeatureTranscribe": "Voice to text",
+  "@aiFeatureTranscribe": {"description": "Usage feature label."},
+  "aiFeatureOther": "AI request",
+  "@aiFeatureOther": {"description": "Usage feature label for an unknown feature."},
+  "aiErrorUnavailable": "ZIVO's AI is taking a short break. Please try again in a few minutes.",
+  "@aiErrorUnavailable": {"description": "Shown when every AI model is unavailable. Never mentions providers or credits."},
+  "aiErrorUnavailableTitle": "ZIVO's AI is taking a short break",
+  "@aiErrorUnavailableTitle": {"description": "Chat error title when every AI model is unavailable."},
+  "aiErrorUnavailableBody": "Try again in a few minutes.",
+  "@aiErrorUnavailableBody": {"description": "Chat error body when every AI model is unavailable."},
+  "aiErrorDailyLimit": "You've reached today's limit for this. It resets tomorrow.",
+  "@aiErrorDailyLimit": {"description": "Shown when the daily allowance is used up."},
+  "aiErrorDailyLimitTitle": "Today's limit reached",
+  "@aiErrorDailyLimitTitle": {"description": "Chat error title for the daily limit."},
+  "aiErrorDailyLimitBody": "Ask resets tomorrow.",
+  "@aiErrorDailyLimitBody": {"description": "Chat error body for the daily limit."},
+  "aiErrorTimeout": "That took longer than it should. Please try again.",
+  "@aiErrorTimeout": {"description": "Shown when an AI request timed out."},
+  "aiErrorTimeoutTitle": "That took too long",
+  "@aiErrorTimeoutTitle": {"description": "Chat error title for a timeout."},
+  "aiErrorNetwork": "Couldn't reach ZIVO — check your connection and try again.",
+  "@aiErrorNetwork": {"description": "Shown when the phone couldn't reach the server."},
+  "aiErrorGeneric": "Something went wrong on our side. Please try again.",
+  "@aiErrorGeneric": {"description": "Generic AI failure with no more specific cause."},
+  "dietBuilderCountryPick": "Choose your country",
+  "@dietBuilderCountryPick": {"description": "Placeholder of the country picker in the Diet Builder."},
+  "dietBuilderCountrySearch": "Search countries",
+  "@dietBuilderCountrySearch": {"description": "Search field hint in the country picker sheet."},
+  "dietBuilderCountryNone": "No country matches that.",
+  "@dietBuilderCountryNone": {"description": "Shown when the country search finds nothing."},
+  "dietBuilderCountryClear": "Clear",
+  "@dietBuilderCountryClear": {"description": "Clears the chosen country."}
 }

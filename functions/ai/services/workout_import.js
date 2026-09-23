@@ -24,6 +24,7 @@ const {GatewayError} = require("../gateway");
 const {AnthropicProvider} = require("../providers/anthropic_provider");
 const {legacyAnthropicClient} = require("../providers/legacy_client");
 const {isAbortError} = require("../shared/abort");
+const {AiUnavailableError} = require("../providers/classify");
 
 const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 8000;
@@ -376,8 +377,14 @@ async function extractWorkoutPlan({
     if (isAbortError(err) || (signal && signal.aborted)) {
       throw new GatewayError("cancelled", "Import cancelled.");
     }
+    // Every provider was down/out of credit — the callable turns this into
+    // the friendly "AI unavailable" message.
+    if (err instanceof AiUnavailableError) throw err;
+    // Never forward the provider's own error text: it's technical at best
+    // ("400 invalid_request_error …") and billing detail at worst. It is in
+    // the server log via the callable's catch.
     throw new GatewayError(
-        "internal", err.message || "Couldn't read that PDF. Please try again.");
+        "internal", "Couldn't read that plan. Please try again.");
   }
   const tModelDone = Date.now();
 

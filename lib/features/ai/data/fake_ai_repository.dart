@@ -214,6 +214,76 @@ class FakeAiRepository implements AiRepository {
   ];
 
   @override
+  Future<List<AiUsageRecord>> usageRecords({int limit = 1000}) async {
+    // A canned sample so the usage page can be exercised offline — one of
+    // each feature, including a fallback and a failure.
+    final now = DateTime.now();
+    final sample = <AiUsageRecord>[
+      AiUsageRecord(
+        feature: 'chat',
+        provider: 'anthropic',
+        model: 'claude-sonnet-5',
+        tokensIn: 13570,
+        tokensOut: 149,
+        costUsd: 0.0063,
+        status: 'ok',
+        fellBack: false,
+        createdAt: now.subtract(const Duration(minutes: 4)),
+        latencyMs: 4200,
+      ),
+      AiUsageRecord(
+        feature: 'diet_generate',
+        provider: 'gemini',
+        model: 'gemini-flash-latest',
+        tokensIn: 6200,
+        tokensOut: 3100,
+        costUsd: 0.0096,
+        status: 'ok',
+        fellBack: true,
+        createdAt: now.subtract(const Duration(hours: 2)),
+        latencyMs: 38000,
+      ),
+      AiUsageRecord(
+        feature: 'workout_import',
+        provider: 'anthropic',
+        model: 'claude-sonnet-5',
+        tokensIn: 21000,
+        tokensOut: 2400,
+        costUsd: 0.099,
+        status: 'ok',
+        fellBack: false,
+        createdAt: now.subtract(const Duration(days: 1)),
+        latencyMs: 52000,
+      ),
+      AiUsageRecord(
+        feature: 'transcribe',
+        provider: 'gemini',
+        model: 'gemini-flash-latest',
+        tokensIn: 410,
+        tokensOut: 38,
+        costUsd: 0.0002,
+        status: 'ok',
+        fellBack: false,
+        createdAt: now.subtract(const Duration(days: 2)),
+        latencyMs: 1900,
+      ),
+      AiUsageRecord(
+        feature: 'chat',
+        provider: 'gemini',
+        model: 'gemini-flash-latest',
+        tokensIn: 0,
+        tokensOut: 0,
+        costUsd: 0,
+        status: 'error',
+        fellBack: true,
+        createdAt: now.subtract(const Duration(days: 3)),
+        errorKind: 'rate_limit',
+      ),
+    ];
+    return sample.take(limit).toList();
+  }
+
+  @override
   Future<AiTurnUsage?> usageForTurn(String clientTurnId) async {
     // The offline fake keeps no usage log; a canned sample lets the details
     // sheet be exercised without Firestore (tests/offline), while a real device

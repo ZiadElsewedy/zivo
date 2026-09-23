@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -17,6 +19,7 @@ import '../../domain/nutrition_targets.dart';
 import '../../domain/target_calculator.dart';
 import '../controllers/diet_builder_controller.dart';
 import '../diet_labels.dart';
+import '../widgets/country_picker.dart';
 import '../widgets/diet_number_field.dart';
 import '../widgets/food_chip_picker.dart';
 import 'diet_import_page.dart';
@@ -71,9 +74,10 @@ class _DietBuilderPageState extends State<DietBuilderPage> {
     super.dispose();
   }
 
-  /// Fills About-you from what ZIVO already knows, so the user confirms rather
-  /// than re-enters. Read-only here — nothing is written until the reveal's
-  /// Save.
+  /// Fills About-you (and the country) from what ZIVO already knows, so the
+  /// user confirms rather than re-enters. Read-only here — body data and the
+  /// target are written only by the reveal's Save; the country is a
+  /// remembered preference, saved the moment it's picked ([_EatStep]).
   Future<void> _prefill() async {
     if (!mounted) return;
     final scope = AppScope.of(context);
@@ -92,12 +96,19 @@ class _DietBuilderPageState extends State<DietBuilderPage> {
         // Offline or unreadable — the user just types their age.
       }
     }
+    String? homeCountry;
+    try {
+      homeCountry = await scope.diet.fetchHomeCountry();
+    } catch (_) {
+      // Unreadable — the user just picks it again.
+    }
     if (!mounted) return;
     _c.seedBody(
       profile: scope.diet.currentBodyProfile,
       latestWeightKg: latest?.weightKg,
       dobAge: dobAge,
     );
+    _c.seedCountry(homeCountry);
   }
 
   bool get _canAdvance => switch (_step) {
@@ -190,6 +201,17 @@ class _DietBuilderPageState extends State<DietBuilderPage> {
   }
 }
 
+/// The helper line under a question ("optional", "from your profile"). The
+/// second ink rather than the third, at regular weight with room to breathe —
+/// the third ink on the dark skin was too faint to read comfortably. A getter,
+/// never a cached value: tokens follow the active skin (ADR-011).
+TextStyle get _noteStyle => AppText.meta.copyWith(
+  color: TrainColors.ink2,
+  fontWeight: FontWeight.w500,
+  fontSize: 13.5,
+  height: 1.4,
+);
+
 /// A thin progress rail — dots, no copy, so it reads in any language.
 class _StepBar extends StatelessWidget {
   const _StepBar({required this.step, required this.total});
@@ -249,9 +271,16 @@ class _StepScaffold extends StatelessWidget {
           style: TrainType.serifVoice(context, size: 27, height: 1.1),
         ),
         const SizedBox(height: 8),
+        // The question itself, at full ink and a size up from body copy — it
+        // used to sit in the muted second ink and read as a caption.
         Text(
           prompt,
-          style: AppText.body.copyWith(color: TrainColors.ink2, height: 1.45),
+          style: TrainType.ui(
+            size: 16,
+            weight: FontWeight.w500,
+            height: 1.45,
+            color: TrainColors.ink,
+          ),
         ),
         const SizedBox(height: 22),
         ...children,
@@ -338,7 +367,7 @@ class _GoalCard extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     dietGoalDetailText(context, goal),
-                    style: AppText.meta.copyWith(color: TrainColors.ink3),
+                    style: _noteStyle,
                   ),
                 ],
               ),
@@ -411,7 +440,7 @@ class _AboutStep extends StatelessWidget {
           const SizedBox(height: 9),
           Text(
             l(context).dietBuilderAgeFromProfile,
-            style: AppText.meta.copyWith(color: TrainColors.ink3),
+            style: _noteStyle,
           ),
         ],
         const SizedBox(height: 20),
@@ -452,7 +481,7 @@ class _AboutStep extends StatelessWidget {
           const SizedBox(height: 9),
           Text(
             activityDetailText(context, controller.activity!),
-            style: AppText.meta.copyWith(color: TrainColors.ink3),
+            style: _noteStyle,
           ),
         ],
         if (maintenance != null) ...[
@@ -492,7 +521,7 @@ class _MaintenancePreview extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             l(context).dietMaintenanceEstimated,
-            style: AppText.meta.copyWith(color: TrainColors.ink3),
+            style: _noteStyle,
           ),
         ],
       ),
@@ -523,7 +552,7 @@ class _EatStep extends StatelessWidget {
         const SizedBox(height: 10),
         Text(
           l(context).dietBuilderOptionalNote,
-          style: AppText.meta.copyWith(color: TrainColors.ink3),
+          style: _noteStyle,
         ),
         const SizedBox(height: 20),
         Text(
@@ -531,16 +560,23 @@ class _EatStep extends StatelessWidget {
           style: AppText.rowTitle,
         ),
         const SizedBox(height: 11),
-        VoiceCaptureField(
-          controller: controller.country,
-          keyPrefix: 'builder-country',
-          hint: l(context).dietBuilderCountryHint,
-          minLines: 1,
+        CountryPickerField(
+          selectedCode: controller.countryCode,
+          onChanged: (code) {
+            controller.countryCode = code;
+            // Remembered for the next build — best-effort: a failed write only
+            // means the user picks it again next time.
+            unawaited(
+              AppScope.of(context).diet
+                  .saveHomeCountry(code)
+                  .catchError((Object _) {}),
+            );
+          },
         ),
         const SizedBox(height: 10),
         Text(
           l(context).dietBuilderCountryNote,
-          style: AppText.meta.copyWith(color: TrainColors.ink3),
+          style: _noteStyle,
         ),
       ],
     );
@@ -626,14 +662,14 @@ class _MealsStep extends StatelessWidget {
         const SizedBox(height: 10),
         Text(
           l(context).dietMealsADayNote,
-          style: AppText.meta.copyWith(color: TrainColors.ink3),
+          style: _noteStyle,
         ),
         const SizedBox(height: 26),
         Text(l(context).dietBuilderScheduleTitle, style: AppText.rowTitle),
         const SizedBox(height: 5),
         Text(
           l(context).dietBuilderSchedulePrompt,
-          style: AppText.meta.copyWith(color: TrainColors.ink3, height: 1.4),
+          style: _noteStyle,
         ),
         const SizedBox(height: 12),
         VoiceCaptureField(

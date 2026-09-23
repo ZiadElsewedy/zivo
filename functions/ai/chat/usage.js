@@ -9,6 +9,7 @@
  */
 
 const {pricingFor} = require("./config");
+const {costUsd: modelCostUsd} = require("../routing/models");
 
 /**
  * Accumulates the four token buckets across the model calls of one turn and
@@ -21,15 +22,28 @@ class TurnUsage {
     this.cacheReadTokens = 0;
     this.cacheWriteTokens = 0;
     this.tokensOut = 0;
+    // Cost priced per call at the exact model that answered it — a turn can
+    // span two providers when Auto falls back mid-loop, and each call must be
+    // billed at its own rate. `_pricedCalls` counts the calls that carried a
+    // provider stamp; with none, `totalCostUsd` falls back to `costUsd`.
+    this._pricedCost = 0;
+    this._pricedCalls = 0;
   }
 
   /**
    * Folds one model call's normalized usage into the running totals.
    * @param {?Object} usage A provider `resp.usage`
    *   (`{inputTokens, cacheReadTokens, cacheWriteTokens, outputTokens}`).
+   * @param {?string=} provider The provider the router stamped on the
+   *   response, when it did.
+   * @param {?string=} model The provider-native model id that answered.
    */
-  add(usage) {
+  add(usage, provider, model) {
     const u = usage || {};
+    if (provider) {
+      this._pricedCost += modelCostUsd(u, provider, model);
+      this._pricedCalls += 1;
+    }
     this.uncachedTokensIn += u.inputTokens || 0;
     this.cacheReadTokens += u.cacheReadTokens || 0;
     this.cacheWriteTokens += u.cacheWriteTokens || 0;
@@ -77,6 +91,17 @@ class TurnUsage {
 }
 
 /**
+ * @param {TurnUsage} usage
+ * @param {?string=} fallbackProvider Rates for a turn with no stamped calls.
+ * @return {number} The turn's cost — per-call model pricing when the router
+ *   stamped the calls, else the whole turn at `fallbackProvider`'s rates.
+ */
+function totalCostUsd(usage, fallbackProvider) {
+  return usage._pricedCalls > 0 ?
+    usage._pricedCost : usage.costUsd(fallbackProvider);
+}
+
+/**
  * Whether the user has exhausted their allowance for the calendar day — by turn
  * count OR by token volume. `totals` is `store.getTodayUsageTotals()`'s result
  * (or null/undefined when nothing's been used yet).
@@ -112,6 +137,7 @@ function approxTokensFromChars(chars) {
 
 module.exports = {
   TurnUsage,
+  totalCostUsd,
   isOverDailyCap,
   approxTokensFromChars,
   APPROX_CHARS_PER_TOKEN,

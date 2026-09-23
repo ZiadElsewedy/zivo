@@ -44,9 +44,13 @@ ai/
 │  ├─ gemini_provider.js      (fallback / manual route; also the only adapter that
 │  │                          understands `grounding: {googleSearch}`)
 │  └─ provider.js · registry.js · classify.js · legacy_client.js
-├─ routing/          router.js — capability → provider, fail over only on real failure.
-│                    `food_search` is Gemini-only (no fallback — search grounding has no
-│                    Anthropic equivalent)
+├─ routing/          models.js — the model catalog: ids + per-model prices (the ONE
+│                    place pricing lives). router.js — capability → ordered models,
+│                    the user's selection first; fails over whenever the provider can't
+│                    serve us (incl. out-of-credit, which Anthropic sends as a 400),
+│                    cools a billing/auth-failed provider down, per-attempt deadlines,
+│                    all-fail → AiUnavailableError. `food_search` is Gemini-only (no
+│                    fallback — search grounding has no Anthropic equivalent)
 │
 ├─ services/         the AI USE-CASES (one per callable capability)
 │  ├─ workout_import.js · diet_import.js   PDF/text → structured plan
@@ -66,6 +70,7 @@ ai/
    ├─ store.js         the single Firestore seam (the read/persistence boundary)
    ├─ dates.js         timezone-aware day/week resolution (the user's "today")
    ├─ abort.js         "was this a user cancellation?" predicate
+   ├─ usage_log.js     UsageMeter + the aiUsage v4 record every non-chat AI request writes
    └─ import_runtime.js per-instance import execution registry (server half of executionId)
 ```
 

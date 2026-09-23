@@ -201,11 +201,21 @@ runAiTurn: SYSTEM_PROMPT (cached) + uncached CONTEXT block (user's local
 - **Live progress:** only the tool *name* crosses the wire (`{type:'step',tool,status}`), never
   its input/result; the client maps it to human copy ("Reading today's diet…").
 - **Providers:** behind a `NormalizedRequest`/`NormalizedResponse` seam
-  ([`providers/`](functions/ai/providers) + [`routing/router.js`](functions/ai/routing/router.js)) —
-  Anthropic (primary) → Gemini (fallback). Failover happens **only on a real provider failure**
-  (5xx/429/timeout); a 4xx is rethrown. A client `provider` field pins one and disables fallback.
-- **Usage** is logged per turn ([`chat/usage.js`](functions/ai/chat/usage.js), `aiUsage` v3):
-  provider/model, cached vs uncached input, output, tools, iterations, latency, cost, daily cap.
+  ([`providers/`](functions/ai/providers) + [`routing/router.js`](functions/ai/routing/router.js),
+  models + prices in [`routing/models.js`](functions/ai/routing/models.js)) — Claude Sonnet
+  (primary) → Gemini Flash (fallback), for chat **and** plan import/generation. Failover happens
+  on any failure where the *provider* can't serve us — 5xx/429/timeout, **out of credit** (Anthropic
+  reports that as a 400!), bad key, retired model — and a billing/auth failure cools that provider
+  down for 10 min. Only a malformed request (other 4xx) is rethrown. The user's model selection
+  (`settings/ai.provider`: `auto` or a catalog key) goes **first, with fallback behind it** — a
+  preference, not a pin. Every provider failing → `AiUnavailableError` → a friendly `unavailable`
+  (`details.reason: 'ai_unavailable'`); provider error text never reaches the user.
+- **Usage** is logged for **every** AI request, not just chat turns (`aiUsage` v4, `feature` field:
+  chat · workout_import · diet_import · diet_generate · food_search · transcribe) —
+  [`shared/usage_log.js`](functions/ai/shared/usage_log.js) meters the non-chat callables,
+  [`chat/usage.js`](functions/ai/chat/usage.js) the turn: provider/model, fallback attempts,
+  tokens, cost at the answering model's rate, status. The chat daily cap counts chat records only.
+  The app reads it on the AI usage page (Settings → AI usage).
 
 ### The confirm-gated write flow (ADR-003 / ADR-005)
 

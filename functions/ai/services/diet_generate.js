@@ -36,6 +36,7 @@
  */
 
 const {GatewayError} = require("../gateway");
+const {AiUnavailableError} = require("../providers/classify");
 const {AnthropicProvider} = require("../providers/anthropic_provider");
 const {legacyAnthropicClient} = require("../providers/legacy_client");
 const {resolveAndCompute} = require("../../nutrition/resolve");
@@ -466,9 +467,11 @@ async function generateDietPlan({
       ],
     });
   } catch (err) {
+    // All providers down/out of credit → the callable's friendly message.
+    // Otherwise never forward the provider's raw error text to the user.
+    if (err instanceof AiUnavailableError) throw err;
     throw new GatewayError(
-        "internal",
-        err.message || "Couldn't build a plan just now. Please try again.");
+        "internal", "Couldn't build a plan just now. Please try again.");
   }
 
   if (response.stopReason === "refusal") {

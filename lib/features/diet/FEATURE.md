@@ -86,7 +86,12 @@ Ledger: `diet_entry.dart`, `diet_summary.dart`. Import: `diet_import_result.dart
   the other is a **gate** enforced server-side after generation. `country` (where the user
   actually is, e.g. "Egypt") is kept distinct from `cuisine` (the cooking style they want) —
   the two usually agree but don't have to, and `diet_generate.js` prefers the more specific
-  `cuisine` when they disagree. Captured in the Diet Builder wizard's "How you eat" step.
+  `cuisine` when they disagree. Captured in the Diet Builder wizard's "How you eat" step
+  as a **pick from the full country list** (`widgets/country_picker.dart` over
+  `core/util/countries.dart` — ISO code + English/Arabic name, searchable), not free text;
+  the English name goes to the generator. The code is remembered at
+  `users/{uid}/settings/diet.countryCode` (`DietRepository.fetchHomeCountry` /
+  `saveHomeCountry`) and prefilled next time, so it's asked once.
 - **`diet_source.dart`** — `DietSource` (`manual` · `pdf` · `photo` · `dictated` ·
   `generated`) with
   `dietSourceLabel`. Provenance, not decoration: a typed-out description records `manual`,

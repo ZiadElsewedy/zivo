@@ -1293,7 +1293,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get addDietGenerateDetail => 'أخبر زيفو بما تأكله؛ وهو يصمم الخطة.';
 
   @override
-  String get addDietRecommended => 'Recommended';
+  String get addDietRecommended => 'مُقترح';
 
   @override
   String get addDietManual => 'ابنِها وجبة بوجبة';
@@ -2112,13 +2112,14 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get askModelSheetSubtitle =>
-      'اختر الذكاء الاصطناعي الذي يجيب على أسئلتك.';
+      'اختر نموذج الذكاء الاصطناعي الذي يستخدمه ZIVO.';
 
   @override
   String get askModelAuto => 'تلقائي';
 
   @override
-  String get askModelAutoDesc => 'الأفضل المتاح — Claude، مع Gemini كاحتياطي.';
+  String get askModelAutoDesc =>
+      'Claude أولًا — ويتولى Gemini تلقائيًا إن تعذّر على Claude الإجابة.';
 
   @override
   String get askModelClaude => 'Claude';
@@ -2136,7 +2137,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get askUsage => 'الاستخدام';
 
   @override
-  String get askUsageSubtitle => 'الرموز المستخدمة لكل نموذج، منذ البداية.';
+  String get askUsageSubtitle =>
+      'الرموز والتكلفة التقديرية لكل مزوّد، منذ البداية.';
 
   @override
   String get askUsageEmpty => 'لا يوجد استخدام بعد — اسأل شيئًا لتبدأ.';
@@ -5866,7 +5868,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get dietBuilderCountryNote =>
-      'يساعد ZIVO على اقتراح أطعمة واقعية ومتوفرة فعليًا حيث تعيش — اختياري.';
+      'يساعد ZIVO على اقتراح أطعمة واقعية وسهلة الإيجاد حيث تعيش. سيتذكره ZIVO في المرة القادمة.';
 
   @override
   String get dietBuilderAvoidTitle => 'هل هناك ما لا تريده؟';
@@ -5945,4 +5947,157 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get dietBuilderEditPlan => 'تعديل الخطة';
+
+  @override
+  String get askModelClaudeSonnet => 'Claude Sonnet';
+
+  @override
+  String get askModelClaudeSonnetDesc =>
+      'أقوى نماذج Anthropic للاستخدام اليومي — أفضل الإجابات.';
+
+  @override
+  String get askModelClaudeHaiku => 'Claude Haiku';
+
+  @override
+  String get askModelClaudeHaikuDesc =>
+      'أسرع وأرخص من Sonnet، ولا يزال دقيقًا.';
+
+  @override
+  String get askModelGeminiFlash => 'Gemini Flash';
+
+  @override
+  String get askModelGeminiFlashDesc => 'نموذج Google السريع — الأقل تكلفة.';
+
+  @override
+  String get askModelGeminiPro => 'Gemini Pro';
+
+  @override
+  String get askModelGeminiProDesc => 'أعمق تفكير لدى Google — أبطأ.';
+
+  @override
+  String get askModelAppliesNote =>
+      'يُستخدم في المحادثة واستيراد الخطط ومنشئ الخطط. إذا لم يكن اختيارك متاحًا، ينتقل ZIVO تلقائيًا إلى نموذج آخر — وتحصل على إجابتك على أي حال.';
+
+  @override
+  String askUsageRequests(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count طلب',
+      many: '$count طلبًا',
+      few: '$count طلبات',
+      two: 'طلبان',
+      one: 'طلب واحد',
+      zero: '$count طلب',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get aiUsageTitle => 'استخدام الذكاء الاصطناعي';
+
+  @override
+  String get aiUsageSeeAll => 'عرض كل الطلبات';
+
+  @override
+  String get aiUsageSeeAllDesc => 'الرموز والتكلفة حسب المزوّد والميزة والطلب.';
+
+  @override
+  String get aiUsageTotal => 'الإجمالي';
+
+  @override
+  String get aiUsageByProvider => 'حسب المزوّد';
+
+  @override
+  String get aiUsageByFeature => 'حسب الميزة';
+
+  @override
+  String get aiUsageRecent => 'أحدث الطلبات';
+
+  @override
+  String get aiUsageEmpty => 'لا توجد طلبات ذكاء اصطناعي بعد.';
+
+  @override
+  String aiUsageInOut(String tokensIn, String tokensOut) {
+    return '$tokensIn دخل · $tokensOut خرج';
+  }
+
+  @override
+  String get aiUsageFellBack => 'نموذج احتياطي';
+
+  @override
+  String get aiUsageFailed => 'فشل';
+
+  @override
+  String get aiUsageCancelled => 'أُلغي';
+
+  @override
+  String get aiUsageCostNote =>
+      'التكاليف تقديرية بناءً على الأسعار المعلنة (خاصة Gemini). صفحة الفوترة لدى المزوّد هي المرجع.';
+
+  @override
+  String get aiFeatureChat => 'محادثة Ask';
+
+  @override
+  String get aiFeatureWorkoutImport => 'استيراد خطة تمرين';
+
+  @override
+  String get aiFeatureDietImport => 'استيراد خطة غذائية';
+
+  @override
+  String get aiFeatureDietGenerate => 'منشئ الخطة الغذائية';
+
+  @override
+  String get aiFeatureFoodSearch => 'البحث عن الأطعمة';
+
+  @override
+  String get aiFeatureTranscribe => 'تحويل الصوت إلى نص';
+
+  @override
+  String get aiFeatureOther => 'طلب ذكاء اصطناعي';
+
+  @override
+  String get aiErrorUnavailable =>
+      'ذكاء ZIVO في استراحة قصيرة. حاول مرة أخرى بعد دقائق.';
+
+  @override
+  String get aiErrorUnavailableTitle => 'ذكاء ZIVO في استراحة قصيرة';
+
+  @override
+  String get aiErrorUnavailableBody => 'حاول مرة أخرى بعد دقائق.';
+
+  @override
+  String get aiErrorDailyLimit => 'وصلت إلى حد اليوم لهذه الميزة. يتجدد غدًا.';
+
+  @override
+  String get aiErrorDailyLimitTitle => 'وصلت إلى حد اليوم';
+
+  @override
+  String get aiErrorDailyLimitBody => 'يتجدد Ask غدًا.';
+
+  @override
+  String get aiErrorTimeout =>
+      'استغرق ذلك وقتًا أطول من المعتاد. حاول مرة أخرى.';
+
+  @override
+  String get aiErrorTimeoutTitle => 'استغرق ذلك وقتًا طويلًا';
+
+  @override
+  String get aiErrorNetwork =>
+      'تعذّر الوصول إلى ZIVO — تحقق من اتصالك وحاول مرة أخرى.';
+
+  @override
+  String get aiErrorGeneric => 'حدث خطأ من جهتنا. حاول مرة أخرى.';
+
+  @override
+  String get dietBuilderCountryPick => 'اختر بلدك';
+
+  @override
+  String get dietBuilderCountrySearch => 'ابحث عن بلد';
+
+  @override
+  String get dietBuilderCountryNone => 'لا يوجد بلد مطابق.';
+
+  @override
+  String get dietBuilderCountryClear => 'مسح';
 }

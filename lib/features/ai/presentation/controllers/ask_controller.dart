@@ -9,6 +9,7 @@ import '../../../../core/util/parse.dart';
 import '../../../../l10n/l10n.dart';
 import '../../domain/body_data_writer.dart';
 import '../../domain/ai_conversation.dart';
+import '../../domain/ai_failure.dart';
 import '../../domain/ai_message.dart';
 import '../../domain/ai_pending_action.dart';
 import '../../domain/ai_repository.dart';
@@ -313,6 +314,7 @@ class AskController extends ChangeNotifier {
   Timer? _landingWatchdog;
   String? _pendingText;
   bool _sendFailed = false;
+  AiFailureKind _sendFailure = AiFailureKind.network;
   int _baselineUserCount = 0;
   int _baselineAssistantCount = 0;
   String? _activeTurnId;
@@ -336,6 +338,11 @@ class AskController extends ChangeNotifier {
 
   /// True when the most recent send attempt threw — shows the retry rail.
   bool get sendFailed => _sendFailed;
+
+  /// Why the most recent send failed — picks the retry card's words ("ZIVO's
+  /// AI is taking a short break" reads differently from "couldn't reach
+  /// ZIVO"). Only meaningful while [sendFailed].
+  AiFailureKind get sendFailure => _sendFailure;
 
   /// Client-generated idempotency key for the in-flight turn.
   String? get activeTurnId => _activeTurnId;
@@ -517,13 +524,17 @@ class AskController extends ChangeNotifier {
         responseStyle: _responseStyle,
         modelSelection: _modelSelection,
       );
-    } catch (_) {
+    } catch (error) {
       _slowTurnTimer?.cancel();
       _revealTicker?.dispose();
       _revealTicker = null;
       if (!_disposed) {
         _sending = false;
         _sendFailed = true;
+        // The repository hands back an [AiFailure]; anything else (a stream
+        // torn down mid-turn) is treated as the connection it most likely was.
+        _sendFailure =
+            error is AiFailure ? error.kind : AiFailureKind.network;
         _turnSlow = false;
         _phase = null;
         _stepTool = null;
@@ -560,6 +571,7 @@ class AskController extends ChangeNotifier {
           .length;
       if (persistedUserCount > baselineAtSend) return;
       _sendFailed = true;
+      _sendFailure = AiFailureKind.network;
       _notify();
     });
     // [pendingText] is intentionally left set — the builder's reconciliation

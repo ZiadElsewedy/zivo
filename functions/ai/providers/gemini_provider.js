@@ -36,6 +36,13 @@ const {AiProvider} = require("./provider");
 const DEFAULT_MODEL = "gemini-flash-latest";
 
 /**
+ * Output tokens added on top of a request's `maxTokens` for Gemini's thinking
+ * (see `toGeminiRequest`).
+ * @const {number}
+ */
+const THINKING_HEADROOM_TOKENS = 8192;
+
+/**
  * JSON-Schema keywords Gemini's function-declaration schema (an OpenAPI 3.0
  * subset) rejects. Stripped recursively so a ZIVO tool schema written for
  * Anthropic (which accepts full JSON Schema) doesn't 400 the Gemini request.
@@ -48,6 +55,12 @@ const UNSUPPORTED_SCHEMA_KEYS = [
 
 /**
  * Recursively copies a JSON Schema, dropping the keywords Gemini can't parse.
+ *
+ * Also rewrites a JSON-Schema nullable union — `type: ["integer", "null"]`,
+ * which the plan importers' schemas use for "unknown" fields — into the
+ * OpenAPI form Gemini accepts (`type: "integer", nullable: true`). Gemini's
+ * `type` is a single enum value; an array 400s the whole request, which would
+ * turn every Gemini fallback of an import into a failure.
  * @param {*} schema
  * @return {*}
  */
@@ -57,6 +70,12 @@ function sanitizeSchema(schema) {
   const out = {};
   for (const [key, value] of Object.entries(schema)) {
     if (UNSUPPORTED_SCHEMA_KEYS.includes(key)) continue;
+    if (key === "type" && Array.isArray(value)) {
+      const concrete = value.filter((t) => t !== "null");
+      out.type = concrete.length > 0 ? concrete[0] : "string";
+      if (concrete.length !== value.length) out.nullable = true;
+      continue;
+    }
     out[key] = sanitizeSchema(value);
   }
   return out;
@@ -222,7 +241,15 @@ function toGeminiRequest(normalizedRequest) {
   const contents = normalizedRequest.messages.map(
       (m) => toGeminiContent(m, nameByToolId));
 
-  const config = {maxOutputTokens: normalizedRequest.maxTokens};
+  // `maxTokens` is written against Anthropic's meaning: the budget for the
+  // ANSWER. Gemini's thinking models spend their reasoning out of the same
+  // `maxOutputTokens` cap, so passing the number through unchanged let a
+  // Gemini fallback of a whole-plan import think its way past the cap and
+  // return a truncated tool call. The headroom restores "the answer gets
+  // `maxTokens`"; only tokens actually generated are billed.
+  const config = {
+    maxOutputTokens: normalizedRequest.maxTokens + THINKING_HEADROOM_TOKENS,
+  };
 
   if (normalizedRequest.system && normalizedRequest.system.length > 0) {
     // Gemini has one systemInstruction, not per-block cache breakpoints — join
@@ -373,10 +400,9 @@ class GeminiProvider extends AiProvider {
    * the plain `generateContent` path.
    *
    * (`onInputJson`, the importers' partial-tool-input progress sink, is not
-   * emitted here — Gemini fallback is wired for the `chat` capability only;
-   * see `../routing/router.js`. A future import route would degrade to
-   * buffered progress, exactly as the Anthropic adapter degrades a client
-   * without `stream`.)
+   * emitted here — the importers run buffered, so a Gemini import simply
+   * reports no partial progress, exactly as the Anthropic adapter degrades a
+   * client without `stream`.)
    * @param {!Object} normalizedRequest
    * @param {{onText: (function(string): void)}=} opts
    * @return {!Promise<!Object>}
@@ -384,6 +410,9 @@ class GeminiProvider extends AiProvider {
    */
   async generate(normalizedRequest, opts = {}) {
     const geminiReq = toGeminiRequest(normalizedRequest);
+    // A cancelled import or the router's per-attempt deadline aborts the
+    // in-flight call — `@google/genai` reads `config.abortSignal` client-side.
+    if (opts.signal) geminiReq.config.abortSignal = opts.signal;
     const wantsText = typeof opts.onText === "function";
     const canStream =
       typeof this._client.models.generateContentStream === "function";
@@ -434,4 +463,5 @@ module.exports = {
   normalizeStopReason,
   sanitizeSchema,
   DEFAULT_MODEL,
+  THINKING_HEADROOM_TOKENS,
 };

@@ -97,3 +97,35 @@ test("weigh-ins come from bodyWeightEntries, the collection clients write", () =
       "`bodyWeights` is not a collection anything writes",
   );
 });
+
+// --- The daily chat cap counts chat turns only -------------------------------
+
+/**
+ * The smallest Admin-SDK look-alike `getTodayUsageTotals` needs: one aiUsage
+ * query returning `docs`.
+ * @param {!Array<!Object>} docs
+ * @return {!Object}
+ */
+function fakeUsageDb(docs) {
+  const snap = {forEach: (fn) => docs.forEach((d) => fn({data: () => d}))};
+  return {
+    collection: () => ({
+      doc: () => ({
+        collection: () => ({where: () => ({get: async () => snap})}),
+      }),
+    }),
+  };
+}
+
+test("the chat cap ignores other features' usage and failed turns", async () => {
+  const {FirestoreStore} = require("./store");
+  const store = new FirestoreStore(fakeUsageDb([
+    {tokensIn: 100, tokensOut: 10}, // legacy chat turn (no feature)
+    {feature: "chat", status: "ok", tokensIn: 50, tokensOut: 5},
+    {feature: "diet_import", status: "ok", tokensIn: 90000, tokensOut: 4000},
+    {feature: "transcribe", status: "ok", tokensIn: 300, tokensOut: 20},
+    {feature: "chat", status: "error", tokensIn: 0, tokensOut: 0},
+  ]));
+  const totals = await store.getTodayUsageTotals("u", "2026-09-23");
+  assert.deepEqual(totals, {turns: 2, tokens: 165});
+});
