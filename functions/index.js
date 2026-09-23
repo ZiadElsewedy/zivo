@@ -1057,7 +1057,12 @@ exports.aiImportWorkoutPlan = onCall(
           approxPdfBytes,
           executionId,
           stage: cancelled ? "cancelled" : "error",
-          message: err && err.message,
+          // NOT `message` — the logger call's own first argument ("aiImport
+          // WorkoutPlan") already claims that key on the structured payload,
+          // so a `message` property here is silently lost rather than
+          // merged. Named distinctly so the real error text actually reaches
+          // the logs.
+          errorMessage: err && err.message,
         });
         throw toHttpsError(err);
       }
@@ -1141,7 +1146,8 @@ exports.aiImportDietPlan = onCall(
           approxPdfBytes,
           executionId,
           stage: cancelled ? "cancelled" : "error",
-          message: err && err.message,
+          // NOT `message` — see aiImportWorkoutPlan's identical catch above.
+          errorMessage: err && err.message,
         });
         throw toHttpsError(err);
       }
@@ -1236,7 +1242,8 @@ exports.aiGenerateDietPlan = onCall(
       } catch (err) {
         logger.info("aiGenerateDietPlan", {
           stage: "error",
-          message: err && err.message,
+          // NOT `message` — see aiImportWorkoutPlan's identical catch above.
+          errorMessage: err && err.message,
         });
         throw toHttpsError(err);
       }
