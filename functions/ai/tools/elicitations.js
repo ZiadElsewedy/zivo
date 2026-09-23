@@ -29,6 +29,7 @@ class ElicitationError extends Error {
 const MAX_PROMPT_CHARS = 300;
 const MAX_LABEL_CHARS = 80;
 const MAX_VALUE_CHARS = 80;
+const MAX_SUBTITLE_CHARS = 60;
 const MIN_OPTIONS = 2;
 const MAX_OPTIONS = 5;
 
@@ -56,11 +57,15 @@ function requireText(value, label, max) {
 }
 
 /**
- * Normalizes one raw option into `{value, label}`. Accepts a bare string
- * (used as both value and label) or an object with `value`/`label` — the model
- * is not always precise about which it sends.
+ * Normalizes one raw option into `{value, label}`, plus `subtitle` ONLY when
+ * one was actually given — omitted entirely otherwise, so the bare-option
+ * shape every existing caller produces is untouched byte-for-byte. Accepts a
+ * bare string (used as both value and label) or an object with
+ * `value`/`label` (and an optional `subtitle`) — the model is not always
+ * precise about which it sends. `subtitle` is a second line of detail (e.g.
+ * "247 kcal / 100g" for a search_food_product candidate).
  * @param {*} raw
- * @return {{value: string, label: string}}
+ * @return {{value: string, label: string, subtitle: (string|undefined)}}
  */
 function normalizeOption(raw) {
   if (typeof raw === "string") {
@@ -72,7 +77,11 @@ function normalizeOption(raw) {
         "option label", MAX_LABEL_CHARS);
     const value = requireText(raw.value != null ? raw.value : label,
         "option value", MAX_VALUE_CHARS);
-    return {value, label};
+    const opt = {value, label};
+    if (raw.subtitle != null && String(raw.subtitle).trim() !== "") {
+      opt.subtitle = requireText(raw.subtitle, "option subtitle", MAX_SUBTITLE_CHARS);
+    }
+    return opt;
   }
   throw new ElicitationError("Each option must be text or {value, label}.");
 }
@@ -143,8 +152,10 @@ const ASK_CHOICE = {
     "you to continue from. Do NOT use it to ask for a fact a tool can supply " +
     "(get_today already carries the user's profile, latest weight and age). " +
     "Provide prompt (the question) and 2–5 options as {value, label}; value " +
-    "is a stable key, label is what the user sees. Write both in the user's " +
-    "language. At most one question per turn.",
+    "is a stable key, label is what the user sees. An option may also carry a " +
+    "short subtitle (e.g. '247 kcal / 100g') for a second line of detail — use " +
+    "it for search_food_product candidates so the user can tell them apart. " +
+    "Write both in the user's language. At most one question per turn.",
   inputSchema: {
     type: "object",
     properties: {
@@ -157,6 +168,10 @@ const ASK_CHOICE = {
           properties: {
             value: {type: "string", description: "stable key for the choice"},
             label: {type: "string", description: "what the user sees"},
+            subtitle: {
+              type: "string",
+              description: "optional second line of detail, e.g. a kcal/100g figure",
+            },
           },
           required: ["label"],
         },

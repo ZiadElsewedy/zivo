@@ -929,8 +929,13 @@ class FirebaseAiRepository implements AiRepository {
       if (o is! Map) continue;
       final label = o['label'] as String?;
       if (label == null || label.isEmpty) continue;
+      final subtitle = o['subtitle'] as String?;
       options.add(
-        AiChoiceOption(value: (o['value'] as String?) ?? label, label: label),
+        AiChoiceOption(
+          value: (o['value'] as String?) ?? label,
+          label: label,
+          subtitle: subtitle != null && subtitle.isNotEmpty ? subtitle : null,
+        ),
       );
     }
     return options;
@@ -947,17 +952,7 @@ class FirebaseAiRepository implements AiRepository {
     if (requestId == null) return null;
     final fields = data['fields'];
     if (fields is! Map) return null;
-    final rawOptions = fields['options'];
-    if (rawOptions is! List) return null;
-    final options = <AiChoiceOption>[];
-    for (final raw in rawOptions) {
-      if (raw is! Map) continue;
-      final label = raw['label'] as String?;
-      if (label == null || label.isEmpty) continue;
-      options.add(
-        AiChoiceOption(value: (raw['value'] as String?) ?? label, label: label),
-      );
-    }
+    final options = _optionsFrom(fields['options']);
     if (options.length < 2) return null;
     return AiChoiceRequest(
       requestId: requestId,

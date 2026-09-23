@@ -2270,6 +2270,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get askCalculating => 'يحسب الأرقام…';
 
   @override
+  String get askSearchingForProduct => 'يبحث عن هذا المنتج…';
+
+  @override
   String get askProposalConfirmed => 'تم التأكيد';
 
   @override

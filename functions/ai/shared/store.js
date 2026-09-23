@@ -929,6 +929,32 @@ class FirestoreStore {
   }
 
   /**
+   * Saves one custom food (`create_custom_food`) — mirrors
+   * `FirestoreDietRepository.saveCustomFood`'s field shape exactly (including
+   * the empty `portions: []` and `schemaVersion: 1`), so a food the coach
+   * saved is indistinguishable in Firestore, and in the app's own "My foods"
+   * list, from one the user typed in by hand. `id` is the confirmed action's
+   * id, so re-confirming overwrites the same doc rather than duplicating it.
+   * @param {string} uid
+   * @param {!Object} data `{id, name, kcalPer100g, proteinPer100g,
+   *   carbsPer100g, fatPer100g, preparation}`.
+   * @return {!Promise<void>}
+   */
+  async saveCustomFood(uid, data) {
+    await this._user(uid).collection("customFoods").doc(data.id).set({
+      name: data.name,
+      kcalPer100g: data.kcalPer100g,
+      proteinPer100g: data.proteinPer100g,
+      carbsPer100g: data.carbsPer100g,
+      fatPer100g: data.fatPer100g,
+      preparation: data.preparation || "unknown",
+      portions: [],
+      schemaVersion: 1,
+      createdAt: FieldValue.serverTimestamp(),
+    }, {merge: true});
+  }
+
+  /**
    * Writes food-log entries the coach logged on the user's behalf (`log_food`),
    * one batch so "two eggs and 100 g rice" lands whole or not at all. Mirrors
    * `FirestoreDietRepository.logFood` / `_entryToMap` field-for-field, so an

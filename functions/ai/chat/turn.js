@@ -26,6 +26,7 @@ const {dayKeyFor, localNowFacts, isUsableOffset} = require("../shared/dates");
 const {tools} = require("../tools/read");
 const {mutatingTools} = require("../tools/mutations");
 const {elicitationTools} = require("../tools/elicitations");
+const {foodSearchTools} = require("../tools/food_search_product");
 const {validateAdvice} = require("./validator");
 const {AnthropicProvider} = require("../providers/anthropic_provider");
 const {legacyAnthropicClient} = require("../providers/legacy_client");
@@ -55,7 +56,8 @@ const {persistProposal, persistElicitation} = require("./actions");
 // The model sees read + mutating + elicitation tools. The gateway routes by
 // `tool.mutating` (propose→confirm) and `tool.elicits` (pause and ask); a bare
 // tool just executes and returns data.
-const allTools = tools.concat(mutatingTools).concat(elicitationTools);
+const allTools = tools.concat(mutatingTools).concat(elicitationTools)
+    .concat(foodSearchTools);
 const allToolsByName = new Map(allTools.map((t) => [t.name, t]));
 
 /**
@@ -107,6 +109,11 @@ const allToolsByName = new Map(allTools.map((t) => [t.name, t]));
  *   so without this the server's "today" is a different day from the user's
  *   for anyone east or west of UTC. Untrusted input — validated in
  *   `../shared/dates.js` and ignored when implausible.
+ * @param {(!Object)=} args.foodSearchProvider An `AiProvider`-shaped instance
+ *   routed to the Gemini-only `food_search` capability (see
+ *   `../routing/router.js`), passed through to `search_food_product`'s
+ *   `execute` as `deps.foodSearchProvider`. Absent (no Gemini key bound) makes
+ *   the tool degrade to its `unavailable` outcome rather than failing the turn.
  * @param {(!Object|undefined)} args.config Overrides for `DEFAULT_CONFIG`.
  * @param {(string|undefined)} args.clientTurnId Client-generated idempotency
  *   key for this turn. When supplied and a previous attempt of the SAME turn
@@ -132,6 +139,7 @@ async function runAiTurn({
   clientClock,
   config,
   clientTurnId,
+  foodSearchProvider,
 }) {
   const activeProvider = provider ||
     new AnthropicProvider(legacyAnthropicClient(callModel, streamModel));
@@ -383,7 +391,8 @@ async function runAiTurn({
       } else {
         try {
           resultPayload = await tool.execute(
-              store, uid, block.input || {}, turnNow, offsetMinutes);
+              store, uid, block.input || {}, turnNow, offsetMinutes,
+              {chatProvider: activeProvider, foodSearchProvider});
           // Keep the structured diet state+findings so the reply can be checked
           // against what the model actually read (Phase 7). The last one wins —
           // the reply is about the most recently loaded day.

@@ -3938,6 +3938,12 @@ abstract class AppLocalizations {
   /// **'Working out the numbers…'**
   String get askCalculating;
 
+  /// Progress line: the assistant is searching the web for a branded/packaged food not in ZIVO's catalog. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching for that product…'**
+  String get askSearchingForProduct;
+
   /// A proposed change the user accepted.
   ///
   /// In en, this message translates to:

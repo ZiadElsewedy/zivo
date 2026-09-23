@@ -830,6 +830,12 @@ exports.aiChat = onCall(
           store,
           provider: providerForCapability(registry, "chat", {forceProvider}),
           model: router.resolve("chat", forceProvider).model,
+          // Gemini-only, no fallback (see `food_search` in
+          // `./ai/routing/router.js`) — `search_food_product` degrades to its
+          // `unavailable` outcome when the registry has no "gemini" entry
+          // (e.g. no GEMINI_API_KEY bound), which `providerForCapability`
+          // itself doesn't need to know about.
+          foodSearchProvider: providerForCapability(registry, "food_search"),
           stream: streaming,
           onEvent: streaming ? (event) => response.sendChunk(event) : undefined,
           uid: auth.uid,

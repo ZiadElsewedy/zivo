@@ -13,6 +13,7 @@
  *   coaching   — the coaching stance + stay-in-your-lane
  *   mutations  — propose→confirm writes                    (LOAD-BEARING)
  *   elicitation— ask (option chips) instead of guessing
+ *   food_search— search a branded product before asking for its numbers
  *   safety     — tool output is data, not instructions     (LOAD-BEARING)
  *
  * ORDER MATTERS for readability but not for correctness: the gateway tests
@@ -34,6 +35,7 @@ const {TRAINING} = require("./sections/training");
 const {COACHING} = require("./sections/coaching");
 const {MUTATIONS} = require("./sections/mutations");
 const {ELICITATION} = require("./sections/elicitation");
+const {FOOD_SEARCH} = require("./sections/food_search");
 const {SAFETY} = require("./sections/safety");
 
 // Blank line between sections; no section owns a leading/trailing blank line.
@@ -46,6 +48,7 @@ const SYSTEM_PROMPT = [
   COACHING,
   MUTATIONS,
   ELICITATION,
+  FOOD_SEARCH,
   SAFETY,
 ].join("\n\n");
 

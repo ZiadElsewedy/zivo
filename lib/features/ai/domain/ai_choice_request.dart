@@ -30,10 +30,14 @@ class AiChoiceRequest {
 }
 
 /// One tappable option: [value] is a stable key, [label] is what the user sees
-/// (and what gets sent back as their answer).
+/// (and what gets sent back as their answer). [subtitle] is an optional
+/// second line of detail — e.g. a "247 kcal / 100g" figure on a
+/// search_food_product candidate — so options that would otherwise look
+/// identical (several products with the same name) stay distinguishable.
 class AiChoiceOption {
-  const AiChoiceOption({required this.value, required this.label});
+  const AiChoiceOption({required this.value, required this.label, this.subtitle});
 
   final String value;
   final String label;
+  final String? subtitle;
 }

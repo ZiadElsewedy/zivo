@@ -112,6 +112,15 @@
  * @property {('auto'|'any'|{type: string, name: string})=} toolChoice Omit
  *   for the provider's default (Anthropic: `auto`).
  * @property {!Array<!NormalizedMessage>} messages
+ * @property {{googleSearch: boolean}=} grounding Gemini-only: set
+ *   `{googleSearch: true}` to ground the reply in a live Google Search instead
+ *   of declaring function-calling tools. Gemini does not support combining
+ *   search grounding with `tools`/`toolChoice` in the same call, so a request
+ *   with `grounding` set must not also set `tools` — see
+ *   `../providers/gemini_provider.js`'s `toGeminiRequest`. Anthropic has no
+ *   equivalent and never receives this field in practice (see
+ *   `../routing/router.js`'s `food_search` capability, which has no
+ *   Anthropic route).
  */
 
 /**

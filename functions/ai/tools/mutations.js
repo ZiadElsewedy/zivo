@@ -642,12 +642,98 @@ const LOG_FOOD = {
   },
 };
 
+const CUSTOM_FOOD_PREPARATIONS = ["raw", "cooked", "dry"];
+
+/**
+ * A finite number in `[0, max]`, or throws — the same "don't trust the
+ * model's arithmetic" discipline as every other bounds check here.
+ * @param {*} value
+ * @param {string} label
+ * @param {number} max
+ * @return {number}
+ */
+function requireNonNegativeNumber(value, label, max) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0 || n > max) {
+    throw new ValidationError(`${label} must be a number between 0 and ${max}.`);
+  }
+  return n;
+}
+
+const CREATE_CUSTOM_FOOD = {
+  name: "create_custom_food",
+  mutating: true,
+  kind: "create_custom_food",
+  description:
+    "Save a food ZIVO's catalog doesn't have as the user's own custom food — " +
+    "from a search_food_product candidate the user picked, or from figures " +
+    "the user stated themselves. Does not save until confirmed. Pass the " +
+    "figures EXACTLY as they came from search_food_product or from the user " +
+    "— never adjust, round, or estimate them yourself. Once saved, resolve_food " +
+    "and log_food will find it like any other food.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      name: {type: "string"},
+      kcalPer100g: {type: "number"},
+      proteinPer100g: {type: "number"},
+      carbsPer100g: {type: "number"},
+      fatPer100g: {type: "number"},
+      preparation: {type: "string", enum: CUSTOM_FOOD_PREPARATIONS},
+    },
+    required: [
+      "name", "kcalPer100g", "proteinPer100g", "carbsPer100g", "fatPer100g",
+    ],
+  },
+  /**
+   * @param {!Object} input
+   * @return {!Object} Validated payload — the normalized custom-food fields.
+   */
+  validate(input) {
+    const name = requireText(input.name, "food name", 200);
+    const kcalPer100g = requireNonNegativeNumber(
+        input.kcalPer100g, "Calories per 100g", 9000);
+    const proteinPer100g = requireNonNegativeNumber(
+        input.proteinPer100g, "Protein per 100g", 100);
+    const carbsPer100g = requireNonNegativeNumber(
+        input.carbsPer100g, "Carbs per 100g", 100);
+    const fatPer100g = requireNonNegativeNumber(
+        input.fatPer100g, "Fat per 100g", 100);
+    const prep = typeof input.preparation === "string" ?
+      input.preparation.trim().toLowerCase() : null;
+    return {
+      name,
+      kcalPer100g,
+      proteinPer100g,
+      carbsPer100g,
+      fatPer100g,
+      preparation: prep && CUSTOM_FOOD_PREPARATIONS.includes(prep) ? prep : null,
+    };
+  },
+  fields(v) {
+    return {
+      name: v.name,
+      kcalPer100g: v.kcalPer100g,
+      proteinPer100g: v.proteinPer100g,
+      carbsPer100g: v.carbsPer100g,
+      fatPer100g: v.fatPer100g,
+    };
+  },
+  summarize(v) {
+    return `Save "${v.name}" as a custom food · ${Math.round(v.kcalPer100g)} kcal/100g`;
+  },
+  result(v) {
+    return `Saved "${v.name}" as a custom food`;
+  },
+};
+
 const mutatingTools = [
   CREATE_EXPENSE,
   EDIT_EXPENSE,
   DELETE_EXPENSE,
   MARK_MEAL_EATEN,
   LOG_FOOD,
+  CREATE_CUSTOM_FOOD,
 ];
 const mutatingToolsByName = new Map(mutatingTools.map((t) => [t.name, t]));
 

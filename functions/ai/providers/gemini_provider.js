@@ -231,14 +231,21 @@ function toGeminiRequest(normalizedRequest) {
         .map((b) => b.text)
         .join("\n\n");
   }
-  if (normalizedRequest.tools && normalizedRequest.tools.length > 0) {
+  if (normalizedRequest.grounding && normalizedRequest.grounding.googleSearch) {
+    // Google Search grounding and custom function-declaration tools can't be
+    // combined in one Gemini call — a grounded request is never also a
+    // function-calling one, so `tools`/`toolChoice` are deliberately ignored
+    // here rather than merged. Callers that want grounding (only
+    // `food_search_product.js`'s "ground" call today) must not set `tools`.
+    config.tools = [{googleSearch: {}}];
+  } else if (normalizedRequest.tools && normalizedRequest.tools.length > 0) {
     config.tools = [{
       functionDeclarations:
         normalizedRequest.tools.map(toGeminiFunctionDeclaration),
     }];
+    const toolConfig = toGeminiToolConfig(normalizedRequest.toolChoice);
+    if (toolConfig !== undefined) config.toolConfig = toolConfig;
   }
-  const toolConfig = toGeminiToolConfig(normalizedRequest.toolChoice);
-  if (toolConfig !== undefined) config.toolConfig = toolConfig;
 
   return {model: normalizedRequest.model || DEFAULT_MODEL, contents, config};
 }

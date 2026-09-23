@@ -44,6 +44,12 @@ const CAPABILITY_ROUTES = {
   // Gemini import path is validated — adding it is one entry here.
   workout_import: [{provider: "anthropic", model: "claude-sonnet-5"}],
   diet_import: [{provider: "anthropic", model: "claude-sonnet-5"}],
+  // Google Search grounding (`search_food_product`'s "ground" call, see
+  // `../tools/food_search_product.js`) is Gemini-only — Anthropic has no
+  // equivalent, so there is deliberately no fallback route here. A deployment
+  // without a bound Gemini key just has the tool degrade to its `unavailable`
+  // outcome (caught inside the tool, not a turn-ending error).
+  food_search: [{provider: "gemini", model: "gemini-flash-latest"}],
 };
 
 /**

@@ -3165,6 +3165,10 @@
   "@askCalculating": {
       "description": "Progress line: the assistant is computing nutrition figures. Keep the ellipsis."
   },
+  "askSearchingForProduct": "Searching for that product…",
+  "@askSearchingForProduct": {
+      "description": "Progress line: the assistant is searching the web for a branded/packaged food not in ZIVO's catalog. Keep the ellipsis."
+  },
   "askProposalConfirmed": "Confirmed",
   "@askProposalConfirmed": {
       "description": "A proposed change the user accepted."

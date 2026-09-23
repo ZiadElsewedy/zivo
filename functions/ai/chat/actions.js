@@ -192,6 +192,19 @@ async function applyProposedAction(store, uid, action) {
       await requireMealInPlan(store, uid, key, v.mealId);
       return store.setDietEntry(uid, key, v.mealId, v.eaten);
     }
+    case "create_custom_food":
+      // Doc id derives from actionId, like log_food's entries — a
+      // double-confirm overwrites the same custom food rather than
+      // duplicating it.
+      return store.saveCustomFood(uid, {
+        id,
+        name: v.name,
+        kcalPer100g: v.kcalPer100g,
+        proteinPer100g: v.proteinPer100g,
+        carbsPer100g: v.carbsPer100g,
+        fatPer100g: v.fatPer100g,
+        preparation: v.preparation,
+      });
     case "log_food": {
       // The nutrition was resolved and snapshotted into `entries` at propose
       // time (mutations.js `log_food.verify`), so there is nothing to re-check

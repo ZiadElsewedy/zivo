@@ -90,6 +90,7 @@ class ChoiceChips extends StatelessWidget {
                   for (final o in request.options)
                     _OptionChip(
                       label: o.label,
+                      subtitle: o.subtitle,
                       picked: pickedValue == o.value,
                       dimmed: _answered && pickedValue != o.value,
                       onTap: _answered
@@ -109,12 +110,14 @@ class ChoiceChips extends StatelessWidget {
 class _OptionChip extends StatelessWidget {
   const _OptionChip({
     required this.label,
+    this.subtitle,
     required this.picked,
     required this.dimmed,
     required this.onTap,
   });
 
   final String label;
+  final String? subtitle;
   final bool picked;
   final bool dimmed;
   final VoidCallback? onTap;
@@ -147,9 +150,23 @@ class _OptionChip extends StatelessWidget {
                 Icon(AppIcons.check, size: 15, color: TrainColors.ember),
                 const SizedBox(width: 6),
               ],
-              Text(
-                label,
-                style: AppText.button.copyWith(color: fg),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: AppText.button.copyWith(color: fg),
+                  ),
+                  if (subtitle case final subtitle?)
+                    Text(
+                      subtitle,
+                      style: AppText.button.copyWith(
+                        color: fg.withValues(alpha: 0.6),
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
               ),
             ],
           ),

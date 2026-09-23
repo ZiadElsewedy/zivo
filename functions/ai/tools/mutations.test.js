@@ -14,6 +14,7 @@ const editExpense = mutatingToolsByName.get("edit_expense");
 const deleteExpense = mutatingToolsByName.get("delete_expense");
 const markMealEaten = mutatingToolsByName.get("mark_meal_eaten");
 const logFood = mutatingToolsByName.get("log_food");
+const createCustomFood = mutatingToolsByName.get("create_custom_food");
 
 test("create_expense: valid input normalizes; currency defaults to EGP", () => {
   const v = createExpense.validate({amountMinor: 1200, category: "coffee"});
@@ -177,3 +178,55 @@ test("mark_meal_eaten: rejects a missing/blank mealId; coerces odd eaten",
       const v = markMealEaten.validate({mealId: "m1", eaten: "nope"});
       assert.equal(v.eaten, false);
     });
+
+test("create_custom_food: valid input normalizes; preparation defaults to null", () => {
+  const v = createCustomFood.validate({
+    name: "BreadWay Whole Wheat Toast",
+    kcalPer100g: 247,
+    proteinPer100g: 9,
+    carbsPer100g: 41,
+    fatPer100g: 3.5,
+  });
+  assert.deepEqual(v, {
+    name: "BreadWay Whole Wheat Toast",
+    kcalPer100g: 247,
+    proteinPer100g: 9,
+    carbsPer100g: 41,
+    fatPer100g: 3.5,
+    preparation: null,
+  });
+});
+
+test("create_custom_food: accepts a valid preparation, ignores an invalid one", () => {
+  const base = {
+    name: "Oats", kcalPer100g: 389, proteinPer100g: 17, carbsPer100g: 66,
+    fatPer100g: 7,
+  };
+  assert.equal(
+      createCustomFood.validate(Object.assign({}, base, {preparation: "dry"}))
+          .preparation,
+      "dry");
+  assert.equal(
+      createCustomFood.validate(
+          Object.assign({}, base, {preparation: "deep-fried"})).preparation,
+      null);
+});
+
+test("create_custom_food: rejects a missing name and an out-of-range macro", () => {
+  const base = {
+    kcalPer100g: 100, proteinPer100g: 1, carbsPer100g: 1, fatPer100g: 1,
+  };
+  assert.throws(
+      () => createCustomFood.validate(Object.assign({name: ""}, base)),
+      ValidationError);
+  assert.throws(
+      () => createCustomFood.validate(Object.assign({}, base, {
+        name: "Something", kcalPer100g: -5,
+      })),
+      ValidationError);
+  assert.throws(
+      () => createCustomFood.validate(Object.assign({}, base, {
+        name: "Something", proteinPer100g: 500,
+      })),
+      ValidationError);
+});

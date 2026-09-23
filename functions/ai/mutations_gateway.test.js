@@ -37,7 +37,7 @@ function makeClock(startMs) {
 function makeStore(overrides) {
   const messages = [];
   const pendingActions = new Map();
-  const writes = {expenses: [], edits: [], deletes: [], foodLogs: []};
+  const writes = {expenses: [], edits: [], deletes: [], foodLogs: [], customFoods: []};
 
   const store = {
     messages,
@@ -88,6 +88,7 @@ function makeStore(overrides) {
     // through to the real bundled catalog the resolver reads.
     listCustomFoods: async () => [],
     writeFoodLog: async (uid, entries) => writes.foodLogs.push(...entries),
+    saveCustomFood: async (uid, data) => writes.customFoods.push(data),
   };
   return Object.assign(store, overrides || {});
 }
@@ -296,6 +297,40 @@ test("confirmAction performs the write and is idempotent", async () => {
   });
   assert.equal(again.status, "already-applied");
   assert.equal(store.writes.expenses.length, 1);
+});
+
+test("create_custom_food proposes then confirm writes exactly those figures", async () => {
+  const store = makeStore();
+  const callModel = scriptedModel([
+    toolUse("create_custom_food", {
+      name: "BreadWay Whole Wheat Toast",
+      kcalPer100g: 247,
+      proteinPer100g: 9,
+      carbsPer100g: 41,
+      fatPer100g: 3.5,
+    }),
+  ]);
+
+  const {actionId} = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "save that as a custom food", now: makeClock(1000),
+  });
+  assert.equal(store.writes.customFoods.length, 0, "nothing written before confirm");
+
+  const confirmed = await confirmAction({
+    store, uid: UID, conversationId: CONVERSATION_ID, actionId,
+    now: makeClock(2000),
+  });
+  assert.equal(confirmed.status, "applied");
+  assert.equal(store.writes.customFoods.length, 1);
+  const saved = store.writes.customFoods[0];
+  assert.equal(saved.id, actionId);
+  assert.equal(saved.name, "BreadWay Whole Wheat Toast");
+  assert.equal(saved.kcalPer100g, 247);
+  assert.equal(saved.proteinPer100g, 9);
+  assert.equal(saved.carbsPer100g, 41);
+  assert.equal(saved.fatPer100g, 3.5);
+  assert.match(confirmed.assistantText, /Saved "BreadWay Whole Wheat Toast"/);
 });
 
 // A plan with one every-day slot, so it resolves on any date.
