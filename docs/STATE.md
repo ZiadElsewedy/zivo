@@ -7,9 +7,10 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-15 · **Active branch:** `feature/ai-gemini-provider`
+**Last updated:** 2026-09-23 · **Active branch:** `feature/ai-gemini-provider`
 (cut from `feature/readiness`); music-reactive session background on `upgrades`;
-Diet Builder wizard on `claude/affectionate-wozniak-wcnkpm`
+Diet Builder wizard on `claude/affectionate-wozniak-wcnkpm`; AI food/diet
+interaction layer (Phase 2 of 5) on `worktree-diet-ai-food-assistant`
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -95,6 +96,47 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **AI food/diet interaction layer — design doc + Phase 2 (branded-product search)**
+  (2026-09-23, on `worktree-diet-ai-food-assistant`, branched from
+  `claude/diet-feature-workflow-32f82a`). Owner asked for a redesign of the AI food/diet
+  layer (context-aware generation, meal replacement, structured clarification instead of
+  chat questions, branded-product search with ZIVO's catalog as source of truth). Design
+  doc first: [`docs/DIET_AI_FOOD_ASSISTANT_ARCHITECTURE.md`](DIET_AI_FOOD_ASSISTANT_ARCHITECTURE.md)
+  found that most of the brief — streaming tool visibility, structured choice/input
+  instead of guessing, resolve-before-ask, server-side re-verification so a logged
+  calorie always traces to the catalog never the model — **already exists** in the Ask
+  feature (`ask_choice`/`request_input`, `AiTurnEvent`, `log_food.verify()`), and scoped
+  the real gaps into 5 phases. **Phase 2 shipped** (external food search):
+  - `search_food_product` (`functions/ai/tools/food_search_product.js`, new): finds a
+    branded product `resolve_food` can't (e.g. "BreadWay toast") via a **dedicated**
+    Gemini call using Google Search grounding — never added to the outer chat turn's own
+    tools, since Gemini can't combine `googleSearch` with function-calling tools in one
+    call. A new Gemini-only `food_search` capability route (`routing/router.js`, no
+    Anthropic fallback) carries it; `NormalizedRequest` gained an optional
+    `grounding: {googleSearch}` field (`providers/provider.js`/`gemini_provider.js`).
+    A second, ordinary forced-schema call (the turn's own Anthropic-first provider, no
+    search access) extracts structured candidates from the grounded text — same
+    "structured output via forced single-tool-call" idiom `diet_generate.js` already uses
+    — and drops any candidate missing a macro rather than filling it in.
+  - `create_custom_food` (`tools/mutations.js`, new): closes the loop — and fixes a
+    pre-existing gap where `resolve_food`'s `notFound` guidance had no tool to act on. A
+    confirmed candidate is saved as an ordinary custom food via the existing
+    propose→confirm→execute pattern, so `log_food`/`resolve_food` pick it up for free —
+    no new cache, no new `NutritionSource` value.
+  - `ask_choice` options gained an optional `subtitle` (e.g. "247 kcal/100g"), additive,
+    rendered in `choice_chips.dart`; new `FOOD SEARCH` prompt section teaches the
+    resolve → search → ask precedence and "present as an unconfirmed search result, never
+    catalog fact."
+  - Tests: 529 backend (`functions/ai`) pass, 11 new; `flutter analyze` clean; full
+    `test/ai/` + l10n suites pass except one **pre-existing, unrelated** failure
+    (`addDietRecommended` missing its Arabic translation — flagged separately, not fixed
+    here).
+  - **Not started**: Phases 3–5 (context-aware generation from a new `userContext`
+    country/culture field, meal replacement, quantity-as-presets UX polish) — scoped in
+    the design doc, deliberately not touched this pass.
+  - **Owner follow-up**: `search_food_product`/`create_custom_food` are new Firebase
+    Functions exports — need a `functions` deploy (owner's creds) before they're live; see
+    the diet/ai `FEATURE.md`s' existing "functions deploy" gotcha.
 - **Music-reactive session background — "Aurora Well"** (2026-09-15, on `upgrades`).
   The live workout session's background now reacts to the playing Spotify track's
   album art. The old ambience desaturated every cover to the same charcoal (sat
