@@ -228,20 +228,33 @@ rather than two parallel implementations.
 
 ### 10. Diet generation + culture/location
 
-**Smallest viable data model change**: add `country` (ISO 3166-1 alpha-2) and an optional
-free-text `foodNotes` to a new small profile doc, `userContext/current` — not to
-`BodyProfile`, which is deliberately scoped to equation inputs only (its own doc comment:
-"deliberately holds no weight... no age"), and mixing in location would blur that boundary
-the same way weight was deliberately kept out. `PlanPreferences.cuisine` stays as-is (a
-per-generation override); `userContext.country` is the *default* the wizard pre-fills
-`cuisine` from when the user hasn't already stated one, not a replacement for it.
+**As built (2026-09-23), simpler than first sketched.** The original sketch below proposed
+a new persisted `userContext/current` doc + a full repository CRUD/stream surface (mirroring
+`BodyProfile`'s stream-controller wiring) so location would survive across generations
+independently of any one wizard run. Building it turned up a stronger, already-established
+precedent that made that surface unnecessary: `PlanPreferences` (`plan_preferences.dart`)
+already carries exactly this kind of "only the user can supply this, asked fresh each
+generation" data (`cuisine` is the direct sibling), the wizard's own doc comment already
+notes generation-context fields are deliberately asked as free text + voice per generation
+(ADR-016) rather than persisted profile settings, and `body_profile_page.dart` is explicitly
+scoped to *only* BMR-equation inputs (its own doc comment: "This screen buys one thing") —
+adding location there would have been the same boundary violation the original sketch was
+trying to avoid by keeping it out of `BodyProfile`. So: **`country` is a new sibling field to
+`cuisine` on `PlanPreferences`**, captured by a small optional voice/text field in the Diet
+Builder wizard's existing "How you eat" step (`diet_builder_page.dart`'s `_EatStep`,
+`diet_builder_controller.dart`), and sent as its own top-level `country` key in
+`toPayload()` — no new Firestore collection, no new repository methods, no new settings
+page. `cuisine` (a cooking style) and `country` (where they actually are) are kept distinct
+rather than merged, since they can disagree (an Egyptian living in Germany still shops
+German grocery aisles) — `diet_generate.js`'s prompt is told to prefer the more specific
+`cuisine` when the two conflict.
 
 **No agentic loop for generation.** `diet_generate.js` stays a single forced-tool-call (plus
 its existing second disambiguation call) — the brief allows the model to "use a search/tool
-if it needs external information," but for generation specifically, `country` + `foodNotes`
-+ `PlanPreferences` are fetched server-side, eagerly, before the one model call, and folded
-into the prompt exactly like `PlanPreferences.toPayload()` is today. Turning generation into
-a multi-turn tool loop would be the "huge generic agent framework" the brief explicitly says
+if it needs external information," but for generation specifically, `country` travels with
+the rest of `PlanPreferences` through the exact same `buildRequest()`/prompt path `cuisine`
+already used, no new fetch and no new server-side lookup. Turning generation into a
+multi-turn tool loop would be the "huge generic agent framework" the brief explicitly says
 to avoid, for a case where the inputs are already known and cheap to fetch directly.
 `search_food_product` stays a **conversational** tool only (used when logging/replacing
 one food the model doesn't recognize), not part of the generation pipeline — a generated
@@ -514,17 +527,20 @@ Gemini-select route) is byte-for-byte unaffected since it never sets that field.
 
 ## Phased build order
 
-1. **Data foundation** — `userContext/current` doc (country, foodNotes). No AI behavior
-   changes yet; this phase alone is invisible to the user.
-2. **External food search** *(detailed design below — this is the phase being built now)* —
+1. ~~Data foundation (`userContext/current` doc)~~ — **turned out unnecessary.** §10's "As
+   built" note explains why: `country` shipped as a sibling field on the existing
+   `PlanPreferences` instead, so there was no separate data-foundation phase to build first.
+2. **External food search** ✅ shipped 2026-09-23 (detailed design above) —
    `search_food_product` tool (Gemini Google Search grounding, behind an adapter) +
-   `create_custom_food` mutation to close the loop + prompt precedence block (§6) +
-   `AiChoiceOption.subtitle`/`sourceTag` rendering.
-3. **Context-aware generation** — fold `userContext` into `diet_generate.js`'s prompt;
-   wizard pre-fills `cuisine` from `userContext.country` when unset.
-4. **Meal replacement** — `suggest_meal_replacement` + `replace_meal_item` +
+   `create_custom_food` mutation to close the loop + `FOOD SEARCH` prompt section +
+   `AiChoiceOption.subtitle` rendering.
+3. **Context-aware generation** ✅ shipped 2026-09-23 (§10's "As built" note) — `country` on
+   `PlanPreferences`, captured in the Diet Builder wizard's "How you eat" step, sent to
+   `diet_generate.js` alongside `cuisine`.
+4. **Meal replacement** — not started. `suggest_meal_replacement` + `replace_meal_item` +
    `DietRepository.replacePlanItem` + the plain UI "Replace" entry point.
-5. **Quantity-as-presets polish** — the `ask_choice`-with-counts guidance (§6.4).
+5. **Quantity-as-presets polish** — not started. The `ask_choice`-with-counts guidance
+   (§6.4).
 
 Each phase ships independently and is individually testable against the existing
 `test/diet/` and `functions/ai/tools/*.test.js` suites' patterns — no phase depends on a

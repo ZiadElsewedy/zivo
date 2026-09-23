@@ -5735,6 +5735,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'The more you say, the closer the plan fits — but this is optional.';
 
   @override
+  String get dietBuilderCountryLabel => 'Where do you live?';
+
+  @override
+  String get dietBuilderCountryHint => 'Egypt, the UK, Mediterranean region…';
+
+  @override
+  String get dietBuilderCountryNote =>
+      'Helps ZIVO suggest foods that are actually realistic and available where you are — optional.';
+
+  @override
   String get dietBuilderAvoidTitle => 'Anything you don\'t want?';
 
   @override

@@ -16,6 +16,7 @@ class PlanPreferences {
     this.avoid = const [],
     this.allergies = const [],
     this.cuisine,
+    this.country,
     this.eatingHabits,
     this.scheduleNotes,
     this.notes,
@@ -41,6 +42,15 @@ class PlanPreferences {
   /// chicken-and-broccoli American gym food for everyone.
   final String? cuisine;
 
+  /// Where the user lives, in their own words — "Egypt", "the UK". A
+  /// generator with no location steer defaults to generically Western,
+  /// gym-food suggestions regardless of what's actually realistic and
+  /// commonly available where the user shops and cooks. Distinct from
+  /// [cuisine]: a cuisine is a cooking style the user chooses; a country is
+  /// where they actually are, and the two often agree but don't have to (an
+  /// Egyptian living in Germany still shops German grocery aisles).
+  final String? country;
+
   /// How the user usually eats, in their own words — "eggs and bread for
   /// breakfast, chicken and rice for lunch, something light at night". The
   /// richest steer the generator gets, because it describes the plan the user
@@ -64,6 +74,7 @@ class PlanPreferences {
     List<String>? avoid,
     List<String>? allergies,
     String? cuisine,
+    String? country,
     String? eatingHabits,
     String? scheduleNotes,
     String? notes,
@@ -73,6 +84,7 @@ class PlanPreferences {
     avoid: avoid ?? this.avoid,
     allergies: allergies ?? this.allergies,
     cuisine: cuisine ?? this.cuisine,
+    country: country ?? this.country,
     eatingHabits: eatingHabits ?? this.eatingHabits,
     scheduleNotes: scheduleNotes ?? this.scheduleNotes,
     notes: notes ?? this.notes,
@@ -95,6 +107,7 @@ class PlanPreferences {
       'avoid': avoid,
       'allergies': allergies,
       if (cuisine != null && cuisine!.trim().isNotEmpty) 'cuisine': cuisine,
+      if (country != null && country!.trim().isNotEmpty) 'country': country,
     };
     final composedNotes = _composeNotes();
     if (composedNotes != null) map['notes'] = composedNotes;

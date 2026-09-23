@@ -5855,6 +5855,17 @@ class AppLocalizationsAr extends AppLocalizations {
       'كلما أخبرت أكثر، اقتربت الخطة من احتياجك — لكن هذا اختياري.';
 
   @override
+  String get dietBuilderCountryLabel => 'أين تعيش؟';
+
+  @override
+  String get dietBuilderCountryHint =>
+      'مصر، المملكة المتحدة، منطقة البحر المتوسط…';
+
+  @override
+  String get dietBuilderCountryNote =>
+      'يساعد ZIVO على اقتراح أطعمة واقعية ومتوفرة فعليًا حيث تعيش — اختياري.';
+
+  @override
   String get dietBuilderAvoidTitle => 'هل هناك ما لا تريده؟';
 
   @override

@@ -76,7 +76,10 @@ Ledger: `diet_entry.dart`, `diet_summary.dart`. Import: `diet_import_result.dart
 - **`plan_preferences.dart`** — `PlanPreferences`: the constraints a generated plan has to
   live inside. Not nutrition inputs — calories come from the target and the catalog.
   Allergies are separate from `avoid` because one is a preference passed to the model and
-  the other is a **gate** enforced server-side after generation.
+  the other is a **gate** enforced server-side after generation. `country` (where the user
+  actually is, e.g. "Egypt") is kept distinct from `cuisine` (the cooking style they want) —
+  the two usually agree but don't have to, and `diet_generate.js` prefers the more specific
+  `cuisine` when they disagree. Captured in the Diet Builder wizard's "How you eat" step.
 - **`diet_source.dart`** — `DietSource` (`manual` · `pdf` · `photo` · `dictated` ·
   `generated`) with
   `dietSourceLabel`. Provenance, not decoration: a typed-out description records `manual`,

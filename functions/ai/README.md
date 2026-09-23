@@ -30,15 +30,22 @@ ai/
 │  └─ prompt/        the system prompt, composed from sections/
 │
 ├─ tools/            everything the model can call
-│  ├─ read.js          read-only tools (get_today, get_workouts, resolve_food, …)
-│  ├─ mutations.js     confirm-gated writes (create_expense, log_food, … — ADR-003)
-│  └─ elicitations.js  turn-enders that ask the user (ask_choice, request_input)
+│  ├─ read.js                 read-only tools (get_today, get_workouts, resolve_food, …)
+│  ├─ mutations.js            confirm-gated writes (create_expense, log_food,
+│  │                          create_custom_food, … — ADR-003)
+│  ├─ elicitations.js         turn-enders that ask the user (ask_choice, request_input)
+│  └─ food_search_product.js  search_food_product — a branded product resolve_food can't
+│                              find, via a dedicated Gemini Google Search grounding call
+│                              (see docs/DIET_AI_FOOD_ASSISTANT_ARCHITECTURE.md)
 │
 ├─ providers/        model adapters behind one NormalizedRequest/Response seam
 │  ├─ anthropic_provider.js   (primary)
-│  ├─ gemini_provider.js      (fallback / manual route)
+│  ├─ gemini_provider.js      (fallback / manual route; also the only adapter that
+│  │                          understands `grounding: {googleSearch}`)
 │  └─ provider.js · registry.js · classify.js · legacy_client.js
-├─ routing/          router.js — capability → provider, fail over only on real failure
+├─ routing/          router.js — capability → provider, fail over only on real failure.
+│                    `food_search` is Gemini-only (no fallback — search grounding has no
+│                    Anthropic equivalent)
 │
 ├─ services/         the AI USE-CASES (one per callable capability)
 │  ├─ workout_import.js · diet_import.js   PDF/text → structured plan

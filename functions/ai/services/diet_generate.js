@@ -235,6 +235,12 @@ honestly for the exact amount you gave; never leave them at zero.
 How to build the plan:
 - Respect the meal count the user asked for. Each meal should be a real meal,
   not a token item.
+- When "Where they live" or "Cuisine" is given, choose foods realistic and
+  commonly available there — not a generic Western/gym-food default. Someone
+  in Egypt should see foods an Egyptian kitchen actually has, not a cuisine
+  disconnected from where they live. Where the two disagree (someone living
+  abroad but cooking a different cuisine), follow the stated cuisine — it is
+  the more specific instruction.
 - Use foods the user said they like, and NEVER use one they said they avoid
   or are allergic to — not as an ingredient, not as a variant, not as a
   garnish. Allergies are a safety limit, not a preference.
@@ -287,6 +293,7 @@ function buildRequest(preferences, targets) {
         `ALLERGIC — must never appear in any form: ${p.allergies.join(", ")}`);
   }
   if (p.cuisine) lines.push(`Cuisine: ${p.cuisine}`);
+  if (p.country) lines.push(`Where they live: ${p.country}`);
   if (p.notes) lines.push(`In their words: ${p.notes}`);
   if (targets && targets.calories) {
     lines.push(`Daily calorie target: ${targets.calories} kcal`);

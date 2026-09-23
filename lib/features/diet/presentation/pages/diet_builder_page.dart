@@ -525,6 +525,23 @@ class _EatStep extends StatelessWidget {
           l(context).dietBuilderOptionalNote,
           style: AppText.meta.copyWith(color: TrainColors.ink3),
         ),
+        const SizedBox(height: 20),
+        Text(
+          l(context).dietBuilderCountryLabel,
+          style: AppText.rowTitle,
+        ),
+        const SizedBox(height: 11),
+        VoiceCaptureField(
+          controller: controller.country,
+          keyPrefix: 'builder-country',
+          hint: l(context).dietBuilderCountryHint,
+          minLines: 1,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          l(context).dietBuilderCountryNote,
+          style: AppText.meta.copyWith(color: TrainColors.ink3),
+        ),
       ],
     );
   }

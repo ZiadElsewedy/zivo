@@ -96,7 +96,7 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
-- **AI food/diet interaction layer — design doc + Phase 2 (branded-product search)**
+- **AI food/diet interaction layer — design doc + Phases 2–3**
   (2026-09-23, on `worktree-diet-ai-food-assistant`, branched from
   `claude/diet-feature-workflow-32f82a`). Owner asked for a redesign of the AI food/diet
   layer (context-aware generation, meal replacement, structured clarification instead of
@@ -131,12 +131,29 @@ notifications)**.
     `test/ai/` + l10n suites pass except one **pre-existing, unrelated** failure
     (`addDietRecommended` missing its Arabic translation — flagged separately, not fixed
     here).
-  - **Not started**: Phases 3–5 (context-aware generation from a new `userContext`
-    country/culture field, meal replacement, quantity-as-presets UX polish) — scoped in
-    the design doc, deliberately not touched this pass.
+  **Phase 3 also shipped** (context-aware generation), simpler than the design doc first
+  sketched — building Phase 2 surfaced that `PlanPreferences` (`cuisine`'s existing home)
+  was already the right place for this, not a new persisted `userContext` doc: adding one
+  would have needed the same `BodyProfile`-style stream-controller wiring the design doc
+  itself argued against putting location data into `BodyProfile` for. So:
+  - `PlanPreferences` gained a `country` field, a sibling to `cuisine` (kept distinct —
+    a cooking style vs. where someone actually is, which can disagree). Captured by a
+    small optional voice/text field in the Diet Builder wizard's existing "How you eat"
+    step (`diet_builder_page.dart`'s `_EatStep`), sent as its own `country` payload key.
+  - `diet_generate.js`'s prompt now says: use `country`/`cuisine` for regional realism
+    (an Egypt-based user gets Egyptian-kitchen suggestions, not generic gym food), and
+    prefer the more specific `cuisine` when the two disagree.
+  - No new Firestore collection, no new repository methods, no new settings page — the
+    design doc's §10 records the "as built" reasoning as a correction to its own first
+    sketch.
+  - Tests: 519 backend pass (2 new); `flutter analyze` clean; `test/diet/diet_builder_*`
+    + `test/diet/diet_l10n_test.dart` green.
+  - **Not started**: Phases 4–5 (meal replacement, quantity-as-presets UX polish) — scoped
+    in the design doc, deliberately not touched this pass.
   - **Owner follow-up**: `search_food_product`/`create_custom_food` are new Firebase
-    Functions exports — need a `functions` deploy (owner's creds) before they're live; see
-    the diet/ai `FEATURE.md`s' existing "functions deploy" gotcha.
+    Functions exports, and `diet_generate.js`'s prompt changed — need a `functions` deploy
+    (owner's creds) before any of this is live; see the diet/ai `FEATURE.md`s' existing
+    "functions deploy" gotcha.
 - **Music-reactive session background — "Aurora Well"** (2026-09-15, on `upgrades`).
   The live workout session's background now reacts to the playing Spotify track's
   album art. The old ambience desaturated every cover to the same charcoal (sat

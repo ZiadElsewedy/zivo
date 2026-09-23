@@ -51,7 +51,7 @@ class DietBuilderResult {
 /// to the generator and the reveal.
 class DietBuilderController extends ChangeNotifier {
   DietBuilderController() {
-    for (final c in [_weight, _height, _age, eatingHabits, dislikes, allergies, schedule]) {
+    for (final c in [_weight, _height, _age, eatingHabits, country, dislikes, allergies, schedule]) {
       c.addListener(notifyListeners);
     }
   }
@@ -103,6 +103,12 @@ class DietBuilderController extends ChangeNotifier {
 
   // --- How you eat / what you avoid / schedule (free text, spoken or typed) --
   final TextEditingController eatingHabits = TextEditingController();
+
+  /// Where the user lives, in their own words — "Egypt", "the UK". Optional,
+  /// asked alongside how-you-eat so a plan can be steered toward foods
+  /// actually realistic and commonly available where they are, not a
+  /// generic Western default (see [PlanPreferences.country]).
+  final TextEditingController country = TextEditingController();
   final TextEditingController dislikes = TextEditingController();
   final TextEditingController allergies = TextEditingController();
   final TextEditingController schedule = TextEditingController();
@@ -194,6 +200,7 @@ class DietBuilderController extends ChangeNotifier {
     avoid: splitNaturalFoodList(dislikes.text),
     allergies: _allergyTokens(),
     eatingHabits: _trimmedOrNull(eatingHabits.text),
+    country: _trimmedOrNull(country.text),
     scheduleNotes: _trimmedOrNull(schedule.text),
   );
 
@@ -250,7 +257,7 @@ class DietBuilderController extends ChangeNotifier {
 
   @override
   void dispose() {
-    for (final c in [_weight, _height, _age, eatingHabits, dislikes, allergies, schedule]) {
+    for (final c in [_weight, _height, _age, eatingHabits, country, dislikes, allergies, schedule]) {
       c.removeListener(notifyListeners);
       c.dispose();
     }

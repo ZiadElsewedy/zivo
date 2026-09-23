@@ -9528,6 +9528,24 @@ abstract class AppLocalizations {
   /// **'The more you say, the closer the plan fits — but this is optional.'**
   String get dietBuilderOptionalNote;
 
+  /// Label above the optional country/location field in the Diet Builder's how-you-eat step.
+  ///
+  /// In en, this message translates to:
+  /// **'Where do you live?'**
+  String get dietBuilderCountryLabel;
+
+  /// Placeholder in the optional country/location field.
+  ///
+  /// In en, this message translates to:
+  /// **'Egypt, the UK, Mediterranean region…'**
+  String get dietBuilderCountryHint;
+
+  /// Reassurance under the country/location field that it can be left blank.
+  ///
+  /// In en, this message translates to:
+  /// **'Helps ZIVO suggest foods that are actually realistic and available where you are — optional.'**
+  String get dietBuilderCountryNote;
+
   /// Title of the Diet Builder step for disliked foods and allergies.
   ///
   /// In en, this message translates to:

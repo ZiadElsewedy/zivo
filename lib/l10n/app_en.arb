@@ -7941,6 +7941,18 @@
   "@dietBuilderOptionalNote": {
     "description": "Reassurance under the how-you-eat field that it can be left blank."
   },
+  "dietBuilderCountryLabel": "Where do you live?",
+  "@dietBuilderCountryLabel": {
+    "description": "Label above the optional country/location field in the Diet Builder's how-you-eat step."
+  },
+  "dietBuilderCountryHint": "Egypt, the UK, Mediterranean region…",
+  "@dietBuilderCountryHint": {
+    "description": "Placeholder in the optional country/location field."
+  },
+  "dietBuilderCountryNote": "Helps ZIVO suggest foods that are actually realistic and available where you are — optional.",
+  "@dietBuilderCountryNote": {
+    "description": "Reassurance under the country/location field that it can be left blank."
+  },
   "dietBuilderAvoidTitle": "Anything you don't want?",
   "@dietBuilderAvoidTitle": {
     "description": "Title of the Diet Builder step for disliked foods and allergies."

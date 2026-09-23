@@ -143,6 +143,7 @@ test("the model is told the preferences and the target, as fenced data", async (
       avoid: ["liver"],
       allergies: ["peanuts"],
       cuisine: "Egyptian",
+      country: "Egypt",
     },
     targets: {calories: 2400, proteinG: 180, goal: "muscleGain"},
   });
@@ -152,6 +153,7 @@ test("the model is told the preferences and the target, as fenced data", async (
   assert.match(text, /Meals per day: 4/);
   assert.match(text, /Will not eat: liver/);
   assert.match(text, /ALLERGIC — must never appear in any form: peanuts/);
+  assert.match(text, /Where they live: Egypt/);
   assert.match(text, /Daily calorie target: 2400 kcal/);
   assert.match(text, /Protein target: 180 g/);
   // Both tools offered, model must call one of them.
@@ -163,6 +165,14 @@ test("buildRequest omits what the user didn't give rather than inventing it", ()
   assert.match(text, /Meals per day: 3/);
   assert.doesNotMatch(text, /Daily calorie target/);
   assert.doesNotMatch(text, /ALLERGIC/);
+  assert.doesNotMatch(text, /Where they live/);
+});
+
+test("buildRequest includes the country as a distinct line from cuisine", () => {
+  const text = buildRequest(
+      {mealsPerDay: 3, cuisine: "Mediterranean", country: "Egypt"}, null);
+  assert.match(text, /Cuisine: Mediterranean/);
+  assert.match(text, /Where they live: Egypt/);
 });
 
 test("calories come from the catalog, not from the model's estimate", async () => {
