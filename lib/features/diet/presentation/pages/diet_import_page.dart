@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../capture/presentation/import/import_flow_states.dart';
+import '../../../ai/domain/ai_failure.dart';
+import '../../../ai/presentation/ai_labels.dart';
+import '../../../ai/presentation/widgets/ai_model_sheet.dart';
 import '../../../capture/presentation/import/plan_import_file.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../ai/domain/import_cancellation.dart';
@@ -106,6 +109,9 @@ const _kGeneratingStatusCount = 3;
 class _DietImportPageState extends State<DietImportPage> {
   _ImportPhase _phase = _ImportPhase.selecting;
   String? _errorMessage;
+  // Set when the failure was the active AI model's provider and switching
+  // model could fix it — the error screen then offers "Switch model".
+  bool _canSwitchModel = false;
   String? _rejectionReason;
 
   Timer? _analyzingTimer;
@@ -284,6 +290,7 @@ class _DietImportPageState extends State<DietImportPage> {
       if (!mounted) return;
       setState(() {
         _phase = _ImportPhase.error;
+        _canSwitchModel = error is AiFailure && aiFailureSuggestsSwitch(error);
         _errorMessage = importErrorMessage(
           context,
           error,
@@ -321,6 +328,13 @@ class _DietImportPageState extends State<DietImportPage> {
       MaterialPageRoute(builder: (_) => const DietPlanEditPage()),
     );
     if (mounted) Navigator.of(context).pop();
+  }
+
+  /// Opens the active-model picker; a new pick retries straight away — the
+  /// callable reads the saved choice server-side, so the retry uses it.
+  Future<void> _switchModel() async {
+    final picked = await showAiModelSheet(context);
+    if (picked != null && mounted) _retry();
   }
 
   @override
@@ -411,6 +425,8 @@ class _DietImportPageState extends State<DietImportPage> {
           message: _errorMessage!,
           onRetry: _retry,
           retryColor: TrainColors.green,
+          secondaryLabel: _canSwitchModel ? l(context).aiSwitchModel : null,
+          onSecondary: _switchModel,
         );
     }
   }

@@ -271,6 +271,8 @@ class ImportErrorState extends StatelessWidget {
   const ImportErrorState({
     required this.message,
     required this.onRetry,
+    this.secondaryLabel,
+    this.onSecondary,
     Color? retryColor,
     super.key,
     // `this._x`, which the lint asks for here, is not a thing Dart will
@@ -287,6 +289,11 @@ class ImportErrorState extends StatelessWidget {
   /// debug console (`debugPrint`) and the server log, where it belongs.
   final String message;
   final VoidCallback onRetry;
+
+  /// An optional second action under Retry — "Switch model" when the active
+  /// AI model is what failed, so it can be fixed without leaving the flow.
+  final String? secondaryLabel;
+  final VoidCallback? onSecondary;
   final Color? _retryColor;
 
   /// Defaults to the active skin's `ember` — resolved on read
@@ -331,6 +338,17 @@ class ImportErrorState extends StatelessWidget {
                       onTap: onRetry,
                     ),
                   ),
+                  if (secondaryLabel != null && onSecondary != null) ...[
+                    const SizedBox(height: 6),
+                    TextButton(
+                      key: const Key('import-error-secondary'),
+                      onPressed: onSecondary,
+                      child: Text(
+                        secondaryLabel!,
+                        style: AppText.button.copyWith(color: TrainColors.ink),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

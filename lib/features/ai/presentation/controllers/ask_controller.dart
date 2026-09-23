@@ -526,6 +526,14 @@ class AskController extends ChangeNotifier {
       }
     });
     onContentGrew?.call(instant: false);
+    // The active model is one setting shared by every AI feature, and it can
+    // be switched outside this tab (the plan screens' "Switch model"). Re-read
+    // it so chat never sends a stale choice. Best-effort: offline, the choice
+    // this controller already holds is used.
+    try {
+      final saved = validAiModelSelection(await _ai.getModelSelection());
+      if (!_disposed) _modelSelection = saved;
+    } catch (_) {}
     try {
       await _ai.send(
         conversationId: conversationId,

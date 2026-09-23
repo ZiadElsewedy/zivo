@@ -6,6 +6,9 @@ import '../../../ai/domain/import_cancellation.dart';
 import '../../../../core/widgets/zivo_toast.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../capture/presentation/import/import_flow_states.dart';
+import '../../../ai/domain/ai_failure.dart';
+import '../../../ai/presentation/ai_labels.dart';
+import '../../../ai/presentation/widgets/ai_model_sheet.dart';
 import '../../../capture/presentation/import/plan_import_file.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/workout_day.dart';
@@ -65,6 +68,9 @@ enum _ImportPhase { selecting, analyzing, preview, done, rejected, error }
 class _WorkoutImportPageState extends State<WorkoutImportPage> {
   _ImportPhase _phase = _ImportPhase.selecting;
   String? _errorMessage;
+  // Set when the failure was the active AI model's provider and switching
+  // model could fix it — the error screen then offers "Switch model".
+  bool _canSwitchModel = false;
   String? _rejectionReason;
   WorkoutPlan? _draft;
   bool _saving = false;
@@ -203,6 +209,7 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
       if (!mounted) return;
       setState(() {
         _phase = _ImportPhase.error;
+        _canSwitchModel = error is AiFailure && aiFailureSuggestsSwitch(error);
         _errorMessage = importErrorMessage(
           context,
           error,
@@ -310,6 +317,13 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  /// Opens the active-model picker; a new pick retries straight away — the
+  /// callable reads the saved choice server-side, so the retry uses it.
+  Future<void> _switchModel() async {
+    final picked = await showAiModelSheet(context);
+    if (picked != null && mounted) _restart();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -386,6 +400,8 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
         return ImportErrorState(
           message: _errorMessage!,
           onRetry: _restart,
+          secondaryLabel: _canSwitchModel ? l(context).aiSwitchModel : null,
+          onSecondary: _switchModel,
         );
     }
   }

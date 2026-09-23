@@ -97,6 +97,18 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Plan screens can switch the active model; chat re-reads it per send**
+  (2026-09-23, `upgrades`). Live diagnosis: plan generation failed with "Claude
+  isn't available" although the owner believed Gemini was active — Firestore
+  showed `settings/ai.provider = "claude-sonnet"` (re-selected 13:09 UTC), and the
+  server logs showed Anthropic returning **`401 authentication_error: API key is
+  invalid`** (not credit). New: `ai/presentation/widgets/ai_model_sheet.dart`
+  (`showAiModelSheet`) — the plan import/generation error screens offer "Switch
+  model" when switching would help, and a pick retries immediately (the callable
+  reads the saved choice server-side). `AskController.runSend` re-reads the saved
+  model before each send so a switch made outside Ask applies to chat too.
+  **Owner action:** replace the Anthropic key —
+  `firebase functions:secrets:set ANTHROPIC_API_KEY` then redeploy the AI functions.
 - **One active AI model (no fallback), provider-named errors, working Retry,
   per-provider usage page** (2026-09-23, on `upgrades`, follow-up to the entry
   below — which it **supersedes** on routing). Owner decisions: exactly one active
