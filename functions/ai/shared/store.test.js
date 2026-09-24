@@ -129,3 +129,17 @@ test("the chat cap ignores other features' usage and failed turns", async () => 
   const totals = await store.getTodayUsageTotals("u", "2026-09-23");
   assert.deepEqual(totals, {turns: 2, tokens: 165});
 });
+
+test("the chat cap counts fresh tokens — cache reads of ZIVO's own prompt " +
+    "don't eat the allowance", async () => {
+  const {FirestoreStore} = require("./store");
+  // The real shape of 2026-09-24: 11 turns, ~84% of input cache reads.
+  const turn = {feature: "chat", status: "ok", tokensIn: 51180,
+    cacheReadTokens: 42787, tokensOut: 534};
+  const store = new FirestoreStore(fakeUsageDb(Array(11).fill(turn)));
+  const totals = await store.getTodayUsageTotals("u", "2026-09-24");
+  assert.equal(totals.turns, 11);
+  assert.equal(totals.tokens, 11 * (51180 - 42787 + 534));
+  // Counted the old way this was 568,854 — over the 500K ceiling.
+  assert.ok(totals.tokens < 500000);
+});

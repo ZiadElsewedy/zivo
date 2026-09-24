@@ -14,6 +14,7 @@ import '../../../shell/presentation/widgets/bottom_chrome.dart';
 import '../../domain/ai_message.dart';
 import '../../domain/ai_pending_action.dart';
 import '../../domain/ai_role.dart';
+import '../widgets/ai_model_sheet.dart';
 import '../widgets/chat_header.dart';
 import '../widgets/voice_composer.dart';
 import '../widgets/ask/ask_effects.dart';
@@ -26,7 +27,6 @@ import '../widgets/ask/message_details_sheet.dart';
 import '../../data/repository_body_data_writer.dart';
 import '../widgets/ask/choice_chips.dart';
 import '../widgets/ask/input_request_card.dart';
-import 'ask_settings_page.dart';
 import '../widgets/ask/proposal_card.dart';
 import '../widgets/ask/sessions_sheet.dart';
 import '../widgets/ask/activity_timeline.dart';
@@ -222,20 +222,12 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
     if (trimmed != null && trimmed.isNotEmpty) _c.setDraftTitle(trimmed);
   }
 
-  /// Pushes the Ask settings page (model + reply style + usage). Each pick is
-  /// applied live via the controller, which persists it optimistically and
-  /// rolls back with a toast on failure — so there's nothing to await here.
-  Future<void> _openSettings() {
-    return Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => AskSettingsPage(
-          initialModel: _c.modelSelection,
-          initialStyle: _c.responseStyle,
-          onSelectModel: _c.setModelSelection,
-          onSelectStyle: _c.setResponseStyle,
-        ),
-      ),
-    );
+  /// Opens the one model picker ([showAiModelSheet] — the same sheet as
+  /// Settings → AI → Model). The sheet persists the pick itself; the
+  /// controller just adopts it so the header and the next send agree at once.
+  Future<void> _openModelPicker() async {
+    final picked = await showAiModelSheet(context);
+    if (picked != null && mounted) _c.adoptModelSelection(picked);
   }
 
   Future<void> _openSessions(String? activeConversationId) async {
@@ -374,9 +366,9 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                         ? null
                         : () => _openSessions(_c.activeConversationId),
                     modelSelection: _c.modelSelection,
-                    onOpenSettings: (!_c.activeResolved || _c.sending)
+                    onOpenModel: (!_c.activeResolved || _c.sending)
                         ? null
-                        : _openSettings,
+                        : _openModelPicker,
                   ),
                   Expanded(
                     child: AnimatedPadding(
@@ -633,7 +625,7 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                                 failure: _c.sendFailure,
                                                 onRetry: () =>
                                                     _c.retry(conversationId),
-                                                onSwitchModel: _openSettings,
+                                                onSwitchModel: _openModelPicker,
                                               );
                                             } else {
                                               // The agent's timeline so far

@@ -165,8 +165,10 @@ Widget _host(AiRepository ai) => AppScope(
 );
 
 void main() {
-  testWidgets('the settings PAGE shows both groups; a picked reply style '
-      'persists and is forwarded on the next send', (tester) async {
+  testWidgets('there is no Ask settings page: the header opens the model '
+      'sheet, and a model picked there is forwarded on the next send', (
+    tester,
+  ) async {
     final inner = FakeAiRepository();
     addTearDown(inner.dispose);
     final ai = _RecordingAi(inner);
@@ -174,44 +176,62 @@ void main() {
     await tester.pumpWidget(_host(ai));
     await tester.pumpAndSettle();
 
-    // The header settings button pushes a full page (not a sheet).
-    await tester.tap(find.byKey(const Key('header-settings')));
+    await tester.tap(find.byKey(const Key('header-model')));
     await tester.pumpAndSettle();
 
-    // Model group and reply-style group both render.
-    expect(find.byKey(const Key('model-claude-sonnet')), findsOneWidget);
-    expect(find.byKey(const Key('model-gemini-flash')), findsOneWidget);
-    expect(find.byKey(const Key('style-concise')), findsOneWidget);
-    expect(find.byKey(const Key('style-detailed')), findsOneWidget);
-    // 'Balanced' is checked by default.
+    // A sheet over Ask with exactly the two models; Claude Sonnet is the
+    // default and the only one checked AND badged.
+    expect(find.byType(AskPage), findsOneWidget);
+    expect(find.byKey(const Key('sheet-model-claude-sonnet')), findsOneWidget);
+    expect(find.byKey(const Key('sheet-model-gemini-flash')), findsOneWidget);
+    expect(find.text('Ask settings'), findsNothing);
+    expect(find.byKey(const Key('model-active-badge')), findsOneWidget);
     expect(
       find.descendant(
-        of: find.byKey(const Key('style-balanced')),
-        matching: find.byIcon(AppIcons.check),
+        of: find.byKey(const Key('sheet-model-claude-sonnet')),
+        matching: find.byKey(const Key('model-active-badge')),
       ),
       findsOneWidget,
     );
 
-    // Picking a style applies in place and does NOT leave the page.
-    await tester.tap(find.byKey(const Key('style-concise')));
+    await tester.tap(find.byKey(const Key('sheet-model-gemini-flash')));
     await tester.pumpAndSettle();
-    expect(await inner.getResponseStyle(), 'concise');
-    expect(
-      find.byKey(const Key('model-claude-sonnet')),
-      findsOneWidget,
-      reason: 'page stays open',
-    );
+    expect(await inner.getModelSelection(), 'gemini-flash');
+    // The sheet closed itself.
+    expect(find.byKey(const Key('sheet-model-gemini-flash')), findsNothing);
+
+    await tester.enterText(find.byType(TextField), 'hello');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('composer-send')));
+    await tester.pumpAndSettle();
+
+    expect(ai.sentModels, ['gemini-flash']);
+
+    // Reopening shows Gemini as the one active model now.
+    await tester.tap(find.byKey(const Key('header-model')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('model-active-badge')), findsOneWidget);
     expect(
       find.descendant(
-        of: find.byKey(const Key('style-concise')),
+        of: find.byKey(const Key('sheet-model-gemini-flash')),
         matching: find.byIcon(AppIcons.check),
       ),
       findsOneWidget,
     );
+  });
 
-    // Back to the chat, then send.
-    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+  testWidgets('a reply style changed in Settings (outside Ask) is the one '
+      'the next send forwards', (tester) async {
+    final inner = FakeAiRepository();
+    addTearDown(inner.dispose);
+    final ai = _RecordingAi(inner);
+
+    await tester.pumpWidget(_host(ai));
     await tester.pumpAndSettle();
+
+    // Settings → AI → Reply style writes the shared setting while Ask is
+    // already open.
+    await inner.setResponseStyle('concise');
 
     await tester.enterText(find.byType(TextField), 'hello');
     await tester.pump();
@@ -221,69 +241,5 @@ void main() {
     expect(ai.sentStyles, ['concise']);
     expect(ai.sentModels, ['claude-sonnet'],
         reason: 'model untouched, still the default');
-  });
-
-  testWidgets('picking a model on the settings page persists it and is '
-      'forwarded on the next send', (tester) async {
-    final inner = FakeAiRepository();
-    addTearDown(inner.dispose);
-    final ai = _RecordingAi(inner);
-
-    await tester.pumpWidget(_host(ai));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const Key('header-settings')));
-    await tester.pumpAndSettle();
-
-    // Claude Sonnet is the default active model: checked AND badged.
-    expect(
-      find.descendant(
-        of: find.byKey(const Key('model-claude-sonnet')),
-        matching: find.byIcon(AppIcons.check),
-      ),
-      findsOneWidget,
-    );
-
-    expect(
-      find.descendant(
-        of: find.byKey(const Key('model-claude-sonnet')),
-        matching: find.byKey(const Key('model-active-badge')),
-      ),
-      findsOneWidget,
-    );
-
-    await tester.tap(find.byKey(const Key('model-gemini-flash')));
-    await tester.pumpAndSettle();
-    expect(await inner.getModelSelection(), 'gemini-flash');
-    // Exactly one model is active — the badge moved.
-    expect(find.byKey(const Key('model-active-badge')), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byKey(const Key('model-gemini-flash')),
-        matching: find.byKey(const Key('model-active-badge')),
-      ),
-      findsOneWidget,
-    );
-
-    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(find.byType(TextField), 'hello');
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('composer-send')));
-    await tester.pumpAndSettle();
-
-    expect(ai.sentModels, ['gemini-flash']);
-
-    // Reopening shows Gemini checked now.
-    await tester.tap(find.byKey(const Key('header-settings')));
-    await tester.pumpAndSettle();
-    expect(
-      find.descendant(
-        of: find.byKey(const Key('model-gemini-flash')),
-        matching: find.byIcon(AppIcons.check),
-      ),
-      findsOneWidget,
-    );
   });
 }

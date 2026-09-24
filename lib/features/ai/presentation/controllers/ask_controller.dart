@@ -243,6 +243,16 @@ class AskController extends ChangeNotifier {
     }
   }
 
+  /// Adopts a model the user already saved elsewhere (the shared model
+  /// sheet persists its own pick) — updates what this controller sends and
+  /// shows, without writing it a second time.
+  void adoptModelSelection(String selection) {
+    final valid = validAiModelSelection(selection);
+    if (valid == _modelSelection) return;
+    _modelSelection = valid;
+    _notify();
+  }
+
   /// Picks the model/provider for future turns — applied optimistically (the
   /// next send uses it immediately) and persisted in the background; rolled
   /// back with an error if the save fails. Mirrors [setResponseStyle].
@@ -550,6 +560,11 @@ class AskController extends ChangeNotifier {
     try {
       final saved = validAiModelSelection(await _ai.getModelSelection());
       if (!_disposed) _modelSelection = saved;
+    } catch (_) {}
+    // Reply style is set in Settings → AI, outside this tab — same re-read.
+    try {
+      final style = validResponseStyle(await _ai.getResponseStyle());
+      if (!_disposed) _responseStyle = style;
     } catch (_) {}
     try {
       await _ai.send(

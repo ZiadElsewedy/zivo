@@ -41,11 +41,13 @@ const AiFeature = {
 };
 
 /**
- * Bumped from v4: adds `requestedProvider`/`requestedModel`/
- * `fallbackOccurred`/`fallbackReason`, present only when the router actually
- * fell back to the other provider (`../routing/router.js`).
+ * v5 added `requestedProvider`/`requestedModel`/`fallbackOccurred`/
+ * `fallbackReason`, present only when the router actually fell back to the
+ * other provider (`../routing/router.js`). v6 adds `fallbackCount` (calls
+ * that needed the other provider) and `failedAttempts`
+ * (`[{provider, model, kind}]`) — additive, so a v5 reader is unaffected.
  */
-const USAGE_SCHEMA_VERSION = 5;
+const USAGE_SCHEMA_VERSION = 6;
 
 /**
  * Records every model call made through a wrapped provider.
@@ -111,6 +113,7 @@ class UsageMeter {
       call.fallbackReason = response.fallbackReason;
       call.requestedProvider = response.requestedProvider;
       call.requestedModel = response.requestedModel;
+      call.failedAttempts = response.failedAttempts || [];
     }
     this.calls.push(call);
   }
@@ -184,6 +187,16 @@ function buildUsageRecord(
       record.requestedModel = who.requestedModel;
     }
   }
+  // Every provider attempt that failed on the way — the ones a fallback
+  // recovered from as well as, for a failed request, the ones that sank it —
+  // and how many calls needed the other provider.
+  const fellBack = calls.filter((c) => c.fallbackOccurred);
+  const failedAttempts = [
+    ...fellBack.flatMap((c) => c.failedAttempts || []),
+    ...failed,
+  ];
+  if (fellBack.length) record.fallbackCount = fellBack.length;
+  if (failedAttempts.length) record.failedAttempts = failedAttempts;
   if (error) record.errorKind = errorKindFor(error);
   return Object.assign(record, extra || {});
 }

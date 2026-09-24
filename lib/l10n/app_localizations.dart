@@ -3656,12 +3656,6 @@ abstract class AppLocalizations {
   /// **'Longer, fuller explanations.'**
   String get askReplyStyleDetailedDesc;
 
-  /// Tooltip/title for the Ask settings sheet (model + reply style).
-  ///
-  /// In en, this message translates to:
-  /// **'Ask settings'**
-  String get askSettings;
-
   /// Section header for the model choice in the Ask settings sheet.
   ///
   /// In en, this message translates to:
@@ -3698,23 +3692,11 @@ abstract class AppLocalizations {
   /// **'Always answer with Gemini (Google).'**
   String get askModelGeminiDesc;
 
-  /// Section header for the AI token-usage list on the Ask settings page.
-  ///
-  /// In en, this message translates to:
-  /// **'Usage'**
-  String get askUsage;
-
   /// Subtitle under the Usage section header.
   ///
   /// In en, this message translates to:
   /// **'Tap a provider for its requests, tokens and cost.'**
   String get askUsageSubtitle;
-
-  /// Shown in the Usage section when the user has never used Ask.
-  ///
-  /// In en, this message translates to:
-  /// **'No usage yet — ask something to get started.'**
-  String get askUsageEmpty;
 
   /// Number of AI turns for a provider, e.g. '37 turns'.
   ///
@@ -3727,12 +3709,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} tokens'**
   String askUsageTokens(String count);
-
-  /// Estimated cost for a provider, e.g. '~$0.19 est.'. Cost is pre-formatted with its currency symbol.
-  ///
-  /// In en, this message translates to:
-  /// **'~{cost} est.'**
-  String askUsageEstCost(String cost);
 
   /// Header of the conversation list sheet.
   ///
@@ -9882,17 +9858,11 @@ abstract class AppLocalizations {
   /// **'Google\'s fast model — the lowest cost.'**
   String get askModelGeminiFlashDesc;
 
-  /// Note under the model list explaining scope and automatic fallback. Updated 2026-09-24: the router now retries and falls back to the other provider on a transient failure rather than surfacing an error, so this must not claim ZIVO 'never switches models on its own'.
+  /// One short line under Settings → AI: the selected model answers every AI feature, and ZIVO can continue on the other provider when it is temporarily unavailable.
   ///
   /// In en, this message translates to:
-  /// **'The active model answers everything — chat, plan imports and the plan builder. If it\'s briefly unavailable, ZIVO automatically continues on the other model instead of interrupting you — AI usage shows whenever that happens.'**
+  /// **'ZIVO uses your selected model for AI features. If it becomes temporarily unavailable, ZIVO can continue with the other provider.'**
   String get askModelAppliesNote;
-
-  /// Number of AI requests, e.g. '37 requests'.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{1 request} other{{count} requests}}'**
-  String askUsageRequests(int count);
 
   /// Settings row opening the AI model picker (Ask settings page) from the main app Settings screen. Sits under the 'AI' section label, so it doesn't repeat 'AI' itself.
   ///

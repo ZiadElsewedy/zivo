@@ -71,12 +71,53 @@ function toNormalizedResponse(raw) {
 }
 
 /**
+ * A tool-call id Anthropic accepts (`^[a-zA-Z0-9_-]+$`). Anthropic's own
+ * `toolu_…` ids pass through unchanged; an id Gemini minted is made safe the
+ * same way on the call and on its result, so the two still pair up.
+ * @param {string} id
+ * @return {string}
+ */
+function anthropicToolId(id) {
+  return String(id || "tool").replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
+/**
+ * A round-tripped `raw` block in Anthropic's shape. Anthropic's own blocks
+ * (they carry `type`) pass through verbatim — a signed `thinking` block's
+ * signature included. A Gemini-native part (a mid-turn Gemini→Claude
+ * fallback: the history holds the calls Gemini made) is translated: a
+ * `functionCall` becomes a `tool_use`, text stays text, and Gemini's own
+ * thoughts, empty text and signature-only parts — which Anthropic has no
+ * block for and would reject — are dropped.
+ * @param {*} raw
+ * @return {(!Object|null)}
+ */
+function fromRawPart(raw) {
+  if (raw && typeof raw.type === "string") return raw;
+  if (raw && raw.functionCall) {
+    return {
+      type: "tool_use",
+      id: anthropicToolId(raw.functionCall.id),
+      name: raw.functionCall.name,
+      input: raw.functionCall.args || {},
+    };
+  }
+  if (raw && typeof raw.text === "string" && raw.text !== "" &&
+      raw.thought !== true) {
+    return {type: "text", text: raw.text};
+  }
+  return null;
+}
+
+/**
  * Translates one normalized message-content part into its Anthropic shape.
+ * Null for a round-tripped part Anthropic has no equivalent for (see
+ * `fromRawPart`), which the caller filters out.
  * @param {(string|!Object)} part
- * @return {(string|!Object)}
+ * @return {(string|!Object|null)}
  */
 function toAnthropicPart(part) {
-  if (part && part.type === "raw") return part.raw;
+  if (part && part.type === "raw") return fromRawPart(part.raw);
   if (part && part.type === "text") return {type: "text", text: part.text};
   if (part && part.type === "document") {
     return {
@@ -101,7 +142,7 @@ function toAnthropicPart(part) {
   if (part && part.type === "tool_result") {
     const block = {
       type: "tool_result",
-      tool_use_id: part.toolUseId,
+      tool_use_id: anthropicToolId(part.toolUseId),
       content: part.content,
     };
     if (part.isError) block.is_error = true;
@@ -118,7 +159,10 @@ function toAnthropicMessage(message) {
   if (typeof message.content === "string") {
     return {role: message.role, content: message.content};
   }
-  return {role: message.role, content: message.content.map(toAnthropicPart)};
+  return {
+    role: message.role,
+    content: message.content.map(toAnthropicPart).filter((p) => p !== null),
+  };
 }
 
 /**

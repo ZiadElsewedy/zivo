@@ -1686,9 +1686,9 @@
   "@planDayLabel": {
       "description": "The training day's name field."
   },
-  "planDayLabelHint": "Push / Pull / Legs",
+  "planDayLabelHint": "Day label (optional)",
   "@planDayLabelHint": {
-      "description": "Example day names shown in the empty label field."
+    "description": "Placeholder for a day's name."
   },
   "planDayNotesOptional": "Notes (optional)",
   "@planDayNotesOptional": {
@@ -1721,10 +1721,6 @@
   "planEveryDay": "Every day",
   "@planEveryDay": {
     "description": "The default day label — a plan with one day that repeats."
-  },
-  "planDayLabelHint": "Day label (optional)",
-  "@planDayLabelHint": {
-    "description": "Placeholder for a day's name."
   },
   "planMealNameHint": "Meal name",
   "@planMealNameHint": {
@@ -2969,10 +2965,6 @@
   "@askReplyStyleDetailedDesc": {
       "description": "One-line description of the Detailed reply-style option."
   },
-  "askSettings": "Ask settings",
-  "@askSettings": {
-      "description": "Tooltip/title for the Ask settings sheet (model + reply style)."
-  },
   "askModel": "Model",
   "@askModel": {
       "description": "Section header for the model choice in the Ask settings sheet."
@@ -2997,17 +2989,9 @@
   "@askModelGeminiDesc": {
       "description": "One-line description of the Gemini model option."
   },
-  "askUsage": "Usage",
-  "@askUsage": {
-      "description": "Section header for the AI token-usage list on the Ask settings page."
-  },
   "askUsageSubtitle": "Tap a provider for its requests, tokens and cost.",
   "@askUsageSubtitle": {
       "description": "Subtitle under the Usage section header."
-  },
-  "askUsageEmpty": "No usage yet — ask something to get started.",
-  "@askUsageEmpty": {
-      "description": "Shown in the Usage section when the user has never used Ask."
   },
   "askUsageTurns": "{count, plural, =1{1 turn} other{{count} turns}}",
   "@askUsageTurns": {
@@ -3018,11 +3002,6 @@
   "@askUsageTokens": {
       "description": "A token count label, e.g. '50.6K tokens'. The count is pre-formatted (may be compact like 1.2M).",
       "placeholders": { "count": { "type": "String" } }
-  },
-  "askUsageEstCost": "~{cost} est.",
-  "@askUsageEstCost": {
-      "description": "Estimated cost for a provider, e.g. '~$0.19 est.'. Cost is pre-formatted with its currency symbol.",
-      "placeholders": { "cost": { "type": "String" } }
   },
   "askChats": "Chats",
   "@askChats": {
@@ -3252,7 +3231,8 @@
   "askActivityFailed": "Couldn't get this",
   "@askActivityFailed": {
       "description": "Screen-reader / trailing note on an Ask activity chip whose step failed."
-  },  "askFallbackUnavailable": "{model} unavailable",
+  },
+  "askFallbackUnavailable": "{model} unavailable",
   "@askFallbackUnavailable": {
       "description": "Ask activity timeline: the user's selected AI model couldn't answer (after a retry). {model} is a product name such as 'Gemini Flash'.",
       "placeholders": {
@@ -3266,7 +3246,6 @@
           "model": {"type": "String"}
       }
   },
-
   "askProposalConfirmed": "Confirmed",
   "@askProposalConfirmed": {
       "description": "A proposed change the user accepted."
@@ -8181,10 +8160,10 @@
   "@askModelGeminiFlash": {"description": "Model option: Google's Gemini Flash. Product name — keep as-is."},
   "askModelGeminiFlashDesc": "Google's fast model — the lowest cost.",
   "@askModelGeminiFlashDesc": {"description": "Description of the Gemini Flash option."},
-  "askModelAppliesNote": "The active model answers everything — chat, plan imports and the plan builder. If it's briefly unavailable, ZIVO automatically continues on the other model instead of interrupting you — AI usage shows whenever that happens.",
-  "@askModelAppliesNote": {"description": "Note under the model list explaining scope and automatic fallback. Updated 2026-09-24: the router now retries and falls back to the other provider on a transient failure rather than surfacing an error, so this must not claim ZIVO 'never switches models on its own'."},
-  "askUsageRequests": "{count, plural, =1{1 request} other{{count} requests}}",
-  "@askUsageRequests": {"description": "Number of AI requests, e.g. '37 requests'.", "placeholders": {"count": {"type": "int"}}},
+  "askModelAppliesNote": "ZIVO uses your selected model for AI features. If it becomes temporarily unavailable, ZIVO can continue with the other provider.",
+  "@askModelAppliesNote": {
+      "description": "One short line under Settings → AI: the selected model answers every AI feature, and ZIVO can continue on the other provider when it is temporarily unavailable."
+  },
   "settingsAiModel": "Model",
   "@settingsAiModel": {"description": "Settings row opening the AI model picker (Ask settings page) from the main app Settings screen. Sits under the 'AI' section label, so it doesn't repeat 'AI' itself."},
   "settingsAiUsage": "Usage",

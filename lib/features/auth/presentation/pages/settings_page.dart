@@ -20,7 +20,9 @@ import '../../../music/music_config.dart';
 import '../../../music/presentation/music_player_page.dart';
 import '../../../ai/presentation/ai_labels.dart';
 import '../../../ai/presentation/pages/ai_usage_page.dart';
-import '../../../ai/presentation/pages/ask_settings_page.dart';
+import '../../../ai/domain/ai_model_selection.dart';
+import '../../../ai/domain/ai_response_style.dart';
+import '../../../ai/presentation/widgets/ai_model_sheet.dart';
 import '../../../reminders/presentation/pages/reminders_page.dart';
 import 'about_me_page.dart';
 import 'change_password_page.dart';
@@ -206,41 +208,12 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
             const SizedBox(height: 20),
-            // Its own section, not two rows inside App: the model picker and
-            // usage view are one topic (what's answering, and what it's
-            // costing), and reading as two separate "AI ..." entries buried
-            // among unrelated app settings undersold that they're the same
-            // feature.
-            RiseIn(
-              delay: const Duration(milliseconds: 140),
-              child: SettingsSectionCard(
-                label: l(context).settingsSectionAi,
-                children: [
-                  // The active AI model — the one that answers chat, plan
-                  // imports and the plan builder. Reachable from the app's
-                  // own Settings, not just from inside Ask, so switching
-                  // provider (e.g. when one is out of credit or down)
-                  // doesn't require opening the chat feature first.
-                  const _AiModelRow(),
-                  // Every AI request's tokens and estimated cost, by
-                  // provider and by feature — the owner's view of what the
-                  // AI features are spending.
-                  SettingsRow(
-                    key: const Key('settings-ai-usage'),
-                    icon: AppIcons.ask,
-                    title: l(context).settingsAiUsage,
-                    value: '',
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const AiUsagePage(),
-                        ),
-                      );
-                    },
-                    last: true,
-                  ),
-                ],
-              ),
+            // AI lives here, as ordinary Settings rows — there is no
+            // separate Ask settings screen. Model and Usage are deliberately
+            // separate rows: what's answering vs what it has cost.
+            const RiseIn(
+              delay: Duration(milliseconds: 140),
+              child: _AiSection(),
             ),
             const SizedBox(height: 20),
             RiseIn(
@@ -581,24 +554,20 @@ class _MusicSection extends StatelessWidget {
   }
 }
 
-/// The main Settings row into the active AI model — the same picker
-/// [AskSettingsPage] already offers from the Ask header, surfaced here too so
-/// switching the model that answers chat, plan imports and the plan builder
-/// doesn't require opening Ask first (the owner's ask: if the current model
-/// or API stops responding, get to the switch from Settings directly).
-///
-/// A thin push-through, not a second implementation: the value shown here is
-/// [AiRepository.getModelSelection] read fresh (so it reflects a switch made
-/// anywhere else), and the row opens the *same* [AskSettingsPage] the Ask
-/// header does — one picker, one place its rows are drawn.
-class _AiModelRow extends StatefulWidget {
-  const _AiModelRow();
+/// Settings → AI: the active model, the reply style, and usage — three
+/// normal rows, then one short line on what the model setting means. Model
+/// and Reply style open the same sheets Ask uses ([showAiModelSheet],
+/// [showResponseStyleSheet]); their values are re-read after each pick so a
+/// change made anywhere else (Ask's header, a plan screen's "Switch model")
+/// shows here too.
+class _AiSection extends StatefulWidget {
+  const _AiSection();
 
   @override
-  State<_AiModelRow> createState() => _AiModelRowState();
+  State<_AiSection> createState() => _AiSectionState();
 }
 
-class _AiModelRowState extends State<_AiModelRow> {
+class _AiSectionState extends State<_AiSection> {
   Future<({String model, String style})>? _future;
 
   @override
@@ -609,26 +578,18 @@ class _AiModelRowState extends State<_AiModelRow> {
 
   Future<({String model, String style})> _load() async {
     final ai = AppScope.of(context).ai;
-    final model = await ai.getModelSelection();
-    final style = await ai.getResponseStyle();
+    final model = validAiModelSelection(await ai.getModelSelection());
+    final style = validResponseStyle(await ai.getResponseStyle());
     return (model: model, style: style);
   }
 
-  Future<void> _open(String model, String style) async {
-    final ai = AppScope.of(context).ai;
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) => AskSettingsPage(
-          initialModel: model,
-          initialStyle: style,
-          onSelectModel: ai.setModelSelection,
-          onSelectStyle: ai.setResponseStyle,
-        ),
-      ),
-    );
-    // The picker may have changed the selection — re-read it so this row's
-    // value doesn't go stale the moment it's back on screen.
-    if (mounted) setState(() { _future = _load(); });
+  Future<void> _pick(Future<String?> Function(BuildContext) sheet) async {
+    final changed = await sheet(context);
+    if (changed != null && mounted) {
+      setState(() {
+        _future = _load();
+      });
+    }
   }
 
   @override
@@ -637,14 +598,63 @@ class _AiModelRowState extends State<_AiModelRow> {
       future: _future,
       builder: (context, snapshot) {
         final data = snapshot.data;
-        return SettingsRow(
-          key: const Key('settings-ai-model'),
-          icon: AppIcons.ask,
-          title: l(context).settingsAiModel,
-          value: data == null ? '' : aiModelSelectionText(context, data.model),
-          onTap: data == null
-              ? null
-              : () => _open(data.model, data.style),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SettingsSectionCard(
+              label: l(context).settingsSectionAi,
+              children: [
+                SettingsRow(
+                  key: const Key('settings-ai-model'),
+                  icon: AppIcons.ask,
+                  title: l(context).settingsAiModel,
+                  value: data == null
+                      ? ''
+                      : aiModelSelectionText(context, data.model),
+                  onTap: data == null
+                      ? null
+                      : () => _pick(showAiModelSheet),
+                ),
+                SettingsRow(
+                  key: const Key('settings-ai-style'),
+                  icon: AppIcons.replyStyle,
+                  title: l(context).askReplyStyle,
+                  value: data == null
+                      ? ''
+                      : responseStyleText(context, data.style),
+                  onTap: data == null
+                      ? null
+                      : () => _pick(showResponseStyleSheet),
+                ),
+                // Every AI request's tokens and estimated cost, by provider
+                // — requested vs answering model, fallbacks, failures.
+                SettingsRow(
+                  key: const Key('settings-ai-usage'),
+                  icon: AppIcons.usage,
+                  title: l(context).settingsAiUsage,
+                  value: '',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const AiUsagePage(),
+                    ),
+                  ),
+                  last: true,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Text(
+                l(context).askModelAppliesNote,
+                key: const Key('settings-ai-note'),
+                style: AppText.meta.copyWith(
+                  color: TrainColors.ink3,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
         );
       },
     );

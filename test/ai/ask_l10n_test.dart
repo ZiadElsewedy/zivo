@@ -203,7 +203,7 @@ void main() {
   });
 
   group('the Ask header speaks Arabic too', () {
-    testWidgets('the settings page is translated, not English words', (
+    testWidgets('the model sheet is translated, not English words', (
       tester,
     ) async {
       final ai = FakeAiRepository();
@@ -211,25 +211,14 @@ void main() {
       await tester.pumpWidget(_host(ai, const Locale('ar')));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('header-settings')));
+      await tester.tap(find.byKey(const Key('header-model')));
       await tester.pumpAndSettle();
 
-      for (final english in const [
-        'Concise',
-        'Balanced',
-        'Detailed',
-        'Active',
-      ]) {
-        expect(
-          find.text(english),
-          findsNothing,
-          reason: '"$english" is still hardcoded English in the settings sheet',
-        );
-      }
-      // Reply-style words, in Arabic.
-      expect(find.text('موجز'), findsOneWidget);
-      expect(find.text('متوازن'), findsOneWidget);
-      expect(find.text('مفصّل'), findsOneWidget);
+      expect(
+        find.text('Active'),
+        findsNothing,
+        reason: '"Active" is still hardcoded English in the model sheet',
+      );
       // The active-model badge, in Arabic.
       expect(find.text('نشط'), findsOneWidget);
     });

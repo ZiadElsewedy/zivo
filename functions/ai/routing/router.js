@@ -1,25 +1,30 @@
 /**
- * Which model answers an AI call, with automatic fallback (owner decision,
- * 2026-09-24, replacing the one-model-no-fallback rule from 2026-09-23): the
- * model the user marked active in the app (`users/{uid}/settings/ai.provider`,
- * a `./models.js` key) is still the one that answers — but when its provider
- * hits a TRANSIENT failure (down, overloaded, rate-limited, timed out — see
- * `../providers/classify.js`'s `isTransientFailure`), the request is retried
- * once on the same provider after a short backoff, and if that still fails,
- * automatically re-run on the OTHER provider (`./models.js`'s
- * `FALLBACK_MODEL`) rather than surfacing an error the user has no way to act
- * on. The response is stamped with what actually answered AND what was
- * originally asked for (`requestedProvider`/`requestedModel`/
- * `fallbackOccurred`/`fallbackReason`), so usage stays truthful about it
- * (`../shared/usage_log.js`) instead of the switch being silent.
+ * Which model answers an AI call, with automatic fallback. The model the user
+ * marked active in the app (`users/{uid}/settings/ai.provider`, a
+ * `./models.js` key) is the one that answers — ONE active model — and the
+ * OTHER provider (`./models.js`'s `FALLBACK_MODEL`) is its emergency
+ * fallback, never a second active model.
  *
- * A PERMANENT failure — bad API key, billing/auth, an unsupported model, or a
- * malformed request (`bad_request`) — is never retried or fallen back for:
- * another attempt or another provider can't fix a configuration problem, and
- * trying anyway would burn a second request while hiding the real problem
- * behind an apparently-working app. Those fail immediately with
- * `AiUnavailableError` (or, for `bad_request`, are rethrown as-is — that's our
- * bug, not the provider being unavailable).
+ * When the active provider fails:
+ *   - TRANSIENT (down, overloaded, rate-limited, timed out — see
+ *     `../providers/classify.js`'s `isTransientFailure`): retried once on the
+ *     same provider after a short backoff, then re-run on the other provider.
+ *   - PROVIDER-SIDE BUT NOT TRANSIENT (its API quota is used up, out of
+ *     credit, key rejected, model retired): not retried — the same provider
+ *     won't answer 350ms later — but re-run on the other provider straight
+ *     away (owner decision 2026-09-24, replacing "transient only": Gemini's
+ *     free-tier quota 429 was surfacing as "Gemini is unavailable — usage
+ *     limit reached" while Claude could have answered). It is never hidden:
+ *     the turn's timeline shows "<model> unavailable → switched to <other>",
+ *     and the response carries `requestedProvider`/`requestedModel`/
+ *     `fallbackOccurred`/`fallbackReason` plus `failedAttempts`, which the
+ *     usage record keeps (`../shared/usage_log.js`, `../chat/turn.js`).
+ *   - A MALFORMED REQUEST (`bad_request`) is rethrown as-is: that's our bug,
+ *     and the other provider would be sent the same thing.
+ *
+ * ZIVO's own daily Ask allowance is NOT a provider failure and never reaches
+ * this file: `../chat/turn.js` checks it before any model call, so a
+ * fallback can't be used to get around it.
  *
  * The one capability excluded from fallback is `food_search`: Google Search
  * grounding exists only on Gemini, so that single tool call (see
@@ -31,6 +36,7 @@
 const {
   classifyProviderError,
   isTransientFailure,
+  canFallBackFor,
   ProviderErrorKind,
   AiUnavailableError,
 } = require("../providers/classify");
@@ -222,13 +228,14 @@ async function runRoute(
 }
 
 /**
- * Calls the capability's model through `registry` — retrying and falling back
- * for a transient failure (see the file header), giving up immediately for a
- * permanent one. The route that actually answered is stamped onto the
+ * Calls the capability's model through `registry` — retrying a transient
+ * failure, falling back to the other provider for any provider-side failure
+ * (see the file header). The route that actually answered is stamped onto the
  * response — `provider`, `model` (provider-native id), `modelKey` — so the
  * usage record says exactly which model did the work; a response that
  * required a fallback also carries `requestedProvider`, `requestedModel`,
- * `fallbackOccurred: true` and `fallbackReason` (the primary's failure kind).
+ * `fallbackOccurred: true`, `fallbackReason` (the primary's failure kind)
+ * and `failedAttempts` (`[{provider, model, kind}]`).
  *
  * @param {!Object} registry A `ProviderRegistry`.
  * @param {string} capability
@@ -256,7 +263,7 @@ async function generate(
     {provider: primary.provider, model: primary.model,
       kind: primaryResult.kind},
   ];
-  const canFallBack = !primaryResult.permanent &&
+  const canFallBack = canFallBackFor(primaryResult.kind) &&
     SELECTABLE_CAPABILITIES.has(capability) && FALLBACK_MODEL[primary.key];
   if (!canFallBack) {
     throw new AiUnavailableError(
@@ -279,6 +286,9 @@ async function generate(
     response.requestedModel = primary.model;
     response.fallbackOccurred = true;
     response.fallbackReason = primaryResult.kind;
+    // What was tried and why it failed — the usage record keeps it, so a
+    // provider that keeps failing is visible even while the other answers.
+    response.failedAttempts = attempts;
     return response;
   }
   attempts.push(

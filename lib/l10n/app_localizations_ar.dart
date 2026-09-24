@@ -2108,9 +2108,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get askReplyStyleDetailedDesc => 'شروحات أطول وأوفى.';
 
   @override
-  String get askSettings => 'إعدادات المساعد';
-
-  @override
   String get askModel => 'النموذج';
 
   @override
@@ -2130,13 +2127,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get askModelGeminiDesc => 'الإجابة دائمًا عبر Gemini (Google).';
 
   @override
-  String get askUsage => 'الاستخدام';
-
-  @override
   String get askUsageSubtitle => 'اضغط على مزوّد لعرض طلباته ورموزه وتكلفته.';
-
-  @override
-  String get askUsageEmpty => 'لا يوجد استخدام بعد — اسأل شيئًا لتبدأ.';
 
   @override
   String askUsageTurns(int count) {
@@ -2156,11 +2147,6 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String askUsageTokens(String count) {
     return '$count رمز';
-  }
-
-  @override
-  String askUsageEstCost(String cost) {
-    return '~$cost تقديريًا';
   }
 
   @override
@@ -6051,22 +6037,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get askModelAppliesNote =>
-      'النموذج النشط يجيب على كل شيء — المحادثة واستيراد الخطط ومنشئ الخطط. إذا كان غير متاح مؤقتًا، يواصل ZIVO تلقائيًا على النموذج الآخر بدلًا من مقاطعتك — ويظهر ذلك في استخدام الذكاء الاصطناعي كلما حدث.';
-
-  @override
-  String askUsageRequests(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count طلب',
-      many: '$count طلبًا',
-      few: '$count طلبات',
-      two: 'طلبان',
-      one: 'طلب واحد',
-      zero: '$count طلب',
-    );
-    return '$_temp0';
-  }
+      'يستخدم ZIVO النموذج الذي تختاره لميزات الذكاء الاصطناعي. إذا تعذّر مؤقتًا، يمكن لـ ZIVO المتابعة عبر المزوّد الآخر.';
 
   @override
   String get settingsAiModel => 'النموذج';

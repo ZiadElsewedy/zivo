@@ -108,9 +108,17 @@ function pricingFor(provider) {
   return PRICING[provider] || PRICING[DEFAULT_PRICING_PROVIDER];
 }
 
+// ZIVO's OWN daily Ask allowance (`perDayMaxTurns`/`perDayTokenCeiling`,
+// counted by `usage.js` `dailyCapUsageFor`) — not a provider limit. Worded
+// so it can't be read as "Claude/Gemini are unavailable", which is a
+// different state with its own message (`functions/index.js`
+// `unavailableMessage`). Resets at the user's own midnight (`dayKeyFor`).
 const DAILY_LIMIT_MESSAGE =
-  "You've hit today's usage limit for Ask. It resets tomorrow — thanks " +
-  "for your patience!";
+  "You've reached ZIVO's daily Ask limit. It resets at midnight. This is " +
+  "ZIVO's own limit — Claude and Gemini are still available.";
+const DAILY_LIMIT_MESSAGE_AR =
+  "وصلت إلى حدّ Ask اليومي في ZIVO، ويتجدد عند منتصف الليل. هذا حدّ ZIVO " +
+  "الخاص — Claude وGemini ما زالا متاحين.";
 // The no-activity English form of the max-steps reply. A turn that ran any
 // tools says what it actually did instead — see `outcome.js`
 // `describeUnfinishedTurn`, which produces this exact text when nothing ran.
@@ -150,6 +158,7 @@ module.exports = {
   DEFAULT_PRICING_PROVIDER,
   pricingFor,
   DAILY_LIMIT_MESSAGE,
+  DAILY_LIMIT_MESSAGE_AR,
   ITERATION_LIMIT_MESSAGE,
   TOKEN_CEILING_MESSAGE,
   FINAL_STEP_DIRECTIVE,

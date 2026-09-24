@@ -32,6 +32,11 @@ const ProviderErrorKind = {
   OVERLOADED: "overloaded",
   SERVER: "server",
   RATE_LIMIT: "rate_limit",
+  // The provider project's own API quota is used up (Gemini's 429
+  // RESOURCE_EXHAUSTED — per-minute or per-day, e.g. the free tier's 20
+  // requests/day). Not a credit balance: nobody has to pay for it to lift,
+  // it resets on the provider's own clock.
+  QUOTA: "quota",
   BILLING: "billing",
   AUTH: "auth",
   MODEL_UNAVAILABLE: "model_unavailable",
@@ -46,14 +51,22 @@ const ProviderErrorKind = {
  */
 const anyOf = (parts) => new RegExp(parts.join("|"), "i");
 
+// Checked BEFORE `BILLING_RE`: Gemini's quota 429 reads "You exceeded your
+// current quota, please check your plan and billing details … Quota exceeded
+// for metric: …free_tier_requests, limit: 20", and the word "billing" in it
+// used to classify every Gemini rate/quota hit as an out-of-credit account.
+const QUOTA_RE = anyOf([
+  "RESOURCE_EXHAUSTED", // Gemini quota exhaustion (a 429)
+  "exceeded your current quota",
+  "quota exceeded",
+  "insufficient[_ ]quota",
+]);
 const BILLING_RE = anyOf([
   "credit balance", // Anthropic: "Your credit balance is too low…" (a 400)
   "billing",
-  "insufficient[_ ](funds|credit|quota)",
-  "exceeded your current quota",
+  "insufficient[_ ](funds|credit)",
   "spend(ing)? limit",
   "payment required",
-  "RESOURCE_EXHAUSTED", // Gemini quota exhaustion (a 429)
 ]);
 const AUTH_RE = anyOf([
   "api[_ -]?key (not valid|invalid)", // Gemini: "API key not valid" (a 400)
@@ -90,9 +103,11 @@ function classifyProviderError(err) {
   // refused/reset, DNS failure) — the provider is unreachable.
   if (status === undefined) return ProviderErrorKind.NETWORK;
 
-  // Billing is checked before the status buckets because it arrives as a 400
-  // (Anthropic), a 402, a 403, or a 429 RESOURCE_EXHAUSTED (Gemini), and in
-  // every form it means "this provider won't serve us until someone pays".
+  // Quota, then billing, are checked before the status buckets: quota
+  // arrives as a 429 whose text mentions billing, and billing arrives as a
+  // 400 (Anthropic), a 402 or a 403 — in every form it means "this provider
+  // won't serve us until someone pays".
+  if (status !== 402 && QUOTA_RE.test(message)) return ProviderErrorKind.QUOTA;
   if (status === 402 || BILLING_RE.test(message)) {
     return ProviderErrorKind.BILLING;
   }
@@ -127,14 +142,13 @@ function isProviderFailure(err) {
  * against another provider: the provider is down, overloaded, rate-limited, or
  * didn't respond in time.
  *
- * Deliberately narrower than `isProviderFailure`: `billing`, `auth` and
- * `model_unavailable` are real failures the router still reports as
- * `AiUnavailableError` (nothing another attempt or another provider fixes
- * without the owner changing something), but they are configuration/account
- * problems, not "try again" problems — retrying or silently switching
- * providers for one would burn a second request without ever succeeding, and
- * would hide a key/billing problem behind an apparently-working app instead
- * of surfacing it. See `../routing/router.js`'s retry-then-fallback.
+ * Deliberately narrower than `isProviderFailure`: `quota`, `billing`, `auth`
+ * and `model_unavailable` won't clear in the next 350ms, so retrying the SAME
+ * provider would only burn a request. They still fall back to the other
+ * provider (`canFallBackFor`) — visibly: the turn's timeline says the model
+ * was unavailable and which one took over, and the usage record keeps the
+ * failed attempt and its kind, so a key/billing problem is never hidden. See
+ * `../routing/router.js`'s retry-then-fallback.
  * @param {string} kind A `ProviderErrorKind`.
  * @return {boolean}
  */
@@ -144,6 +158,20 @@ function isTransientFailure(kind) {
     kind === ProviderErrorKind.OVERLOADED ||
     kind === ProviderErrorKind.SERVER ||
     kind === ProviderErrorKind.RATE_LIMIT;
+}
+
+/**
+ * Whether another PROVIDER might answer where this one failed — every
+ * provider-side failure (down, busy, out of quota or credit, key rejected,
+ * model retired), but never a request the provider rejected as malformed
+ * (`bad_request`: our bug, and the other provider would be sent the same
+ * thing). Distinct from `isTransientFailure`, which decides whether the SAME
+ * provider is worth one more try.
+ * @param {string} kind A `ProviderErrorKind`.
+ * @return {boolean}
+ */
+function canFallBackFor(kind) {
+  return kind !== ProviderErrorKind.BAD_REQUEST;
 }
 
 /**
@@ -173,5 +201,6 @@ module.exports = {
   classifyProviderError,
   isProviderFailure,
   isTransientFailure,
+  canFallBackFor,
   AiUnavailableError,
 };

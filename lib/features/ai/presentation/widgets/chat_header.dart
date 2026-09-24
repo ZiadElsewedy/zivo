@@ -26,7 +26,7 @@ class ChatHeader extends StatelessWidget {
     required this.onNewChat,
     required this.onSessions,
     required this.modelSelection,
-    required this.onOpenSettings,
+    required this.onOpenModel,
   });
 
   /// Starts a new chat session. Null (disabled) while a turn is in flight.
@@ -37,13 +37,14 @@ class ChatHeader extends StatelessWidget {
   final VoidCallback? onSessions;
 
   /// The active model id (see `ai_model_selection.dart`). Drives the small dot
-  /// on the settings button when it's anything other than the default (Claude
+  /// on the model button when it's anything other than the default (Claude
   /// Sonnet) — a glance-able hint that another model is answering.
   final String modelSelection;
 
-  /// Opens the Ask settings sheet (model + reply style). Null (disabled) while
-  /// a turn is in flight.
-  final VoidCallback? onOpenSettings;
+  /// Opens the model picker — the one Ask setting worth reaching mid-chat
+  /// (reply style lives in Settings → AI). Null (disabled) while a turn is
+  /// in flight.
+  final VoidCallback? onOpenModel;
 
   @override
   Widget build(BuildContext context) {
@@ -77,10 +78,10 @@ class ChatHeader extends StatelessWidget {
           // kept alive by the shell); RiseIn no-ops under reduce motion.
           RiseIn(
             child: _HeaderAction(
-              key: const Key('header-settings'),
+              key: const Key('header-model'),
               icon: AppIcons.replyStyle,
-              tooltip: l(context).askSettings,
-              onTap: onOpenSettings,
+              tooltip: l(context).askModel,
+              onTap: onOpenModel,
               // A non-default active model gets a small accent dot so it's
               // visible without opening settings, without a label that would
               // crowd the row.

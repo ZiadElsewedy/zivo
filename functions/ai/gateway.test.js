@@ -5,6 +5,7 @@
  */
 
 const assert = require("node:assert/strict");
+const {dailyCapUsageFor} = require("./chat/usage");
 const {test} = require("node:test");
 
 const {
@@ -12,6 +13,7 @@ const {
   GatewayError,
   SYSTEM_PROMPT,
   DAILY_LIMIT_MESSAGE,
+  DAILY_LIMIT_MESSAGE_AR,
   ITERATION_LIMIT_MESSAGE,
   TOKEN_CEILING_MESSAGE,
   REFUSAL_MESSAGE,
@@ -589,6 +591,62 @@ test("the per-day cap short-circuits without calling the model", async () => {
   assert.equal(store.calls.logUsage.length, 0);
 });
 
+test("over ZIVO's daily cap, NO provider runs — not the active one and not " +
+    "the fallback — and the reply names ZIVO's limit, not a provider", async () => {
+  const store = makeStore({
+    getTodayUsageTotals: async () => ({turns: 0, tokens: 600000}),
+  });
+  let providerCalls = 0;
+  const provider = {generate: async () => {
+    providerCalls++;
+    throw new Error("must not be called");
+  }};
+  const events = [];
+  const result = await runAiTurn({
+    store, provider, uid: UID, conversationId: CONVERSATION_ID,
+    message: "hello", now: makeClock(0), onEvent: (e) => events.push(e),
+  });
+  assert.equal(providerCalls, 0);
+  assert.equal(result.status, "daily-limit");
+  assert.equal(result.terminalState, "daily_limit");
+  assert.match(result.assistantText, /ZIVO's daily Ask limit/);
+  assert.match(result.assistantText, /Claude and Gemini are still available/);
+  assert.doesNotMatch(result.assistantText, /usage limit/);
+  assert.equal(events.some((e) => e.type === "fallback"), false);
+});
+
+test("the ZIVO limit reply follows the user's language", async () => {
+  const store = makeStore({
+    getTodayUsageTotals: async () => ({turns: 999, tokens: 0}),
+  });
+  const result = await runAiTurn({
+    store, provider: {generate: async () => ({})}, uid: UID,
+    conversationId: CONVERSATION_ID, message: "كيف حالي اليوم؟",
+    now: makeClock(0),
+  });
+  assert.equal(result.assistantText, DAILY_LIMIT_MESSAGE_AR);
+});
+
+test("the cap day is the USER's day: the same instant is a different " +
+    "dayKey across midnight in their zone (reset)", async () => {
+  const keys = [];
+  const store = makeStore({
+    getTodayUsageTotals: async (_uid, dayKey) => {
+      keys.push(dayKey);
+      return {turns: 999, tokens: 0};
+    },
+  });
+  // 2026-01-01T22:30Z: still Jan 1 in UTC, already 00:30 on Jan 2 at +120.
+  const at = () => new Date(Date.UTC(2026, 0, 1, 22, 30));
+  await runAiTurn({store, provider: {generate: async () => ({})}, uid: UID,
+    conversationId: CONVERSATION_ID, message: "hi", now: at,
+    clientClock: {offsetMinutes: 0}});
+  await runAiTurn({store, provider: {generate: async () => ({})}, uid: UID,
+    conversationId: CONVERSATION_ID, message: "hi", now: at,
+    clientClock: {offsetMinutes: 120}});
+  assert.deepEqual(keys, ["2026-01-01", "2026-01-02"]);
+});
+
 test("a refusal stop_reason yields a clean refusal message", async () => {
   const store = makeStore();
   const callModel = scriptedModel([
@@ -884,7 +942,7 @@ test("usage is logged once with tokens/tools/iterations", async () => {
   assert.equal(usageDoc.iterations, 2);
   assert.deepEqual(usageDoc.tools,
       [{name: "get_workouts", toolCallId: "call-1"}]);
-  assert.equal(usageDoc.schemaVersion, 5);
+  assert.equal(usageDoc.schemaVersion, 6);
   // v4: every AI request logs to aiUsage; a chat turn says it's chat.
   assert.equal(usageDoc.feature, "chat");
   assert.equal(usageDoc.status, "ok");
@@ -1487,6 +1545,8 @@ test("a mid-turn provider fallback is shown live, kept on the reply, and " +
           modelKey: "claude-sonnet", fallbackOccurred: true,
           requestedProvider: "gemini", requestedModel: "gemini-flash-latest",
           fallbackReason: "overloaded",
+          failedAttempts: [{provider: "gemini", model: "gemini-flash-latest",
+            kind: "overloaded"}],
         };
       }
       return {
@@ -1510,7 +1570,8 @@ test("a mid-turn provider fallback is shown live, kept on the reply, and " +
       {type: "fallback", from: "gemini-flash", to: "claude-sonnet"});
   const reply = store.messages[store.messages.length - 1];
   assert.deepEqual(reply.activity, [
-    {kind: "fallback", from: "gemini-flash", to: "claude-sonnet"},
+    {kind: "fallback", from: "gemini-flash", to: "claude-sonnet",
+      reason: "overloaded"},
     {tool: "get_workouts", status: "ok"},
   ]);
   const usage = store.calls.logUsage[0].usageDoc;
@@ -1518,4 +1579,11 @@ test("a mid-turn provider fallback is shown live, kept on the reply, and " +
   assert.equal(usage.requestedModel, "gemini-flash-latest");
   assert.equal(usage.model, "claude-sonnet-5");
   assert.equal(usage.fallbackReason, "overloaded");
+  // One of the turn's two calls needed Claude; the failed attempt is kept.
+  assert.equal(usage.fallbackCount, 1);
+  assert.deepEqual(usage.failedAttempts, [
+    {provider: "gemini", model: "gemini-flash-latest", kind: "overloaded"},
+  ]);
+  // A turn that fell back is still ONE turn against the daily allowance.
+  assert.deepEqual(dailyCapUsageFor(usage), {turns: 1, tokens: 4});
 });

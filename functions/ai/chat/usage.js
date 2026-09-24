@@ -102,6 +102,39 @@ function totalCostUsd(usage, fallbackProvider) {
 }
 
 /**
+ * What one `aiUsage` record costs against Ask's daily allowance — the ONE
+ * definition of the rule, so the cap and anything that explains it agree.
+ *
+ *   - Only CHAT records count. Imports, plan generation, food search and
+ *     transcription have their own quota buckets. A record with no `feature`
+ *     predates the field and was always a chat turn.
+ *   - A turn that FAILED (`error`) or was `cancelled` counts for nothing: it
+ *     answered nothing, so a provider outage — or a fallback that still
+ *     failed — never eats the allowance.
+ *   - One user question is one turn, however many model calls it took:
+ *     tool steps, the same-provider retry and the fallback to the other
+ *     provider all live inside that one record.
+ *   - Tokens are the FRESH tokens the turn spent: uncached input, cache
+ *     writes, and output. Cache READS are left out. They're ZIVO's own
+ *     system prompt and tool schemas re-read on every model call — ~84% of
+ *     every token Ask logged on 2026-09-24, billed at 0.1x — and counting
+ *     them at full weight tripped the 500K ceiling after 11 questions
+ *     (~$0.34 of real spend) and showed "You've hit today's usage limit".
+ *
+ * @param {!Object} record An `aiUsage` document.
+ * @return {{turns: number, tokens: number}}
+ */
+function dailyCapUsageFor(record) {
+  const d = record || {};
+  if (d.feature && d.feature !== "chat") return {turns: 0, tokens: 0};
+  if (d.status === "error" || d.status === "cancelled") {
+    return {turns: 0, tokens: 0};
+  }
+  const fresh = Math.max(0, (d.tokensIn || 0) - (d.cacheReadTokens || 0));
+  return {turns: 1, tokens: fresh + (d.tokensOut || 0)};
+}
+
+/**
  * Whether the user has exhausted their allowance for the calendar day — by turn
  * count OR by token volume. `totals` is `store.getTodayUsageTotals()`'s result
  * (or null/undefined when nothing's been used yet).
@@ -138,6 +171,7 @@ function approxTokensFromChars(chars) {
 module.exports = {
   TurnUsage,
   totalCostUsd,
+  dailyCapUsageFor,
   isOverDailyCap,
   approxTokensFromChars,
   APPROX_CHARS_PER_TOKEN,

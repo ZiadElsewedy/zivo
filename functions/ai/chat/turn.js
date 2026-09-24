@@ -37,6 +37,7 @@ const {
   DEFAULT_CONVERSATION_TITLE,
   DEFAULT_CONFIG,
   DAILY_LIMIT_MESSAGE,
+  DAILY_LIMIT_MESSAGE_AR,
   FINAL_STEP_DIRECTIVE,
   REFUSAL_MESSAGE,
   FALLBACK_MESSAGE,
@@ -255,14 +256,21 @@ async function runAiTurn({
   // resets tomorrow" should mean their tomorrow.
   const dayKey = dayKeyFor(turnNow, offsetMinutes);
   const totals = await store.getTodayUsageTotals(uid, dayKey);
+  // Checked before ANY model call, so no provider — and no fallback between
+  // providers — ever runs for a user who is over ZIVO's own allowance.
   if (isOverDailyCap(totals, cfg)) {
+    const limitText = replyLanguageFor(trimmed) === "ar" ?
+      DAILY_LIMIT_MESSAGE_AR : DAILY_LIMIT_MESSAGE;
     await store.appendMessage(uid, conversationId, {
       role: "assistant",
-      content: DAILY_LIMIT_MESSAGE,
+      content: limitText,
       createdAt: clock(),
+      clientTurnId,
     });
+    emit({type: "phase", phase: "done", status: "daily-limit",
+      terminalState: TerminalState.DAILY_LIMIT, replaced: false});
     return {status: "daily-limit", terminalState: TerminalState.DAILY_LIMIT,
-      assistantText: DAILY_LIMIT_MESSAGE, usage: null};
+      assistantText: limitText, usage: null};
   }
 
   const history = await store.getRecentMessages(
@@ -315,6 +323,11 @@ async function runAiTurn({
   let requestedProvider = null;
   let requestedModel = null;
   let fallbackReason = null;
+  // How many of the turn's model calls needed the other provider, and every
+  // attempt that failed on the way — so usage separates "asked for Gemini"
+  // from "Claude answered 4 of 5 steps because Gemini's quota was out".
+  let fallbackCalls = 0;
+  const failedAttempts = [];
   const toolCalls = [];
   // Total characters of tool-result JSON fed back to the model this turn, so
   // the usage log can report roughly how much of the input was tool output
@@ -411,7 +424,8 @@ async function runAiTurn({
     // happens; any text the failed attempt streamed is superseded — the
     // client drops it on this event. Model KEYS only, never provider text.
     genOpts.onFallback = (info) => {
-      const entry = {kind: "fallback", from: info.from, to: info.to};
+      const entry = {kind: "fallback", from: info.from, to: info.to,
+        reason: info.reason};
       if (!activity.some((a) => a.kind === "fallback" &&
           a.from === entry.from && a.to === entry.to)) {
         activity.push(entry);
@@ -441,6 +455,10 @@ async function runAiTurn({
     if (resp.provider) usedProvider = resp.provider;
     if (resp.model) usedModel = resp.model;
     if (resp.modelKey) usedModelKey = resp.modelKey;
+    if (resp.fallbackOccurred) {
+      fallbackCalls += 1;
+      for (const a of resp.failedAttempts || []) failedAttempts.push(a);
+    }
     if (resp.fallbackOccurred && !fellBack) {
       fellBack = true;
       requestedProvider = resp.requestedProvider;
@@ -801,6 +819,8 @@ async function runAiTurn({
     usageDoc.fallbackReason = fallbackReason;
     usageDoc.requestedProvider = requestedProvider;
     usageDoc.requestedModel = requestedModel;
+    usageDoc.fallbackCount = fallbackCalls;
+    usageDoc.failedAttempts = failedAttempts.slice(0, MAX_PERSISTED_ACTIVITY);
   }
   // The turn's idempotency key, so a client can pair this usage record with the
   // assistant MESSAGE it produced (both carry the same clientTurnId) — that's

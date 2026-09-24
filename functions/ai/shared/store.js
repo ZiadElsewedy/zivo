@@ -9,6 +9,7 @@
  */
 
 const {Timestamp, FieldValue} = require("firebase-admin/firestore");
+const {dailyCapUsageFor} = require("../chat/usage");
 
 /**
  * `Timestamp` field `value` converted to a `Date`, or null.
@@ -736,19 +737,12 @@ class FirestoreStore {
         .get();
     let turns = 0;
     let tokens = 0;
+    // What counts (chat only, failed turns free, cache reads excluded) is
+    // `dailyCapUsageFor`'s rule — see `../chat/usage.js`.
     snap.forEach((doc) => {
-      const d = doc.data();
-      // The same collection now also logs imports, plan generation, food
-      // search and transcription (`./usage_log.js`) — each of those is capped
-      // by its own quota bucket, so only CHAT turns count toward Ask's daily
-      // turn/token cap. A record with no `feature` predates the field and was
-      // always a chat turn.
-      if (d.feature && d.feature !== "chat") return;
-      // A turn that died on the model call (every provider down) spent
-      // nothing and answered nothing — it must not eat the user's allowance.
-      if (d.status === "error" || d.status === "cancelled") return;
-      turns += 1;
-      tokens += (d.tokensIn || 0) + (d.tokensOut || 0);
+      const counted = dailyCapUsageFor(doc.data());
+      turns += counted.turns;
+      tokens += counted.tokens;
     });
     return {turns, tokens};
   }

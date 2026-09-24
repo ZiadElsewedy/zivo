@@ -2085,9 +2085,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askReplyStyleDetailedDesc => 'Longer, fuller explanations.';
 
   @override
-  String get askSettings => 'Ask settings';
-
-  @override
   String get askModel => 'Model';
 
   @override
@@ -2106,14 +2103,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askModelGeminiDesc => 'Always answer with Gemini (Google).';
 
   @override
-  String get askUsage => 'Usage';
-
-  @override
   String get askUsageSubtitle =>
       'Tap a provider for its requests, tokens and cost.';
-
-  @override
-  String get askUsageEmpty => 'No usage yet — ask something to get started.';
 
   @override
   String askUsageTurns(int count) {
@@ -2129,11 +2120,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String askUsageTokens(String count) {
     return '$count tokens';
-  }
-
-  @override
-  String askUsageEstCost(String cost) {
-    return '~$cost est.';
   }
 
   @override
@@ -5933,18 +5919,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get askModelAppliesNote =>
-      'The active model answers everything — chat, plan imports and the plan builder. If it\'s briefly unavailable, ZIVO automatically continues on the other model instead of interrupting you — AI usage shows whenever that happens.';
-
-  @override
-  String askUsageRequests(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count requests',
-      one: '1 request',
-    );
-    return '$_temp0';
-  }
+      'ZIVO uses your selected model for AI features. If it becomes temporarily unavailable, ZIVO can continue with the other provider.';
 
   @override
   String get settingsAiModel => 'Model';

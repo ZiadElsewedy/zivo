@@ -8,7 +8,7 @@
 const assert = require("node:assert/strict");
 const {test} = require("node:test");
 
-const {AnthropicProvider} = require("./anthropic_provider");
+const {AnthropicProvider, toAnthropicRequest} = require("./anthropic_provider");
 
 /**
  * A `{messages: {create}}` fake that records the request and resolves to
@@ -452,4 +452,44 @@ test("opts.signal is forwarded to messages.stream on the streaming path", async 
   );
   assert.equal(seen.length, 1);
   assert.equal(seen[0].signal, signal);
+});
+
+test("toAnthropicRequest translates Gemini-native history (a mid-turn " +
+    "Gemini→Claude fallback) instead of passing it through", () => {
+  const req = toAnthropicRequest({
+    model: "claude-sonnet-5",
+    maxTokens: 100,
+    messages: [
+      {role: "user", content: "How am I doing?"},
+      {
+        role: "assistant",
+        content: [
+          // Exactly what Gemini 3 streams back for a tool step.
+          {type: "raw", raw: {functionCall: {id: "a1/b", name: "get_today",
+            args: {}}, thoughtSignature: "sig"}},
+          {type: "raw", raw: {text: ""}},
+          {type: "raw", raw: {text: "planning…", thought: true}},
+          {type: "raw", raw: {text: "Checking."}},
+        ],
+      },
+      {role: "user",
+        content: [{type: "tool_result", toolUseId: "a1/b", content: "{}"}]},
+    ],
+  });
+  assert.deepEqual(req.messages[1].content, [
+    {type: "tool_use", id: "a1_b", name: "get_today", input: {}},
+    {type: "text", text: "Checking."},
+  ]);
+  // The result pairs with the (sanitized) call id.
+  assert.equal(req.messages[2].content[0].tool_use_id, "a1_b");
+});
+
+test("Anthropic's own raw blocks still round-trip verbatim", () => {
+  const thinking = {type: "thinking", thinking: "t", signature: "s"};
+  const req = toAnthropicRequest({
+    model: "claude-sonnet-5",
+    maxTokens: 100,
+    messages: [{role: "assistant", content: [{type: "raw", raw: thinking}]}],
+  });
+  assert.strictEqual(req.messages[0].content[0], thinking);
 });

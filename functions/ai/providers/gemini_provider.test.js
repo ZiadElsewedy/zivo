@@ -225,7 +225,11 @@ test("toGeminiRequest translates an Anthropic-native tool_use raw block", () => 
   // text→{text}, tool_use→functionCall; the thinking block is dropped.
   assert.deepEqual(req.contents[0].parts, [
     {text: "Let me check."},
-    {functionCall: {id: "toolu_9", name: "get_diet", args: {day: "today"}}},
+    {
+      functionCall: {id: "toolu_9", name: "get_diet", args: {day: "today"}},
+      // Gemini 3 400s a history call with no signature; Claude's has none.
+      thoughtSignature: "skip_thought_signature_validator",
+    },
   ]);
   assert.equal(req.contents[1].parts[0].functionResponse.name, "get_diet");
 });
