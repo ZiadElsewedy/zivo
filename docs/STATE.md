@@ -97,6 +97,45 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **AI food behaviour audit: realistic replacements, real product search,
+  choose-before-change, visible fallback** (2026-09-24, on `upgrades`, NOT
+  deployed — owner asked to hold the deploy).
+  - **Root causes:** (1) `suggest_meal_replacement` ranked all 7,308 USDA rows
+    by macro-share distance with no notion of what a food is → "Beef
+    stroganoff soup (canned)" for molokhia. (2) Chat history carried only a
+    card's text: a question card's options and the foodIds from tool results
+    never reached the next turn, so "option 2" couldn't resolve. (3)
+    `search_food_product` was Gemini-grounding only and dropped any product
+    whose label is per-serving (most are) → BreadWay "not found". (4) The
+    router already fell back Gemini⇄Claude but nothing surfaced it, and a
+    mid-stream fallback could double the text. (5) Diet screens labelled
+    every entry "USDA FoodData Central" / "Your own food".
+  - **Fixes:** `search_food_alternatives` (renamed; SEARCH class) — the model
+    proposes 3–6 realistic candidates, `nutrition/meal_replacement.js`
+    `priceReplacementCandidates` prices each from the catalog preferring the
+    plain cooked whole food and sizes a portion to the original's calories.
+    `replace_meal_item.refusedAfterOffer` — the turn loop refuses a swap in the
+    same turn that offered options. History renders choice options numbered
+    with values; chips show numbers (≥3 options). `search_food_product`: saved
+    foods → **Open Food Facts** (live-verified: 3 real BreadWay tortillas; an
+    impossible 40 g-fat label row is dropped by an energy-consistency check) →
+    Gemini web search that accepts per-serving figures + serving grams
+    (converted by arithmetic), brand-matched, no URLs to the model. Router
+    `onFallback` → `{type:'fallback'}` event → timeline rows "Gemini Flash
+    unavailable / Switched to Claude Sonnet", partial streamed text dropped;
+    `stickyProvider` keeps the rest of the request on the model that worked.
+    Prompt: "I don't want X" is a preference, not a verdict; tool classes
+    READ/SEARCH/MUTATION; never name a data source. Diet UI no longer shows
+    the source (still stored on the entry). Settings already had ONE model row
+    and only Sonnet/Flash (Haiku gone; `claude-haiku` survives only as a
+    stored-value migration alias) — now pinned by tests.
+  - Tests: functions 592/592; Flutter 1692 green except the pre-existing
+    `light_mode_smoke_test` Hub failure; analyze clean (pre-existing
+    `fake_async` info only).
+  - **Owner action:** `firebase deploy --only functions` when ready. Real-model
+    behaviour (does Gemini/Claude pick sensible candidates, honour the
+    choose-first flow) is only provable against the live API.
+
 - **Bounded agent loop with explicit terminal states + a visible activity
   timeline in Ask** (2026-09-24, on `upgrades`). Owner ask: the coach must never
   loop on tools, must end in an explicit state, must show what it's doing

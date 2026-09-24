@@ -1005,105 +1005,92 @@ test("calculate_meal_nutrition flags a bad item rather than throwing",
       assert.equal(result.items[0].outcome, "invalid");
     });
 
-test("suggest_meal_replacement finds protein-role alternatives for a protein item",
+const REPLACE_STORE = {
+  getActiveDietPlan: async () => DIET_PLAN,
+  listCustomFoods: async () => [],
+};
+
+test("search_food_alternatives prices the model's candidates, portioned to " +
+    "the original", async () => {
+  const tool = toolsByName.get("search_food_alternatives");
+  assert.equal(tool.search, true);
+  // "Chicken" is DIET_PLAN's dinner meal, item index 0.
+  const result = await tool.execute(REPLACE_STORE, UID, {
+    mealId: "dinner", itemIndex: 0, itemName: "Chicken",
+    candidates: [{name: "turkey breast"}, {name: "lean beef"},
+      {name: "zzqx unknown"}],
+  }, NOW);
+
+  assert.equal(result.outcome, "found");
+  assert.equal(result.original.name, "Chicken");
+  assert.equal(result.original.mealId, "dinner");
+  assert.equal(result.original.macroRole, "protein");
+  assert.ok(result.alternatives.length >= 1);
+  for (const alt of result.alternatives) {
+    assert.ok(alt.foodId);
+    assert.ok(alt.portion.grams > 0 && alt.portion.kcal > 0);
+  }
+  assert.deepEqual(result.notFound, ["zzqx unknown"]);
+});
+
+test("search_food_alternatives requires candidates rather than inventing any",
     async () => {
-      const tool = toolsByName.get("suggest_meal_replacement");
-      const store = {
-        getActiveDietPlan: async () => DIET_PLAN,
-        listCustomFoods: async () => [],
-      };
-      // "Chicken" is DIET_PLAN's dinner meal, item index 0 — 62g protein, 0
-      // carbs, 7g fat, a clear protein-role item.
-      const result = await tool.execute(store, UID, {
+      const tool = toolsByName.get("search_food_alternatives");
+      const result = await tool.execute(REPLACE_STORE, UID, {
         mealId: "dinner", itemIndex: 0, itemName: "Chicken",
       }, NOW);
-
-      assert.equal(result.outcome, "found");
-      assert.equal(result.original.macroRole, "protein");
-      assert.equal(result.original.name, "Chicken");
-      assert.ok(result.alternatives.length > 0);
-      assert.ok(result.alternatives.every((a) => a.macroRole === "protein"));
+      assert.equal(result.outcome, "invalidInput");
     });
 
-test("suggest_meal_replacement: a stale itemName is refused, not guessed",
+test("search_food_alternatives: a stale itemName is refused, not guessed",
     async () => {
-      const tool = toolsByName.get("suggest_meal_replacement");
-      const store = {
-        getActiveDietPlan: async () => DIET_PLAN,
-        listCustomFoods: async () => [],
-      };
-      const result = await tool.execute(store, UID, {
-        mealId: "dinner", itemIndex: 0, itemName: "Salmon", // not what's there
+      const tool = toolsByName.get("search_food_alternatives");
+      const result = await tool.execute(REPLACE_STORE, UID, {
+        mealId: "dinner", itemIndex: 0, itemName: "Salmon",
+        candidates: [{name: "turkey breast"}],
       }, NOW);
       assert.equal(result.outcome, "notFound");
     });
 
-test("suggest_meal_replacement: an unknown mealId is refused", async () => {
-  const tool = toolsByName.get("suggest_meal_replacement");
-  const store = {
-    getActiveDietPlan: async () => DIET_PLAN,
-    listCustomFoods: async () => [],
-  };
-  const result = await tool.execute(store, UID, {
+test("search_food_alternatives: an unknown mealId is refused", async () => {
+  const tool = toolsByName.get("search_food_alternatives");
+  const result = await tool.execute(REPLACE_STORE, UID, {
     mealId: "brunch", itemIndex: 0, itemName: "Chicken",
+    candidates: [{name: "turkey breast"}],
   }, NOW);
   assert.equal(result.outcome, "notFound");
 });
 
-test("suggest_meal_replacement: no active plan is refused, not guessed",
+test("search_food_alternatives: no active plan is refused, not guessed",
     async () => {
-      const tool = toolsByName.get("suggest_meal_replacement");
-      const store = {
+      const tool = toolsByName.get("search_food_alternatives");
+      const result = await tool.execute({
         getActiveDietPlan: async () => null,
         listCustomFoods: async () => [],
-      };
-      const result = await tool.execute(store, UID, {
+      }, UID, {
         mealId: "dinner", itemIndex: 0, itemName: "Chicken",
+        candidates: [{name: "turkey breast"}],
       }, NOW);
       assert.equal(result.outcome, "notFound");
     });
 
-test("suggest_meal_replacement: an item with no macros reports noNutritionData",
-    async () => {
-      const tool = toolsByName.get("suggest_meal_replacement");
-      const plan = {
-        name: "Cut",
-        status: "active",
-        days: [{
-          weekday: null,
-          label: "Every day",
-          meals: [{
-            id: "snack",
-            label: "Snack",
-            items: [{name: "Something", quantity: 1, unit: "piece"}],
-          }],
-        }],
-      };
-      const store = {
-        getActiveDietPlan: async () => plan,
-        listCustomFoods: async () => [],
-      };
-      const result = await tool.execute(store, UID, {
-        mealId: "snack", itemIndex: 0, itemName: "Something",
-      }, NOW);
-      assert.equal(result.outcome, "noNutritionData");
-    });
+test("search_food_alternatives: nothing priceable is noAlternatives, never a " +
+    "guess", async () => {
+  const tool = toolsByName.get("search_food_alternatives");
+  const result = await tool.execute(REPLACE_STORE, UID, {
+    mealId: "dinner", itemIndex: 0, itemName: "Chicken",
+    candidates: [{name: "zzqx unknown"}],
+  }, NOW);
+  assert.equal(result.outcome, "noAlternatives");
+  assert.equal(result.alternatives, undefined);
+});
 
-test("suggest_meal_replacement: avoid/allergies passed by the model are honoured",
-    async () => {
-      const tool = toolsByName.get("suggest_meal_replacement");
-      const store = {
-        getActiveDietPlan: async () => DIET_PLAN,
-        listCustomFoods: async () => [],
-      };
-      const result = await tool.execute(store, UID, {
-        mealId: "dinner", itemIndex: 0, itemName: "Chicken",
-        avoid: ["turkey"], allergies: ["fish"],
-      }, NOW);
-      assert.equal(result.outcome, "found");
-      for (const alt of result.alternatives) {
-        const lower = alt.name.toLowerCase();
-        assert.ok(!lower.includes("turkey"));
-        assert.ok(!lower.includes("fish"));
-      }
-    });
+test("search_food_alternatives: avoided foods are not offered", async () => {
+  const tool = toolsByName.get("search_food_alternatives");
+  const result = await tool.execute(REPLACE_STORE, UID, {
+    mealId: "dinner", itemIndex: 0, itemName: "Chicken",
+    candidates: [{name: "turkey breast"}, {name: "lean beef"}],
+    avoid: ["turkey"],
+  }, NOW);
+  assert.ok(result.alternatives.every((a) => !/turkey/i.test(a.name)));
+});

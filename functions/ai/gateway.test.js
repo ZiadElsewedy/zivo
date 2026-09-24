@@ -1465,3 +1465,57 @@ test("without clientTurnId the gateway behaves as before (always appends)",
           store.calls.appendMessage.filter((c) => c.message.role === "user");
       assert.equal(appendedUsers.length, 1);
     });
+
+test("a mid-turn provider fallback is shown live, kept on the reply, and " +
+    "tracked in usage", async () => {
+  const store = makeStore();
+  let call = 0;
+  // A router-shaped provider: the first call falls back Gemini → Claude.
+  const provider = {
+    generate: async (req, opts) => {
+      call++;
+      if (call === 1) {
+        opts.onFallback({from: "gemini-flash", to: "claude-sonnet",
+          reason: "overloaded"});
+        return {
+          stopReason: "tool_use",
+          content: [{type: "tool_use", id: "c1", name: "get_workouts",
+            input: {}, raw: {type: "tool_use", id: "c1",
+              name: "get_workouts", input: {}}}],
+          usage: {inputTokens: 1, outputTokens: 1},
+          provider: "anthropic", model: "claude-sonnet-5",
+          modelKey: "claude-sonnet", fallbackOccurred: true,
+          requestedProvider: "gemini", requestedModel: "gemini-flash-latest",
+          fallbackReason: "overloaded",
+        };
+      }
+      return {
+        stopReason: "end",
+        content: [{type: "text", text: "No workouts yet.",
+          raw: {type: "text", text: "No workouts yet."}}],
+        usage: {inputTokens: 1, outputTokens: 1},
+        provider: "anthropic", model: "claude-sonnet-5",
+        modelKey: "claude-sonnet",
+      };
+    },
+  };
+  const events = [];
+  const result = await runAiTurn({
+    store, provider, uid: UID, conversationId: CONVERSATION_ID,
+    message: "workouts?", now: makeClock(0), onEvent: (e) => events.push(e),
+  });
+
+  assert.equal(result.status, "ok");
+  assert.deepEqual(events.find((e) => e.type === "fallback"),
+      {type: "fallback", from: "gemini-flash", to: "claude-sonnet"});
+  const reply = store.messages[store.messages.length - 1];
+  assert.deepEqual(reply.activity, [
+    {kind: "fallback", from: "gemini-flash", to: "claude-sonnet"},
+    {tool: "get_workouts", status: "ok"},
+  ]);
+  const usage = store.calls.logUsage[0].usageDoc;
+  assert.equal(usage.fallbackOccurred, true);
+  assert.equal(usage.requestedModel, "gemini-flash-latest");
+  assert.equal(usage.model, "claude-sonnet-5");
+  assert.equal(usage.fallbackReason, "overloaded");
+});

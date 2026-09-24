@@ -1030,3 +1030,129 @@ test("a turn that reads no diet data is never validated", async () => {
   assert.equal(result.status, "ok");
   assert.equal(result.validation, null);
 });
+
+// ---- DISCOVER → CHOOSE → MUTATE (meal replacement) --------------------------
+
+const MOLOKHIA_PLAN = {
+  name: "Cut",
+  status: "active",
+  days: [{
+    weekday: null,
+    label: "Every day",
+    meals: [{
+      id: "lunch-1",
+      label: "Lunch",
+      items: [
+        {name: "Molokhia", quantity: 250, unit: "g", calories: 70,
+          proteinG: 5, carbsG: 8, fatG: 2},
+        {name: "Rice", quantity: 150, unit: "g", calories: 195,
+          proteinG: 4, carbsG: 42, fatG: 0.5},
+      ],
+    }],
+  }],
+};
+
+/**
+ * A store holding MOLOKHIA_PLAN with the diet reads get_diet needs stubbed
+ * empty.
+ * @param {!Object=} overrides
+ * @return {!Object}
+ */
+function molokhiaStore(overrides) {
+  return makeStore(Object.assign({
+    getActiveDietPlan: async () => MOLOKHIA_PLAN,
+    getDietTargets: async () => null,
+    getBodyProfile: async () => null,
+    getDateOfBirthMs: async () => null,
+    listBodyWeights: async () => [],
+    listDietEntries: async () => [],
+    listFoodLogs: async () => [],
+    listFoodLogRange: async () => [],
+  }, overrides || {}));
+}
+
+const MOLOKHIA_CANDIDATES = {
+  mealId: "lunch-1", itemIndex: 0, itemName: "Molokhia",
+  candidates: [{name: "green beans"}, {name: "zucchini"}, {name: "okra"}],
+};
+
+test("'I don't want molokhia': search offers options, a same-turn replace is " +
+    "refused, and the turn ends on the user's choice — nothing proposed",
+async () => {
+  const store = molokhiaStore();
+  const callModel = scriptedModel([
+    toolUse("get_diet", {}, "t-diet"),
+    toolUse("search_food_alternatives", MOLOKHIA_CANDIDATES, "t-search"),
+    // The model tries to pick for the user…
+    toolUse("replace_meal_item", {
+      mealId: "lunch-1", itemIndex: 0, itemName: "Molokhia",
+      foodId: "usda:169961", quantity: 200, unit: "g",
+    }, "t-replace"),
+    // …is told to ask instead, and does.
+    toolUse("ask_choice", {
+      prompt: "ممكن تستبدل الملوخية بـ:",
+      options: [
+        {value: "food-a", label: "فاصوليا خضراء", subtitle: "200 g · 70 kcal"},
+        {value: "food-b", label: "كوسة", subtitle: "400 g · 60 kcal"},
+        {value: "food-c", label: "بامية", subtitle: "320 g · 70 kcal"},
+      ],
+    }, "t-ask"),
+  ]);
+  const events = [];
+  const result = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "مش عايز ملوخية في الدايت", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0}, onEvent: (e) => events.push(e),
+  });
+
+  assert.equal(result.status, "awaiting-input");
+  assert.equal(result.terminalState, "needs_user_input");
+  assert.equal(result.actionId, null, "no change proposed during discovery");
+  assert.equal(store.pendingActions.size, 0);
+  // The refused proposal went back to the model as an error to act on.
+  const afterReplace = callModel.requests[3].messages
+      .flatMap((m) => Array.isArray(m.content) ? m.content : [])
+      .find((b) => b.type === "tool_result" && b.tool_use_id === "t-replace");
+  assert.equal(afterReplace.is_error, true);
+  assert.match(afterReplace.content, /hasn't chosen yet/);
+  // The user saw what ran: diet read, then the alternatives search.
+  const steps = events.filter((e) => e.type === "step" && e.status === "ok")
+      .map((e) => e.tool);
+  assert.deepEqual(steps, ["get_diet", "search_food_alternatives"]);
+});
+
+test("'option 2' next turn: the model sees the numbered options and the " +
+    "replacement is proposed for confirmation", async () => {
+  const store = molokhiaStore({
+    getRecentMessages: async () => [
+      {role: "user", content: "مش عايز ملوخية في الدايت"},
+      {role: "assistant", content: "ممكن تستبدل الملوخية بـ:",
+        kind: "choice_request", status: "pending", fields: {options: [
+          {value: "usda:169961", label: "فاصوليا خضراء",
+            subtitle: "200 g · 70 kcal"},
+          {value: "usda:169292", label: "كوسة", subtitle: "400 g · 60 kcal"},
+        ]}},
+    ],
+  });
+  const zucchini = require("../nutrition/meal_replacement")
+      .pickWholeFood("zucchini", [], null);
+  const callModel = scriptedModel([
+    toolUse("get_diet", {}, "t-diet"),
+    toolUse("replace_meal_item", {
+      mealId: "lunch-1", itemIndex: 0, itemName: "Molokhia",
+      foodId: zucchini.id, quantity: 400, unit: "g",
+    }, "t-replace"),
+  ]);
+  const result = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "اختار رقم 2", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0},
+  });
+
+  const history = callModel.requests[0].messages[1].content;
+  assert.match(history, /Options shown to the user:/);
+  assert.match(history, /2\. كوسة — 400 g · 60 kcal \(value: usda:169292\)/);
+  assert.equal(result.status, "proposed");
+  const pending = store.pendingActions.get(result.actionId);
+  assert.equal(pending.status, "pending", "still needs the user's Confirm");
+});

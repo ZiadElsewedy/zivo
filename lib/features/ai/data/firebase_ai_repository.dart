@@ -1041,7 +1041,12 @@ class FirebaseAiRepository implements AiRepository {
     if (raw is! List) return const [];
     return [
       for (final entry in raw)
-        if (entry is Map && entry['tool'] is String)
+        if (entry is Map &&
+            entry['kind'] == 'fallback' &&
+            entry['from'] is String &&
+            entry['to'] is String)
+          AiActivityStep.fallback(entry['from'] as String, entry['to'] as String)
+        else if (entry is Map && entry['tool'] is String)
           AiActivityStep(
             entry['tool'] as String,
             entry['status'] == 'error' ? AiStepStatus.error : AiStepStatus.ok,

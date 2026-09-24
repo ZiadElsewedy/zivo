@@ -189,6 +189,8 @@ class AppIcons {
   // Toast / status glyphs.
   static const success = PhosphorIconsRegular.sealCheck;
   static const warning = PhosphorIconsRegular.warningCircle;
+  // Ask's activity timeline: the turn continued on the other AI model.
+  static const modelSwitched = PhosphorIconsRegular.arrowBendDownRight;
 
   // Expense categories — the vocabulary a category (built-in or user-created)
   // picks its mark from. These replaced literal emoji, which identity §4/§8

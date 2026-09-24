@@ -11,6 +11,7 @@ import '../../../../../core/util/time_ago.dart';
 import '../../../../../core/widgets/pressable_scale.dart';
 import '../../../../../core/widgets/zivo_sheet.dart';
 import '../../../../../core/widgets/zivo_field.dart';
+import '../../../../../core/widgets/zivo_toast.dart';
 import '../../../../workout/presentation/widgets/staggered_reveal.dart';
 import '../../../domain/ai_conversation.dart';
 import '../../../../../l10n/l10n.dart';
@@ -150,8 +151,35 @@ class _SessionsSheetState extends State<SessionsSheet> {
     context,
   ).ai.watchConversations();
 
+  /// Chats swiped away whose delete is in flight or done. The list is the
+  /// live Firestore stream, and deleting is a Cloud Function round-trip: the
+  /// stream keeps listing a dismissed chat until the server has removed it,
+  /// and any rebuild in that window (the confirm sheet closing, another
+  /// chat's `updatedAt` ticking) would build its [Dismissible] again —
+  /// Flutter's "A dismissed Dismissible widget is still part of the tree".
+  /// So a dismissal removes the chat from what this sheet builds at once,
+  /// and only a failed delete brings it back.
+  final Set<String> _removedIds = {};
+
   Future<void> _performDelete(AiConversation conversation) async {
-    await AppScope.of(context).ai.deleteConversation(conversation.id);
+    // Synchronous with `onDismissed`: the row must not be built again even
+    // for a single frame.
+    setState(() => _removedIds.add(conversation.id));
+    final ai = AppScope.of(context).ai;
+    try {
+      await ai.deleteConversation(conversation.id);
+    } catch (_) {
+      // Closed meanwhile: nothing to restore — the chat was never removed
+      // server-side, so it is simply listed the next time the sheet opens.
+      if (!mounted) return;
+      setState(() => _removedIds.remove(conversation.id));
+      showZivoToast(
+        context,
+        l(context).askDeleteChatFailed,
+        kind: ToastKind.error,
+      );
+      return;
+    }
     widget.onDeleted(conversation.id);
   }
 
@@ -199,8 +227,10 @@ class _SessionsSheetState extends State<SessionsSheet> {
               child: StreamBuilder<List<AiConversation>>(
                 stream: _conversations,
                 builder: (context, snapshot) {
-                  final conversations =
-                      snapshot.data ?? const <AiConversation>[];
+                  final conversations = [
+                    for (final c in snapshot.data ?? const <AiConversation>[])
+                      if (!_removedIds.contains(c.id)) c,
+                  ];
                   if (conversations.isEmpty) {
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(

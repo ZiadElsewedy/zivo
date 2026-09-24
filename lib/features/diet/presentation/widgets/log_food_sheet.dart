@@ -16,7 +16,6 @@ import '../../domain/nutrition/food_log_entry.dart';
 import '../../domain/nutrition/food_reference.dart';
 import '../../domain/nutrition/nutrition_calculator.dart';
 import '../../../../l10n/l10n.dart';
-import '../diet_labels.dart';
 
 /// "What did you eat?" — search the catalog, pick a food, give an amount.
 ///
@@ -185,14 +184,10 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // No "Searching <database>" line: which catalog answers is ZIVO's
+        // business, not the user's. The entry still records its source
+        // internally (`FoodLogEntry.source`/`sourceRef`) for provenance.
         Text(l(context).logWhatDidYouEat, style: AppText.rowTitle),
-        const SizedBox(height: 4),
-        Text(
-          l(context).dietSearching(
-            nutritionSourceText(context, NutritionSource.usdaFdc),
-          ),
-          style: AppText.meta.copyWith(color: TrainColors.ink3),
-        ),
         const SizedBox(height: 14),
         TextField(
           key: const Key('food-search'),
@@ -361,7 +356,6 @@ class _ProvenanceLine extends StatelessWidget {
     };
     return Text(
       [
-        nutritionSourceText(context, food.source),
         ?preparation,
         l(context).dietKcalPer100g(food.kcalPer100g.round()),
       ].join(' · '),

@@ -69,14 +69,24 @@ void main() {
       await tester.pumpAndSettle();
 
       // Defaults to Claude Sonnet — the row surfaces it without opening Ask.
+      // ONE row shows the one selected model; the automatic fallback is never
+      // presented as a second active model.
       expect(find.byKey(const Key('settings-ai-model')), findsOneWidget);
       expect(find.text('Claude Sonnet'), findsOneWidget);
+      expect(find.text('Gemini Flash'), findsNothing);
+      expect(find.textContaining('Haiku'), findsNothing);
 
       await tester.tap(find.byKey(const Key('settings-ai-model')));
       await tester.pumpAndSettle();
 
       // Same page the Ask header pushes — not a second implementation.
       expect(find.byType(AskSettingsPage), findsOneWidget);
+      // The picker offers exactly the two models, one of them active.
+      expect(find.byKey(const Key('model-claude-sonnet')), findsOneWidget);
+      expect(find.byKey(const Key('model-gemini-flash')), findsOneWidget);
+      expect(find.byKey(const Key('model-claude-haiku')), findsNothing);
+      expect(find.textContaining('Haiku'), findsNothing);
+      expect(find.text('Active'), findsOneWidget);
 
       await tester.tap(find.text('Gemini Flash'));
       await tester.pumpAndSettle();

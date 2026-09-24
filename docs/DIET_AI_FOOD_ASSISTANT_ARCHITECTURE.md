@@ -1,5 +1,15 @@
 # AI food/diet interaction layer — architecture
 
+> **Superseded in part (2026-09-24).** `suggest_meal_replacement` is now
+> **`search_food_alternatives`**: the model proposes realistic candidates and the
+> catalog prices them (the macro-share ranking below offered canned soup for
+> molokhia); options are shown with `ask_choice` and the swap waits for the user's
+> pick (the turn loop refuses `replace_meal_item` in the turn that offered them).
+> `search_food_product` now tries the user's saved foods → Open Food Facts →
+> Gemini web search. Current behaviour: `docs/STATE.md` and
+> `functions/ai/chat/README.md`. Text below is the original design, kept for
+> history.
+
 > Started as a design doc written before any implementation; now also the build log, kept
 > current as each phase landed — sections marked "as built" record where reality corrected
 > the original sketch. Supersedes nothing; extends

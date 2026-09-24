@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/train_chrome.dart';
 import '../../../../core/widgets/train_surfaces.dart';
+import '../../../../core/util/bidi.dart';
 import '../../../../core/widgets/zivo_confirm.dart';
-import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/analysis/plan_verdict.dart';
 import '../../domain/body_measures.dart';
 import '../../domain/diet_format.dart';
+import '../../domain/diet_goal.dart';
+import '../../domain/meal.dart';
 import '../../domain/diet_plan.dart';
 import '../../domain/diet_plan_status.dart';
 import '../widgets/body_measures_builder.dart';
@@ -108,16 +111,19 @@ class _NoPlans extends StatelessWidget {
   );
 }
 
-/// One plan in the library: what it is, what it adds up to, what it would do
-/// to the user, and the two things they can do with it.
+/// One plan in the library, as a summary rather than a record: what it is,
+/// what it's for, what it adds up to, and what it would do to the user — in
+/// that order of weight, so two plans can be told apart at a glance. The
+/// actions sit quietly underneath; the plan is the subject, not the buttons.
 class _PlanCard extends StatelessWidget {
   const _PlanCard({required this.plan, required this.measures});
 
   final DietPlan plan;
 
   /// Null when body data is incomplete — the card then simply doesn't carry a
-  /// verdict line, rather than showing a guessed one. The Diet screen is where
-  /// the ask for that data lives; repeating it on every card would be nagging.
+  /// goal or an outcome line, rather than showing a guessed one. The Diet
+  /// screen is where the ask for that data lives; repeating it on every card
+  /// would be nagging.
   final BodyMeasures? measures;
 
   bool get _isActive => plan.status == DietPlanStatus.active;
@@ -151,83 +157,110 @@ class _PlanCard extends StatelessWidget {
         ? null
         : analysePlan(plan: plan, measures: measures);
     final energy = planDailyEnergy(plan);
+    final goal = verdict == null ? null : planGoalFor(verdict.direction);
+    final meals = typicalMealCount(plan);
+    final summary = [
+      if (goal != null) dietGoalText(context, goal),
+      if (meals != null) l(context).importItemCountMeal(meals),
+    ].join(' · ');
 
     return TrainCard(
       key: Key('plan-card-${plan.id}'),
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+      padding: const EdgeInsets.fromLTRB(18, 16, 12, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  plan.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TrainType.ui(
-                    size: 15.5,
-                    weight: FontWeight.w700,
-                    color: TrainColors.inkPlain,
-                    height: 1.25,
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    isolate(plan.name),
+                    key: Key('plan-name-${plan.id}'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TrainType.ui(
+                      size: 16,
+                      weight: FontWeight.w700,
+                      color: TrainColors.inkPlain,
+                      height: 1.25,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              _StatusPill(status: plan.status),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            [
-              dietSourceText(context, plan.source).toUpperCase(),
-              l(context).dietDaysCaps(plan.days.length),
-              if (energy.kcalPerDay != null)
-                l(context).dietKcalPerDayCaps(
-                  '${approx(energy.estimated)}${energy.kcalPerDay}',
+                const SizedBox(width: 10),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: _StatusPill(status: plan.status),
                 ),
-            ].join(' · '),
-            style: TrainType.mono(
-              size: 10.5,
-              tracking: 0.06,
-              color: TrainColors.ink4,
+              ],
             ),
           ),
+          if (summary.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              summary,
+              key: Key('plan-summary-${plan.id}'),
+              style: AppText.meta.copyWith(color: TrainColors.ink3),
+            ),
+          ],
+          if (energy.kcalPerDay != null) ...[
+            const SizedBox(height: 12),
+            Text.rich(
+              key: Key('plan-kcal-${plan.id}'),
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: ltrFor(
+                      context,
+                      '${approx(energy.estimated)}${energy.kcalPerDay}',
+                    ),
+                    style: TrainType.mono(
+                      size: 20,
+                      weight: FontWeight.w600,
+                      color: TrainColors.ink,
+                    ),
+                  ),
+                  TextSpan(
+                    text: ' ${l(context).plansKcalPerDayUnit}',
+                    style: AppText.meta.copyWith(color: TrainColors.ink3),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (verdict != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 2),
             Text(
               verdictHeadline(verdict),
               key: Key('plan-verdict-${plan.id}'),
-              style: AppText.meta.copyWith(color: TrainColors.ink2),
+              style: AppText.meta.copyWith(color: TrainColors.ink3),
             ),
           ],
-          const SizedBox(height: 13),
+          const SizedBox(height: 8),
           Row(
             children: [
               if (!_isActive)
-                Expanded(
-                  child: PillButton(
-                    key: Key('activate-${plan.id}'),
-                    label: l(context).plansFollow,
-                    icon: Icons.check_rounded,
-                    enabled: true,
-                    onTap: () => _activate(context),
-                  ),
+                _QuietAction(
+                  actionKey: Key('activate-${plan.id}'),
+                  label: l(context).plansFollow,
+                  color: TrainColors.ember,
+                  emphasis: true,
+                  onTap: () => _activate(context),
                 )
               else
-                Expanded(
-                  child: _QuietAction(
-                    actionKey: Key('archive-${plan.id}'),
-                    label: l(context).plansStopFollowing,
-                    onTap: () => _archive(context),
-                  ),
+                _QuietAction(
+                  actionKey: Key('archive-${plan.id}'),
+                  label: l(context).plansStopFollowing,
+                  onTap: () => _archive(context),
                 ),
-              const SizedBox(width: 8),
-              _QuietAction(
-                actionKey: Key('delete-${plan.id}'),
-                label: l(context).actionDelete,
-                color: TrainColors.ember,
-                onTap: () => _delete(context),
+              const Spacer(),
+              IconButton(
+                key: Key('delete-${plan.id}'),
+                tooltip: l(context).actionDelete,
+                onPressed: () => _delete(context),
+                icon: Icon(AppIcons.trash, size: 18, color: TrainColors.ink4),
               ),
             ],
           ),
@@ -235,6 +268,33 @@ class _PlanCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// What a plan is FOR, read off what it would do to the user's weight — the
+/// same deadband verdict as the outcome line, so the two can never disagree.
+/// Plans carry no stored goal; this is derived, and only when body data lets
+/// the app compare the plan with maintenance at all.
+DietGoal planGoalFor(EnergyDirection direction) => switch (direction) {
+  EnergyDirection.losing => DietGoal.fatLoss,
+  EnergyDirection.holding => DietGoal.maintain,
+  EnergyDirection.gaining => DietGoal.muscleGain,
+};
+
+/// How many meals a day the plan usually has — the most common count across
+/// its days, supplements excluded. Null for a plan with no meals.
+int? typicalMealCount(DietPlan plan) {
+  final counts = <int, int>{};
+  for (final day in plan.days) {
+    final n = regularMeals(day.meals).length;
+    if (n > 0) counts[n] = (counts[n] ?? 0) + 1;
+  }
+  if (counts.isEmpty) return null;
+  return counts.entries
+      .reduce((a, b) => b.value > a.value ||
+              (b.value == a.value && b.key > a.key)
+          ? b
+          : a)
+      .key;
 }
 
 /// Where a plan stands, as a word rather than a colour alone.
@@ -272,6 +332,7 @@ class _QuietAction extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.color,
+    this.emphasis = false,
   });
 
   final Key actionKey;
@@ -279,17 +340,25 @@ class _QuietAction extends StatelessWidget {
   final VoidCallback onTap;
   final Color? color;
 
+  /// The card's one committing action (Follow) — same weight as its quiet
+  /// neighbours, told apart by ember and a semibold label, not by size.
+  final bool emphasis;
+
   @override
   Widget build(BuildContext context) => TextButton(
     key: actionKey,
     onPressed: onTap,
     style: TextButton.styleFrom(
       minimumSize: const Size(0, 44),
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      alignment: AlignmentDirectional.centerStart,
     ),
     child: Text(
       label,
-      style: AppText.meta.copyWith(color: color ?? TrainColors.ink2),
+      style: AppText.meta.copyWith(
+        color: color ?? TrainColors.ink2,
+        fontWeight: emphasis ? FontWeight.w600 : null,
+      ),
     ),
   );
 }

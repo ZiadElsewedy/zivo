@@ -87,8 +87,13 @@ class ChoiceChips extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final o in request.options)
+                  for (final (i, o) in request.options.indexed)
                     _OptionChip(
+                      // Numbered from 3 options up, the way the coach sees
+                      // them in the conversation — so "option 2" / "رقم 2"
+                      // means the chip the user is looking at. A yes/no pair
+                      // doesn't need numbers.
+                      ordinal: request.options.length >= 3 ? i + 1 : null,
                       label: o.label,
                       subtitle: o.subtitle,
                       picked: pickedValue == o.value,
@@ -109,6 +114,7 @@ class ChoiceChips extends StatelessWidget {
 
 class _OptionChip extends StatelessWidget {
   const _OptionChip({
+    this.ordinal,
     required this.label,
     this.subtitle,
     required this.picked,
@@ -116,6 +122,7 @@ class _OptionChip extends StatelessWidget {
     required this.onTap,
   });
 
+  final int? ordinal;
   final String label;
   final String? subtitle;
   final bool picked;
@@ -149,6 +156,16 @@ class _OptionChip extends StatelessWidget {
               if (picked) ...[
                 Icon(AppIcons.check, size: 15, color: TrainColors.ember),
                 const SizedBox(width: 6),
+              ] else if (ordinal case final n?) ...[
+                Text(
+                  '$n',
+                  style: TrainType.mono(
+                    size: 13,
+                    color: fg.withValues(alpha: 0.55),
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(width: 8),
               ],
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

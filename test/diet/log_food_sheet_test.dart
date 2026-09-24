@@ -197,11 +197,12 @@ void main() {
     await tester.enterText(find.byKey(const Key('log-quantity')), '300');
     await tester.pumpAndSettle();
     expect(find.text('450 kcal'), findsOneWidget);
-    expect(find.textContaining('Your own food'), findsWidgets);
+    // Its figures are what matter; where they came from isn't shown.
+    expect(find.textContaining('Your own food'), findsNothing);
   });
 
-  testWidgets('a logged entry appears on the Diet screen with its provenance, '
-      'and can be removed', (tester) async {
+  testWidgets('a logged entry appears on the Diet screen without a source '
+      'label, and can be removed', (tester) async {
     final diet = InMemoryDietRepository();
     addTearDown(diet.dispose);
 
@@ -220,7 +221,8 @@ void main() {
     final entry = (await diet.watchFoodLog(DateTime.now()).first).single;
     await tester.ensureVisible(find.byKey(Key('log-entry-${entry.id}')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('USDA FoodData Central'), findsOneWidget);
+    // The entry doesn't make the user read where its figures came from.
+    expect(find.textContaining('USDA'), findsNothing);
 
     await tester.tap(find.byKey(Key('remove-log-${entry.id}')));
     await tester.pumpAndSettle();

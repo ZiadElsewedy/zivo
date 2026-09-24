@@ -1,9 +1,8 @@
 /**
- * Offline tests for `./meal_replacement.js`. `rankAlternatives` reads the
- * real bundled catalog (same as `food_db.test.js`), so these assert
- * behavioral properties (role filtering, self-exclusion, avoid filtering,
- * the alternatives cap) rather than exact catalog contents, which would be
- * brittle against a catalog rebuild.
+ * Offline tests for `./meal_replacement.js`. `priceReplacementCandidates` and
+ * `pickWholeFood` read the real bundled catalog (same as `food_db.test.js`);
+ * the assertions are behavioral (whole food over processed, cooked over raw,
+ * portion sized to the original's calories) rather than exact row ids.
  */
 
 const assert = require("node:assert/strict");
@@ -13,8 +12,9 @@ const {
   classifyMacroRole,
   macroShares,
   shareDistance,
-  rankAlternatives,
-  MAX_ALTERNATIVES,
+  priceReplacementCandidates,
+  pickWholeFood,
+  MAX_CANDIDATES,
 } = require("./meal_replacement");
 
 test("classifyMacroRole: a clear protein source", () => {
@@ -58,91 +58,77 @@ test("shareDistance is 0 for identical shares and grows with divergence", () => 
   assert.ok(shareDistance(a, closer) < shareDistance(a, farther));
 });
 
-test("rankAlternatives: unknown role ranks nothing rather than guessing", () => {
-  const {role, alternatives} = rankAlternatives({
-    originalName: "Mystery item",
-    originalMacros: {proteinG: null, carbsG: null, fatG: null},
-  });
-  assert.equal(role, "unknown");
-  assert.deepEqual(alternatives, []);
+test("pickWholeFood prefers the plain cooked food over processed forms", () => {
+  const beans = pickWholeFood("green beans", [], null);
+  assert.match(beans.name, /cooked/i);
+  assert.doesNotMatch(beans.name, /canned|frozen/i);
+  const chicken = pickWholeFood("chicken breast", [], null);
+  assert.doesNotMatch(chicken.name, /breaded|deli|sliced/i);
+  const spinach = pickWholeFood("spinach", [], null);
+  assert.doesNotMatch(spinach.name, /malabar|souffle/i);
 });
 
-test("rankAlternatives: a protein-role item gets protein-role alternatives only, capped", () => {
-  const {role, alternatives} = rankAlternatives({
-    originalName: "Zebra Steak Deluxe", // won't collide with real catalog names
-    originalMacros: {proteinG: 40, carbsG: 0, fatG: 2},
-  });
-  assert.equal(role, "protein");
-  assert.ok(alternatives.length > 0, "the catalog has protein-role foods");
-  assert.ok(alternatives.length <= MAX_ALTERNATIVES);
-  for (const alt of alternatives) {
-    assert.equal(alt.macroRole, "protein");
-    assert.match(alt.similarityNote, /protein/);
-    assert.ok(alt.foodId);
-    assert.ok(alt.per100g.kcal >= 0);
-  }
-  // Ranked nearest-first.
-  for (let i = 1; i < alternatives.length; i++) {
-    const distOf = (a) => {
-      const shares = macroShares({
-        proteinG: a.per100g.proteinG,
-        carbsG: a.per100g.carbsG,
-        fatG: a.per100g.fatG,
+test("pickWholeFood keeps a processed form the candidate asked for", () => {
+  assert.match(pickWholeFood("canned tuna", [], null).name, /canned/i);
+});
+
+test("pickWholeFood honours an explicit preparation", () => {
+  assert.equal(pickWholeFood("carrots", [], "raw").preparation, "raw");
+});
+
+test("pickWholeFood returns null for a name the catalog doesn't have", () => {
+  assert.equal(pickWholeFood("zzqx unknown dish", [], null), null);
+});
+
+test("pickWholeFood finds the user's own food first", () => {
+  const mine = {id: "custom:1", name: "Mama's okra stew", kcalPer100g: 90};
+  assert.equal(pickWholeFood("okra stew", [mine], null), mine);
+});
+
+test("molokhia → realistic vegetables, priced and portioned to its calories",
+    () => {
+      const out = priceReplacementCandidates({
+        originalName: "Molokhia",
+        originalCalories: 70,
+        candidates: [
+          {name: "green beans"}, {name: "zucchini"}, {name: "okra"},
+          {name: "grilled vegetable platter"},
+        ],
       });
-      return shareDistance({protein: 1, carbs: 0, fat: 0}, shares);
-    };
-    // Not a strict re-derivation (rounding), just: not obviously out of order.
-    assert.ok(distOf(alternatives[i - 1]) <= distOf(alternatives[i]) + 0.5);
-  }
+      const found = out.filter((c) => c.found);
+      assert.equal(found.length, 3);
+      for (const c of found) {
+        assert.ok(c.foodId);
+        // The portion is sized to ~the original's 70 kcal (within rounding
+        // to 10 g) unless clamped by the 30–400 g bounds.
+        assert.ok(c.portion.grams >= 30 && c.portion.grams <= 400);
+        assert.ok(Math.abs(c.portion.kcal - 70) <= 15 ||
+          c.portion.grams === 400);
+        assert.doesNotMatch(c.catalogName, /soup|canned|stroganoff/i);
+      }
+      assert.deepEqual(out.find((c) => !c.found),
+          {name: "grilled vegetable platter", found: false,
+            reason: "notInCatalog"});
+    });
+
+test("the original food and avoided foods are never offered back", () => {
+  const out = priceReplacementCandidates({
+    originalName: "Okra",
+    originalCalories: 60,
+    candidates: [{name: "okra"}, {name: "spinach"}, {name: "zucchini"}],
+    avoid: ["spinach"],
+  });
+  assert.deepEqual(out.map((c) => [c.name, c.found, c.reason || null]), [
+    ["okra", false, "sameAsOriginal"],
+    ["spinach", false, "avoided"],
+    ["zucchini", true, null],
+  ]);
 });
 
-test("rankAlternatives: excludes foods matching an avoid/allergy token", () => {
-  const {alternatives} = rankAlternatives({
-    originalName: "Zebra Steak Deluxe",
-    originalMacros: {proteinG: 40, carbsG: 0, fatG: 2},
-    avoid: ["chicken"],
-    allergies: ["turkey"],
+test("candidates are capped and duplicates collapse", () => {
+  const many = Array.from({length: MAX_CANDIDATES + 3}, () => ({name: "okra"}));
+  const out = priceReplacementCandidates({
+    originalName: "Molokhia", originalCalories: 70, candidates: many,
   });
-  for (const alt of alternatives) {
-    const lower = alt.name.toLowerCase();
-    assert.ok(!lower.includes("chicken"));
-    assert.ok(!lower.includes("turkey"));
-  }
-});
-
-test("rankAlternatives: layers the user's own custom foods in as candidates", () => {
-  // Exactly the original's macro proportions — distance 0, guaranteed to rank
-  // ahead of any nonzero-distance catalog food regardless of catalog contents.
-  const customFoods = [{
-    id: "cf1",
-    name: "My Protein Shake",
-    kcalPer100g: 178,
-    proteinPer100g: 40,
-    carbsPer100g: 0,
-    fatPer100g: 2,
-    preparation: "unknown",
-    portions: [],
-  }];
-  const {alternatives} = rankAlternatives({
-    originalName: "Zebra Steak Deluxe",
-    originalMacros: {proteinG: 40, carbsG: 0, fatG: 2},
-    customFoods,
-  });
-  assert.ok(
-      alternatives.some((a) => a.foodId === "custom:cf1"),
-      "an exact-proportion custom food should rank in ahead of nonzero-distance foods");
-});
-
-test("rankAlternatives: a 'mixed' original isn't filtered to one role", () => {
-  const {role, alternatives} = rankAlternatives({
-    originalName: "Zebra Omelette Supreme",
-    // Protein ~48%, carbs ~4%, fat ~48% of calories — no clear lead.
-    originalMacros: {proteinG: 12, carbsG: 1, fatG: 6.4},
-  });
-  assert.equal(role, "mixed");
-  const roles = new Set(alternatives.map((a) => a.macroRole));
-  // Not asserting more than one role appears (catalog-dependent), just that
-  // the function didn't silently narrow to a single specific role.
-  assert.ok(!alternatives.some((a) => a.macroRole === "unknown"));
-  assert.ok(roles.size >= 0);
+  assert.equal(out.length, 1);
 });

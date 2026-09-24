@@ -39,6 +39,29 @@ void main() {
     expect(find.textContaining('suggest_'), findsNothing);
   });
 
+  testWidgets('a model fallback reads as unavailable → switched', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        const ActivityTimeline([
+          AiActivityStep.fallback('gemini-flash', 'claude-sonnet'),
+          AiActivityStep('get_diet', AiStepStatus.ok),
+          AiActivityStep('search_food_alternatives', AiStepStatus.ok),
+        ]),
+      ),
+    );
+    expect(find.text('Gemini Flash unavailable'), findsOneWidget);
+    expect(find.text('Switched to Claude Sonnet'), findsOneWidget);
+    expect(find.text('Grab · Diet details'), findsOneWidget);
+    expect(find.text('Search · Food alternatives'), findsOneWidget);
+    // Order: the switch, then the work the fallback model did.
+    expect(
+      tester.getTopLeft(find.text('Switched to Claude Sonnet')).dy,
+      lessThan(tester.getTopLeft(find.text('Grab · Diet details')).dy),
+    );
+  });
+
   testWidgets('an unknown tool is left out rather than named', (tester) async {
     await tester.pumpWidget(
       _host(

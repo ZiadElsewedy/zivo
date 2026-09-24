@@ -2219,7 +2219,7 @@ abstract class AppLocalizations {
   /// Makes a plan the active one.
   ///
   /// In en, this message translates to:
-  /// **'Follow this plan'**
+  /// **'Follow'**
   String get plansFollow;
 
   /// Archives the active plan.
@@ -2227,6 +2227,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stop following'**
   String get plansStopFollowing;
+
+  /// Unit after the plan's daily calorie figure on a Your plans card (the number is shown before it).
+  ///
+  /// In en, this message translates to:
+  /// **'kcal/day'**
+  String get plansKcalPerDayUnit;
 
   /// Title of the plan-generation preferences screen.
   ///
@@ -3776,6 +3782,12 @@ abstract class AppLocalizations {
   /// **'Delete chat'**
   String get askDeleteChatConfirm;
 
+  /// Error toast when deleting a conversation fails; the chat is restored to the list.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t delete that chat. It\'s back in your list.'**
+  String get askDeleteChatFailed;
+
   /// The assistant introducing itself on the empty chat screen. "ZIVO" is the product name and is never translated.
   ///
   /// In en, this message translates to:
@@ -4057,6 +4069,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t get this'**
   String get askActivityFailed;
+
+  /// Ask activity timeline: the user's selected AI model couldn't answer (after a retry). {model} is a product name such as 'Gemini Flash'.
+  ///
+  /// In en, this message translates to:
+  /// **'{model} unavailable'**
+  String askFallbackUnavailable(String model);
+
+  /// Ask activity timeline: ZIVO automatically continued the same request on the other AI model. {model} is a product name such as 'Claude Sonnet'.
+  ///
+  /// In en, this message translates to:
+  /// **'Switched to {model}'**
+  String askFallbackSwitched(String model);
 
   /// A proposed change the user accepted.
   ///

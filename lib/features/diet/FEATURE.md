@@ -19,7 +19,7 @@
   macro chips, completion state).
 - `diet_plan_edit_page.dart`, `meal_detail_page.dart` — edit plan / drill into a meal.
   **Meal replacement is Ask-only for now**: "swap the chicken for something else" in
-  chat calls `suggest_meal_replacement`/`replace_meal_item`
+  chat calls `search_food_alternatives`/`replace_meal_item`
   (`functions/ai/tools/read.js`/`mutations.js`, ranked by
   `functions/nutrition/meal_replacement.js` — same macro role, closest macro-share
   distance). No in-app "Replace" button here yet; see

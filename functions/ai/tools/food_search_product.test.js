@@ -11,6 +11,8 @@ const {
   foodSearchToolsByName,
   normalizeCandidates,
   citationsFrom,
+  isConsistent,
+  matchesAll,
 } = require("./food_search_product");
 
 const searchFoodProduct = foodSearchToolsByName.get("search_food_product");
@@ -90,13 +92,17 @@ test("empty query returns notFound without calling either provider", async () =>
   assert.equal(chatProvider.calls.length, 0);
 });
 
-test("missing deps returns unavailable without any call", async () => {
+test("nothing wired and nothing saved is notFound, with an ask-for-the-label " +
+    "note", async () => {
   const result = await searchFoodProduct.execute(
       {}, "u1", {query: "BreadWay toast"}, new Date(), 0, undefined);
-  assert.equal(result.outcome, "unavailable");
+  assert.equal(result.outcome, "notFound");
+  assert.match(result.note, /nutrition label/);
+  assert.match(result.note, /Never estimate/);
 });
 
-test("a found, fully-specified candidate is returned with citations", async () => {
+test("a found, fully-specified candidate is returned — with no URLs for the " +
+    "model to show", async () => {
   const foodSearchProvider = fakeProvider(
       groundResponse("BreadWay Whole Wheat Toast: 247 kcal, 9g protein, " +
         "41g carbs, 3.5g fat per 100g, per breadway.com"));
@@ -121,7 +127,7 @@ test("a found, fully-specified candidate is returned with citations", async () =
   assert.equal(c.brand, "BreadWay");
   assert.deepEqual(c.per100g, {kcal: 247, proteinG: 9, carbsG: 41, fatG: 3.5});
   assert.equal(c.servingSize, "1 slice (28 g)");
-  assert.deepEqual(c.sourceUrls, ["https://example.com/breadway"]);
+  assert.equal(c.sourceUrls, undefined);
 
   // The ground call must never carry function-calling tools alongside
   // grounding (Gemini rejects the combination) — this tool must not regress
@@ -201,10 +207,10 @@ test("the extraction call failing also degrades to unavailable", async () => {
 test("normalizeCandidates caps at 5 and assigns stable sequential ids", () => {
   const raw = Array.from({length: 8}, (_, i) => ({
     name: `Food ${i}`,
-    kcalPer100g: 100,
-    proteinPer100g: 1,
-    carbsPer100g: 1,
-    fatPer100g: 1,
+    kcalPer100g: 98,
+    proteinPer100g: 10,
+    carbsPer100g: 10,
+    fatPer100g: 2,
   }));
   const out = normalizeCandidates(raw, []);
   assert.equal(out.length, 5);
@@ -233,4 +239,145 @@ test("citationsFrom reads up to 3 unique groundingChunk URLs", () => {
 test("citationsFrom tolerates a response with no grounding metadata", () => {
   assert.deepEqual(citationsFrom({}), []);
   assert.deepEqual(citationsFrom(null), []);
+});
+
+/**
+ * A fake `fetch` answering the product-database lookup with `products`.
+ * @param {!Array<!Object>} products
+ * @return {!Function}
+ */
+function fakeFetch(products) {
+  const f = async (url) => {
+    f.urls.push(url);
+    return {ok: true, json: async () => ({products})};
+  };
+  f.urls = [];
+  return f;
+}
+
+/**
+ * An Open Food Facts-shaped product row.
+ * @param {string} name
+ * @param {string} brands
+ * @param {!Array<number>} figures kcal, protein, carbs, fat per 100 g.
+ * @return {!Object}
+ */
+function offProduct(name, brands, [kcal, p, c, f]) {
+  return {
+    product_name: name,
+    brands,
+    serving_size: "1 wrap (90 g)",
+    nutriments: {
+      "energy-kcal_100g": kcal, "proteins_100g": p,
+      "carbohydrates_100g": c, "fat_100g": f,
+    },
+  };
+}
+
+test("a product the user already saved is found first, with its foodId",
+    async () => {
+      const store = {listCustomFoods: async () => [{
+        id: "bw1", name: "BreadWay Tortilla", kcalPer100g: 289,
+        proteinPer100g: 6.7, carbsPer100g: 55.6, fatPer100g: 6.7,
+      }]};
+      const fetch = fakeFetch([]);
+      const result = await searchFoodProduct.execute(
+          store, "u1", {query: "breadway tortilla"}, new Date(), 0, {fetch});
+      assert.equal(result.outcome, "found");
+      assert.equal(result.candidates[0].foodId, "custom:bw1");
+      assert.equal(result.candidates[0].alreadySaved, true);
+      assert.equal(fetch.urls.length, 0, "no external search needed");
+    });
+
+test("the product-label database is searched before the web, and only the " +
+    "named product with consistent figures comes back", async () => {
+  const fetch = fakeFetch([
+    offProduct("Flour Tortilla", "Breadway", [289, 6.7, 55.6, 6.7]),
+    // Same brand, impossible label: 40 g fat can't be 282 kcal.
+    offProduct("Wholewheat Tortilla", "Breadway", [282, 8, 52.2, 40]),
+    // A different brand is not the product asked for.
+    offProduct("Flour Tortilla", "Other Bakery", [300, 8, 50, 7]),
+  ]);
+  const foodSearchProvider = fakeProvider(groundResponse("unused"));
+  const chatProvider = fakeProvider(extractResponse([]));
+  const result = await searchFoodProduct.execute(
+      {}, "u1", {query: "tortilla", brand: "BreadWay"}, new Date(), 0,
+      {fetch, foodSearchProvider, chatProvider});
+  assert.equal(result.outcome, "found");
+  assert.deepEqual(result.candidates.map((c) => [c.brand, c.name]),
+      [["Breadway", "Flour Tortilla"]]);
+  assert.deepEqual(result.candidates[0].per100g,
+      {kcal: 289, proteinG: 6.7, carbsG: 55.6, fatG: 6.7});
+  assert.match(fetch.urls[0], /search_terms=BreadWay%20tortilla/);
+  assert.equal(foodSearchProvider.calls.length, 0, "web search not needed");
+});
+
+test("the database finding nothing falls through to the web search",
+    async () => {
+      const fetch = fakeFetch([]);
+      const foodSearchProvider = fakeProvider(groundResponse("findings"));
+      const chatProvider = fakeProvider(extractResponse([]));
+      const result = await searchFoodProduct.execute(
+          {}, "u1", {query: "zzqx snack"}, new Date(), 0,
+          {fetch, foodSearchProvider, chatProvider});
+      assert.equal(foodSearchProvider.calls.length, 1);
+      assert.equal(result.outcome, "notFound");
+    });
+
+test("a database outage is not an error — the web search still runs",
+    async () => {
+      const fetch = async () => {
+        throw new Error("ECONNRESET");
+      };
+      const foodSearchProvider = fakeProvider(groundResponse("findings"));
+      const chatProvider = fakeProvider(extractResponse([]));
+      const result = await searchFoodProduct.execute(
+          {}, "u1", {query: "zzqx snack"}, new Date(), 0,
+          {fetch, foodSearchProvider, chatProvider});
+      assert.equal(foodSearchProvider.calls.length, 1);
+      assert.equal(result.outcome, "notFound");
+    });
+
+test("per-serving label figures are converted to per 100 g by arithmetic",
+    () => {
+      const [c] = normalizeCandidates([{
+        name: "Flour Tortilla", brand: "Breadway",
+        perServing: {kcal: 260, proteinG: 6, carbsG: 50, fatG: 6},
+        servingGrams: 90,
+      }], []);
+      assert.deepEqual(c.per100g,
+          {kcal: 289, proteinG: 6.7, carbsG: 55.6, fatG: 6.7});
+    });
+
+test("per-serving figures without the serving's weight are dropped", () => {
+  assert.equal(normalizeCandidates([{
+    name: "Flour Tortilla",
+    perServing: {kcal: 260, proteinG: 6, carbsG: 50, fatG: 6},
+  }], []).length, 0);
+});
+
+test("web results for another brand are dropped when a brand was named",
+    async () => {
+      const foodSearchProvider = fakeProvider(groundResponse("findings"));
+      const chatProvider = fakeProvider(extractResponse([
+        {name: "Flour Tortilla", brand: "Other", kcalPer100g: 300,
+          proteinPer100g: 8, carbsPer100g: 50, fatPer100g: 7},
+      ]));
+      const result = await searchFoodProduct.execute(
+          {}, "u1", {query: "tortilla", brand: "BreadWay"}, new Date(), 0,
+          {foodSearchProvider, chatProvider});
+      assert.equal(result.outcome, "notFound");
+    });
+
+test("isConsistent rejects labels whose energy contradicts their macros", () => {
+  assert.ok(isConsistent({kcal: 289, proteinG: 6.7, carbsG: 55.6, fatG: 6.7}));
+  assert.ok(!isConsistent({kcal: 282, proteinG: 8, carbsG: 52.2, fatG: 40}));
+  assert.ok(!isConsistent({kcal: 100, proteinG: 150, carbsG: 0, fatG: 0}));
+});
+
+test("matchesAll matches brand words inside run-together names", () => {
+  assert.ok(matchesAll(["breadway", "tortilla"],
+      "Bran Tortilla Damfi Breadway Selections"));
+  assert.ok(matchesAll(["breadway"], "Bread Way Toast"));
+  assert.ok(!matchesAll(["breadway", "tortilla"], "Breadway Toast"));
 });

@@ -531,6 +531,36 @@ void main() {
     },
   );
 
+  test('a model fallback is recorded on the timeline and drops text the '
+      'failed model streamed', () async {
+    late final AskController c;
+    String? liveAfterFallback;
+    final ai = _FakeAi(
+      events: const [
+        AiDeltaEvent('Half an ans'),
+        AiFallbackEvent('gemini-flash', 'claude-sonnet'),
+        AiStepEvent('get_diet', AiStepStatus.ok),
+      ],
+      afterEachEvent: () {
+        if (c.activity.any((s) => s.isFallback)) {
+          liveAfterFallback ??= c.liveText;
+        }
+      },
+    );
+    c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+
+    c.input.text = 'مش عايز ملوخية';
+    await c.send();
+
+    expect(c.activity, const [
+      AiActivityStep.fallback('gemini-flash', 'claude-sonnet'),
+      AiActivityStep('get_diet', AiStepStatus.ok),
+    ]);
+    expect(liveAfterFallback, isEmpty);
+  });
+
   test('between tool rounds the rail says Thinking…', () async {
     final labels = <String>[];
     late final AskController c;

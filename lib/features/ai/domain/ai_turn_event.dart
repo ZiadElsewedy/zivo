@@ -67,17 +67,46 @@ enum AiStepStatus { running, ok, error }
 /// reach the client, and the words shown are the client's
 /// (`aiActivityLabel`).
 class AiActivityStep {
-  const AiActivityStep(this.tool, this.status);
+  const AiActivityStep(this.tool, this.status)
+    : fallbackFrom = null,
+      fallbackTo = null;
+
+  /// The active model couldn't answer (after its retry) and the turn carried
+  /// on with the other one. [from]/[to] are model-selection keys
+  /// (`gemini-flash`, `claude-sonnet`), never provider error text.
+  const AiActivityStep.fallback(String from, String to)
+    : tool = '',
+      status = AiStepStatus.ok,
+      fallbackFrom = from,
+      fallbackTo = to;
 
   final String tool;
   final AiStepStatus status;
+  final String? fallbackFrom;
+  final String? fallbackTo;
+
+  bool get isFallback => fallbackTo != null;
 
   @override
   bool operator ==(Object other) =>
-      other is AiActivityStep && other.tool == tool && other.status == status;
+      other is AiActivityStep &&
+      other.tool == tool &&
+      other.status == status &&
+      other.fallbackFrom == fallbackFrom &&
+      other.fallbackTo == fallbackTo;
 
   @override
-  int get hashCode => Object.hash(tool, status);
+  int get hashCode => Object.hash(tool, status, fallbackFrom, fallbackTo);
+}
+
+/// The router switched models mid-turn: the active one ([from]) was
+/// unavailable, so the turn continues on [to]. Anything the failed attempt
+/// had streamed is superseded.
+class AiFallbackEvent extends AiTurnEvent {
+  const AiFallbackEvent(this.from, this.to);
+
+  final String from;
+  final String to;
 }
 
 /// A chunk of the assistant's reply text as it streams in.
@@ -128,6 +157,10 @@ AiTurnEvent? aiTurnEventFromChunk(Object? chunk) {
     case 'delta':
       final text = chunk['text'];
       return text is String ? AiDeltaEvent(text) : null;
+    case 'fallback':
+      final from = chunk['from'];
+      final to = chunk['to'];
+      return from is String && to is String ? AiFallbackEvent(from, to) : null;
     default:
       return null;
   }

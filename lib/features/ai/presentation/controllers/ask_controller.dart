@@ -409,6 +409,7 @@ class AskController extends ChangeNotifier {
     'resolve_food' => _strings.askLookingUpFood,
     'calculate_meal_nutrition' => _strings.askCalculating,
     'search_food_product' => _strings.askSearchingForProduct,
+    'search_food_alternatives' => _strings.askFindingAlternatives,
     'suggest_meal_replacement' => _strings.askFindingAlternatives,
     _ => _strings.askWorking,
   };
@@ -689,6 +690,19 @@ class AskController extends ChangeNotifier {
         // step's line on screen claiming work that has already stopped.
         _stepTool = status == AiStepStatus.running ? tool : null;
         _recordStep(tool, status);
+        _notify();
+      case AiFallbackEvent(:final from, :final to):
+        _slowTurnTimer?.cancel();
+        if (_turnSlow) _turnSlow = false;
+        if (!_activity.any((s) => s.fallbackFrom == from && s.fallbackTo == to)) {
+          _activity.add(AiActivityStep.fallback(from, to));
+        }
+        // Whatever the failed model had streamed is superseded by the
+        // fallback's answer — drop it so the reply isn't written twice.
+        if (_streamed || _liveTargetChars.isNotEmpty) {
+          _streamed = false;
+          retireLiveReply();
+        }
         _notify();
       case AiDeltaEvent(:final text):
         _slowTurnTimer?.cancel();

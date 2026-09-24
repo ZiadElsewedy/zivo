@@ -3,11 +3,15 @@
 /// on each [AiRepository.send], and the plan import/generation callables read
 /// it from that settings doc server-side.
 ///
-/// Exactly one model answers every request — there is no automatic switching
-/// to another provider (owner decision, 2026-09-23: one active model keeps
-/// cost and usage attributable). If the active model's provider can't answer,
-/// the request fails with an [AiFailure] naming the provider, and the user
-/// switches model here. See `functions/ai/routing/router.js`.
+/// ONE model is the user's choice — the primary — and it answers every
+/// request. The other provider's model is an automatic emergency fallback,
+/// never a second "active" model and never shown as one (owner decision,
+/// 2026-09-24): on a transient failure the primary is retried once, then the
+/// request continues on the fallback and Ask's timeline says so ("Gemini Flash
+/// unavailable → Switched to Claude Sonnet"); usage records the requested and
+/// the actual model. Only a permanent failure, or both providers failing,
+/// surfaces an [AiFailure] with Retry / Switch model. See
+/// `functions/ai/routing/router.js`.
 ///
 /// The ids are the backend model catalog's keys
 /// (`functions/ai/routing/models.js`). Like [kResponseStyles], they are

@@ -118,6 +118,19 @@ void main() {
       expect(event.replaced, isFalse);
     });
 
+    test('parses a model fallback event', () {
+      final event =
+          aiTurnEventFromChunk({
+                'type': 'fallback',
+                'from': 'gemini-flash',
+                'to': 'claude-sonnet',
+              })
+              as AiFallbackEvent;
+      expect(event.from, 'gemini-flash');
+      expect(event.to, 'claude-sonnet');
+      expect(aiTurnEventFromChunk({'type': 'fallback', 'from': 'x'}), isNull);
+    });
+
     test('parses the thinking phase the loop emits between tool rounds', () {
       final event =
           aiTurnEventFromChunk({'type': 'phase', 'phase': 'thinking'})

@@ -8,7 +8,9 @@
 const assert = require("node:assert/strict");
 const {test} = require("node:test");
 
-const {resolve, generate, CAPABILITY_DEFAULTS} = require("./router");
+const {
+  resolve, generate, stickyProvider, CAPABILITY_DEFAULTS,
+} = require("./router");
 const {ProviderRegistry} = require("../providers/registry");
 const {AiUnavailableError} = require("../providers/classify");
 
@@ -237,4 +239,75 @@ test("a user cancel is rethrown unchanged", async () => {
   await assert.rejects(
       () => generate(registry, "chat", REQ, {signal: controller.signal}),
       (err) => err.name === "AbortError");
+});
+
+test("Gemini down → retried → Claude: onFallback fires before the fallback " +
+    "runs, with model keys only", async () => {
+  const order = [];
+  const gemini = fakeProvider({fail: {status: 503, message: "overloaded"}});
+  const anthropic = {
+    calls: [],
+    generate: async (req) => {
+      order.push("anthropic");
+      anthropic.calls.push(req);
+      return {stopReason: "end"};
+    },
+  };
+  const registry = new ProviderRegistry()
+      .register("gemini", gemini).register("anthropic", anthropic);
+  const seen = [];
+  await generate(registry, "chat", REQ, {onFallback: (info) => {
+    order.push("onFallback");
+    seen.push(info);
+  }}, {preferModel: "gemini-flash"});
+  assert.deepEqual(order, ["onFallback", "anthropic"]);
+  assert.deepEqual(seen,
+      [{from: "gemini-flash", to: "claude-sonnet", reason: "overloaded"}]);
+});
+
+test("Claude down → retried → Gemini, the other way round", async () => {
+  const anthropic = fakeProvider({fail: {status: 529, message: "overloaded"}});
+  const gemini = fakeProvider({response: {stopReason: "end"}});
+  const registry = new ProviderRegistry()
+      .register("gemini", gemini).register("anthropic", anthropic);
+  const seen = [];
+  const resp = await generate(registry, "chat", REQ,
+      {onFallback: (info) => seen.push(info)}, {preferModel: "claude-sonnet"});
+  assert.equal(anthropic.calls.length, 2);
+  assert.equal(resp.modelKey, "gemini-flash");
+  assert.equal(resp.fallbackOccurred, true);
+  assert.deepEqual(seen.map((i) => [i.from, i.to]),
+      [["claude-sonnet", "gemini-flash"]]);
+});
+
+test("a permanent failure never falls back, and onFallback never fires",
+    async () => {
+      const anthropic = fakeProvider({fail: {status: 401, message: "bad key"}});
+      const gemini = fakeProvider({response: {stopReason: "end"}});
+      const registry = new ProviderRegistry()
+          .register("gemini", gemini).register("anthropic", anthropic);
+      let fired = false;
+      await assert.rejects(() => generate(registry, "chat", REQ,
+          {onFallback: () => {
+            fired = true;
+          }}, {preferModel: "claude-sonnet"}), AiUnavailableError);
+      assert.equal(fired, false);
+      assert.equal(gemini.calls.length, 0);
+    });
+
+test("stickyProvider: after one fallback, the rest of the request goes " +
+    "straight to the model that answered", async () => {
+  const gemini = fakeProvider({fail: {status: 503, message: "overloaded"}});
+  const anthropic = fakeProvider({response: {stopReason: "end"}});
+  const registry = new ProviderRegistry()
+      .register("gemini", gemini).register("anthropic", anthropic);
+  const provider = stickyProvider(registry, "chat",
+      {preferModel: "gemini-flash"});
+
+  const first = await provider.generate(REQ);
+  const second = await provider.generate(REQ);
+  assert.equal(first.fallbackOccurred, true);
+  assert.equal(second.modelKey, "claude-sonnet");
+  assert.equal(gemini.calls.length, 2, "only the first call tried Gemini");
+  assert.equal(anthropic.calls.length, 2);
 });

@@ -1742,13 +1742,17 @@
   "@plansTitle": {
     "description": "Title of the plan library."
   },
-  "plansFollow": "Follow this plan",
+  "plansFollow": "Follow",
   "@plansFollow": {
     "description": "Makes a plan the active one."
   },
   "plansStopFollowing": "Stop following",
   "@plansStopFollowing": {
     "description": "Archives the active plan."
+  },
+  "plansKcalPerDayUnit": "kcal/day",
+  "@plansKcalPerDayUnit": {
+      "description": "Unit after the plan's daily calorie figure on a Your plans card (the number is shown before it)."
   },
   "prefsBuildTitle": "Build me a plan",
   "@prefsBuildTitle": {
@@ -3057,6 +3061,10 @@
   "@askDeleteChatConfirm": {
       "description": "Confirm button on the delete-conversation dialog."
   },
+  "askDeleteChatFailed": "Couldn't delete that chat. It's back in your list.",
+  "@askDeleteChatFailed": {
+      "description": "Error toast when deleting a conversation fails; the chat is restored to the list."
+  },
   "askGreeting": "Hey, I'm ZIVO.",
   "@askGreeting": {
       "description": "The assistant introducing itself on the empty chat screen. \"ZIVO\" is the product name and is never translated."
@@ -3244,7 +3252,21 @@
   "askActivityFailed": "Couldn't get this",
   "@askActivityFailed": {
       "description": "Screen-reader / trailing note on an Ask activity chip whose step failed."
+  },  "askFallbackUnavailable": "{model} unavailable",
+  "@askFallbackUnavailable": {
+      "description": "Ask activity timeline: the user's selected AI model couldn't answer (after a retry). {model} is a product name such as 'Gemini Flash'.",
+      "placeholders": {
+          "model": {"type": "String"}
+      }
   },
+  "askFallbackSwitched": "Switched to {model}",
+  "@askFallbackSwitched": {
+      "description": "Ask activity timeline: ZIVO automatically continued the same request on the other AI model. {model} is a product name such as 'Claude Sonnet'.",
+      "placeholders": {
+          "model": {"type": "String"}
+      }
+  },
+
   "askProposalConfirmed": "Confirmed",
   "@askProposalConfirmed": {
       "description": "A proposed change the user accepted."

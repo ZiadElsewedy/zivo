@@ -608,9 +608,12 @@ class _LogEntryRow extends StatelessWidget {
                       _trim(entry.quantity),
                       entry.unit,
                     ),
-                    fromPlan
-                        ? l(context).dietFromYourPlan
-                        : nutritionSourceText(context, entry.source),
+                    // Where a figure came from (a catalog, the user's own
+                    // food) is provenance, kept on the entry — not something
+                    // the user needs to read. Only "from your plan" stays: it
+                    // says the figure is the plan's, not what they weighed.
+                    // An estimated figure already reads "~".
+                    if (fromPlan) l(context).dietFromYourPlan,
                   ].join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

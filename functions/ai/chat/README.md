@@ -88,6 +88,22 @@ provider failure (after the router's own retry + fallback) → thrown, tagged pr
   the app draws as the "Grab · Diet details" timeline above the reply. Names only —
   never a tool's input or result, never the model's reasoning.
 - **Usage** records `terminalState` (and `failedTool` on `tool_error`).
+- **Tool classes.** READ (`get_*`) and SEARCH (`search: true` — `resolve_food`,
+  `search_food_product`, `search_food_alternatives`) change nothing and run
+  freely. MUTATIONS (`mutating: true`) only propose, confirm-gated. A mutation
+  may declare `refusedAfterOffer: '<search tool>'`: when that search OFFERED
+  options (more than one alternative) earlier in the same turn, the proposal
+  is refused back to the model — DISCOVER → the user CHOOSES → MUTATE
+  (`replace_meal_item` after `search_food_alternatives`).
+- **Choices survive the turn.** History carries a question card's options,
+  numbered as the app numbers its chips, with their values (`messages.js`
+  `toNormalizedMessage`), so "option 2" / "اختار رقم 2" maps to the exact
+  foodId next turn. Proposal cards carry their status.
+- **Fallback is visible.** `router.generate` calls `opts.onFallback` just
+  before trying the other provider; the turn emits `{type:'fallback', from, to}`
+  (model keys) and persists `{kind:'fallback', from, to}` in `activity`. Per
+  request the provider is sticky (`router.stickyProvider`): after one
+  fallback, the rest of the turn uses the model that answered.
 
 ## The prompt (`prompt/`)
 

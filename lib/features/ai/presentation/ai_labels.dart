@@ -193,7 +193,7 @@ String? aiActivityLabel(BuildContext context, String tool) {
       s.askActivityMealNutrition,
     ),
     'search_food_product' => (s.askActivitySearch, s.askActivityFoodProduct),
-    'suggest_meal_replacement' => (
+    'search_food_alternatives' || 'suggest_meal_replacement' => (
       s.askActivitySearch,
       s.askActivityFoodAlternatives,
     ),

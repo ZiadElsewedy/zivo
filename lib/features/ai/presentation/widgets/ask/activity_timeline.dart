@@ -15,6 +15,10 @@ import 'thinking_rail.dart';
 /// a tool's input, result or identifier: an unknown tool is left out rather
 /// than named. Violet, because it is system/meta chrome — the same hue as the
 /// thinking rail it sits above.
+///
+/// A model fallback reads as two rows — "⚠ Gemini Flash unavailable" then
+/// "↳ Switched to Claude Sonnet" — so the user sees that ZIVO carried on by
+/// itself instead of failing; the technical reason stays in usage telemetry.
 class ActivityTimeline extends StatelessWidget {
   const ActivityTimeline(this.steps, {super.key});
 
@@ -24,6 +28,30 @@ class ActivityTimeline extends StatelessWidget {
   Widget build(BuildContext context) {
     final rows = <Widget>[];
     for (final step in steps) {
+      if (step.isFallback) {
+        final s = l(context);
+        rows
+          ..add(
+            _ActivityRow(
+              label: s.askFallbackUnavailable(
+                aiModelSelectionText(context, step.fallbackFrom!),
+              ),
+              status: AiStepStatus.error,
+              // The label already says what failed.
+              announceFailure: false,
+            ),
+          )
+          ..add(
+            _ActivityRow(
+              label: s.askFallbackSwitched(
+                aiModelSelectionText(context, step.fallbackTo!),
+              ),
+              status: AiStepStatus.ok,
+              icon: AppIcons.modelSwitched,
+            ),
+          );
+        continue;
+      }
       final label = aiActivityLabel(context, step.tool);
       if (label == null) continue;
       rows.add(_ActivityRow(label: label, status: step.status));
@@ -45,10 +73,21 @@ class ActivityTimeline extends StatelessWidget {
 }
 
 class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({required this.label, required this.status});
+  const _ActivityRow({
+    required this.label,
+    required this.status,
+    this.icon,
+    this.announceFailure = true,
+  });
 
   final String label;
   final AiStepStatus status;
+
+  /// Overrides the done-state check, e.g. the "switched model" arrow.
+  final IconData? icon;
+
+  /// Whether a screen reader hears "couldn't get this" after a failed row.
+  final bool announceFailure;
 
   @override
   Widget build(BuildContext context) {
@@ -60,11 +99,13 @@ class _ActivityRow extends StatelessWidget {
         height: 14,
         child: Center(child: GlowOrb(opacity: 0.9)),
       ),
-      AiStepStatus.ok => Icon(AppIcons.check, size: 14, color: ink),
+      AiStepStatus.ok => Icon(icon ?? AppIcons.check, size: 14, color: ink),
       AiStepStatus.error => Icon(AppIcons.warning, size: 14, color: ink),
     };
     return Semantics(
-      label: failed ? '$label, ${l(context).askActivityFailed}' : label,
+      label: failed && announceFailure
+          ? '$label, ${l(context).askActivityFailed}'
+          : label,
       excludeSemantics: true,
       child: Row(
         mainAxisSize: MainAxisSize.min,

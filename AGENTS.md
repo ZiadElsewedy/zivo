@@ -176,6 +176,8 @@ an exhaustive routing table (the model chooses).
 | "Mark my lunch as eaten." | Ticks a *planned* meal by id → user confirms. | `mark_meal_eaten` (confirm) |
 | "I spent 120 on groceries." / "Change that to 90." / "Delete it." | Proposes a create/edit/delete against the real expense `id` → user confirms. | `create_expense` / `edit_expense` / `delete_expense` (confirm) |
 | "How much did I spend this week?" | Reads expenses / weekly rollup. | `get_expenses`, `summarize_week` |
+| "I don't want molokhia." / "مش عايز ملوخية في الدايت" | Reads the diet, proposes realistic swaps that ZIVO prices, **shows 2–4 options and waits**; the pick (tap, "option 2") becomes a replace proposal → user confirms. Never swaps on its own. | `get_diet` → `search_food_alternatives` → `ask_choice` ⏸ → next turn `replace_meal_item` (confirm) |
+| "I ate BreadWay tortilla." | Catalog first; if that exact product isn't there, searches saved foods → Open Food Facts → the web; found = label figures, not found = asks for the label's numbers. Never estimates. | `resolve_food` → `search_food_product` → `create_custom_food` / `log_food` (confirm) |
 | Coach needs a value it can't read (e.g. height) | Pauses and asks — an option chip or a small form; the answer returns as the next turn (height/weight persist to the user's own body data). | `ask_choice`, `request_input` |
 | User dictates instead of typing | Audio → transcript, then a normal chat turn. | `aiTranscribe` |
 | "Import this workout/diet PDF." | Extracts a structured plan; the client's review/edit screen is the save gate. | `aiImportWorkoutPlan` / `aiImportDietPlan` |
@@ -259,7 +261,9 @@ never model-supplied, and snapshotted at propose time so it can't drift.
 | `get_sleep_summary` | Last night vs target + rolling average, for sleep-specific questions. |
 | `get_expenses` | Expenses, each with its real `id` (so edit/delete can target it). |
 | `summarize_week` | Trailing-week rollup across surfaces. |
-| `resolve_food` | A food query → `foodId` + per-100g nutrition, or `ambiguous` / `notFound`. |
+| `resolve_food` | A food query → `foodId` + per-100g nutrition, or `ambiguous` / `notFound`. (SEARCH) |
+| `search_food_alternatives` | Model-proposed replacement candidates for one plan item → each priced from the catalog with a portion sized to the original's calories, or `found:false`. Changes nothing. (SEARCH) |
+| `search_food_product` | A branded product → saved foods, then Open Food Facts label data, then Gemini web search; per-100g figures that were stated (or converted from a stated serving), energy-consistent, brand-matched — or `notFound`. (SEARCH) |
 | `calculate_meal_nutrition` | Items (foodId/query + amount) → computed kcal/macros + total. |
 
 **Token discipline:** `dropNull` strips absent fields from workout/expense/week payloads (re-sent

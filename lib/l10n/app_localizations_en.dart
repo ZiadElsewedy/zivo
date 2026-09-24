@@ -1191,10 +1191,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get plansTitle => 'Your plans';
 
   @override
-  String get plansFollow => 'Follow this plan';
+  String get plansFollow => 'Follow';
 
   @override
   String get plansStopFollowing => 'Stop following';
+
+  @override
+  String get plansKcalPerDayUnit => 'kcal/day';
 
   @override
   String get prefsBuildTitle => 'Build me a plan';
@@ -2161,6 +2164,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askDeleteChatConfirm => 'Delete chat';
 
   @override
+  String get askDeleteChatFailed =>
+      'Couldn\'t delete that chat. It\'s back in your list.';
+
+  @override
   String get askGreeting => 'Hey, I\'m ZIVO.';
 
   @override
@@ -2301,6 +2308,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get askActivityFailed => 'Couldn\'t get this';
+
+  @override
+  String askFallbackUnavailable(String model) {
+    return '$model unavailable';
+  }
+
+  @override
+  String askFallbackSwitched(String model) {
+    return 'Switched to $model';
+  }
 
   @override
   String get askProposalConfirmed => 'Confirmed';

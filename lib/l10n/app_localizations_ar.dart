@@ -1189,10 +1189,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get plansTitle => 'خططك';
 
   @override
-  String get plansFollow => 'اتبع هذه الخطة';
+  String get plansFollow => 'اتّبعها';
 
   @override
   String get plansStopFollowing => 'إيقاف المتابعة';
+
+  @override
+  String get plansKcalPerDayUnit => 'سعرة/يوم';
 
   @override
   String get prefsBuildTitle => 'ابنِ لي خطة';
@@ -2188,6 +2191,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get askDeleteChatConfirm => 'حذف المحادثة';
 
   @override
+  String get askDeleteChatFailed => 'تعذّر حذف المحادثة. أعدناها إلى قائمتك.';
+
+  @override
   String get askGreeting => 'أهلًا، أنا ZIVO.';
 
   @override
@@ -2328,6 +2334,16 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get askActivityFailed => 'تعذّر الحصول عليه';
+
+  @override
+  String askFallbackUnavailable(String model) {
+    return '$model غير متاح';
+  }
+
+  @override
+  String askFallbackSwitched(String model) {
+    return 'تم التحويل إلى $model';
+  }
 
   @override
   String get askProposalConfirmed => 'تم التأكيد';
