@@ -106,7 +106,11 @@ class _AiUsagePageState extends State<AiUsagePage> {
   ) {
     final name = aiProviderDisplayName(context, _provider);
     final stats = aiProviderStats(records, _provider);
-    if (stats.totalRequests == 0) {
+    final other = aiProviderDisplayName(
+      context,
+      _provider == 'gemini' ? 'anthropic' : 'gemini',
+    );
+    if (stats.totalRequests == 0 && stats.handedOffRequests == 0) {
       return [_Quiet(text: l(context).aiUsageProviderEmpty(name))];
     }
     final recent = records
@@ -121,6 +125,11 @@ class _AiUsagePageState extends State<AiUsagePage> {
       (l(context).aiUsageOtherRequests, stats.otherRequests),
       if (stats.failedRequests > 0)
         (l(context).aiUsageFailedRequests, stats.failedRequests),
+      // Fallbacks, both ways: the requested model vs the one that answered.
+      if (stats.tookOverRequests > 0)
+        (l(context).aiUsageTookOverFrom(other), stats.tookOverRequests),
+      if (stats.handedOffRequests > 0)
+        (l(context).aiUsageHandedOffTo(other), stats.handedOffRequests),
     ];
     final tokenRows = <(String, int)>[
       (l(context).aiUsageTokensUsed, stats.tokensTotal),

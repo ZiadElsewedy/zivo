@@ -6102,13 +6102,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get aiFeatureOther => 'طلب ذكاء اصطناعي';
 
   @override
-  String get aiErrorDailyLimit => 'وصلت إلى حد اليوم لهذه الميزة. يتجدد غدًا.';
+  String get aiErrorDailyLimit =>
+      'وصلت إلى حدّ ZIVO اليومي لهذه الميزة. يتجدد عند منتصف الليل.';
 
   @override
-  String get aiErrorDailyLimitTitle => 'وصلت إلى حد اليوم';
+  String get aiErrorDailyLimitTitle => 'وصلت إلى حدّ ZIVO اليومي';
 
   @override
-  String get aiErrorDailyLimitBody => 'يتجدد Ask غدًا.';
+  String get aiErrorDailyLimitBody =>
+      'هذا حدّ ZIVO اليومي الخاص، وليس مزوّد الذكاء الاصطناعي. يتجدد عند منتصف الليل.';
 
   @override
   String get aiErrorTimeout =>
@@ -6159,11 +6161,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get aiIssueOutOfCredit =>
-      'تم الوصول إلى حد الاستخدام. غيّر النموذج النشط من إعدادات Ask ثم اضغط إعادة المحاولة.';
+      'نفد رصيد حساب المزوّد. غيّر النموذج من الإعدادات ← الذكاء الاصطناعي ثم اضغط إعادة المحاولة.';
+
+  @override
+  String get aiIssueQuota =>
+      'استُنفدت حصة واجهة برمجة المزوّد مؤقتًا. حاول لاحقًا، أو غيّر النموذج من الإعدادات ← الذكاء الاصطناعي.';
 
   @override
   String get aiIssueNotConfigured =>
-      'غير مُعدّ بشكل صحيح حاليًا. غيّر النموذج النشط من إعدادات Ask.';
+      'غير مُعدّ بشكل صحيح حاليًا. غيّر النموذج من الإعدادات ← الذكاء الاصطناعي.';
 
   @override
   String get aiIssueBusy => 'طلبات كثيرة الآن — حاول مجددًا بعد دقيقة.';
@@ -6178,11 +6184,11 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get aiIssueModelRetired =>
-      'لم يعد هذا النموذج متاحًا. اختر غيره من إعدادات Ask.';
+      'لم يعد هذا النموذج متاحًا. اختر غيره من الإعدادات ← الذكاء الاصطناعي.';
 
   @override
   String get aiIssueDown =>
-      'يواجه المزوّد مشكلة حاليًا. حاول لاحقًا، أو غيّر النموذج من إعدادات Ask.';
+      'يواجه المزوّد مشكلة حاليًا. حاول لاحقًا، أو غيّر النموذج من الإعدادات ← الذكاء الاصطناعي.';
 
   @override
   String get aiErrorNetworkBody => 'تحقق من اتصالك ثم اضغط إعادة المحاولة.';
@@ -6211,6 +6217,16 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get aiUsageOtherRequests => 'أخرى (بحث الأطعمة، الصوت)';
+
+  @override
+  String aiUsageTookOverFrom(String provider) {
+    return 'أجاب عندما كان $provider غير متاح';
+  }
+
+  @override
+  String aiUsageHandedOffTo(String provider) {
+    return 'غير متاح — أجاب $provider';
+  }
 
   @override
   String get aiUsageFailedRequests => 'طلبات فاشلة';

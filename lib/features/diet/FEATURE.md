@@ -55,8 +55,13 @@
   engine's findings on the screen, each openable to the state fields it rests on.
 - `body_profile_page.dart` — the body data behind every energy figure (height · sex ·
   activity · optional known maintenance; weight goes to the weigh-in log).
-- `diet_plans_page.dart` — the **library**: every plan, its verdict, and which one is being
-  followed.
+- `diet_plans_page.dart` — the **library**: every plan as a summary card, not a record
+  (2026-09-24 declutter): name + status pill; "Goal · N meals" (goal derived from the
+  verdict's direction — plans store none — and shown only with body data; meals = the
+  most common per-day count, supplements excluded); daily kcal as the one strong number;
+  one quiet outcome line ("Losing ~0.46 kg a week"). Source ("Built by ZIVO"), day count
+  and the caps metadata run are gone. Follow / Stop following are text actions and Delete
+  is a trash icon — no full-width button. `test/diet/diet_plans_card_test.dart`.
 
 ## Repository (`AppScope.diet`)
 

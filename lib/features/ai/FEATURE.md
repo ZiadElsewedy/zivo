@@ -80,22 +80,25 @@ the import method throws `ImportCancelledException` instead of resolving). The
 import methods carry a `cancellation` handle only; a cancelled import stops the
 work (and the billing) instead of running to completion for output nobody reads.
 
-Both the model switch and the reply-style preference live in the **Ask settings
-page** (`presentation/pages/ask_settings_page.dart` — a pushed full page, opened
-from the single header settings button, which shows a small "pinned" dot when
-the model isn't Auto). Each model row carries its provider's brand mark
-(`widgets/ask/provider_mark.dart` — code-drawn Gemini spark / Anthropic burst,
-no image assets). Selecting a row applies in place via the controller's
-`setModelSelection`/`setResponseStyle`; there is no separate Save. The active model
-wears an **"Active" badge** as well as the check. The page also shows a
-**per-provider usage** section (tokens, requests, est. cost) read via
-`AiRepository.usageByProvider()`; tapping a provider opens
-**`pages/ai_usage_page.dart`** (also Settings → AI usage) switched to it: a
-Claude | Gemini switch, then that provider's estimated cost and cost per completed
-request, requests by type (total · chat · generate · import · other · failed), tokens
-(used · input · output) and its latest requests, read via
-`AiRepository.usageRecords()` from the owner-readable `aiUsage` log — which holds
-**every** AI request (chat, imports, plan builder, food search, voice), each priced by
+**AI settings live in the main Settings page** (Settings → AI) as three normal
+rows — **Model** (the one active model), **Reply style**, **Usage** — plus one
+short line on what the model setting means. There is **no separate Ask settings
+screen** (removed 2026-09-24). Model and Reply style open
+`widgets/ai_model_sheet.dart`'s two sheets (`showAiModelSheet`,
+`showResponseStyleSheet` — one `_AiChoiceSheet`); the model sheet is also what
+Ask's header button, the "Switch model" action on a failed turn, and the plan
+import/generation error screens open. Each model row carries its provider's
+brand mark (`widgets/ask/provider_mark.dart`), and the active one wears an
+**"Active" badge** — exactly one. `AskController` re-reads both settings
+before every send, so a change made in Settings applies to Ask at once.
+**Usage** opens **`pages/ai_usage_page.dart`**: a Claude | Gemini switch, then
+that provider's estimated cost and cost per completed request, requests by type
+(total · chat · generate · import · other · failed), fallbacks both ways
+("answered when Gemini was unavailable" / "unavailable — Claude answered"),
+tokens (used · input · output) and its latest requests (each naming the model
+that answered and, after a fallback, the one that was asked), read via
+`AiRepository.usageRecords()` from the owner-readable `aiUsage` log — **every**
+AI request (chat, imports, plan builder, food search, voice), each priced by
 the backend at the rate of the model that answered.
 
 **Retry** (`AskController.retry`) re-sends the failed turn's text from `_turnText`,
@@ -114,7 +117,7 @@ nothing to send. It reuses the turn id (no duplicate) and the model active *now*
 | File | Role |
 |---|---|
 | `gateway.js` | Ask entrypoint — now a thin **facade** re-exporting `chat/` (`runAiTurn`, `confirmAction`, `cancelAction`, `GatewayError`, `SYSTEM_PROMPT`, `DEFAULT_CONFIG`). The split is invisible to callers |
-| **`chat/`** | The chat subsystem, split by concern (see [`chat/README.md`](../../../functions/ai/chat/README.md)): `turn.js` (the model↔tool loop), `actions.js` (propose→confirm→execute writes), `context.js` (the system blocks handed to the model each turn + prompt-cache discipline), `config.js` (ceilings/pricing/canned messages), `usage.js` (token accounting + cost + daily cap; logs per-turn observability — provider/model, uncached vs cached input, output, approx tool-result tokens, tools, iterations, latency, cost — as `aiUsage` **schema v3**), `messages.js` (history + tool-result shaping), `errors.js` (`GatewayError`) |
+| **`chat/`** | The chat subsystem, split by concern (see [`chat/README.md`](../../../functions/ai/chat/README.md)): `turn.js` (the model↔tool loop), `actions.js` (propose→confirm→execute writes), `context.js` (the system blocks handed to the model each turn + prompt-cache discipline), `config.js` (ceilings/pricing/canned messages), `usage.js` (token accounting + cost + daily cap; logs per-turn observability — provider/model, uncached vs cached input, output, approx tool-result tokens, tools, iterations, latency, cost — as `aiUsage` **schema v6**, which adds `fallbackCount`/`failedAttempts`), `messages.js` (history + tool-result shaping), `errors.js` (`GatewayError`) |
 | **`chat/prompt/`** | The **system prompt**, composed in `system_prompt.js` from `sections/` — `persona` · **`focus`** (answer the exact question, pull only relevant context) · **`formatting`** (plain-text structure the client renders) · `numbers` · `training` · `coaching` · `mutations` · `safety`. The load-bearing sections are pinned by `gateway.test.js`; `formatting` assumes the client renders **plain text** (no Markdown) |
 | `tools/read.js` | uid-scoped **read** tools — `get_today`, `get_diet`, `get_workouts`, **`get_last_workout`**, **`get_training_analysis`**, `get_expenses`, `summarize_week`, **`get_readiness`**, **`get_sleep_summary`**, plus **`resolve_food`** (a food → its `foodId` + per-100g nutrition, or `ambiguous`/`notFound`) and **`calculate_meal_nutrition`** (items → computed kcal/macros + total). Every payload states the **date** it resolved; diet payloads carry the user's `targets`, what's `remaining` of them, and the `estimated` provenance of every figure. `get_expenses` surfaces each expense's `id` so edit/delete can target it. **`get_workouts` returns the REAL per-set actuals** from `workoutSessions` (weight/reps/type/outcome per set — warm-ups flagged, skipped/pending dropped), never the lossy flat log; **`get_last_workout`** returns just the SINGLE most recent completed session (with each exercise's top working set precomputed) so "what did I do last workout" doesn't fetch a whole week; **`get_training_analysis` hands the model ZIVO's deterministic workout analysis + typed `findings`** (see `workout_analytics.js`) so it phrases strength/PRs/trends, never computes them — and now also **`planAdherence`** (planned movements being skipped/gone-stale, from `exercise_analytics.js` + `store.getActiveWorkoutPlan`); **`get_exercise_analysis`** resolves ONE lift by name and returns its full session-by-session history, session-to-session deltas, verdict/tone and deterministic insight (the drill-down the model explains, never recomputes); **`get_sleep_summary`** returns last night vs target + a rolling average for sleep-specific questions (`get_readiness` still owns "how am I today", fusing sleep with load/recovery). **Token discipline:** `dropNull` strips absent fields from the workout/expense/week payloads (re-sent every tool iteration), but **never from the diet tools** — there a `null` is a semantic signal (`targets:null` = no objective) the prompt reasons about |
 | `analytics/workout_analytics.js` | the **workout analytics engine** — the Node mirror of `lib/features/workout/domain/analytics/workout_analytics.dart`, pinned to it by shared golden vectors (`test/fixtures/workout_analytics_vectors.json`, run by both suites). Estimated 1RM (Epley), PRs derived from history, per-exercise status (thresholded, min-3-appearance, warm-ups excluded), per-muscle rollup, working-volume trend, and `fact`/`interpretation`-typed findings. `store.listWorkoutSessions` feeds it |
@@ -137,14 +140,30 @@ per-model prices, the one place pricing lives). `router.js` resolves each reques
 to the user's active model, else Claude Sonnet. A TRANSIENT failure (overload,
 rate limit, server error, timeout, network — `isTransientFailure` in
 `providers/classify.js`) is retried once on the same provider after a short
-backoff, then automatically re-run on the OTHER provider if still failing — the
-response then carries `requestedProvider`/`requestedModel`/`fallbackOccurred`/
-`fallbackReason`. A PERMANENT failure (billing — Anthropic's out-of-credit is a
-*400* — auth, retired model, or a malformed request) is never retried or fallen
-back for → `AiUnavailableError` → `unavailable` with `details:
-{reason:'ai_unavailable', provider, model, kind}`; a malformed request is
-rethrown as-is. `food_search` always runs on Gemini and never falls back (search
-grounding is Gemini-only).
+backoff; any provider-side failure that survives that — or isn't worth a retry
+(**`quota`** — Gemini's 429 RESOURCE_EXHAUSTED, e.g. the free tier's 20
+requests/day — billing, auth, retired model) — is re-run on the OTHER provider
+(`canFallBackFor`). The response then carries `requestedProvider`/
+`requestedModel`/`fallbackOccurred`/`fallbackReason`/`failedAttempts`, the Ask
+timeline shows "<model> unavailable → switched to <other>", and the usage
+record keeps `fallbackCount` + `failedAttempts`. Only when BOTH fail does the
+user see `unavailable` (`details: {reason:'ai_unavailable', provider, model,
+kind}`). A malformed request (`bad_request`) is rethrown as-is and never re-sent
+to the other provider. **Mid-turn fallbacks carry the other provider's tool
+history:** `gemini_provider.js` gives a Claude `tool_use` the documented
+`skip_thought_signature_validator` signature (Gemini 3 400s a call without
+one), and `anthropic_provider.js` turns Gemini `functionCall` parts into
+`tool_use` blocks (dropping Gemini thoughts/empty text). `food_search` always
+runs on Gemini and never falls back (search grounding is Gemini-only).
+
+**ZIVO's own daily Ask allowance is not a provider state.** `chat/turn.js`
+checks it before any model call (so no fallback can bypass it): 100 answered
+turns or 500K **fresh** tokens (uncached input + cache writes + output — cache
+reads of ZIVO's own prompt don't count, see `chat/usage.js`
+`dailyCapUsageFor`) per user-local day. Failed/cancelled turns count for
+nothing; one question is one turn however many model calls, retries and
+fallbacks it took. The reply says it's ZIVO's limit and that Claude/Gemini are
+still available; provider failures never say "usage limit".
 Adding OpenAI/DeepSeek later is one adapter file + catalog entries. See
 `gateway.js`/`chat/turn.js` (both take an injected `provider`).
 

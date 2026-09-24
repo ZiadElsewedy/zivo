@@ -28,7 +28,10 @@ void main() {
     );
 
     expect(_text(tester, 'error-retry-title'), "Claude isn't available");
-    expect(_text(tester, 'error-retry-body'), contains('usage limit'));
+    expect(_text(tester, 'error-retry-body'), contains('out of credit'));
+    // "Usage limit" is ZIVO's own daily Ask cap — a provider's billing
+    // problem must never read like it.
+    expect(_text(tester, 'error-retry-body'), isNot(contains('usage limit')));
     await tester.tap(find.byKey(const Key('error-switch-model')));
     expect(switched, isTrue);
   });

@@ -121,6 +121,7 @@ String aiFailureTitle(BuildContext context, AiFailure f) {
 String aiFailureBody(BuildContext context, AiFailure f) => switch (f.kind) {
   AiFailureKind.unavailable => switch (f.issue ?? AiProviderIssue.down) {
     AiProviderIssue.outOfCredit => l(context).aiIssueOutOfCredit,
+    AiProviderIssue.quotaExceeded => l(context).aiIssueQuota,
     AiProviderIssue.notConfigured => l(context).aiIssueNotConfigured,
     AiProviderIssue.busy => l(context).aiIssueBusy,
     AiProviderIssue.overloaded => l(context).aiIssueOverloaded,

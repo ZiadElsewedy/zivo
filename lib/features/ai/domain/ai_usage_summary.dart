@@ -1,6 +1,5 @@
 /// A roll-up of one provider's AI usage, aggregated from the owner-readable
-/// `users/{uid}/aiUsage` log. Shown in the Ask settings page so the user can
-/// see how much each provider has been used.
+/// `users/{uid}/aiUsage` log — how much each provider has been used.
 ///
 /// The `provider` id matches the routing layer's names ('anthropic', 'gemini',
 /// …). Records logged before the backend recorded a `provider` field are
@@ -198,6 +197,8 @@ class AiProviderStats {
     required this.tokensOut,
     required this.costUsd,
     required this.costPerRequestUsd,
+    this.tookOverRequests = 0,
+    this.handedOffRequests = 0,
   });
 
   final String provider;
@@ -207,6 +208,17 @@ class AiProviderStats {
   final int importRequests;
   final int otherRequests;
   final int failedRequests;
+
+  /// Requests this provider ANSWERED after the user's active model (the other
+  /// provider) failed — counted in [totalRequests], tokens and cost.
+  final int tookOverRequests;
+
+  /// Requests the user sent to THIS provider that it couldn't answer, so the
+  /// other provider did — logged under the other provider (it did the work
+  /// and holds the tokens/cost), counted here so a provider that keeps
+  /// failing is visible on its own page.
+  final int handedOffRequests;
+
   final int tokensIn;
   final int tokensOut;
   final double costUsd;
@@ -228,9 +240,15 @@ AiProviderStats aiProviderStats(
   var total = 0, chat = 0, generate = 0, imports = 0, other = 0, failed = 0;
   var completed = 0, tokensIn = 0, tokensOut = 0;
   var cost = 0.0, completedCost = 0.0;
+  var tookOver = 0, handedOff = 0;
   for (final r in records) {
+    if (r.fallbackOccurred && r.requestedProvider == provider &&
+        r.provider != provider) {
+      handedOff++;
+    }
     if (r.provider != provider) continue;
     total++;
+    if (r.fallbackOccurred) tookOver++;
     switch (aiRequestTypeOf(r.feature)) {
       case AiRequestType.chat:
         chat++;
@@ -262,5 +280,7 @@ AiProviderStats aiProviderStats(
     tokensOut: tokensOut,
     costUsd: cost,
     costPerRequestUsd: completed == 0 ? 0 : completedCost / completed,
+    tookOverRequests: tookOver,
+    handedOffRequests: handedOff,
   );
 }

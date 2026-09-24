@@ -97,6 +97,43 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Ask limit vs provider failures, Gemini root cause, cross-provider fallback,
+  Settings → AI, Plans declutter, chat-delete crash** (2026-09-24, on
+  `upgrades`, NOT deployed — functions changes need an owner deploy).
+  - **"You've hit today's usage limit for Ask"** was ZIVO's own cap
+    (`chat/turn.js`, 100 turns / 500K tokens per user-local day, counted from
+    `users/{uid}/aiUsage` chat records) — not Claude/Gemini. It tripped after
+    **11** answered questions (~$0.34) because the token total counted cache
+    READS of ZIVO's own prompt at full weight (84% of the day's tokens). Now
+    counts fresh tokens only (`usage.js` `dailyCapUsageFor`); the reply names
+    ZIVO's limit (en/ar). Failed turns never counted; fallback/retries are
+    inside one turn; the cap runs before any model call, so no fallback
+    bypasses it.
+  - **Gemini "not working"** had three causes, all seen in production logs:
+    (1) the `GEMINI_API_KEY` project is on the **free tier** —
+    `GenerateRequestsPerDayPerProjectPerModel-FreeTier`, **20 requests/day**
+    (and 5/min) for `gemini-3.8-flash`, which is what `gemini-flash-latest`
+    resolves to; a chat turn is 2–6 calls. (2) Its 429 `RESOURCE_EXHAUSTED`
+    was classified `billing` (the text says "check your plan and billing"),
+    which never fell back and showed "Gemini … usage limit has been reached".
+    Now `quota`, and it falls back to Claude. (3) A mid-turn Claude→Gemini
+    fallback after a tool call 400'd ("missing thought_signature"), and
+    Gemini→Claude sent raw Gemini parts to Anthropic (400) — both adapters now
+    translate the other provider's tool history. Live-verified both ways.
+  - **Fallback policy change:** any provider-side failure (not only transient)
+    now falls back to the other provider — visibly (timeline + usage
+    `fallbackCount`/`failedAttempts`, schema v6). `bad_request` never does.
+  - **Settings:** the Ask settings page is gone; Settings → AI has Model ·
+    Reply style · Usage rows + one line. Usage page counts fallbacks both ways.
+  - **Plans:** summary cards (name, goal · meals, kcal/day, outcome, status).
+  - **Chat delete crash:** the sessions sheet built rows straight from the
+    Firestore stream while `aiDeleteConversation` (a callable) was in flight,
+    so any rebuild re-created the dismissed `Dismissible`. Rows now leave the
+    sheet's own state on dismiss; a failed delete restores the row + toast.
+  - **Owner actions:** deploy functions; enable billing on the Gemini key's
+    Google project (free tier = 20 req/day); confirm Gemini's live price —
+    `models.js` still prices Flash at $0.30/$2.50 while the alias serves
+    `gemini-3.8-flash` (unchanged, deliberately).
 - **AI food behaviour audit: realistic replacements, real product search,
   choose-before-change, visible fallback** (2026-09-24, on `upgrades`, NOT
   deployed — owner asked to hold the deploy).

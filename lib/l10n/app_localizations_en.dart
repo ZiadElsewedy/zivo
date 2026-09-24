@@ -5985,13 +5985,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiErrorDailyLimit =>
-      'You\'ve reached today\'s limit for this. It resets tomorrow.';
+      'You\'ve reached ZIVO\'s daily limit for this. It resets at midnight.';
 
   @override
-  String get aiErrorDailyLimitTitle => 'Today\'s limit reached';
+  String get aiErrorDailyLimitTitle => 'ZIVO\'s daily limit reached';
 
   @override
-  String get aiErrorDailyLimitBody => 'Ask resets tomorrow.';
+  String get aiErrorDailyLimitBody =>
+      'This is ZIVO\'s own daily limit, not the AI provider. It resets at midnight.';
 
   @override
   String get aiErrorTimeout =>
@@ -6043,11 +6044,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiIssueOutOfCredit =>
-      'Its usage limit has been reached. Switch the active model in Ask settings, then tap Retry.';
+      'Its account is out of credit. Switch the model in Settings → AI, then tap Retry.';
+
+  @override
+  String get aiIssueQuota =>
+      'Its API quota is used up for now. Try again later, or switch the model in Settings → AI.';
 
   @override
   String get aiIssueNotConfigured =>
-      'It isn\'t set up correctly right now. Switch the active model in Ask settings.';
+      'It isn\'t set up correctly right now. Switch the model in Settings → AI.';
 
   @override
   String get aiIssueBusy =>
@@ -6063,11 +6068,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiIssueModelRetired =>
-      'This model is no longer offered. Pick another in Ask settings.';
+      'This model is no longer offered. Pick another in Settings → AI.';
 
   @override
   String get aiIssueDown =>
-      'The provider is having problems right now. Try again later, or switch model in Ask settings.';
+      'The provider is having problems right now. Try again later, or switch the model in Settings → AI.';
 
   @override
   String get aiErrorNetworkBody => 'Check your connection, then tap Retry.';
@@ -6096,6 +6101,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiUsageOtherRequests => 'Other (food search, voice)';
+
+  @override
+  String aiUsageTookOverFrom(String provider) {
+    return 'Answered when $provider was unavailable';
+  }
+
+  @override
+  String aiUsageHandedOffTo(String provider) {
+    return 'Unavailable — $provider answered';
+  }
 
   @override
   String get aiUsageFailedRequests => 'Failed requests';

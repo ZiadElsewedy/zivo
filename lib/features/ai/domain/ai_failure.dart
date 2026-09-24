@@ -6,13 +6,15 @@
 /// "Your credit balance is too low…"). The words live in
 /// `presentation/ai_labels.dart` (`aiFailureTitle` / `aiFailureBody`).
 enum AiFailureKind {
-  /// The active model's provider couldn't answer — see [AiFailure.provider]
-  /// and [AiFailure.issue] for which one and why. ZIVO uses exactly one model
-  /// per request, so this is never silently retried elsewhere; the fix is to
-  /// wait, or switch the active model.
+  /// No AI provider could answer — the active model failed AND the automatic
+  /// fallback to the other provider did too (or couldn't run). See
+  /// [AiFailure.provider] and [AiFailure.issue] for the last one tried and
+  /// why. A PROVIDER problem — never ZIVO's own allowance ([dailyLimit]).
   unavailable,
 
-  /// The user's daily allowance for this feature is used up.
+  /// ZIVO's OWN daily allowance for this feature is used up — an app rule,
+  /// not Claude or Gemini being unavailable, and no provider fallback
+  /// applies to it.
   dailyLimit,
 
   /// The app gave up waiting before the server answered at all.
@@ -35,8 +37,12 @@ enum AiFailureKind {
 /// Mirrors the backend's classification (`functions/ai/providers/
 /// classify.js`), minus anything that isn't the provider's fault.
 enum AiProviderIssue {
-  /// The provider account's credit/quota is used up.
+  /// The provider account is out of credit (billing).
   outOfCredit,
+
+  /// The provider project's own API quota is used up for now (Gemini's 429
+  /// RESOURCE_EXHAUSTED — per-minute or per-day). Clears on its own.
+  quotaExceeded,
 
   /// The provider rejected ZIVO's key — misconfigured on the server.
   notConfigured,
@@ -79,6 +85,7 @@ class AiFailure implements Exception {
 /// The backend's `details.kind` → [AiProviderIssue].
 AiProviderIssue aiProviderIssueFrom(Object? kind) => switch (kind) {
   'billing' => AiProviderIssue.outOfCredit,
+  'quota' => AiProviderIssue.quotaExceeded,
   'auth' => AiProviderIssue.notConfigured,
   'rate_limit' => AiProviderIssue.busy,
   'overloaded' => AiProviderIssue.overloaded,

@@ -72,7 +72,8 @@ abstract interface class AiRepository {
   /// from the owner-readable `aiUsage` log — every AI feature's requests, not
   /// only chat. Only providers with at least one request are returned, sorted
   /// by total tokens (most-used first). Empty when nothing has been logged.
-  /// Used by the Ask settings page's usage section.
+  /// No screen reads this since the Ask settings page was folded into
+  /// Settings → AI (the Usage row opens the per-record AI usage page).
   Future<List<AiProviderUsage>> usageByProvider();
 
   /// Every logged AI request — chat, plan import, plan generation, food

@@ -9981,19 +9981,19 @@ abstract class AppLocalizations {
   /// Shown when the daily allowance is used up.
   ///
   /// In en, this message translates to:
-  /// **'You\'ve reached today\'s limit for this. It resets tomorrow.'**
+  /// **'You\'ve reached ZIVO\'s daily limit for this. It resets at midnight.'**
   String get aiErrorDailyLimit;
 
   /// Chat error title for the daily limit.
   ///
   /// In en, this message translates to:
-  /// **'Today\'s limit reached'**
+  /// **'ZIVO\'s daily limit reached'**
   String get aiErrorDailyLimitTitle;
 
   /// Chat error body for the daily limit.
   ///
   /// In en, this message translates to:
-  /// **'Ask resets tomorrow.'**
+  /// **'This is ZIVO\'s own daily limit, not the AI provider. It resets at midnight.'**
   String get aiErrorDailyLimitBody;
 
   /// Shown when an AI request timed out.
@@ -10077,13 +10077,19 @@ abstract class AppLocalizations {
   /// Provider failure: its credit/quota is used up.
   ///
   /// In en, this message translates to:
-  /// **'Its usage limit has been reached. Switch the active model in Ask settings, then tap Retry.'**
+  /// **'Its account is out of credit. Switch the model in Settings → AI, then tap Retry.'**
   String get aiIssueOutOfCredit;
+
+  /// Provider failure: the provider project's own API quota (per-minute or per-day) is used up — not ZIVO's daily limit, and not an out-of-credit account.
+  ///
+  /// In en, this message translates to:
+  /// **'Its API quota is used up for now. Try again later, or switch the model in Settings → AI.'**
+  String get aiIssueQuota;
 
   /// Provider failure: the server's key was rejected.
   ///
   /// In en, this message translates to:
-  /// **'It isn\'t set up correctly right now. Switch the active model in Ask settings.'**
+  /// **'It isn\'t set up correctly right now. Switch the model in Settings → AI.'**
   String get aiIssueNotConfigured;
 
   /// Provider failure: rate-limited.
@@ -10107,13 +10113,13 @@ abstract class AppLocalizations {
   /// Provider failure: model id retired.
   ///
   /// In en, this message translates to:
-  /// **'This model is no longer offered. Pick another in Ask settings.'**
+  /// **'This model is no longer offered. Pick another in Settings → AI.'**
   String get aiIssueModelRetired;
 
   /// Provider failure: down or erroring.
   ///
   /// In en, this message translates to:
-  /// **'The provider is having problems right now. Try again later, or switch model in Ask settings.'**
+  /// **'The provider is having problems right now. Try again later, or switch the model in Settings → AI.'**
   String get aiIssueDown;
 
   /// Chat error body: the phone couldn't reach the server.
@@ -10169,6 +10175,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Other (food search, voice)'**
   String get aiUsageOtherRequests;
+
+  /// AI usage page, requests section: how many requests THIS provider answered because the user's active model ({provider}, e.g. 'Gemini') was unavailable — an automatic fallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Answered when {provider} was unavailable'**
+  String aiUsageTookOverFrom(String provider);
+
+  /// AI usage page, requests section: how many requests sent to THIS provider it couldn't answer, so {provider} (e.g. 'Claude') answered instead.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable — {provider} answered'**
+  String aiUsageHandedOffTo(String provider);
 
   /// Usage stat label.
   ///

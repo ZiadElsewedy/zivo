@@ -734,19 +734,24 @@ const PROVIDER_NAMES = {anthropic: "Claude", gemini: "Gemini"};
  */
 function unavailableMessage(name, kind) {
   switch (kind) {
+    // Never "usage limit": that phrase is ZIVO's own daily Ask allowance
+    // (`./ai/chat/config.js` DAILY_LIMIT_MESSAGE), a different state.
+    case "quota":
+      return `${name}'s API quota is used up for now. ` +
+        "Try again later, or switch the model in Settings → AI.";
     case "billing":
-      return `${name} is unavailable — its usage limit has been reached. ` +
-        "Switch the active model in Ask settings.";
+      return `${name}'s account is out of credit. ` +
+        "Switch the model in Settings → AI.";
     case "auth":
       return `${name} isn't set up correctly right now. ` +
-        "Switch the active model in Ask settings.";
+        "Switch the model in Settings → AI.";
     case "rate_limit":
       return `${name} is getting too many requests. Try again in a minute.`;
     case "timeout":
       return `${name} didn't respond in time. Try again.`;
     case "model_unavailable":
       return `That ${name} model isn't available anymore. ` +
-        "Pick another in Ask settings.";
+        "Pick another in Settings → AI.";
     default:
       return `${name} is unavailable right now. Try again in a few minutes.`;
   }
@@ -754,8 +759,8 @@ function unavailableMessage(name, kind) {
 
 /**
  * The user-facing answer for "the active model's provider couldn't answer":
- * it names the provider and says why in plain words (usage limit reached,
- * busy, didn't respond) — never the provider's raw error text, which is
+ * it names the provider and says why in plain words (quota used up, out of
+ * credit, busy, didn't respond) — never the provider's raw error text, which is
  * logged here, once, and nowhere else. `details` carries
  * `{reason: "ai_unavailable", provider, model, kind}` so the app can show
  * its own localized line.
@@ -768,6 +773,7 @@ function aiUnavailableHttpsError(err) {
     kind: err.kind,
     provider: attempt.provider,
     model: attempt.model,
+    attempts: err.attempts,
     errorMessage: err.cause && err.cause.message,
   });
   const name = PROVIDER_NAMES[attempt.provider] || "The AI model";

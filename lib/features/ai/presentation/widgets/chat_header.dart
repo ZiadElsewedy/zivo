@@ -10,10 +10,10 @@ import '../../domain/ai_model_selection.dart' show kDefaultAiModelSelection;
 import '../../../../l10n/l10n.dart';
 
 /// The Ask screen's header: the screen title beside three uniform glass
-/// circle actions — settings, chat history, new chat — all drawn from the
+/// circle actions — model, chat history, new chat — all drawn from the
 /// app's single icon vocabulary so they sit consistently with every other
-/// surface. The settings circle opens the Ask settings sheet (model + reply
-/// style); it used to be two separate header menus.
+/// surface. The model circle opens the one model picker (`showAiModelSheet`);
+/// every other AI setting lives in Settings → AI.
 ///
 /// Built to the design handoff's Ask header: Manrope 800/27 title, three
 /// 38px circles on a flat `rgba(255,255,255,.04)` fill inside a hairline.
