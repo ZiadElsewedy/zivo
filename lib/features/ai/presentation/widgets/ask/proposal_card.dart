@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_theme.dart';
-import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/theme/train_tokens.dart';
 import '../../../domain/ai_pending_action.dart';
 import '../../../../../core/util/bidi.dart';
 import '../../../../../l10n/l10n.dart';
 
-/// The ADR-003 confirmation card: an assistant proposal the user confirms or
-/// cancels. Nothing has been written while it shows Confirm/Cancel.
+/// The ADR-003 confirmation card: a change ZIVO proposes and the user confirms
+/// or cancels. Nothing has been written while it shows Confirm/Cancel.
+///
+/// Drawn as a slip, not a tile: a spine down the leading edge in the hue that
+/// owns the change (amber money, green training and food, ember a deletion),
+/// what kind of change it is, the one thing it's about set large — an amount
+/// in the numbers face, a food or a workout in the text face — and then the
+/// particulars as plain receipt rows ("Category  Food"). The decision sits
+/// under a hairline; once made, it folds away and the slip stays in the thread
+/// as the record, with its outcome where the buttons were decided.
 class ProposalCard extends StatelessWidget {
   const ProposalCard({
     required this.action,
@@ -25,439 +32,523 @@ class ProposalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolved = status != AiActionStatus.pending;
-    final meta = _kindMeta(context, action.kind);
+    final pending = status == AiActionStatus.pending;
+    final applied = status == AiActionStatus.applied;
+    final kind = _kindOf(context, action);
+    final rows = _rowsOf(context, action);
+    final headline = _headlineOf(context, action);
+    final still = MediaQuery.of(context).disableAnimations;
+    // A change that didn't happen stays legible but steps back.
+    final settledInk = applied || pending ? TrainColors.ink : TrainColors.ink3;
+
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(kind.icon, size: 15, color: kind.hue),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                kind.label,
+                style: TrainType.ui(
+                  size: 13,
+                  weight: FontWeight.w600,
+                  color: kind.hue,
+                ),
+              ),
+            ),
+            if (!pending) _Outcome(status: status),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          headline.text,
+          style:
+              (headline.numeric
+                      ? TrainType.mono(
+                          size: 26,
+                          weight: FontWeight.w500,
+                          tracking: -0.02,
+                          height: 1.15,
+                        )
+                      : TrainType.ui(
+                          size: 20,
+                          weight: FontWeight.w700,
+                          tracking: -0.015,
+                          height: 1.25,
+                        ))
+                  .copyWith(
+                    color: settledInk,
+                    // A struck headline reads at once as "this did not
+                    // happen" on a cancelled or expired slip.
+                    decoration: applied || pending
+                        ? null
+                        : TextDecoration.lineThrough,
+                    decorationColor: TrainColors.ink3,
+                  ),
+        ),
+        if (rows.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          for (final (i, row) in rows.indexed) ...[
+            if (i > 0) const SizedBox(height: 6),
+            _ReceiptRow(
+              label: row.$1,
+              value: row.$2,
+              muted: !applied && !pending,
+            ),
+          ],
+        ],
+        AnimatedSwitcher(
+          duration: still ? Duration.zero : const Duration(milliseconds: 220),
+          child: pending
+              ? _Decision(
+                  key: const ValueKey('decision'),
+                  destructive: action.kind == 'delete_expense',
+                  onConfirm: onConfirm,
+                  onCancel: onCancel,
+                )
+              : const SizedBox(
+                  key: ValueKey('settled'),
+                  width: double.infinity,
+                ),
+        ),
+      ],
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      // The card grows/settles smoothly as it swaps between the proposal and
-      // the confirmed/declined receipt.
       child: AnimatedSize(
-        duration: AppMotion.enter,
+        duration: still ? const Duration(milliseconds: 1) : AppMotion.enter,
         curve: AppMotion.ease,
         alignment: Alignment.topCenter,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
           decoration: BoxDecoration(
             color: TrainColors.raised,
-            borderRadius: BorderRadius.circular(20),
-            // While it's awaiting a decision the card wears a faint wash of its
-            // own hue and a soft lift, so it reads as a live, tappable object;
-            // once resolved it settles back to a quiet history receipt.
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: resolved
-                  ? TrainColors.hairline
-                  : meta.tintFg.withValues(alpha: 0.22),
+              color: pending
+                  ? TrainColors.hairlineStrong
+                  : TrainColors.hairline,
             ),
           ),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
-            child: KeyedSubtree(
-              key: ValueKey(resolved),
-              child: resolved
-                  ? _resolved(context, meta)
-                  : _pending(context, meta),
+          clipBehavior: Clip.antiAlias,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // The spine: the one spot of colour, full strength while the
+                // change waits on the user, quieter once it's settled.
+                AnimatedContainer(
+                  duration: still
+                      ? Duration.zero
+                      : const Duration(milliseconds: 300),
+                  width: 3,
+                  color: kind.hue.withValues(
+                    alpha: pending ? 1 : (applied ? 0.55 : 0.2),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                      15,
+                      14,
+                      16,
+                      15,
+                    ),
+                    child: body,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _pending(
-    BuildContext context,
-    ({IconData icon, String label, Color tintBg, Color tintFg}) meta,
-  ) {
-    final chips = _chips(context);
-    final confirm = _confirmSpec(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _headerRow(meta),
-        const SizedBox(height: 13),
-        Text(
-          _primaryLine(context),
-          style: AppText.cardTitle.copyWith(fontSize: 20, letterSpacing: -0.3),
-        ),
-        if (chips.isNotEmpty) ...[
+/// The decision: a hairline, then Confirm (the committing action, in ember —
+/// the one hue the design system gives it) and a quiet Cancel.
+class _Decision extends StatelessWidget {
+  const _Decision({
+    required this.destructive,
+    required this.onConfirm,
+    required this.onCancel,
+    super.key,
+  });
+
+  final bool destructive;
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = l(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(height: 1, color: TrainColors.hairline),
           const SizedBox(height: 12),
-          Wrap(spacing: 7, runSpacing: 7, children: chips),
-        ],
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: Material(
-                color: confirm.color,
-                borderRadius: BorderRadius.circular(999),
-                child: InkWell(
-                  key: const Key('proposal-confirm'),
-                  onTap: onConfirm,
+          Row(
+            children: [
+              Expanded(
+                child: Material(
+                  color: TrainColors.ember,
                   borderRadius: BorderRadius.circular(999),
-                  child: Container(
-                    height: 46,
-                    alignment: Alignment.center,
-                    child: Text(
-                      confirm.label,
-                      style: AppText.button.copyWith(color: Colors.white),
+                  child: InkWell(
+                    key: const Key('proposal-confirm'),
+                    onTap: onConfirm,
+                    borderRadius: BorderRadius.circular(999),
+                    child: SizedBox(
+                      height: 44,
+                      child: Center(
+                        child: Text(
+                          destructive ? s.actionDelete : s.askProposalConfirm,
+                          style: TrainType.ui(
+                            size: 15,
+                            weight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            InkWell(
-              key: const Key('proposal-cancel'),
-              onTap: onCancel,
-              borderRadius: BorderRadius.circular(999),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 13,
-                ),
-                child: Text(
-                  l(context).actionCancel,
-                  style: AppText.button.copyWith(color: TrainColors.ink2),
+              const SizedBox(width: 6),
+              InkWell(
+                key: const Key('proposal-cancel'),
+                onTap: onCancel,
+                borderRadius: BorderRadius.circular(999),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
+                  child: Text(
+                    s.actionCancel,
+                    style: TrainType.ui(
+                      size: 15,
+                      weight: FontWeight.w600,
+                      color: TrainColors.ink2,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// How the change ended, where the decision used to be asked.
+class _Outcome extends StatelessWidget {
+  const _Outcome({required this.status});
+
+  final AiActionStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = l(context);
+    final (IconData icon, String label, Color color) = switch (status) {
+      AiActionStatus.applied => (
+        AppIcons.check,
+        s.askProposalConfirmed,
+        TrainColors.green,
+      ),
+      AiActionStatus.cancelled => (
+        AppIcons.close,
+        s.askProposalCancelled,
+        TrainColors.ink3,
+      ),
+      _ => (AppIcons.clock, s.askProposalExpired, TrainColors.ink3),
+    };
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TrainType.ui(
+            size: 12.5,
+            weight: FontWeight.w600,
+            color: color,
+          ),
         ),
       ],
     );
   }
+}
 
-  /// The resolved receipt: keeps the WHAT (kind, headline, detail chips) so a
-  /// confirmation read days later still says exactly what was added, changed,
-  /// or removed — with a small status pill instead of the action buttons.
-  Widget _resolved(
-    BuildContext context,
-    ({IconData icon, String label, Color tintBg, Color tintFg}) meta,
-  ) {
-    final s = _statusSpec(context);
-    final chips = _chips(context);
-    final applied = status == AiActionStatus.applied;
-    return Column(
+/// One particular of the change: a quiet label in a fixed column, its value
+/// beside it — how a receipt lists things.
+class _ReceiptRow extends StatelessWidget {
+  const _ReceiptRow({
+    required this.label,
+    required this.value,
+    required this.muted,
+  });
+
+  final String label;
+  final String value;
+  final bool muted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _headerRow(meta, trailing: _statusPill(s)),
-        const SizedBox(height: 12),
-        Text(
-          _primaryLine(context),
-          style: AppText.cardTitle.copyWith(
-            fontSize: 19,
-            letterSpacing: -0.3,
-            color: applied ? TrainColors.ink : TrainColors.ink3,
-            // A struck-through headline reads instantly as "this did not
-            // happen" for a cancelled or expired proposal.
-            decoration: applied ? null : TextDecoration.lineThrough,
-            decorationColor: TrainColors.ink3,
-          ),
-        ),
-        if (chips.isNotEmpty) ...[
-          const SizedBox(height: 11),
-          Opacity(
-            opacity: applied ? 1 : 0.6,
-            child: Wrap(spacing: 7, runSpacing: 7, children: chips),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _headerRow(
-    ({IconData icon, String label, Color tintBg, Color tintFg}) meta, {
-    Widget? trailing,
-  }) {
-    return Row(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: meta.tintBg,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(meta.icon, size: 18, color: meta.tintFg),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          meta.label,
-          style: AppText.meta.copyWith(
-            color: meta.tintFg,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.2,
-          ),
-        ),
-        if (trailing != null) ...[const Spacer(), trailing],
-      ],
-    );
-  }
-
-  Widget _statusPill(({IconData icon, String label, Color fg, Color bg}) s) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: s.bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(s.icon, size: 13, color: s.fg),
-          const SizedBox(width: 5),
-          Text(
-            s.label,
-            style: AppText.meta.copyWith(
-              fontSize: 12,
-              color: s.fg,
-              fontWeight: FontWeight.w700,
+        SizedBox(
+          width: 88,
+          child: Text(
+            label,
+            style: TrainType.ui(
+              size: 13,
+              weight: FontWeight.w500,
+              color: TrainColors.ink3,
+              height: 1.35,
             ),
           ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TrainType.ui(
+              size: 13.5,
+              weight: FontWeight.w600,
+              color: muted ? TrainColors.ink3 : TrainColors.ink2,
+              height: 1.35,
+            ),
+          ),
+        ),
+      ],
     );
   }
+}
 
-  ({IconData icon, String label, Color fg, Color bg}) _statusSpec(
-    BuildContext context,
-  ) {
-    switch (status) {
-      case AiActionStatus.applied:
-        return (
-          icon: AppIcons.check,
-          label: l(context).askProposalConfirmed,
-          fg: TrainColors.green,
-          bg: TrainColors.greenWash,
-        );
-      case AiActionStatus.cancelled:
-        return (
-          icon: AppIcons.close,
-          label: l(context).askProposalCancelled,
-          fg: TrainColors.ink3,
-          bg: TrainColors.hairline,
-        );
-      default:
-        return (
-          icon: AppIcons.clock,
-          label: l(context).askProposalExpired,
-          fg: TrainColors.ink3,
-          bg: TrainColors.hairline,
-        );
-    }
+typedef _Kind = ({IconData icon, String label, Color hue});
+
+_Kind _kindOf(BuildContext context, AiPendingAction action) {
+  final s = l(context);
+  switch (action.kind) {
+    case 'create_expense':
+      return (
+        icon: AppIcons.expenses,
+        label: s.askActionNewExpense,
+        hue: TrainColors.amber,
+      );
+    case 'edit_expense':
+      return (
+        icon: AppIcons.edit,
+        label: s.askActionEditExpense,
+        hue: TrainColors.amber,
+      );
+    case 'delete_expense':
+      return (
+        icon: AppIcons.trash,
+        label: s.askActionDeleteExpense,
+        hue: TrainColors.ember,
+      );
+    case 'mark_meal_eaten':
+      return (
+        icon: AppIcons.diet,
+        label: s.askActionDietPlan,
+        hue: TrainColors.green,
+      );
+    case 'log_food':
+      return (
+        icon: AppIcons.diet,
+        label: s.askActionLogFood,
+        hue: TrainColors.green,
+      );
+    case 'replace_meal_item':
+      return (
+        icon: AppIcons.diet,
+        label: s.askActionReplaceFood,
+        hue: TrainColors.green,
+      );
+    case 'change_workout_day':
+      final swap = action.fields['mode'] == 'swap';
+      return (
+        icon: AppIcons.workout,
+        label: swap ? s.askActionWorkoutSwap : s.askActionWorkoutSkip,
+        hue: TrainColors.green,
+      );
+    default:
+      return (
+        icon: AppIcons.ask,
+        label: s.askActionSuggestion,
+        hue: TrainColors.ink2,
+      );
   }
+}
 
-  /// The confirm button's verb + colour. A delete is destructive, so it wears
-  /// the alert hue and says "Delete" rather than a neutral "Confirm".
-  ({String label, Color color}) _confirmSpec(BuildContext context) {
-    if (action.kind == 'delete_expense') {
-      return (label: l(context).actionDelete, color: TrainColors.ember);
-    }
-    return (label: l(context).askProposalConfirm, color: TrainColors.violet);
-  }
-
-  String _primaryLine(BuildContext context) {
-    final f = action.fields;
-    switch (action.kind) {
-      case 'create_expense':
-        return ltrFor(
+/// The one thing the change is about, and whether it's a figure (set in the
+/// numbers face) or words.
+({String text, bool numeric}) _headlineOf(
+  BuildContext context,
+  AiPendingAction action,
+) {
+  final f = action.fields;
+  String? text(Object? v) =>
+      v is String && v.trim().isNotEmpty ? v.trim() : null;
+  switch (action.kind) {
+    case 'create_expense':
+      return (
+        text: ltrFor(
           context,
           '${f['amount'] ?? ''} ${f['currency'] ?? ''}'.trim(),
-        );
-      case 'edit_expense':
-      case 'delete_expense':
-        final target = f['target'];
-        return (target is String && target.trim().isNotEmpty)
-            ? isolate(target)
-            : action.summary;
-      case 'mark_meal_eaten':
-        return isolate('${f['meal'] ?? ''}'.trim());
-      case 'log_food':
-        final items = f['items'];
-        if (items is List && items.length == 1 && items.first is Map) {
-          final name = (items.first as Map)['name'];
-          if (name is String && name.trim().isNotEmpty) {
-            return isolate(name.trim());
-          }
-        }
-        final count = f['count'];
-        if (count is int && count > 0) return l(context).askFoodCount(count);
-        return action.summary;
-      default:
-        return action.summary;
-    }
+        ),
+        numeric: true,
+      );
+    case 'edit_expense':
+    case 'delete_expense':
+      final target = text(f['target']);
+      return (
+        text: target == null ? action.summary : isolate(target),
+        numeric: false,
+      );
+    case 'mark_meal_eaten':
+      return (text: isolate(text(f['meal']) ?? action.summary), numeric: false);
+    case 'log_food':
+      final items = f['items'];
+      if (items is List && items.length == 1 && items.first is Map) {
+        final name = text((items.first as Map)['name']);
+        if (name != null) return (text: isolate(name), numeric: false);
+      }
+      final count = f['count'];
+      if (count is int && count > 0) {
+        return (text: l(context).askFoodCount(count), numeric: false);
+      }
+      return (text: action.summary, numeric: false);
+    case 'replace_meal_item':
+      final to = text(f['to']);
+      return (text: to == null ? action.summary : isolate(to), numeric: false);
+    case 'change_workout_day':
+      final to = text(f['to']);
+      return (
+        text: to == null
+            ? action.summary
+            : l(context).askWorkoutToday(isolate(to)),
+        numeric: false,
+      );
+    default:
+      return (text: action.summary, numeric: false);
   }
+}
 
-  /// The "changed to X" prefix on an edit chip.
-  ///
-  /// Two things go wrong if this stays the literal `'→ $value'`. The arrow is
-  /// bidi-neutral, so in an Arabic card it is laid out in the paragraph's
-  /// direction and ends up trailing the value it is supposed to introduce; and
-  /// it still points right, away from the reading direction, so it reads as
-  /// "60.00 EGP →" — the new value pointing at nothing. The glyph follows the
-  /// paragraph and [ltrFor] keeps the amount itself from coming apart.
-  String _changeTo(BuildContext context, String value) {
-    final arrow = Directionality.of(context) == TextDirection.rtl ? '←' : '→';
-    return '$arrow ${ltrFor(context, value)}';
-  }
+/// A quantity like 2.0 → "2", 1.5 → "1.5" — plan/log amounts arrive as JSON
+/// numbers and read badly with a trailing ".0".
+String _qty(Object? value) {
+  if (value is! num) return '';
+  if (value == value.roundToDouble()) return value.toInt().toString();
+  return value.toString();
+}
 
-  /// A quantity like 2.0 → "2", 1.5 → "1.5" — plan/log amounts arrive as JSON
-  /// numbers and read badly with a trailing ".0".
-  String _qty(Object? value) {
-    if (value is! num) return '';
-    if (value == value.roundToDouble()) return value.toInt().toString();
-    return value.toString();
+/// The particulars, as (label, value) receipt rows.
+List<(String, String)> _rowsOf(BuildContext context, AiPendingAction action) {
+  final s = l(context);
+  final f = action.fields;
+  String? text(Object? v) =>
+      v != null && '$v'.trim().isNotEmpty ? '$v'.trim() : null;
+  String money(Object? amount) =>
+      ltrFor(context, '$amount ${f['currency'] ?? ''}'.trim());
+  String kcal(Object? v) => ltrFor(context, s.askKcalTotal('$v'));
+  final rows = <(String, String)>[];
+  switch (action.kind) {
+    case 'create_expense':
+      if (text(f['category']) case final c?) {
+        rows.add((s.askRowCategory, _categoryName(context, c)));
+      }
+      if (text(f['note']) case final n?) rows.add((s.askRowNote, isolate(n)));
+    case 'edit_expense':
+      // Each field being changed, as its NEW value.
+      if (f['amount'] != null) rows.add((s.askRowAmount, money(f['amount'])));
+      if (text(f['category']) case final c?) {
+        rows.add((s.askRowCategory, _categoryName(context, c)));
+      }
+      if (text(f['note']) case final n?) rows.add((s.askRowNote, isolate(n)));
+    case 'delete_expense':
+      if (f['amount'] != null) rows.add((s.askRowAmount, money(f['amount'])));
+      if (text(f['category']) case final c?) {
+        rows.add((s.askRowCategory, _categoryName(context, c)));
+      }
+    case 'mark_meal_eaten':
+      // `state` arrives as the English "eaten"/"not eaten" — a server-side
+      // value, read as a flag; the WORD is the app's own.
+      final eaten = f['state'] != 'not eaten';
+      rows.add((s.askRowStatus, eaten ? s.dietEaten : s.dietNotEaten));
+    case 'log_food':
+      final items = f['items'];
+      if (items is List && items.length > 1) {
+        for (final raw in items) {
+          if (raw is! Map) continue;
+          // A food name is text ZIVO did not write, so it decides its own
+          // direction; the quantity is a composed run and is pinned.
+          final amount = '${_qty(raw['quantity'])} ${raw['unit'] ?? ''}'.trim();
+          rows.add((isolate('${raw['name'] ?? ''}'), ltrFor(context, amount)));
+        }
+        if (f['totalKcal'] != null) {
+          rows.add((s.askRowTotal, kcal(f['totalKcal'])));
+        }
+      } else if (items is List && items.length == 1 && items.first is Map) {
+        final raw = items.first as Map;
+        final amount = '${_qty(raw['quantity'])} ${raw['unit'] ?? ''}'.trim();
+        if (amount.isNotEmpty) {
+          rows.add((s.askRowAmount, ltrFor(context, amount)));
+        }
+        if (f['totalKcal'] != null) {
+          rows.add((s.askRowCalories, kcal(f['totalKcal'])));
+        }
+      }
+    case 'replace_meal_item':
+      if (text(f['meal']) case final m?) rows.add((s.askRowMeal, isolate(m)));
+      if (text(f['from']) case final from?) {
+        rows.add((s.askRowInsteadOf, isolate(from)));
+      }
+      if (f['toCalories'] != null) {
+        final was = f['fromCalories'] != null
+            ? ', ${s.askRowWas(kcal(f['fromCalories']))}'
+            : '';
+        rows.add((s.askRowCalories, '${kcal(f['toCalories'])}$was'));
+      }
+    case 'change_workout_day':
+      final from = text(f['from']);
+      final then = text(f['then']);
+      if (f['mode'] == 'swap') {
+        if (from != null) rows.add((s.askRowInsteadOf, isolate(from)));
+        if (then != null) rows.add((s.askRowNext, isolate(then)));
+      } else {
+        if (from != null) {
+          rows.add((
+            s.askRowSkipped,
+            s.askSkippedUntilNextRound(isolate(from)),
+          ));
+        }
+        if (then != null) rows.add((s.askRowThen, isolate(then)));
+      }
   }
+  return rows;
+}
 
-  List<Widget> _chips(BuildContext context) {
-    final f = action.fields;
-    final chips = <Widget>[];
-    switch (action.kind) {
-      case 'create_expense':
-        if (f['category'] != null) {
-          chips.add(_chip(AppIcons.tag, f['category'].toString()));
-        }
-        if (f['note'] != null) {
-          chips.add(_chip(AppIcons.caption, f['note'].toString()));
-        }
-      case 'edit_expense':
-        // Each field being changed, shown as its NEW value ("→ 60.00 EGP").
-        final amount = f['amount'];
-        if (amount != null) {
-          chips.add(
-            _chip(
-              AppIcons.expenses,
-              _changeTo(context, '$amount ${f['currency'] ?? ''}'.trim()),
-            ),
-          );
-        }
-        if (f['category'] != null) {
-          chips.add(
-            _chip(AppIcons.tag, _changeTo(context, '${f['category']}')),
-          );
-        }
-        if (f['note'] != null) {
-          chips.add(
-            _chip(AppIcons.caption, _changeTo(context, '${f['note']}')),
-          );
-        }
-      case 'delete_expense':
-        final amount = f['amount'];
-        if (amount != null) {
-          chips.add(
-            _chip(
-              AppIcons.expenses,
-              ltrFor(context, '$amount ${f['currency'] ?? ''}'.trim()),
-            ),
-          );
-        }
-        if (f['category'] != null) {
-          chips.add(_chip(AppIcons.tag, f['category'].toString()));
-        }
-      case 'mark_meal_eaten':
-        // `state` arrives from the gateway as the English "eaten"/"not eaten"
-        // (mutations.js) — a server-side value, not copy, so it is read as a
-        // flag here and the WORD comes from the app's own strings.
-        final eaten = f['state'] != 'not eaten';
-        chips.add(
-          _chip(
-            eaten ? AppIcons.success : AppIcons.close,
-            eaten ? l(context).dietEaten : l(context).dietNotEaten,
-          ),
-        );
-      case 'log_food':
-        final items = f['items'];
-        if (items is List) {
-          for (final raw in items) {
-            if (raw is! Map) continue;
-            final name = raw['name']?.toString() ?? '';
-            final amount = '${_qty(raw['quantity'])} ${raw['unit'] ?? ''}'
-                .trim();
-            // A food name is text ZIVO did not write, so it decides its own
-            // direction; the quantity is a composed run and is pinned. Without
-            // both, "Chicken · 200 g" comes apart in an Arabic card.
-            final label = amount.isEmpty
-                ? isolate(name)
-                : '${isolate(name)} · ${ltrFor(context, amount)}';
-            if (label.isNotEmpty) chips.add(_chip(AppIcons.diet, label));
-          }
-        }
-        // A total, only when it adds something over a single item's own chip.
-        final total = f['totalKcal'];
-        if (total != null && items is List && items.length > 1) {
-          chips.add(_chip(AppIcons.diet, l(context).askKcalTotal('$total')));
-        }
-    }
-    return chips;
-  }
-
-  Widget _chip(IconData icon, String label, {Color? bg, Color? fg}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: bg ?? TrainColors.raisedStrong,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: fg ?? TrainColors.ink2),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: AppText.meta.copyWith(color: fg ?? TrainColors.ink2),
-          ),
-        ],
-      ),
-    );
-  }
-
-  ({IconData icon, String label, Color tintBg, Color tintFg}) _kindMeta(
-    BuildContext context,
-    String kind,
-  ) {
-    switch (kind) {
-      case 'create_expense':
-        return (
-          icon: AppIcons.expenses,
-          label: l(context).askActionNewExpense,
-          tintBg: TrainColors.amberWash,
-          tintFg: TrainColors.amber,
-        );
-      case 'edit_expense':
-        return (
-          icon: AppIcons.edit,
-          label: l(context).askActionEditExpense,
-          tintBg: TrainColors.amberWash,
-          tintFg: TrainColors.amber,
-        );
-      case 'delete_expense':
-        return (
-          icon: AppIcons.trash,
-          label: l(context).askActionDeleteExpense,
-          tintBg: TrainColors.emberWash,
-          tintFg: TrainColors.ember,
-        );
-      case 'mark_meal_eaten':
-        return (
-          icon: AppIcons.diet,
-          label: l(context).askActionDietPlan,
-          tintBg: TrainColors.greenWash,
-          tintFg: TrainColors.green,
-        );
-      case 'log_food':
-        return (
-          icon: AppIcons.diet,
-          label: l(context).askActionLogFood,
-          tintBg: TrainColors.greenWash,
-          tintFg: TrainColors.green,
-        );
-      default:
-        return (
-          icon: AppIcons.ask,
-          label: l(context).askActionSuggestion,
-          tintBg: TrainColors.hairline,
-          tintFg: TrainColors.ink2,
-        );
-    }
-  }
+/// A stored category id in the reader's words — the built-in ones through the
+/// same strings the Expenses screens use, a user's own category as they wrote
+/// it (capitalised: the id is stored lower-case).
+String _categoryName(BuildContext context, String id) {
+  final s = l(context);
+  return switch (id.toLowerCase()) {
+    'food' => s.categoryFood,
+    'coffee' => s.categoryCoffee,
+    'transport' => s.categoryTransport,
+    'groceries' => s.categoryGroceries,
+    'shopping' => s.categoryShopping,
+    'other' => s.categoryOther,
+    _ => isolate('${id[0].toUpperCase()}${id.substring(1)}'),
+  };
 }

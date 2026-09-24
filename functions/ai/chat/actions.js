@@ -290,6 +290,21 @@ async function applyProposedAction(store, uid, action) {
       items[v.itemIndex] = v.newItem;
       return store.savePlanDays(uid, plan.id, plan.days);
     }
+    case "change_workout_day":
+      // Re-proven against the doc inside the write's own transaction: if the
+      // day that was due has changed (a workout finished, the split edited)
+      // the change is refused, never applied to a rotation it wasn't meant
+      // for.
+      try {
+        return await store.updateWorkoutRotation(uid, v.planId, {
+          mode: v.mode, dueDayId: v.dueDayId, targetDayId: v.targetDayId,
+        });
+      } catch (err) {
+        throw new GatewayError(
+            "failed-precondition",
+            `${err.message || "Your split changed."} Ask me again and I'll ` +
+            "use your current rotation.");
+      }
     default:
       throw new GatewayError(
           "failed-precondition", `Unknown action kind: ${action.kind}.`);
@@ -352,10 +367,14 @@ async function confirmAction({store, uid, conversationId, actionId, now}) {
   await store.markPendingAction(uid, conversationId, actionId, "applied");
   await store.markProposalMessage(uid, conversationId, actionId, "applied");
   const resultText = resultLineFor(action);
+  // Tagged with the action it resolves: the card itself now shows the
+  // outcome, so the app can leave this line out of the thread while the
+  // model still reads it in history.
   await store.appendMessage(uid, conversationId, {
     role: "assistant",
     content: resultText,
     createdAt: clock(),
+    resultOf: actionId,
   });
   return {status: "applied", assistantText: resultText, actionId};
 }
@@ -395,6 +414,7 @@ async function cancelAction({store, uid, conversationId, actionId, now}) {
     role: "assistant",
     content: text,
     createdAt: clock(),
+    resultOf: actionId,
   });
   return {status: "cancelled", assistantText: text, actionId};
 }

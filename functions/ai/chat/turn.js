@@ -88,6 +88,18 @@ const allToolsByName = new Map(allTools.map((t) => [t.name, t]));
 const {ASK_CHOICE} = require("../tools/elicitations");
 
 /**
+ * Whether a card built from `offer` gets ZIVO's own "Other options" chip —
+ * only when the tool that made the offer can always find more
+ * (`moreOptions`, e.g. food alternatives; never a skip-or-swap question).
+ * @param {?{tool: string}} offer
+ * @return {boolean}
+ */
+function offersMore(offer) {
+  const t = offer ? allToolsByName.get(offer.tool) : null;
+  return !!(t && t.moreOptions);
+}
+
+/**
  * Runs one user turn of the Ask conversation: persists the user message,
  * enforces the per-day cap, runs the BOUNDED agent loop, persists the
  * assistant's reply, and logs usage.
@@ -742,19 +754,24 @@ async function runAiTurn({
           // A choice after a verified search offers only what was verified —
           // with the server's figures and the change each one means.
           let bound = {spec, bindings: null};
+          let boundTo = null;
           if (tool === ASK_CHOICE) {
             if (offer) {
               bound = bindOfferedOptions(spec, offer);
+              boundTo = offer;
             } else if (carriedOffer) {
               // A question that isn't about the carried options is just a
               // plain question — the carried offer only binds what it matches.
               try {
                 bound = bindOfferedOptions(spec, carriedOffer);
+                boundTo = carriedOffer;
               } catch (_) {
                 bound = {spec, bindings: null};
               }
             }
-            bound = withMoreOption(bound, replyLanguageFor(trimmed));
+            if (offersMore(boundTo)) {
+              bound = withMoreOption(bound, replyLanguageFor(trimmed));
+            }
           }
           elicitation = {tool, validated: bound.spec,
             bindings: bound.bindings};
@@ -915,7 +932,8 @@ async function runAiTurn({
   if (offer && finalText && !elicitedRequest && !proposedAction &&
       !refusal && !cancelled && !toolErrorHit) {
     const lang = replyLanguageFor(trimmed);
-    const card = withMoreOption(cardFromOffer(offer, finalText, lang), lang);
+    const built = cardFromOffer(offer, finalText, lang);
+    const card = offersMore(offer) ? withMoreOption(built, lang) : built;
     emitPhase("awaiting_input");
     elicitedRequest = await persistElicitation({
       store, uid, conversationId, tool: ASK_CHOICE,

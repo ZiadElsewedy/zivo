@@ -10289,6 +10289,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No {provider} requests yet.'**
   String aiUsageProviderEmpty(String provider);
+
+  /// Kind label on a confirmation card that swaps one food in the diet plan for another.
+  ///
+  /// In en, this message translates to:
+  /// **'Meal swap'**
+  String get askActionReplaceFood;
+
+  /// Kind label on a confirmation card that swaps today's workout with another day in the rotation.
+  ///
+  /// In en, this message translates to:
+  /// **'Workout swap'**
+  String get askActionWorkoutSwap;
+
+  /// Kind label on a confirmation card that skips today's scheduled workout.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip workout'**
+  String get askActionWorkoutSkip;
+
+  /// Headline of a workout-change card: the workout the user will do today. {day} is a workout day name like "Pull".
+  ///
+  /// In en, this message translates to:
+  /// **'{day} today'**
+  String askWorkoutToday(String day);
+
+  /// Row label on a confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get askRowCategory;
+
+  /// Row label on a confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get askRowNote;
+
+  /// Row label on a confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get askRowAmount;
+
+  /// Row label on a confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get askRowStatus;
+
+  /// Row label on a confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Meal'**
+  String get askRowMeal;
+
+  /// Row label on a confirmation card: what is being replaced.
+  ///
+  /// In en, this message translates to:
+  /// **'Instead of'**
+  String get askRowInsteadOf;
+
+  /// Row label on a confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Calories'**
+  String get askRowCalories;
+
+  /// Row label on a workout-swap card: the workout that comes after today's.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get askRowNext;
+
+  /// Row label on a workout-skip card: the workout that follows in the rotation.
+  ///
+  /// In en, this message translates to:
+  /// **'Then'**
+  String get askRowThen;
+
+  /// Row label on a workout-skip card: the scheduled workout being skipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped'**
+  String get askRowSkipped;
+
+  /// Row label on a confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get askRowTotal;
+
+  /// A previous value shown after a new one on a confirmation card, e.g. "238 kcal, was 234 kcal".
+  ///
+  /// In en, this message translates to:
+  /// **'was {value}'**
+  String askRowWas(String value);
+
+  /// Value of the "Skipped" row: the skipped workout returns in the next pass of the rotation.
+  ///
+  /// In en, this message translates to:
+  /// **'{day}, back next round'**
+  String askSkippedUntilNextRound(String day);
+
+  /// Second line of the "skip" answer chip when changing today's workout. {to}/{from} are workout day names.
+  ///
+  /// In en, this message translates to:
+  /// **'{to} today, {from} waits till next round'**
+  String askChoiceSkipDetail(String to, String from);
+
+  /// Second line of the "swap" answer chip when changing today's workout. {to}/{from} are workout day names.
+  ///
+  /// In en, this message translates to:
+  /// **'{to} today, {from} next'**
+  String askChoiceSwapDetail(String to, String from);
 }
 
 class _AppLocalizationsDelegate

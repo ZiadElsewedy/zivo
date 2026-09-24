@@ -6282,4 +6282,71 @@ class AppLocalizationsAr extends AppLocalizations {
   String aiUsageProviderEmpty(String provider) {
     return 'لا توجد طلبات $provider بعد.';
   }
+
+  @override
+  String get askActionReplaceFood => 'تبديل في الوجبة';
+
+  @override
+  String get askActionWorkoutSwap => 'تبديل التمرين';
+
+  @override
+  String get askActionWorkoutSkip => 'تخطي التمرين';
+
+  @override
+  String askWorkoutToday(String day) {
+    return '$day اليوم';
+  }
+
+  @override
+  String get askRowCategory => 'الفئة';
+
+  @override
+  String get askRowNote => 'ملاحظة';
+
+  @override
+  String get askRowAmount => 'المبلغ';
+
+  @override
+  String get askRowStatus => 'الحالة';
+
+  @override
+  String get askRowMeal => 'الوجبة';
+
+  @override
+  String get askRowInsteadOf => 'بدلاً من';
+
+  @override
+  String get askRowCalories => 'السعرات';
+
+  @override
+  String get askRowNext => 'التالي';
+
+  @override
+  String get askRowThen => 'بعده';
+
+  @override
+  String get askRowSkipped => 'متخطى';
+
+  @override
+  String get askRowTotal => 'الإجمالي';
+
+  @override
+  String askRowWas(String value) {
+    return 'كان $value';
+  }
+
+  @override
+  String askSkippedUntilNextRound(String day) {
+    return '$day، يرجع في الدورة الجاية';
+  }
+
+  @override
+  String askChoiceSkipDetail(String to, String from) {
+    return '$to اليوم، و$from يستنى الدورة الجاية';
+  }
+
+  @override
+  String askChoiceSwapDetail(String to, String from) {
+    return '$to اليوم، و$from بعده';
+  }
 }

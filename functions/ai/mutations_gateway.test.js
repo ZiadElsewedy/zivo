@@ -1655,3 +1655,140 @@ test("a card keeps what the model said before it (preface) and belongs to " +
       "Your breakfast has 2 eggs. I found swaps that land close to that.");
   assert.equal(card.clientTurnId, "turn-9");
 });
+
+// ---- Workout rotation: skip vs swap (tools/workout_rotation.js) ------------
+
+/**
+ * A store holding a Push → Pull → Legs split with Push up next.
+ * @return {!Object}
+ */
+function splitStore() {
+  const plan = {
+    id: "split-1", name: "PPL", status: "active", cycleCursor: 0,
+    days: [
+      {id: "push", label: "Push", slot: "A", order: 0,
+        exercises: [{id: "e1", name: "Bench", order: 0}]},
+      {id: "pull", label: "Pull", slot: "B", order: 1,
+        exercises: [{id: "e2", name: "Row", order: 0}]},
+      {id: "legs", label: "Legs", slot: "C", order: 2,
+        exercises: [{id: "e3", name: "Squat", order: 0}]},
+    ],
+  };
+  const store = makeStore({
+    plan,
+    rotationChanges: [],
+    getActiveWorkoutPlan: async () => plan,
+    listWorkoutSessions: async () => [],
+    findMessageByClientTurnId: async () => null,
+  });
+  store.updateWorkoutRotation = async (uid, planId, change) =>
+    store.rotationChanges.push({planId, change});
+  return store;
+}
+
+test("'I want to do Pull today' with Push scheduled: ZIVO asks skip or " +
+    "swap, and each option carries the exact change", async () => {
+  const store = splitStore();
+  const callModel = scriptedModel([
+    toolUse("get_workout_schedule", {}, "t-sched"),
+    toolUse("preview_workout_change", {dayId: "pull"}, "t-prev"),
+    // The model jumps the gun — refused: the user hasn't chosen.
+    toolUse("change_workout_day", {mode: "swap", dayId: "pull"}, "t-early"),
+    {
+      stop_reason: "tool_use",
+      content: [
+        {type: "text", text: "You have Push scheduled today."},
+        {type: "tool_use", id: "t-ask", name: "ask_choice", input: {
+          prompt: "Do you want to skip Push and do Pull instead, or swap " +
+            "Push with Pull?",
+          options: [
+            {value: "skip", label: "Skip Push"},
+            {value: "swap", label: "Swap Push and Pull"},
+          ],
+        }},
+      ],
+      usage: {input_tokens: 10, output_tokens: 5},
+    },
+  ]);
+  const result = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "I want to play Pull today", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0},
+  });
+  assert.equal(result.status, "awaiting-input");
+  assert.equal(store.pendingActions.size, 0);
+  const early = callModel.requests[3].messages
+      .flatMap((m) => Array.isArray(m.content) ? m.content : [])
+      .find((b) => b.tool_use_id === "t-early");
+  assert.match(early.content, /hasn't chosen yet/);
+
+  const card = store.messages.find((m) => m.kind === "choice_request");
+  assert.equal(card.preface, "You have Push scheduled today.");
+  // Exactly the two — no "Other options" on a skip-or-swap question.
+  assert.deepEqual(card.fields.options.map((o) => o.value), ["skip", "swap"]);
+  assert.deepEqual(card.bindings.swap,
+      {tool: "change_workout_day", input: {mode: "swap", dayId: "pull"}});
+  assert.equal(card.fields.options[1].metadata.mode, "swap");
+
+  // Tapping "Swap" proposes that exact change — no model call.
+  const noModel = scriptedModel([textResponse("should not run")]);
+  const picked = await runAiTurn({
+    store, callModel: noModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "Swap Push and Pull",
+    choice: {requestId: result.requestId, value: "swap"},
+    now: makeClock(2000), clientClock: {offsetMinutes: 0},
+  });
+  assert.equal(picked.status, "proposed");
+  assert.equal(noModel.callCount(), 0);
+  const action = store.pendingActions.get(picked.actionId);
+  assert.equal(action.kind, "change_workout_day");
+  assert.equal(action.summary, "Swap Push with Pull — Pull today, Push next");
+  assert.deepEqual(action.fields,
+      {mode: "swap", from: "Push", to: "Pull", then: "Push"});
+
+  // Nothing moved until Confirm; then the rotation changes.
+  assert.equal(store.rotationChanges.length, 0);
+  const confirmed = await confirmAction({store, uid: UID,
+    conversationId: CONVERSATION_ID, actionId: picked.actionId,
+    now: makeClock(3000)});
+  assert.equal(confirmed.assistantText,
+      "Swapped — Pull is today's workout, Push is next");
+  assert.deepEqual(store.rotationChanges, [{planId: "split-1", change: {
+    mode: "swap", dueDayId: "push", targetDayId: "pull"}}]);
+});
+
+test("'skip Push and do Pull instead' is explicit — proposed as a skip " +
+    "straight away; asking for today's own day changes nothing", async () => {
+  const store = splitStore();
+  const callModel = scriptedModel([
+    toolUse("get_workout_schedule", {}, "t-sched"),
+    toolUse("change_workout_day", {mode: "skip", dayId: "pull"}, "t-skip"),
+  ]);
+  const result = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "skip Push today and do Pull instead", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0},
+  });
+  assert.equal(result.status, "proposed");
+  const action = store.pendingActions.get(result.actionId);
+  assert.equal(action.summary, "Skip Push — Pull today");
+  assert.deepEqual(action.fields,
+      {mode: "skip", from: "Push", to: "Pull", then: "Legs"});
+
+  const store2 = splitStore();
+  const same = scriptedModel([
+    toolUse("change_workout_day", {mode: "swap", dayId: "push"}, "t-same"),
+    textResponse("Push is already today's workout."),
+  ]);
+  const r2 = await runAiTurn({
+    store: store2, callModel: same, uid: UID, conversationId: CONVERSATION_ID,
+    message: "swap to push", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0},
+  });
+  assert.equal(r2.status, "ok");
+  assert.equal(store2.pendingActions.size, 0);
+  const refused = same.requests[1].messages
+      .flatMap((m) => Array.isArray(m.content) ? m.content : [])
+      .find((b) => b.tool_use_id === "t-same");
+  assert.match(refused.content, /already today's workout/);
+});

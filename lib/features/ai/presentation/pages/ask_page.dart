@@ -480,8 +480,12 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                     _c.setPersisted(
                                       snapshot.data ?? const <AiMessage>[],
                                     );
+                                    // A confirm/cancel echo is left out: the
+                                    // card it resolves already shows how it
+                                    // ended.
                                     final displayed = <AiMessage>[
-                                      ..._c.lastPersisted,
+                                      for (final m in _c.lastPersisted)
+                                        if (m.resultOf == null) m,
                                     ];
 
                                     // The durable ASSISTANT reply landing gates the

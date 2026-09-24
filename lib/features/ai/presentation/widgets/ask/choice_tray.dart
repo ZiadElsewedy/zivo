@@ -74,6 +74,24 @@ class _ChoiceTrayState extends State<ChoiceTray>
   Widget build(BuildContext context) {
     final options = widget.request.options;
     final n = options.length;
+    // Short one-line answers ("Food", "Coffee", "Transport") flow along a
+    // row like words; answers that carry a second line stack, so each one's
+    // detail reads with it.
+    final compact = options.every(
+      (o) => choiceOptionDetail(context, o) == null && o.label.length <= 24,
+    );
+    Widget chip(int i, AiChoiceOption o) => _Staggered(
+      animation: _enter,
+      // The chip nearest the composer rises first.
+      index: n - 1 - i,
+      count: n,
+      child: _Chip(
+        key: ValueKey('choice-option-${o.value}'),
+        option: o,
+        secondary: o.value == kMoreOptionsValue,
+        onTap: () => widget.onSelect(o.value, o.label),
+      ),
+    );
     return Semantics(
       container: true,
       label: l(context).askChoiceTray,
@@ -84,28 +102,27 @@ class _ChoiceTrayState extends State<ChoiceTray>
           AppSpacing.base,
           2,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            for (final (i, o) in options.indexed)
-              _Staggered(
-                animation: _enter,
-                // The chip nearest the composer rises first.
-                index: n - 1 - i,
-                count: n,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: _Chip(
-                    key: ValueKey('choice-option-${o.value}'),
-                    option: o,
-                    secondary: o.value == kMoreOptionsValue,
-                    onTap: () => widget.onSelect(o.value, o.label),
-                  ),
+        child: compact
+            ? Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [for (final (i, o) in options.indexed) chip(i, o)],
                 ),
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (final (i, o) in options.indexed)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: chip(i, o),
+                    ),
+                ],
               ),
-          ],
-        ),
       ),
     );
   }
@@ -157,14 +174,23 @@ String _num(num n) {
   return n.toStringAsFixed(1);
 }
 
-/// The option's second line: its verified figures in the reader's language
-/// when the server attached them, else the server's own subtitle.
+/// The option's second line, in the reader's language when the server
+/// attached what it means — a food's verified figures, or what a workout
+/// skip / swap does to the rotation — else the server's own subtitle.
 String? choiceOptionDetail(BuildContext context, AiChoiceOption o) {
   final m = o.metadata;
+  final mode = m['mode'];
+  final from = m['from'];
+  final to = m['to'];
+  if ((mode == 'skip' || mode == 'swap') && from is String && to is String) {
+    return mode == 'skip'
+        ? l(context).askChoiceSkipDetail(isolate(to), isolate(from))
+        : l(context).askChoiceSwapDetail(isolate(to), isolate(from));
+  }
   final grams = m['grams'];
   final kcal = m['kcal'];
   final protein = m['proteinG'];
-  if (grams != null && kcal != null && protein != null) {
+  if (grams is num && kcal is num && protein is num) {
     return ltrFor(
       context,
       l(context).askChoiceNutrition(_num(grams), _num(kcal), _num(protein)),
@@ -263,11 +289,20 @@ class _ChipState extends State<_Chip> {
                             const SizedBox(height: 2),
                             Text(
                               detail,
-                              style: TrainType.mono(
-                                size: 11,
-                                color: TrainColors.ink3,
-                                height: 1.3,
-                              ),
+                              // Figures in the numbers face; a sentence in
+                              // the text face.
+                              style: widget.option.metadata['grams'] != null
+                                  ? TrainType.mono(
+                                      size: 11,
+                                      color: TrainColors.ink3,
+                                      height: 1.3,
+                                    )
+                                  : TrainType.ui(
+                                      size: 12,
+                                      weight: FontWeight.w500,
+                                      color: TrainColors.ink3,
+                                      height: 1.3,
+                                    ),
                             ),
                           ],
                         ),

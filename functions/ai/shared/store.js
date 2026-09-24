@@ -10,6 +10,7 @@
 
 const {Timestamp, FieldValue} = require("firebase-admin/firestore");
 const {dailyCapUsageFor} = require("../chat/usage");
+const {applyRotationChange} = require("../tools/workout_rotation");
 
 /**
  * `Timestamp` field `value` converted to a `Date`, or null.
@@ -182,6 +183,8 @@ class FirestoreStore {
         id: doc.id,
         name: d.name || "",
         status: d.status || "active",
+        // The `order` of the day that's up next — the rotation's "today".
+        cycleCursor: typeof d.cycleCursor === "number" ? d.cycleCursor : 0,
         days: (d.days || []).map((day) => ({
           id: day.id || "",
           slot: day.slot || "",
@@ -217,6 +220,33 @@ class FirestoreStore {
     }
     const active = plans.find((p) => p.status === "active");
     return active || plans[0];
+  }
+
+  /**
+   * Applies a confirmed rotation change (`change_workout_day`: a swap, or a
+   * skip onto another day) to the split `planId`, in a transaction over the
+   * RAW doc — so every exercise and set on every day is written back exactly
+   * as it was, and a plan edited since the proposal is refused rather than
+   * overwritten (`../tools/workout_rotation.js` `applyRotationChange`).
+   * @param {string} uid
+   * @param {string} planId
+   * @param {{mode: string, dueDayId: string, targetDayId: string}} change
+   * @return {!Promise<void>}
+   */
+  async updateWorkoutRotation(uid, planId, change) {
+    const ref = this._user(uid).collection("workoutPlans").doc(planId);
+    await this.db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error("That split doesn't exist any more.");
+      const d = snap.data();
+      const next = applyRotationChange(
+          {days: d.days || [], cycleCursor: d.cycleCursor}, change);
+      tx.update(ref, {
+        days: next.days,
+        cycleCursor: next.cycleCursor,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   /**
@@ -586,6 +616,8 @@ class FirestoreStore {
     if (message.context && Array.isArray(message.context.entries)) {
       data.context = message.context;
     }
+    // A confirm/cancel echo names the proposal it resolves (`actions.js`).
+    if (message.resultOf) data.resultOf = String(message.resultOf);
     if (message.choice && message.choice.requestId) {
       data.choice = {
         requestId: String(message.choice.requestId),

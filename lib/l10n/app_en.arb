@@ -8326,5 +8326,112 @@
   "aiUsageTokensSection": "Tokens",
   "@aiUsageTokensSection": {"description": "Usage page section header."},
   "aiUsageProviderEmpty": "No {provider} requests yet.",
-  "@aiUsageProviderEmpty": {"description": "Usage page empty state for one provider.", "placeholders": {"provider": {"type": "String"}}}
+  "@aiUsageProviderEmpty": {"description": "Usage page empty state for one provider.", "placeholders": {"provider": {"type": "String"}}},
+  "askActionReplaceFood": "Meal swap",
+  "@askActionReplaceFood": {
+      "description": "Kind label on a confirmation card that swaps one food in the diet plan for another."
+  },
+  "askActionWorkoutSwap": "Workout swap",
+  "@askActionWorkoutSwap": {
+      "description": "Kind label on a confirmation card that swaps today's workout with another day in the rotation."
+  },
+  "askActionWorkoutSkip": "Skip workout",
+  "@askActionWorkoutSkip": {
+      "description": "Kind label on a confirmation card that skips today's scheduled workout."
+  },
+  "askWorkoutToday": "{day} today",
+  "@askWorkoutToday": {
+      "description": "Headline of a workout-change card: the workout the user will do today. {day} is a workout day name like \"Pull\".",
+      "placeholders": {
+          "day": {
+              "type": "String"
+          }
+      }
+  },
+  "askRowCategory": "Category",
+  "@askRowCategory": {
+      "description": "Row label on a confirmation card."
+  },
+  "askRowNote": "Note",
+  "@askRowNote": {
+      "description": "Row label on a confirmation card."
+  },
+  "askRowAmount": "Amount",
+  "@askRowAmount": {
+      "description": "Row label on a confirmation card."
+  },
+  "askRowStatus": "Status",
+  "@askRowStatus": {
+      "description": "Row label on a confirmation card."
+  },
+  "askRowMeal": "Meal",
+  "@askRowMeal": {
+      "description": "Row label on a confirmation card."
+  },
+  "askRowInsteadOf": "Instead of",
+  "@askRowInsteadOf": {
+      "description": "Row label on a confirmation card: what is being replaced."
+  },
+  "askRowCalories": "Calories",
+  "@askRowCalories": {
+      "description": "Row label on a confirmation card."
+  },
+  "askRowNext": "Next",
+  "@askRowNext": {
+      "description": "Row label on a workout-swap card: the workout that comes after today's."
+  },
+  "askRowThen": "Then",
+  "@askRowThen": {
+      "description": "Row label on a workout-skip card: the workout that follows in the rotation."
+  },
+  "askRowSkipped": "Skipped",
+  "@askRowSkipped": {
+      "description": "Row label on a workout-skip card: the scheduled workout being skipped."
+  },
+  "askRowTotal": "Total",
+  "@askRowTotal": {
+      "description": "Row label on a confirmation card."
+  },
+  "askRowWas": "was {value}",
+  "@askRowWas": {
+      "description": "A previous value shown after a new one on a confirmation card, e.g. \"238 kcal, was 234 kcal\".",
+      "placeholders": {
+          "value": {
+              "type": "String"
+          }
+      }
+  },
+  "askSkippedUntilNextRound": "{day}, back next round",
+  "@askSkippedUntilNextRound": {
+      "description": "Value of the \"Skipped\" row: the skipped workout returns in the next pass of the rotation.",
+      "placeholders": {
+          "day": {
+              "type": "String"
+          }
+      }
+  },
+  "askChoiceSkipDetail": "{to} today, {from} waits till next round",
+  "@askChoiceSkipDetail": {
+      "description": "Second line of the \"skip\" answer chip when changing today's workout. {to}/{from} are workout day names.",
+      "placeholders": {
+          "to": {
+              "type": "String"
+          },
+          "from": {
+              "type": "String"
+          }
+      }
+  },
+  "askChoiceSwapDetail": "{to} today, {from} next",
+  "@askChoiceSwapDetail": {
+      "description": "Second line of the \"swap\" answer chip when changing today's workout. {to}/{from} are workout day names.",
+      "placeholders": {
+          "to": {
+              "type": "String"
+          },
+          "from": {
+              "type": "String"
+          }
+      }
+  }
 }

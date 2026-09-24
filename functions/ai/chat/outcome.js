@@ -114,6 +114,10 @@ const TOOL_PHRASES = Object.freeze({
     search_food_product: ["searched for the product", "that product's details"],
     search_food_alternatives: ["looked for alternatives",
       "food alternatives"],
+    get_workout_schedule: ["checked your workout schedule",
+      "your workout schedule"],
+    preview_workout_change: ["looked at how to rearrange your workouts",
+      "the options for today's workout"],
   },
   ar: {
     get_today: ["راجعت يومك", "تفاصيل يومك"],
@@ -130,6 +134,9 @@ const TOOL_PHRASES = Object.freeze({
     calculate_meal_nutrition: ["حسبت القيم الغذائية", "القيم الغذائية"],
     search_food_product: ["بحثت عن المنتج", "تفاصيل المنتج"],
     search_food_alternatives: ["بحثت عن بدائل", "بدائل مناسبة"],
+    get_workout_schedule: ["راجعت جدول تمارينك", "جدول تمارينك"],
+    preview_workout_change: ["راجعت طرق تغيير تمرين اليوم",
+      "اختيارات تمرين اليوم"],
   },
 });
 

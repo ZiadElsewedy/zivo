@@ -6166,4 +6166,71 @@ class AppLocalizationsEn extends AppLocalizations {
   String aiUsageProviderEmpty(String provider) {
     return 'No $provider requests yet.';
   }
+
+  @override
+  String get askActionReplaceFood => 'Meal swap';
+
+  @override
+  String get askActionWorkoutSwap => 'Workout swap';
+
+  @override
+  String get askActionWorkoutSkip => 'Skip workout';
+
+  @override
+  String askWorkoutToday(String day) {
+    return '$day today';
+  }
+
+  @override
+  String get askRowCategory => 'Category';
+
+  @override
+  String get askRowNote => 'Note';
+
+  @override
+  String get askRowAmount => 'Amount';
+
+  @override
+  String get askRowStatus => 'Status';
+
+  @override
+  String get askRowMeal => 'Meal';
+
+  @override
+  String get askRowInsteadOf => 'Instead of';
+
+  @override
+  String get askRowCalories => 'Calories';
+
+  @override
+  String get askRowNext => 'Next';
+
+  @override
+  String get askRowThen => 'Then';
+
+  @override
+  String get askRowSkipped => 'Skipped';
+
+  @override
+  String get askRowTotal => 'Total';
+
+  @override
+  String askRowWas(String value) {
+    return 'was $value';
+  }
+
+  @override
+  String askSkippedUntilNextRound(String day) {
+    return '$day, back next round';
+  }
+
+  @override
+  String askChoiceSkipDetail(String to, String from) {
+    return '$to today, $from waits till next round';
+  }
+
+  @override
+  String askChoiceSwapDetail(String to, String from) {
+    return '$to today, $from next';
+  }
 }

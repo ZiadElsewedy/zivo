@@ -1064,6 +1064,7 @@ class FirebaseAiRepository implements AiRepository {
         final String p when p.trim().isNotEmpty => p,
         _ => null,
       },
+      resultOf: data['resultOf'] as String?,
     );
   }
 
@@ -1150,8 +1151,8 @@ class FirebaseAiRepository implements AiRepository {
           metadata: {
             if (rawMeta is Map)
               for (final e in rawMeta.entries)
-                if (e.key is String && e.value is num)
-                  e.key as String: e.value as num,
+                if (e.key is String && (e.value is num || e.value is String))
+                  e.key as String: e.value as Object,
           },
         ),
       );

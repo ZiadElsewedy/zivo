@@ -21,6 +21,7 @@ class AiMessage {
     this.clientTurnId,
     this.activity = const [],
     this.preface,
+    this.resultOf,
   });
 
   final String id;
@@ -59,6 +60,12 @@ class AiMessage {
   /// (their [content] already holds everything said) and on older cards.
   final String? preface;
 
+  /// Set on the line the server writes when a proposal is confirmed or
+  /// cancelled — the id of the action it resolves. The card already shows
+  /// that outcome, so the thread leaves the line out; the model still reads
+  /// it in history.
+  final String? resultOf;
+
   AiMessage copyWith({
     AiPendingAction? pendingAction,
     AiChoiceRequest? choiceRequest,
@@ -74,5 +81,6 @@ class AiMessage {
     clientTurnId: clientTurnId,
     activity: activity,
     preface: preface,
+    resultOf: resultOf,
   );
 }
