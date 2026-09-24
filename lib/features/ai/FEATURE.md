@@ -53,11 +53,12 @@ input form persists height/weight through; impl `data/repository_body_data_write
 composes the diet `BodyProfile` + workout `BodyWeightRepository`, the same user-owned
 writes the manual capture screens use; **never writes targets/goal**),
 `ai_response_style.dart`, `ai_model_selection.dart` (the **active model** — a
-backend model-catalog key: `'claude-sonnet'` (default) | `'claude-haiku'` |
-`'gemini-flash'`; the retired `'auto'`/`'gemini-pro'` and legacy `'claude'`/`'gemini'`
-are upgraded on read. Persisted at `users/{uid}/settings/ai` field `provider`,
-forwarded on every `send`, and read server-side by the plan import/generation
-callables — one model answers everything, **no automatic fallback**),
+backend model-catalog key: `'claude-sonnet'` (default) | `'gemini-flash'` — one
+model per provider; the retired `'auto'`/`'gemini-pro'`/`'claude-haiku'` and legacy
+`'claude'`/`'gemini'` are upgraded on read. Persisted at `users/{uid}/settings/ai`
+field `provider`, forwarded on every `send`, and read server-side by the plan
+import/generation callables — this model answers first, with the OTHER provider as
+an automatic fallback on a transient failure, see below),
 `ai_failure.dart` (`AiFailure(kind, provider, issue)` — what every AI repository
 method throws in place of a transport error: `unavailable` (the active model's
 provider couldn't answer — with WHICH provider and WHY: out of credit · not
@@ -131,14 +132,19 @@ nothing to send. It reuses the turn id (no duplicate) and the model active *now*
 model call is behind a `NormalizedRequest`/`NormalizedResponse` seam so a turn's
 orchestration never names a vendor. `anthropic_provider.js` and
 `gemini_provider.js` are the two real adapters; `routing/models.js` is the model
-catalog (Claude Sonnet 5 · Claude Haiku 4.5 · Gemini Flash — ids and per-model
-prices, the one place pricing lives). `router.js` resolves each request to **one**
-model — the user's active one, else Claude Sonnet — and never re-runs it on another
-provider. A provider that can't answer (billing — Anthropic's out-of-credit is a
-*400* — auth, rate limit, overload, retired model, or past the per-call deadline) →
-`AiUnavailableError` → `unavailable` with `details: {reason:'ai_unavailable',
-provider, model, kind}`; a malformed request is rethrown. `food_search` always runs
-on Gemini (search grounding).
+catalog (Claude Sonnet 5 · Gemini Flash — one model per provider, ids and
+per-model prices, the one place pricing lives). `router.js` resolves each request
+to the user's active model, else Claude Sonnet. A TRANSIENT failure (overload,
+rate limit, server error, timeout, network — `isTransientFailure` in
+`providers/classify.js`) is retried once on the same provider after a short
+backoff, then automatically re-run on the OTHER provider if still failing — the
+response then carries `requestedProvider`/`requestedModel`/`fallbackOccurred`/
+`fallbackReason`. A PERMANENT failure (billing — Anthropic's out-of-credit is a
+*400* — auth, retired model, or a malformed request) is never retried or fallen
+back for → `AiUnavailableError` → `unavailable` with `details:
+{reason:'ai_unavailable', provider, model, kind}`; a malformed request is
+rethrown as-is. `food_search` always runs on Gemini and never falls back (search
+grounding is Gemini-only).
 Adding OpenAI/DeepSeek later is one adapter file + catalog entries. See
 `gateway.js`/`chat/turn.js` (both take an injected `provider`).
 

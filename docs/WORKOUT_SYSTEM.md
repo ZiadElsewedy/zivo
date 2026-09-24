@@ -170,7 +170,7 @@ one step still open** is the real-PDF-in-app manual end-to-end (import an actual
 PDF, review, confirm, see the new split) — that needs the running app and is the
 owner's to do.
 
-- **Server** (`functions/ai/workout_import.js`, wired into `functions/index.js`
+- **Server** (`functions/ai/services/workout_import.js`, wired into `functions/index.js`
   as `aiImportWorkoutPlan`): one Claude call per import, PDF sent as a native
   `document` content block (no separate text-extraction/OCR pipeline — a
   deliberate simplification of ADR-002's full digital-vs-scanned router,
@@ -183,7 +183,7 @@ owner's to do.
   instruction to match unless there's a reason to differ — flagging this
   explicitly in case the owner wants `claude-opus-5` for extraction accuracy
   on messier real-world PDFs; that's a one-line change
-  (`functions/ai/workout_import.js`'s `MODEL` constant). `enforceAppCheck:
+  (`functions/ai/services/workout_import.js`'s `MODEL` constant). `enforceAppCheck:
   true` + auth required, matching every other AI callable's security
   posture; a `MAX_PDF_BASE64_CHARS` guard rejects an oversized upload before
   it reaches the model (ADR-002 guardrail). 8 offline `node --test` cases
@@ -261,7 +261,7 @@ passing; eslint clean.
   split-review screen in debug/test builds. Fixed by swapping to
   `(min(a,b), max(a,b))` before constructing the range; pinned with a
   reversed-range regression test.
-- **Defensive hardening:** `normalize()` in `functions/ai/workout_import.js`
+- **Defensive hardening:** `normalize()` in `functions/ai/services/workout_import.js`
   only floored `sets` (≥1, no ceiling) and accepted any `typeof === "number"`
   for `targetWeightKg` (including `NaN`/`Infinity`) and any integer
   (including negative) for `repsMin`/`repsMax`/`restSeconds` — strict tool

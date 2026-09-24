@@ -122,6 +122,31 @@ function isProviderFailure(err) {
 }
 
 /**
+ * Whether a `ProviderErrorKind` is worth retrying/falling back for — a
+ * transient condition where the SAME request might succeed a moment later or
+ * against another provider: the provider is down, overloaded, rate-limited, or
+ * didn't respond in time.
+ *
+ * Deliberately narrower than `isProviderFailure`: `billing`, `auth` and
+ * `model_unavailable` are real failures the router still reports as
+ * `AiUnavailableError` (nothing another attempt or another provider fixes
+ * without the owner changing something), but they are configuration/account
+ * problems, not "try again" problems — retrying or silently switching
+ * providers for one would burn a second request without ever succeeding, and
+ * would hide a key/billing problem behind an apparently-working app instead
+ * of surfacing it. See `../routing/router.js`'s retry-then-fallback.
+ * @param {string} kind A `ProviderErrorKind`.
+ * @return {boolean}
+ */
+function isTransientFailure(kind) {
+  return kind === ProviderErrorKind.TIMEOUT ||
+    kind === ProviderErrorKind.NETWORK ||
+    kind === ProviderErrorKind.OVERLOADED ||
+    kind === ProviderErrorKind.SERVER ||
+    kind === ProviderErrorKind.RATE_LIMIT;
+}
+
+/**
  * Thrown by the router when the active model's provider couldn't answer —
  * nothing the user did. Carries WHICH provider and WHY (`kind`), so the
  * callables can say "Claude is unavailable — out of credit" instead of a
@@ -147,5 +172,6 @@ module.exports = {
   ProviderErrorKind,
   classifyProviderError,
   isProviderFailure,
+  isTransientFailure,
   AiUnavailableError,
 };

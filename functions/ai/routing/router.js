@@ -1,30 +1,51 @@
 /**
- * Which model answers an AI call — and nothing more. **One active model per
- * request, no fallback** (owner decision, 2026-09-23): the model the user
- * marked active in the app (`users/{uid}/settings/ai.provider`, a
- * `./models.js` key) answers every chat turn, plan import and plan build; when
- * no valid selection exists, the capability's default below does. If that
- * model's provider can't answer (out of credit, down, rate-limited, timed
- * out), the call fails with `AiUnavailableError` naming the provider and the
- * reason — it is NOT silently re-run on another provider. Silent switching
- * made cost and usage impossible to attribute, and a request billed to two
- * providers for one answer.
+ * Which model answers an AI call, with automatic fallback (owner decision,
+ * 2026-09-24, replacing the one-model-no-fallback rule from 2026-09-23): the
+ * model the user marked active in the app (`users/{uid}/settings/ai.provider`,
+ * a `./models.js` key) is still the one that answers — but when its provider
+ * hits a TRANSIENT failure (down, overloaded, rate-limited, timed out — see
+ * `../providers/classify.js`'s `isTransientFailure`), the request is retried
+ * once on the same provider after a short backoff, and if that still fails,
+ * automatically re-run on the OTHER provider (`./models.js`'s
+ * `FALLBACK_MODEL`) rather than surfacing an error the user has no way to act
+ * on. The response is stamped with what actually answered AND what was
+ * originally asked for (`requestedProvider`/`requestedModel`/
+ * `fallbackOccurred`/`fallbackReason`), so usage stays truthful about it
+ * (`../shared/usage_log.js`) instead of the switch being silent.
  *
- * The one exception is `food_search`: Google Search grounding exists only on
- * Gemini, so that single tool call (see `../tools/food_search_product.js`)
- * always runs on Gemini Flash and is logged as its own `food_search` request.
+ * A PERMANENT failure — bad API key, billing/auth, an unsupported model, or a
+ * malformed request (`bad_request`) — is never retried or fallen back for:
+ * another attempt or another provider can't fix a configuration problem, and
+ * trying anyway would burn a second request while hiding the real problem
+ * behind an apparently-working app. Those fail immediately with
+ * `AiUnavailableError` (or, for `bad_request`, are rethrown as-is — that's our
+ * bug, not the provider being unavailable).
  *
- * A request the provider rejected as malformed (a 4xx that isn't billing/auth/
- * model — see `../providers/classify.js`) is rethrown as-is: that's our bug,
- * not the provider being unavailable.
+ * The one capability excluded from fallback is `food_search`: Google Search
+ * grounding exists only on Gemini, so that single tool call (see
+ * `../tools/food_search_product.js`) always runs on Gemini Flash — Claude
+ * can't do the same job, so falling back to it would "succeed" at the wrong
+ * task. See `SELECTABLE_CAPABILITIES`, which fallback also gates on.
  */
 
 const {
   classifyProviderError,
+  isTransientFailure,
   ProviderErrorKind,
   AiUnavailableError,
 } = require("../providers/classify");
-const {MODELS, modelSpec} = require("./models");
+const {MODELS, modelSpec, FALLBACK_MODEL} = require("./models");
+
+/** A short pause before the one same-provider retry. @const {number} */
+const RETRY_BACKOFF_MS = 350;
+
+/**
+ * @param {number} ms
+ * @return {!Promise<void>}
+ */
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 /**
  * @typedef {Object} CapabilityRoute
@@ -134,9 +155,80 @@ async function attempt(provider, request, opts, timeoutMs) {
 }
 
 /**
- * Calls the capability's one model through `registry`. The route is stamped
- * onto the response — `provider`, `model` (provider-native id), `modelKey` —
- * so the usage record says exactly which model did the work.
+ * One route's outcome: either a stamped response, or a classified failure
+ * kind with nothing thrown yet — `generate` decides what a failure MEANS
+ * (retry, fall back, or give up) rather than unwinding the stack for it.
+ * @typedef {{ok: true, response: !Object} |
+ *   {ok: false, kind: string, permanent: boolean, cause: *}}
+ *   RouteAttemptResult
+ */
+
+/**
+ * Runs `route` through `registry`, retrying once after a short backoff on a
+ * transient failure when `allowRetry`. Never throws for a provider failure —
+ * callers read `.ok`/`.kind`/`.permanent`. A user cancel (`opts.signal`
+ * aborted) and a malformed request (`bad_request`) are the two exceptions:
+ * both are rethrown immediately, since neither retrying nor falling back
+ * changes either outcome.
+ * @param {!Object} registry
+ * @param {!CapabilityRoute} target
+ * @param {!Object} normalizedRequest
+ * @param {(!Object|undefined)} opts
+ * @param {(number|undefined)} attemptTimeoutMs
+ * @param {boolean} allowRetry
+ * @return {!Promise<!RouteAttemptResult>}
+ */
+async function runRoute(
+    registry, target, normalizedRequest, opts, attemptTimeoutMs, allowRetry) {
+  if (!registry.has(target.provider)) {
+    // The provider's key isn't bound in this deployment — a configuration
+    // gap, not a transient blip, so this doesn't retry. (A DIFFERENT
+    // provider can still be tried by the caller, same as any other failure.)
+    return {
+      ok: false,
+      kind: ProviderErrorKind.AUTH,
+      permanent: true,
+      cause: new Error(`No registered AI provider: ${target.provider}`),
+    };
+  }
+  const provider = registry.get(target.provider);
+  const attempts = allowRetry ? 2 : 1;
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) await delay(RETRY_BACKOFF_MS);
+    try {
+      const response = await attempt(provider,
+          Object.assign({}, normalizedRequest, {model: target.model}),
+          opts, attemptTimeoutMs);
+      response.provider = target.provider;
+      response.model = target.model;
+      response.modelKey = target.key;
+      return {ok: true, response};
+    } catch (err) {
+      if (opts && opts.signal && opts.signal.aborted) throw err;
+      const kind = classifyProviderError(err);
+      if (kind === ProviderErrorKind.BAD_REQUEST) throw err;
+      if (!isTransientFailure(kind)) {
+        return {ok: false, kind, permanent: true, cause: err};
+      }
+      if (i === attempts - 1) {
+        return {ok: false, kind, permanent: false, cause: err};
+      }
+      // Transient and another attempt remains — loop retries after the delay.
+    }
+  }
+  // Unreachable (the loop always returns), but keeps the function's return
+  // type honest for anything analyzing it statically.
+  throw new Error("unreachable");
+}
+
+/**
+ * Calls the capability's model through `registry` — retrying and falling back
+ * for a transient failure (see the file header), giving up immediately for a
+ * permanent one. The route that actually answered is stamped onto the
+ * response — `provider`, `model` (provider-native id), `modelKey` — so the
+ * usage record says exactly which model did the work; a response that
+ * required a fallback also carries `requestedProvider`, `requestedModel`,
+ * `fallbackOccurred: true` and `fallbackReason` (the primary's failure kind).
  *
  * @param {!Object} registry A `ProviderRegistry`.
  * @param {string} capability
@@ -147,35 +239,43 @@ async function attempt(provider, request, opts, timeoutMs) {
  *   An aborted `signal` (a user cancel) is rethrown unchanged.
  * @param {!RouteOptions=} routeOpts
  * @return {!Promise<!Object>} A `NormalizedResponse`.
- * @throws {AiUnavailableError} When the provider couldn't answer.
+ * @throws {AiUnavailableError} When no provider could answer.
  */
 async function generate(
     registry, capability, normalizedRequest, opts, routeOpts) {
   const ro = routeOpts || {};
-  const r = resolve(capability, ro);
-  if (!registry.has(r.provider)) {
-    // The provider's key isn't bound in this deployment — as unavailable as
-    // an outage, from the user's side.
-    throw new AiUnavailableError(ProviderErrorKind.AUTH,
-        [{provider: r.provider, model: r.model, kind: ProviderErrorKind.AUTH}],
-        new Error(`No registered AI provider: ${r.provider}`));
+  const primary = resolve(capability, ro);
+  const primaryResult = await runRoute(
+      registry, primary, normalizedRequest, opts, ro.attemptTimeoutMs, true);
+  if (primaryResult.ok) return primaryResult.response;
+
+  const attempts = [
+    {provider: primary.provider, model: primary.model,
+      kind: primaryResult.kind},
+  ];
+  const canFallBack = !primaryResult.permanent &&
+    SELECTABLE_CAPABILITIES.has(capability) && FALLBACK_MODEL[primary.key];
+  if (!canFallBack) {
+    throw new AiUnavailableError(
+        primaryResult.kind, attempts, primaryResult.cause);
   }
-  const provider = registry.get(r.provider);
-  try {
-    const response = await attempt(provider,
-        Object.assign({}, normalizedRequest, {model: r.model}),
-        opts, ro.attemptTimeoutMs);
-    response.provider = r.provider;
-    response.model = r.model;
-    response.modelKey = r.key;
+
+  const fallback = route(FALLBACK_MODEL[primary.key]);
+  const fallbackResult = await runRoute(
+      registry, fallback, normalizedRequest, opts, ro.attemptTimeoutMs, false);
+  if (fallbackResult.ok) {
+    const response = fallbackResult.response;
+    response.requestedProvider = primary.provider;
+    response.requestedModel = primary.model;
+    response.fallbackOccurred = true;
+    response.fallbackReason = primaryResult.kind;
     return response;
-  } catch (err) {
-    if (opts && opts.signal && opts.signal.aborted) throw err;
-    const kind = classifyProviderError(err);
-    if (kind === ProviderErrorKind.BAD_REQUEST) throw err;
-    throw new AiUnavailableError(kind,
-        [{provider: r.provider, model: r.model, kind}], err);
   }
+  attempts.push(
+      {provider: fallback.provider, model: fallback.model,
+        kind: fallbackResult.kind});
+  throw new AiUnavailableError(
+      fallbackResult.kind, attempts, fallbackResult.cause);
 }
 
 module.exports = {

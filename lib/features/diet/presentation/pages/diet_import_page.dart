@@ -114,6 +114,16 @@ class _DietImportPageState extends State<DietImportPage> {
   bool _canSwitchModel = false;
   String? _rejectionReason;
 
+  // Bumped on every [_run]/[_propose] dispatch. A stale attempt's completion
+  // (one whose model was switched out from under it) checks this before
+  // touching state, so it can't clobber the attempt that superseded it.
+  int _attempt = 0;
+
+  // The active model's display name, shown on the analyzing/generating
+  // screen so switching model (in Settings, or via "Switch model" on a
+  // failure) is visibly in effect, not just a setting taken on faith.
+  String? _modelLabel;
+
   Timer? _analyzingTimer;
   int _analyzingStatusIndex = 0;
 
@@ -124,7 +134,23 @@ class _DietImportPageState extends State<DietImportPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _run());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshModelLabel();
+      _run();
+    });
+  }
+
+  /// Reads the user's saved model selection for the badge on the analyzing/
+  /// generating screen. Best-effort and silent on failure — the badge is
+  /// just absent, never a reason to fail the import itself.
+  Future<void> _refreshModelLabel() async {
+    try {
+      final selection = await AppScope.of(context).ai.getModelSelection();
+      if (!mounted) return;
+      setState(() => _modelLabel = aiModelSelectionText(context, selection));
+    } catch (_) {
+      // Badge stays absent — not worth surfacing to the user.
+    }
   }
 
   @override
@@ -251,6 +277,7 @@ class _DietImportPageState extends State<DietImportPage> {
     if (!mounted) return;
     // Read before the awaits below, for the same reason as in [_run].
     final strings = l(context);
+    final attempt = ++_attempt;
     setState(() {
       _phase = _ImportPhase.analyzing;
       _cancellation = cancellation;
@@ -260,7 +287,10 @@ class _DietImportPageState extends State<DietImportPage> {
     try {
       final outcome = await run();
       _analyzingTimer?.cancel();
-      if (!mounted) return;
+      // A switch made mid-flight cancels this attempt and starts a fresh one
+      // (see [_switchModelDuringAnalysis]) — if this one still lands, it's
+      // been superseded, and touching state now would clobber the new one.
+      if (!mounted || attempt != _attempt) return;
       switch (outcome) {
         case DietImportAccepted(:final plan):
           final draft = dietPlanFromImport(
@@ -277,8 +307,9 @@ class _DietImportPageState extends State<DietImportPage> {
           });
       }
     } on ImportCancelledException {
-      // The user pressed X/Cancel: the backend call is aborting and the page is
-      // popping. Nothing to show.
+      // Either the user pressed X/Cancel — the page is popping, nothing to
+      // show — or a model switch mid-flight cancelled this attempt on
+      // purpose to start a fresh one. Either way, nothing to show here.
       _analyzingTimer?.cancel();
       return;
     } catch (error, stack) {
@@ -287,7 +318,7 @@ class _DietImportPageState extends State<DietImportPage> {
       _analyzingTimer?.cancel();
       debugPrint('DietImport: proposal failed: $error');
       debugPrintStack(stackTrace: stack);
-      if (!mounted) return;
+      if (!mounted || attempt != _attempt) return;
       setState(() {
         _phase = _ImportPhase.error;
         _canSwitchModel = error is AiFailure && aiFailureSuggestsSwitch(error);
@@ -303,7 +334,9 @@ class _DietImportPageState extends State<DietImportPage> {
         );
       });
     } finally {
-      _cancellation = null;
+      // Guarded the same way: a stale attempt settling after a newer one has
+      // already set its own [_cancellation] must not null that one out.
+      if (attempt == _attempt) _cancellation = null;
     }
   }
 
@@ -334,7 +367,28 @@ class _DietImportPageState extends State<DietImportPage> {
   /// callable reads the saved choice server-side, so the retry uses it.
   Future<void> _switchModel() async {
     final picked = await showAiModelSheet(context);
-    if (picked != null && mounted) _retry();
+    if (picked != null && mounted) {
+      await _refreshModelLabel();
+      _retry();
+    }
+  }
+
+  /// Tapping the "Using `<model>`" badge **while the request is still
+  /// running** — the point of showing it at all is to let a bad pick be
+  /// fixed without waiting out a failure first. Only cancels and restarts
+  /// on an actual change ([showAiModelSheet] returns null for "closed
+  /// without picking" or "re-tapped the model already active"), so backing
+  /// out of the sheet leaves the current attempt running untouched.
+  Future<void> _switchModelDuringAnalysis() async {
+    final picked = await showAiModelSheet(context);
+    if (!mounted || picked == null) return;
+    await _refreshModelLabel();
+    // Aborts the backend call (`aiCancelImport`) rather than leaving it to
+    // finish and bill for an answer nobody will see — [_propose]'s attempt
+    // guard means it would be ignored anyway, but this also stops paying
+    // for it.
+    _cancellation?.cancel();
+    _retry();
   }
 
   @override
@@ -397,13 +451,18 @@ class _DietImportPageState extends State<DietImportPage> {
       case _ImportPhase.analyzing:
         // Both are one buffered AI call with no observable sub-steps: import
         // shows an honest wait line with a working Cancel; generation keeps its
-        // cycled description lines (no cancel).
+        // cycled description lines (no cancel). The model badge is tappable
+        // for import too — never generation, which has nothing to cancel
+        // server-side, so switching mid-flight would just orphan a second
+        // billed call rather than replace the first.
         return ImportAnalyzingState(
           statusLine: generating
               ? _generatingLine(context)
               : l(context).importAnalyzingWait,
           onCancel: generating ? null : _closeFlow,
           chipColor: TrainColors.raisedStrong,
+          modelLabel: _modelLabel,
+          onTapModel: generating ? null : _switchModelDuringAnalysis,
         );
       case _ImportPhase.rejected:
         return ImportRejectedState(

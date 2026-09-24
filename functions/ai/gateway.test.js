@@ -635,7 +635,7 @@ test("usage is logged once with tokens/tools/iterations", async () => {
   assert.equal(usageDoc.iterations, 2);
   assert.deepEqual(usageDoc.tools,
       [{name: "get_workouts", toolCallId: "call-1"}]);
-  assert.equal(usageDoc.schemaVersion, 4);
+  assert.equal(usageDoc.schemaVersion, 5);
   // v4: every AI request logs to aiUsage; a chat turn says it's chat.
   assert.equal(usageDoc.feature, "chat");
   assert.equal(usageDoc.status, "ok");
@@ -794,8 +794,8 @@ test("cache read/write tokens are logged and priced at their discounts",
       assert.equal(usageDoc.cacheReadTokens, 4000);
       // Cost applies the caching multipliers: uncached full, write 1.25x,
       // read 0.1x, output at the output rate.
-      const inRate = 3 / 1000000;
-      const outRate = 15 / 1000000;
+      const inRate = 2 / 1000000;
+      const outRate = 10 / 1000000;
       const expected =
         100 * inRate + 2000 * inRate * 1.25 + 4000 * inRate * 0.1 +
         10 * outRate;

@@ -97,6 +97,79 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **The active model is reachable from the app's main Settings, and visible
+  while a plan is being built or imported** (2026-09-23, on `upgrades`).
+  Owner ask: pick the main AI model from Settings (so a switch to Gemini
+  doesn't require opening Ask first), and see which model is actually
+  answering during a workout/diet import or a diet generation — the model
+  switch is only worth having if you can see it took effect. Everything else
+  (the picker, provider-named errors, "Switch model" on failure, one-model
+  no-fallback routing) already existed from the two entries below this one;
+  the two gaps were the entry point and loading-state visibility.
+  - **Settings entry point:** a new `_AiModelRow` in
+    [`settings_page.dart`](../lib/features/auth/presentation/pages/settings_page.dart)
+    (App section, above AI usage) shows the active model's name and pushes
+    the *same* `AskSettingsPage` the Ask header already uses — one picker,
+    not a second implementation. `AiRepository.getModelSelection`/
+    `getResponseStyle` are read directly (no `AskController` needed outside
+    Ask); the row re-reads the selection when the picker pops, so it can't go
+    stale after a switch made inside it.
+  - **Loading-state visibility, and the badge is a real control:**
+    `ImportAnalyzingState` (`capture/presentation/import/import_flow_states.dart`)
+    gained an optional `modelLabel` — a small **green, glowing pill**
+    ("Using Gemini Flash", `TrainColors.green`/`greenWash`/`actionGlow`,
+    `PressableScale`) under the status line, shown by both `DietImportPage`
+    (import **and** generation share this widget) and `WorkoutImportPage`.
+    The first cut only *named* the model; the owner's actual point was being
+    able to *change* it without waiting out a failure, so the badge also
+    takes an optional `onTapModel` — tapping it opens the same model sheet
+    mid-flight, and on an actual pick **cancels the in-flight call
+    (`aiCancelImport`) and dispatches a fresh one** with the new model,
+    rather than just updating a label. Diet **generation** passes no
+    `onTapModel` (`onTapModel: generating ? null : ...`) — that call can't be
+    aborted server-side, so a mid-flight switch there would only orphan a
+    second billed request, not replace the first; import (both flows, always
+    cancellable) gets the live switch.
+    - Both `_DietImportPageState` and `_WorkoutImportPageState` gained an
+      `_attempt` counter: every `_run`/`_extract`/`_propose` dispatch checks
+      `attempt == _attempt` before any `setState` or before clearing
+      `_cancellation`/`_running`, so a stale (cancelled) attempt's
+      late-arriving result can't clobber the attempt that superseded it.
+      Workout's `_running` reentrancy guard (meant to stop an *accidental*
+      double dispatch) is deliberately reset by
+      `_switchModelDuringAnalysis` before it re-dispatches — the one place a
+      second `_run` while the first is still settling is intentional.
+    - New `test/workout/workout_import_page_test.dart` case ("tapping the
+      model badge mid-flight cancels the run and switches model") drives
+      this through the real sheet UI: `_StreamingImportAi` now tracks
+      `callCount`/`modelAtCall` across multiple dispatches (previously
+      single-shot), proving the tap actually cancels attempt #1 and
+      dispatches attempt #2 under the newly-picked model — not a no-op.
+    - Each page loads the label once in `initState` and again after either
+      "Switch model" (post-failure) or the mid-flight tap resolves.
+    New ARB keys `importUsingModel`, `settingsAiModel` (en + ar — the Arabic
+    is mine, not a native speaker's, worth a check).
+  - Caught in review by the settings-page test written for this: the new
+    row's re-read after the picker closed (`setState(() => _future =
+    _load())`) passed a `Future`-returning closure straight to `setState`,
+    which throws in debug — arrow-function auto-return, not an `await`
+    anywhere. Fixed to a block body. Existing widget tests wouldn't have
+    caught this (none exercised the round-trip); the new test does.
+  - **No functions deploy needed** — purely a Flutter change, reading
+    settings that already exist server-side. The **outstanding owner
+    action from the entry directly below is still open**: the Anthropic key
+    is still invalid until replaced, which is exactly the scenario this
+    change makes visible/fixable from Settings without opening Ask.
+  - Tests: `test/auth/settings_page_test.dart` (+1, and `wrapWithScope`
+    gained an optional `ai:` override for it), `test/workout/
+    workout_import_page_test.dart` (+1, the mid-flight switch case),
+    `test/diet/diet_import_page_test.dart` unaffected (30 → 31 pass combined),
+    full `test/ai/` (165) green, `flutter analyze` clean, whole suite green
+    except the pre-existing unrelated `light_mode_smoke_test` Hub contrast
+    failure. Diet's mirror of the mid-flight switch has no dedicated
+    streaming test (workout's `_StreamingImportAi` gate has no diet
+    equivalent yet) — logic is identical to workout's, reviewed by hand.
+
 - **Plan screens can switch the active model; chat re-reads it per send**
   (2026-09-23, `upgrades`). Live diagnosis: plan generation failed with "Claude
   isn't available" although the owner believed Gemini was active — Firestore

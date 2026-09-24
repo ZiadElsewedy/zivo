@@ -10,6 +10,7 @@ import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/core/theme/app_theme.dart';
 import 'package:zivo/core/theme/zivo_palette.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
+import 'package:zivo/features/ai/domain/ai_repository.dart';
 import 'package:zivo/features/auth/domain/auth_repository.dart';
 import 'package:zivo/features/auth/domain/auth_state.dart';
 import 'package:zivo/features/auth/domain/auth_user.dart';
@@ -72,6 +73,7 @@ Widget wrapWithScope(
   MomentRepository? moments,
   WorkoutSessionRepository? workoutSessions,
   TrainingDayMarkRepository? trainingDayMarks,
+  AiRepository? ai,
   Locale? locale,
   Brightness brightness = Brightness.dark,
 }) {
@@ -88,7 +90,7 @@ Widget wrapWithScope(
     workoutSessions: workoutSessions ?? InMemoryWorkoutSessionRepository(),
     trainingDayMarks: trainingDayMarks ?? InMemoryTrainingDayMarkRepository(),
     diet: InMemoryDietRepository(),
-    ai: FakeAiRepository(),
+    ai: ai ?? FakeAiRepository(),
     music: music ?? InertMusicController(),
     child: locale == null
         ? MaterialApp(theme: theme, home: child)

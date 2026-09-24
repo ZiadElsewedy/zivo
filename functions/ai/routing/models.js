@@ -32,28 +32,17 @@
 
 /** @const {!Object<string, !ModelSpec>} */
 const MODELS = {
-  // Owner-confirmed 2026-08-15: $3 / $15 per 1M tokens. Cache write 1.25x,
-  // cache read 0.1x of the input price (Anthropic prompt caching).
+  // Re-verified 2026-09-24 against Anthropic's published pricing: $3 / $15
+  // was stale (that rate belonged to Sonnet 4.6) — Sonnet 5's list price is
+  // $2 / $10 per 1M tokens, now permanent (was introductory). Cache write
+  // 1.25x, cache read 0.1x of the input price (Anthropic prompt caching).
   "claude-sonnet": {
     provider: "anthropic",
     id: "claude-sonnet-5",
     label: "Claude Sonnet 5",
     pricing: {
-      inputPerMTok: 3,
-      outputPerMTok: 15,
-      cacheWriteMultiplier: 1.25,
-      cacheReadMultiplier: 0.1,
-    },
-  },
-  // Anthropic list price: $1 / $5 per 1M tokens. Faster and cheaper than
-  // Sonnet, a good fit for the structured-extraction calls.
-  "claude-haiku": {
-    provider: "anthropic",
-    id: "claude-haiku-4-5-20251001",
-    label: "Claude Haiku 4.5",
-    pricing: {
-      inputPerMTok: 1,
-      outputPerMTok: 5,
+      inputPerMTok: 2,
+      outputPerMTok: 10,
       cacheWriteMultiplier: 1.25,
       cacheReadMultiplier: 0.1,
     },
@@ -61,10 +50,16 @@ const MODELS = {
   // `gemini-flash-latest` is a ROLLING ALIAS — pinned point versions get
   // retired for new projects (Google 404s them with "no longer available to
   // new users", which is what `gemini-2.5-pro` did here), so the alias tracks
-  // whatever current Flash is. Priced at Google's published Gemini 2.5 Flash
-  // standard-tier list rates ($0.30 / $2.50 per 1M); the rate can move under
-  // the alias, so treat Gemini costs as estimates. Gemini caches implicitly —
-  // there is no cache-write bucket, and a cached read bills at ~0.25x.
+  // whatever current Flash is. Checked 2026-09-24: third-party trackers
+  // report the alias now resolving to `gemini-3.5-flash` ($1.50 / $9.00 per
+  // 1M per Google's pricing page) rather than the Gemini 2.5 Flash rate this
+  // was priced at ($0.30 / $2.50) — Google's own docs don't state what the
+  // alias currently targets, so that could not be confirmed first-hand.
+  // Left AS-IS pending the owner confirming the live rate in Google AI
+  // Studio/Cloud console billing, rather than swap in a second unconfirmed
+  // number — but treat today's Gemini cost figures as understated until
+  // that's checked. Gemini caches implicitly — there is no cache-write
+  // bucket, and a cached read bills at ~0.25x.
   "gemini-flash": {
     provider: "gemini",
     id: "gemini-flash-latest",
@@ -99,6 +94,20 @@ const LEGACY_SELECTIONS = {
   // Offered briefly, removed 2026-09-23 (the alias never resolved for this
   // key) — its users land on the Gemini model that works.
   "gemini-pro": "gemini-flash",
+  // Removed 2026-09-24 — ZIVO offers exactly one model per provider now, so a
+  // user who had Haiku active lands on Sonnet, Anthropic's other option.
+  "claude-haiku": "claude-sonnet",
+};
+
+/**
+ * The other provider's model, for the router's automatic fallback
+ * (`./router.js`). With exactly one model per provider this is a fixed
+ * pairing — a third provider would need a real choice here instead.
+ * @const {!Object<string, string>}
+ */
+const FALLBACK_MODEL = {
+  "claude-sonnet": "gemini-flash",
+  "gemini-flash": "claude-sonnet",
 };
 
 /**
@@ -178,6 +187,7 @@ function costUsd(usage, provider, modelId) {
 module.exports = {
   MODELS,
   DEFAULT_MODEL_FOR_PROVIDER,
+  FALLBACK_MODEL,
   modelSpec,
   keyForModelId,
   preferredModelKey,

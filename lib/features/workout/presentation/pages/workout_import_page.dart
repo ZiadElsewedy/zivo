@@ -75,19 +75,48 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
   WorkoutPlan? _draft;
   bool _saving = false;
 
+  // The active model's display name, shown on the analyzing screen so
+  // switching model is visibly in effect, not just a setting taken on faith.
+  String? _modelLabel;
+
   /// The live cancel handle for the in-flight extraction, or null when nothing
   /// is running. Cancelling it calls `aiCancelImport`, which aborts the backend
   /// model call.
   ImportCancellation? _cancellation;
 
   /// Guards against a second dispatch: [_run] fires exactly once per attempt,
-  /// so an import is never invoked twice for one user action.
+  /// so an import is never invoked twice for one user action. A deliberate
+  /// mid-flight model switch ([_switchModelDuringAnalysis]) resets this
+  /// itself before re-dispatching — that is the one case where a second
+  /// [_run] while the first is still settling is intentional.
   bool _running = false;
+
+  // Bumped on every [_run]/[_extract] dispatch. A stale attempt's completion
+  // (superseded by a mid-flight model switch) checks this before touching
+  // state or [_running]/[_cancellation], so it can't clobber the attempt
+  // that replaced it.
+  int _attempt = 0;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _run());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshModelLabel();
+      _run();
+    });
+  }
+
+  /// Reads the user's saved model selection for the badge on the analyzing
+  /// screen. Best-effort and silent on failure — the badge is just absent,
+  /// never a reason to fail the import itself.
+  Future<void> _refreshModelLabel() async {
+    try {
+      final selection = await AppScope.of(context).ai.getModelSelection();
+      if (!mounted) return;
+      setState(() => _modelLabel = aiModelSelectionText(context, selection));
+    } catch (_) {
+      // Badge stays absent — not worth surfacing to the user.
+    }
   }
 
   /// Closing the flow. While an extraction is in flight this first cancels it —
@@ -103,8 +132,11 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
   Future<void> _run() async {
     // One dispatch per attempt. Without this a rebuild-triggered re-run (or a
     // double push) would fire a second expensive extraction for one action.
+    // [_switchModelDuringAnalysis] resets [_running] itself before calling
+    // back in here — that is the one deliberate exception.
     if (_running) return;
     _running = true;
+    final attempt = ++_attempt;
     setState(() {
       _phase = _ImportPhase.selecting;
       _errorMessage = null;
@@ -118,7 +150,7 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
     try {
       final passed = widget.input;
       if (passed != null) {
-        await _extract(passed);
+        await _extract(passed, attempt);
         return;
       }
 
@@ -155,16 +187,21 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
 
       await _extract(
         WorkoutImportDocument(bytes: file.bytes, mimeType: file.mimeType),
+        attempt,
       );
     } finally {
-      _running = false;
+      // A stale attempt settling after a newer one started must not clear
+      // the flag out from under it.
+      if (attempt == _attempt) _running = false;
     }
   }
 
   /// Runs the extraction for [input] and takes its outcome to the review
   /// preview, the honest decline, or a real error — the same three places
-  /// whatever route the material arrived by.
-  Future<void> _extract(WorkoutImportInput input) async {
+  /// whatever route the material arrived by. [attempt] is this dispatch's id
+  /// (from [_run]) — a stale attempt superseded by a mid-flight model switch
+  /// checks it before touching state.
+  Future<void> _extract(WorkoutImportInput input, int attempt) async {
     if (!mounted) return;
     final cancellation = ImportCancellation();
     setState(() {
@@ -177,7 +214,7 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
         input,
         cancellation: cancellation,
       );
-      if (!mounted) return;
+      if (!mounted || attempt != _attempt) return;
       switch (outcome) {
         case WorkoutImportAccepted(:final plan):
           setState(() {
@@ -197,8 +234,10 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
           });
       }
     } on ImportCancelledException {
-      // The user pressed X/Cancel: the backend call is already aborting and the
-      // page is popping. Nothing to show — just stop.
+      // Either the user pressed X/Cancel — the backend call is already
+      // aborting and the page is popping — or a model switch mid-flight
+      // cancelled this attempt on purpose to start a fresh one. Either way,
+      // nothing to show — just stop.
       return;
     } catch (error, stack) {
       // Surface the real failure instead of swallowing it. The old blanket
@@ -206,7 +245,7 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
       // sent people deleting data to chase a backend problem.
       debugPrint('WorkoutImport: aiImportWorkoutPlan failed: $error');
       debugPrintStack(stackTrace: stack);
-      if (!mounted) return;
+      if (!mounted || attempt != _attempt) return;
       setState(() {
         _phase = _ImportPhase.error;
         _canSwitchModel = error is AiFailure && aiFailureSuggestsSwitch(error);
@@ -218,8 +257,10 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
       });
     } finally {
       // The attempt is over — clear the handle so a later X just pops instead
-      // of trying to cancel a call that already finished.
-      _cancellation = null;
+      // of trying to cancel a call that already finished. Guarded the same
+      // way: a stale attempt settling after a newer one has set its own
+      // [_cancellation] must not null that one out.
+      if (attempt == _attempt) _cancellation = null;
     }
   }
 
@@ -321,7 +362,32 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
   /// callable reads the saved choice server-side, so the retry uses it.
   Future<void> _switchModel() async {
     final picked = await showAiModelSheet(context);
-    if (picked != null && mounted) _restart();
+    if (picked != null && mounted) {
+      await _refreshModelLabel();
+      _restart();
+    }
+  }
+
+  /// Tapping the "Using `<model>`" badge **while the extraction is still
+  /// running** — the point of showing it at all is to let a bad pick be
+  /// fixed without waiting out a failure first. Only cancels and restarts
+  /// on an actual change ([showAiModelSheet] returns null for "closed
+  /// without picking" or "re-tapped the model already active").
+  Future<void> _switchModelDuringAnalysis() async {
+    final picked = await showAiModelSheet(context);
+    if (!mounted || picked == null) return;
+    await _refreshModelLabel();
+    // Aborts the backend call (`aiCancelImport`) rather than leaving it to
+    // finish and bill for an answer nobody will see — [_extract]'s attempt
+    // guard means it would be ignored anyway, but this also stops paying
+    // for it.
+    _cancellation?.cancel();
+    // [_run]'s reentrancy guard exists to stop an *accidental* double
+    // dispatch; this restart is deliberate, so it has to be released here —
+    // the superseded attempt's own [_run] will see it's stale (the attempt
+    // id check) and leave this alone when its cancellation resolves.
+    _running = false;
+    _restart();
   }
 
   @override
@@ -369,6 +435,8 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
         return ImportAnalyzingState(
           statusLine: l(context).importAnalyzingWait,
           onCancel: _closeFlow,
+          modelLabel: _modelLabel,
+          onTapModel: _switchModelDuringAnalysis,
         );
       case _ImportPhase.preview:
         return _PreviewState(

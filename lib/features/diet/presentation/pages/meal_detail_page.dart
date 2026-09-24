@@ -132,20 +132,23 @@ class _Totals extends StatelessWidget {
     final macros = macroTotals(meal.items);
     final estimated = meal.items.any((i) => i.estimated);
     final stats = <TrainStat>[
+      // Spelled out (reusing the same strings the rest of the app already
+      // uses for macro names) rather than the bare "P"/"C"/"F" this used to
+      // show — a single letter reads as a code to decode, not a word.
       if (macros.proteinG != null)
         TrainStat(
           strings.dietGramsValue(macros.proteinG!.round()),
-          strings.dietMacroP,
+          strings.dietMacroProtein,
         ),
       if (macros.carbsG != null)
         TrainStat(
           strings.dietGramsValue(macros.carbsG!.round()),
-          strings.dietMacroC,
+          strings.dietMacroCarbs,
         ),
       if (macros.fatG != null)
         TrainStat(
           strings.dietGramsValue(macros.fatG!.round()),
-          strings.dietMacroF,
+          strings.dietMacroFat,
         ),
     ];
 
@@ -215,12 +218,21 @@ class _Totals extends StatelessWidget {
   }
 }
 
-/// One food item as a row of the items card: name on top, quantity · macros
-/// beneath, calories on the right.
+/// One food item as a row of the items card: name on top, quantity beneath,
+/// calories on the right.
 ///
 /// This used to be its own bordered, rounded, tinted card — so a five-item
 /// meal was five stacked cards saying nothing five times. A meal's items are
 /// one list, and a list is one card.
+///
+/// The quantity line used to also be a mono, all-figures caption carrying its
+/// own calorie figure (`foodQtyLabel` appends "· 210 kcal") stacked with a
+/// per-item macro breakdown (`macroLabel`) *and* a second calorie figure
+/// right-aligned beside it — the same number twice, plus a macro line the
+/// totals card above already gives as a day's or meal's worth. Reading a food
+/// list shouldn't mean re-deriving what's already been said: this row now
+/// states the quantity once, in plain text, and the calorie figure once, on
+/// the right.
 class _ItemRow extends StatelessWidget {
   const _ItemRow({required this.item});
 
@@ -228,7 +240,7 @@ class _ItemRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final detail = [foodQtyLabel(item), ?macroLabel(item)].join('  ·  ');
+    final qty = '${trimNumber(item.quantity)} ${item.unit}';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
       child: Row(
@@ -247,18 +259,16 @@ class _ItemRow extends StatelessWidget {
                     height: 1.25,
                   ),
                 ),
-                if (detail.isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    ltrFor(context, detail),
-                    style: TrainType.mono(
-                      size: 11.5,
-                      weight: FontWeight.w400,
-                      color: TrainColors.ink4,
-                      height: 1.3,
-                    ),
+                const SizedBox(height: 3),
+                Text(
+                  ltrFor(context, qty),
+                  style: TrainType.ui(
+                    size: 13,
+                    weight: FontWeight.w400,
+                    color: TrainColors.ink3,
+                    height: 1.3,
                   ),
-                ],
+                ),
               ],
             ),
           ),
@@ -271,11 +281,11 @@ class _ItemRow extends StatelessWidget {
               child: Text(
                 ltrFor(
                   context,
-                  '${item.estimated ? '~' : ''}${item.calories}',
+                  '${item.estimated ? '~' : ''}${item.calories} ${l(context).unitKcal}',
                 ),
-                style: TrainType.mono(
-                  size: 13,
-                  weight: FontWeight.w500,
+                style: TrainType.ui(
+                  size: 14,
+                  weight: FontWeight.w600,
                   color: TrainColors.ink2,
                 ),
               ),

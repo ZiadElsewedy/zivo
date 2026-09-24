@@ -2857,6 +2857,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dietGoal => 'Goal';
 
   @override
+  String get dietMaintenance => 'Maintenance';
+
+  @override
+  String get dietDailyDeficit => 'Daily deficit';
+
+  @override
+  String get dietDailySurplus => 'Daily surplus';
+
+  @override
+  String get dietHowCalculated => 'How this was calculated';
+
+  @override
   String get dietDailyNumbers => 'Daily numbers';
 
   @override
@@ -4314,6 +4326,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get importAnalyzingWait => 'This can take up to a minute';
+
+  @override
+  String importUsingModel(String model) {
+    return 'Using $model';
+  }
 
   @override
   String get importBuildManuallyInstead => 'Build manually instead';
@@ -5828,13 +5845,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Anthropic\'s most capable everyday model — the best answers.';
 
   @override
-  String get askModelClaudeHaiku => 'Claude Haiku';
-
-  @override
-  String get askModelClaudeHaikuDesc =>
-      'Faster and cheaper than Sonnet, still sharp.';
-
-  @override
   String get askModelGeminiFlash => 'Gemini Flash';
 
   @override
@@ -5855,6 +5865,9 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get settingsAiModel => 'AI model';
 
   @override
   String get aiUsageTitle => 'AI usage';
@@ -5881,6 +5894,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiUsageCancelled => 'Cancelled';
+
+  @override
+  String aiUsageSwitchedFrom(String provider) {
+    return 'Switched from $provider';
+  }
 
   @override
   String get aiUsageCostNote =>
@@ -5979,7 +5997,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiIssueOverloaded =>
-      'The provider is overloaded right now. Try again shortly, or switch model.';
+      'AI models are busier than usual right now. Try again shortly.';
 
   @override
   String get aiIssueNoResponse =>

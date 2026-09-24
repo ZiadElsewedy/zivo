@@ -96,7 +96,8 @@ void main() {
 
     expect(find.byKey(const Key('no-target-card')), findsNothing);
     expect(find.byKey(const Key('target-summary-row')), findsOneWidget);
-    expect(find.textContaining('FAT LOSS · 2200 KCAL/DAY'), findsOneWidget);
+    expect(find.text('Fat loss'), findsOneWidget);
+    expect(find.text('2200 kcal a day'), findsOneWidget);
     expect(find.textContaining('You set this'), findsOneWidget);
 
     // Only the macro the user actually set a target for gets a bar.
@@ -214,8 +215,17 @@ void main() {
     await tester.pump();
     expect(find.text('Calories left'), findsOneWidget);
     expect(find.text('1890 kcal'), findsOneWidget);
-    expect(find.text('Goal'), findsOneWidget);
-    expect(find.text('Fat loss'), findsOneWidget);
+    // Scoped to the read card: the target breakdown above also states the
+    // goal ("Fat loss"), so a bare `find.text` would see two.
+    final readCard = find.byKey(const Key('todays-read'));
+    expect(
+      find.descendant(of: readCard, matching: find.text('Goal')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: readCard, matching: find.text('Fat loss')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('with no target set the read is held back — the empty-state card '
@@ -269,7 +279,23 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
+    // The breakdown: maintenance, the goal-adjusted target, the deficit that
+    // implies, and the goal — all stated up front, no tap required.
+    expect(find.text('Maintenance'), findsOneWidget);
+    expect(find.text('2790 kcal a day'), findsOneWidget);
+    expect(find.text('Fat loss'), findsOneWidget);
+    expect(find.text('2230 kcal a day'), findsOneWidget);
+    expect(find.text('Daily deficit'), findsOneWidget);
+    expect(find.text('~560 kcal'), findsOneWidget);
     expect(find.text('Calculated from your body data'), findsOneWidget);
+
+    // The BMR/activity arithmetic itself stays collapsed until asked for.
+    expect(
+      find.text('82 kg · moderate · 2790 kcal maintenance'),
+      findsNothing,
+    );
+    await tester.tap(find.text('How this was calculated'));
+    await tester.pump();
     expect(
       find.text('82 kg · moderate · 2790 kcal maintenance'),
       findsOneWidget,

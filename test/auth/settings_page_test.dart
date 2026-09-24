@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zivo/features/ai/data/fake_ai_repository.dart';
+import 'package:zivo/features/ai/presentation/pages/ask_settings_page.dart';
 import 'package:zivo/features/auth/domain/auth_state.dart';
 import 'package:zivo/features/auth/domain/auth_user.dart';
 import 'package:zivo/features/auth/presentation/pages/settings_page.dart';
@@ -50,4 +52,41 @@ void main() {
     expect(find.byType(SettingsPage), findsNothing);
     expect(find.text('open settings'), findsOneWidget);
   });
+
+  testWidgets(
+    'the AI Model row shows the active model and opens the same picker Ask uses',
+    (tester) async {
+      tester.view.physicalSize = const Size(1000, 2200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final ai = FakeAiRepository();
+
+      await tester.pumpWidget(
+        wrapWithScope(const SettingsPage(), ai: ai),
+      );
+      await tester.pumpAndSettle();
+
+      // Defaults to Claude Sonnet — the row surfaces it without opening Ask.
+      expect(find.byKey(const Key('settings-ai-model')), findsOneWidget);
+      expect(find.text('Claude Sonnet'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('settings-ai-model')));
+      await tester.pumpAndSettle();
+
+      // Same page the Ask header pushes — not a second implementation.
+      expect(find.byType(AskSettingsPage), findsOneWidget);
+
+      await tester.tap(find.text('Gemini Flash'));
+      await tester.pumpAndSettle();
+      expect(await ai.getModelSelection(), 'gemini-flash');
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      // Back on Settings, the row's value reflects the switch made inside.
+      expect(find.text('Gemini Flash'), findsOneWidget);
+    },
+  );
 }

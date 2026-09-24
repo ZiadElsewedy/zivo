@@ -331,80 +331,184 @@ class _NoTargetCard extends StatelessWidget {
   }
 }
 
-/// The one-line statement of what the user is working toward, under the hero:
-/// the goal, the calorie target, and where the number came from. Provenance is
-/// on the surface here for the same reason "~" is on an estimated calorie —
-/// a target the user typed and one a formula proposed are different things.
-class _TargetSummaryRow extends StatelessWidget {
+/// The breakdown of what the user is working toward: maintenance (when a
+/// calculated target knows it), the daily target itself — the one figure
+/// that leads, everything else here explains it — the deficit/surplus that
+/// implies, and the goal. Provenance (who set it, and a below-the-safety-
+/// floor warning) sits underneath; the BMR/activity arithmetic behind a
+/// calculated target is one tap away under "How this was calculated" rather
+/// than always on screen — a target the user typed and one a formula
+/// proposed are different things, but neither needs the formula visible to
+/// be trusted.
+class _TargetSummaryRow extends StatefulWidget {
   const _TargetSummaryRow({required this.targets, required this.onEdit});
 
   final NutritionTargets targets;
   final VoidCallback onEdit;
 
   @override
+  State<_TargetSummaryRow> createState() => _TargetSummaryRowState();
+}
+
+class _TargetSummaryRowState extends State<_TargetSummaryRow> {
+  bool _showCalculation = false;
+
+  @override
   Widget build(BuildContext context) {
+    final targets = widget.targets;
+    final basis = targets.basis;
     final low = targetIsBelowSafetyFloor(targets.calories);
-    return PressableScale(
-      scale: 0.99,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onEdit,
-        child: Padding(
-          key: const Key('target-summary-row'),
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    // Positive: the target sits below maintenance (a deficit). Negative:
+    // above it (a surplus). Zero (maintain/recomp, typically): neither line
+    // is worth stating. Only known for a calculated target — a manual or
+    // plan-derived one carries no maintenance figure to compare against.
+    final gap = basis == null ? null : basis.maintenanceCalories - targets.calories;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PressableScale(
+          scale: 0.99,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onEdit,
+            child: Padding(
+              key: const Key('target-summary-row'),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (basis != null) ...[
+                          _TargetFigureLine(
+                            label: l(context).dietMaintenance,
+                            value: l(context).dietKcalPerDay(
+                              basis.maintenanceCalories,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                        _TargetFigureLine(
+                          label: dietGoalText(context, targets.goal),
+                          value: l(context).dietKcalPerDay(targets.calories),
+                          emphasized: true,
+                        ),
+                        if (gap != null && gap != 0) ...[
+                          const SizedBox(height: 8),
+                          _TargetFigureLine(
+                            label: gap > 0
+                                ? l(context).dietDailyDeficit
+                                : l(context).dietDailySurplus,
+                            value:
+                                '~${gap.abs()} ${l(context).unitKcal}',
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        Text(
+                          low
+                              ? l(context).dietBelowSafeFloor(
+                                  targetSourceText(context, targets.source),
+                                  kMinimumSafeCalories,
+                                )
+                              : targetSourceText(context, targets.source),
+                          style: AppText.meta.copyWith(
+                            color: low ? TrainColors.ember : TrainColors.ink3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: TrainColors.ink3,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // A sibling of the tappable row above, not a descendant of it — so
+        // toggling this can't also fire the row's own tap-to-edit gesture.
+        if (basis != null) ...[
+          PressableScale(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => _showCalculation = !_showCalculation),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      l(context).dietGoalKcalPerDayCaps(
-                        dietGoalText(context, targets.goal).toUpperCase(),
-                        targets.calories,
-                      ),
-                      style: TrainType.mono(
-                        size: 11.5,
-                        tracking: 0.06,
-                        color: TrainColors.green,
-                      ),
+                      l(context).dietHowCalculated,
+                      style: AppText.meta.copyWith(color: TrainColors.ink3),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      low
-                          ? l(context).dietBelowSafeFloor(
-                              targetSourceText(context, targets.source),
-                              kMinimumSafeCalories,
-                            )
-                          : targetSourceText(context, targets.source),
-                      style: AppText.meta.copyWith(
-                        color: low ? TrainColors.ember : TrainColors.ink3,
-                      ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      _showCalculation
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
+                      size: 16,
+                      color: TrainColors.ink3,
                     ),
-                    // A calculated target explains itself. "Calculated from
-                    // your body data" says a formula ran; this says which
-                    // numbers went into it — which is also how a user notices
-                    // the figure is still resting on a weight from March.
-                    if (targets.basis != null) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        targetBasisText(context, targets.basis!),
-                        key: const Key('target-basis'),
-                        style: AppText.meta.copyWith(color: TrainColors.ink4),
-                      ),
-                    ],
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
-                color: TrainColors.ink3,
+            ),
+          ),
+          if (_showCalculation)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
+              child: Text(
+                targetBasisText(context, basis),
+                key: const Key('target-basis'),
+                style: AppText.meta.copyWith(color: TrainColors.ink4),
               ),
-            ],
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+/// One line of the target breakdown: a label and its figure, side by side —
+/// [emphasized] marks the one line that's the actual answer ("how much
+/// today"), the rest read a size down as its explanation.
+class _TargetFigureLine extends StatelessWidget {
+  const _TargetFigureLine({
+    required this.label,
+    required this.value,
+    this.emphasized = false,
+  });
+
+  final String label;
+  final String value;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: AppText.meta.copyWith(
+            color: emphasized ? TrainColors.inkPlain : TrainColors.ink3,
+            fontWeight: emphasized ? FontWeight.w700 : FontWeight.w600,
           ),
         ),
-      ),
+        const Spacer(),
+        Text(
+          value,
+          style: TrainType.ui(
+            size: emphasized ? 16 : 14,
+            weight: emphasized ? FontWeight.w800 : FontWeight.w600,
+            color: emphasized ? TrainColors.green : TrainColors.ink2,
+          ),
+        ),
+      ],
     );
   }
 }

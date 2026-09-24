@@ -784,13 +784,23 @@ function aiUnavailableHttpsError(err) {
  * `timeout` ("Gemini didn't respond in time") — per capability, inside the
  * callable's own `timeoutSeconds`, so a hung provider never surfaces as the
  * client's opaque DEADLINE_EXCEEDED.
+ *
+ * Sized to leave room for the router's retry-then-fallback (`./ai/routing/
+ * router.js`): up to 3 attempts now run for a transient failure (primary,
+ * its retry, the fallback provider), so each attempt's budget is roughly a
+ * THIRD of the callable's own `timeoutSeconds`, not the whole thing —
+ * `workout_import`/`diet_import` dropped from 150s (half of their 300s
+ * callable, sized for a single attempt) to 90s for exactly this reason;
+ * `diet_generate` similarly from 120s to 85s. `chat`'s 50s is unchanged: its
+ * callable already budgets for up to `maxIterations` model calls in one
+ * turn, not one, so it was never sized as "half the callable" to begin with.
  * @const {!Object<string, number>}
  */
 const ATTEMPT_TIMEOUT_MS = {
   chat: 50 * 1000,
-  workout_import: 150 * 1000,
-  diet_import: 150 * 1000,
-  diet_generate: 120 * 1000,
+  workout_import: 90 * 1000,
+  diet_import: 90 * 1000,
+  diet_generate: 85 * 1000,
   food_search: 30 * 1000,
 };
 

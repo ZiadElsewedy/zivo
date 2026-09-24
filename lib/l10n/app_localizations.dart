@@ -4926,6 +4926,30 @@ abstract class AppLocalizations {
   /// **'Goal'**
   String get dietGoal;
 
+  /// Label over the maintenance calorie figure on the Plan details target breakdown (plain case, unlike dietMaintenanceCaps).
+  ///
+  /// In en, this message translates to:
+  /// **'Maintenance'**
+  String get dietMaintenance;
+
+  /// Label over the gap between maintenance and target when the target is below maintenance.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily deficit'**
+  String get dietDailyDeficit;
+
+  /// Label over the gap between maintenance and target when the target is above maintenance.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily surplus'**
+  String get dietDailySurplus;
+
+  /// Toggle that reveals the BMR/activity breakdown behind a calculated target.
+  ///
+  /// In en, this message translates to:
+  /// **'How this was calculated'**
+  String get dietHowCalculated;
+
   /// Section label over the calorie and macro fields.
   ///
   /// In en, this message translates to:
@@ -7350,6 +7374,12 @@ abstract class AppLocalizations {
   /// **'This can take up to a minute'**
   String get importAnalyzingWait;
 
+  /// Small badge on the analyzing/generating screen naming the active AI model answering this request.
+  ///
+  /// In en, this message translates to:
+  /// **'Using {model}'**
+  String importUsingModel(String model);
+
   /// Abandons the import and opens the empty editor.
   ///
   /// In en, this message translates to:
@@ -9690,18 +9720,6 @@ abstract class AppLocalizations {
   /// **'Anthropic\'s most capable everyday model — the best answers.'**
   String get askModelClaudeSonnetDesc;
 
-  /// Model option: Anthropic's Claude Haiku. Product name — keep as-is.
-  ///
-  /// In en, this message translates to:
-  /// **'Claude Haiku'**
-  String get askModelClaudeHaiku;
-
-  /// Description of the Claude Haiku option.
-  ///
-  /// In en, this message translates to:
-  /// **'Faster and cheaper than Sonnet, still sharp.'**
-  String get askModelClaudeHaikuDesc;
-
   /// Model option: Google's Gemini Flash. Product name — keep as-is.
   ///
   /// In en, this message translates to:
@@ -9725,6 +9743,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 request} other{{count} requests}}'**
   String askUsageRequests(int count);
+
+  /// Settings row opening the AI model picker (Ask settings page) from the main app Settings screen.
+  ///
+  /// In en, this message translates to:
+  /// **'AI model'**
+  String get settingsAiModel;
 
   /// Title of the AI usage page (tokens + cost per provider/feature, recent requests).
   ///
@@ -9773,6 +9797,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancelled'**
   String get aiUsageCancelled;
+
+  /// Shown on a request the router automatically moved to the other provider after the requested one (named here) failed. {provider} is a provider name like 'Gemini' or 'Claude'.
+  ///
+  /// In en, this message translates to:
+  /// **'Switched from {provider}'**
+  String aiUsageSwitchedFrom(String provider);
 
   /// Footnote on the AI usage page about cost accuracy.
   ///
@@ -9936,10 +9966,10 @@ abstract class AppLocalizations {
   /// **'Too many requests right now — try again in a minute.'**
   String get aiIssueBusy;
 
-  /// Provider failure: overloaded.
+  /// Both providers overloaded: the router already retried and tried the other provider automatically before surfacing this, so it no longer suggests switching model — there is no other one left to try.
   ///
   /// In en, this message translates to:
-  /// **'The provider is overloaded right now. Try again shortly, or switch model.'**
+  /// **'AI models are busier than usual right now. Try again shortly.'**
   String get aiIssueOverloaded;
 
   /// Provider failure: timed out.

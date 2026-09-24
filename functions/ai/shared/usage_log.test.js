@@ -45,8 +45,8 @@ test("a metered request records the answering model, tokens and its cost", async
   assert.equal(record.tokensOut, 200);
   assert.equal(record.calls, 1);
   assert.equal(record.latencyMs, 4000);
-  // $3/M in + $15/M out.
-  assert.ok(near(record.costUsd, 1000 * 3e-6 + 200 * 15e-6));
+  // $2/M in + $10/M out.
+  assert.ok(near(record.costUsd, 1000 * 2e-6 + 200 * 10e-6));
 });
 
 test("each call is priced at the model that answered it", async () => {

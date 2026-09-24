@@ -144,12 +144,8 @@ void main() {
   });
 
   group('model selection ids', () {
-    test('one active model: three choices, Sonnet by default', () {
-      expect(kAiModelSelections, [
-        'claude-sonnet',
-        'claude-haiku',
-        'gemini-flash',
-      ]);
+    test('one active model: two choices, Sonnet by default', () {
+      expect(kAiModelSelections, ['claude-sonnet', 'gemini-flash']);
       expect(validAiModelSelection(null), 'claude-sonnet');
       expect(validAiModelSelection('gpt-9'), 'claude-sonnet');
     });
@@ -159,10 +155,12 @@ void main() {
       expect(validAiModelSelection('claude'), 'claude-sonnet');
       expect(validAiModelSelection('gemini'), 'gemini-flash');
       expect(validAiModelSelection('gemini-pro'), 'gemini-flash');
+      // Claude Haiku, removed 2026-09-24 — one model per provider now.
+      expect(validAiModelSelection('claude-haiku'), 'claude-sonnet');
     });
 
     test('each selection shows its provider mark', () {
-      expect(aiModelSelectionProvider('claude-haiku'), 'anthropic');
+      expect(aiModelSelectionProvider('claude-sonnet'), 'anthropic');
       expect(aiModelSelectionProvider('gemini-flash'), 'gemini');
     });
   });

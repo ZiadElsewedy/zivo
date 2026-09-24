@@ -18,7 +18,9 @@ import '../../../music/domain/music_controller.dart';
 import '../../../music/domain/now_playing.dart';
 import '../../../music/music_config.dart';
 import '../../../music/presentation/music_player_page.dart';
+import '../../../ai/presentation/ai_labels.dart';
 import '../../../ai/presentation/pages/ai_usage_page.dart';
+import '../../../ai/presentation/pages/ask_settings_page.dart';
 import '../../../reminders/presentation/pages/reminders_page.dart';
 import 'about_me_page.dart';
 import 'change_password_page.dart';
@@ -151,6 +153,12 @@ class _SettingsPageState extends State<SettingsPage> {
                       );
                     },
                   ),
+                  // The active AI model — the one that answers chat, plan
+                  // imports and the plan builder. Reachable from the app's
+                  // own Settings, not just from inside Ask, so switching
+                  // provider (e.g. when one is out of credit or down)
+                  // doesn't require opening the chat feature first.
+                  const _AiModelRow(),
                   // Every AI request's tokens and estimated cost, by
                   // provider and by feature — the owner's view of what the
                   // AI features are spending.
@@ -552,6 +560,76 @@ class _MusicSection extends StatelessWidget {
               ],
             );
           },
+        );
+      },
+    );
+  }
+}
+
+/// The main Settings row into the active AI model — the same picker
+/// [AskSettingsPage] already offers from the Ask header, surfaced here too so
+/// switching the model that answers chat, plan imports and the plan builder
+/// doesn't require opening Ask first (the owner's ask: if the current model
+/// or API stops responding, get to the switch from Settings directly).
+///
+/// A thin push-through, not a second implementation: the value shown here is
+/// [AiRepository.getModelSelection] read fresh (so it reflects a switch made
+/// anywhere else), and the row opens the *same* [AskSettingsPage] the Ask
+/// header does — one picker, one place its rows are drawn.
+class _AiModelRow extends StatefulWidget {
+  const _AiModelRow();
+
+  @override
+  State<_AiModelRow> createState() => _AiModelRowState();
+}
+
+class _AiModelRowState extends State<_AiModelRow> {
+  Future<({String model, String style})>? _future;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _future ??= _load();
+  }
+
+  Future<({String model, String style})> _load() async {
+    final ai = AppScope.of(context).ai;
+    final model = await ai.getModelSelection();
+    final style = await ai.getResponseStyle();
+    return (model: model, style: style);
+  }
+
+  Future<void> _open(String model, String style) async {
+    final ai = AppScope.of(context).ai;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => AskSettingsPage(
+          initialModel: model,
+          initialStyle: style,
+          onSelectModel: ai.setModelSelection,
+          onSelectStyle: ai.setResponseStyle,
+        ),
+      ),
+    );
+    // The picker may have changed the selection — re-read it so this row's
+    // value doesn't go stale the moment it's back on screen.
+    if (mounted) setState(() { _future = _load(); });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<({String model, String style})>(
+      future: _future,
+      builder: (context, snapshot) {
+        final data = snapshot.data;
+        return SettingsRow(
+          key: const Key('settings-ai-model'),
+          icon: AppIcons.ask,
+          title: l(context).settingsAiModel,
+          value: data == null ? '' : aiModelSelectionText(context, data.model),
+          onTap: data == null
+              ? null
+              : () => _open(data.model, data.style),
         );
       },
     );

@@ -106,6 +106,10 @@ AiUsageRecord aiUsageRecordFromMap(Map<String, dynamic> data) {
     createdAt: created is Timestamp ? created.toDate() : null,
     latencyMs: _asInt(data['latencyMs']),
     errorKind: data['errorKind'] as String?,
+    fallbackOccurred: data['fallbackOccurred'] == true,
+    fallbackReason: data['fallbackReason'] as String?,
+    requestedProvider: data['requestedProvider'] as String?,
+    requestedModel: data['requestedModel'] as String?,
   );
 }
 

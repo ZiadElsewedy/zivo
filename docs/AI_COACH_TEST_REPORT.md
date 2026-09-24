@@ -3,7 +3,7 @@
 **Date:** 2026-09-12 · **Branch:** `feature/reminders-sync` · **Tester:** Claude (Opus 4.8), driving ZIVO on the iOS Simulator (iPhone 17, iOS 26.5), with the final two probes captured by the owner.
 **Backend:** LIVE — production Firebase + real Claude API (`USE_FIRESTORE=true` → `FirebaseAiRepository`). Not the fake/offline repo.
 **Account:** Ziad's real signed-in account with real workout + diet data (Full Arm plan, Week 4; "Ziad El Sewedy Nutrition Plan").
-**Method:** 13 probes across every major angle, each graded against ZIVO's actual guardrails (read from `functions/ai/chat/prompt/sections/*`, `functions/ai/validator.js`, `functions/ai/tools.js`), not from assumption.
+**Method:** 13 probes across every major angle, each graded against ZIVO's actual guardrails (read from `functions/ai/chat/prompt/sections/*`, `functions/ai/chat/validator.js`, `functions/ai/tools/read.js`), not from assumption.
 
 ---
 

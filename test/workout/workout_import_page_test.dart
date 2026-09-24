@@ -106,6 +106,8 @@ class _StreamingImportAi extends FakeAiRepository {
   final _started = Completer<void>();
 
   ImportCancellation? _cancellation;
+  int callCount = 0;
+  final List<String> modelAtCall = [];
 
   Future<void> get started => _started.future;
   void finish() => _gate.complete();
@@ -119,6 +121,14 @@ class _StreamingImportAi extends FakeAiRepository {
     WorkoutImportInput input, {
     ImportCancellation? cancellation,
   }) async {
+    callCount++;
+    modelAtCall.add(await getModelSelection());
+    // Only the FIRST call gates — proves a mid-flight model switch cancels
+    // it and dispatches a genuinely new one, rather than the badge tap being
+    // a no-op. The second call (the switch's retry) resolves through the
+    // ordinary canned sample so the flow can be observed reaching preview.
+    if (callCount > 1) return super.importWorkoutPlan(input);
+
     _cancellation = cancellation;
     _started.complete();
     // Resolve on finish, OR abort the moment the page cancels — mirroring the
@@ -550,6 +560,53 @@ void main() {
       expect(ai.cancelled, isTrue);
       // …and the flow left the screen.
       expect(find.text('open'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'tapping the model badge mid-flight cancels the run and switches model',
+    (tester) async {
+      final ai = _StreamingImportAi();
+      await _pumpImportPage(
+        tester,
+        ai: ai,
+        pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
+        settle: false,
+      );
+      await ai.started;
+      await tester.pump();
+
+      // The badge names the model actually in flight, and is a real control
+      // (a swap icon), not just a label.
+      expect(find.text('Using Claude Sonnet'), findsOneWidget);
+      expect(ai.callCount, 1);
+
+      await tester.tap(find.byKey(const Key('import-model-badge')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // The sheet's own model read resolving.
+      await tester.pump();
+      expect(find.byKey(const Key('sheet-model-gemini-flash')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('sheet-model-gemini-flash')));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Refreshing the badge, cancelling the first attempt, re-picking the
+      // file and dispatching a fresh extraction all chain through here.
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      // The first attempt was cancelled rather than left running for an
+      // answer nobody would see…
+      expect(ai.cancelled, isTrue);
+      // …and a genuinely NEW attempt was dispatched — the tap wasn't a
+      // no-op — using the model that was just picked.
+      expect(ai.callCount, 2);
+      expect(ai.modelAtCall, ['claude-sonnet', 'gemini-flash']);
     },
   );
 }

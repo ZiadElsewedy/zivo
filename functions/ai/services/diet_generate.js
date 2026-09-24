@@ -41,8 +41,11 @@ const {AnthropicProvider} = require("../providers/anthropic_provider");
 const {legacyAnthropicClient} = require("../providers/legacy_client");
 const {resolveAndCompute} = require("../../nutrition/resolve");
 const {fitDayToTarget, findAllergen} = require("../analytics/plan_fitting");
+const {MODELS} = require("../routing/models");
 
-const MODEL = "claude-sonnet-5";
+// Read from the catalog (`../routing/models.js`) rather than a second
+// hardcoded literal, so this can't drift from it when the id changes.
+const MODEL = MODELS["claude-sonnet"].id;
 const MAX_TOKENS = 8000;
 const TOOL_NAME = "propose_generated_plan";
 const REJECT_TOOL_NAME = "reject_generation";

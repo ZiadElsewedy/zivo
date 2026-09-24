@@ -2894,6 +2894,18 @@ class AppLocalizationsAr extends AppLocalizations {
   String get dietGoal => 'الهدف';
 
   @override
+  String get dietMaintenance => 'الحفاظ على الوزن';
+
+  @override
+  String get dietDailyDeficit => 'العجز اليومي';
+
+  @override
+  String get dietDailySurplus => 'الفائض اليومي';
+
+  @override
+  String get dietHowCalculated => 'كيف تم حساب هذا';
+
+  @override
   String get dietDailyNumbers => 'الأرقام اليومية';
 
   @override
@@ -4385,6 +4397,11 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get importAnalyzingWait => 'قد يستغرق هذا حتى دقيقة';
+
+  @override
+  String importUsingModel(String model) {
+    return 'باستخدام $model';
+  }
 
   @override
   String get importBuildManuallyInstead => 'ابنِ يدويًا بدلًا من ذلك';
@@ -5948,13 +5965,6 @@ class AppLocalizationsAr extends AppLocalizations {
       'أقوى نماذج Anthropic للاستخدام اليومي — أفضل الإجابات.';
 
   @override
-  String get askModelClaudeHaiku => 'Claude Haiku';
-
-  @override
-  String get askModelClaudeHaikuDesc =>
-      'أسرع وأرخص من Sonnet، ولا يزال دقيقًا.';
-
-  @override
   String get askModelGeminiFlash => 'Gemini Flash';
 
   @override
@@ -5978,6 +5988,9 @@ class AppLocalizationsAr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get settingsAiModel => 'نموذج الذكاء الاصطناعي';
 
   @override
   String get aiUsageTitle => 'استخدام الذكاء الاصطناعي';
@@ -6004,6 +6017,11 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get aiUsageCancelled => 'أُلغي';
+
+  @override
+  String aiUsageSwitchedFrom(String provider) {
+    return 'تحوّل من $provider';
+  }
 
   @override
   String get aiUsageCostNote =>
@@ -6099,7 +6117,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get aiIssueOverloaded =>
-      'المزوّد مُثقل حاليًا. حاول بعد قليل، أو غيّر النموذج.';
+      'نماذج الذكاء الاصطناعي مزدحمة أكثر من المعتاد الآن. حاول بعد قليل.';
 
   @override
   String get aiIssueNoResponse =>

@@ -203,19 +203,25 @@ runAiTurn: SYSTEM_PROMPT (cached) + uncached CONTEXT block (user's local
 - **Providers:** behind a `NormalizedRequest`/`NormalizedResponse` seam
   ([`providers/`](functions/ai/providers) + [`routing/router.js`](functions/ai/routing/router.js),
   models + prices in [`routing/models.js`](functions/ai/routing/models.js): Claude Sonnet 5 ·
-  Claude Haiku 4.5 · Gemini Flash). **One active model per request, no fallback** (owner
-  decision 2026-09-23): the model the user marks active (`settings/ai.provider`, default
-  `claude-sonnet`) answers chat, plan import and the plan builder. If its provider can't answer
-  (out of credit — Anthropic sends that as a 400 —, bad key, rate limit, overload, timeout,
-  retired model; classified in `providers/classify.js`), the call fails with `AiUnavailableError`
-  → `HttpsError('unavailable', …, {reason:'ai_unavailable', provider, kind})`, and the app names
-  the provider and the reason with a "Switch model" action. Only `food_search`'s grounding
-  call always runs on Gemini (Anthropic has no search grounding).
-- **Usage** is logged for **every** AI request, not just chat turns (`aiUsage` v4, `feature` field:
+  Gemini Flash — one model per provider). **Automatic retry + fallback** (owner decision
+  2026-09-24, replacing the one-model-no-fallback rule from 2026-09-23): the model the user marks
+  active (`settings/ai.provider`, default `claude-sonnet`) answers chat, plan import and the plan
+  builder; on a TRANSIENT failure (overload, rate limit, server error, timeout, network — see
+  `isTransientFailure` in `providers/classify.js`) it's retried once on the same provider after a
+  short backoff, then automatically re-run on the OTHER provider if it's still failing. A
+  PERMANENT failure (bad key, out of credit — Anthropic sends that as a 400 —, retired model, a
+  malformed request) is never retried or fallen back for — it fails immediately with
+  `AiUnavailableError` → `HttpsError('unavailable', …, {reason:'ai_unavailable', provider, kind})`,
+  and the app names the provider and the reason with a "Switch model" action. A response that
+  needed fallback carries `requestedProvider`/`requestedModel`/`fallbackOccurred`/`fallbackReason`
+  so usage stays truthful about it. Only `food_search`'s grounding call always runs on Gemini and
+  never falls back (Anthropic has no search grounding).
+- **Usage** is logged for **every** AI request, not just chat turns (`aiUsage` v5, `feature` field:
   chat · workout_import · diet_import · diet_generate · food_search · transcribe) —
   [`shared/usage_log.js`](functions/ai/shared/usage_log.js) meters the non-chat callables,
   [`chat/usage.js`](functions/ai/chat/usage.js) the turn: provider/model, type (`feature`),
-  tokens in/out, cost at the answering model's rate, status/errorKind. The chat daily cap counts chat records only.
+  tokens in/out, cost at the answering model's rate, status/errorKind, and (when a request
+  fell back) the requested provider/model and why. The chat daily cap counts chat records only.
   The app reads it on the AI usage page (Settings → AI usage): pick Claude or Gemini to see its
   total/chat/generate/import requests, tokens in/out, estimated cost and cost per request.
 
@@ -231,7 +237,7 @@ Model calls a mutating tool → validate(input) [shape] → verify(input) [exist
 target the **exact `id`** from a read tool. Food nutrition is **computed server-side in `verify`**,
 never model-supplied, and snapshotted at propose time so it can't drift.
 
-### Read tools — [`tools.js`](functions/ai/tools.js) (uid-scoped, never mutate; every payload states its date)
+### Read tools — [`tools/read.js`](functions/ai/tools/read.js) (uid-scoped, never mutate; every payload states its date)
 
 | Tool | Returns |
 |---|---|
@@ -251,7 +257,7 @@ never model-supplied, and snapshotted at propose time so it can't drift.
 **Token discipline:** `dropNull` strips absent fields from workout/expense/week payloads (re-sent
 each iteration) but **never from diet tools** — there `null` is a semantic signal (`targets:null` = no objective).
 
-### Write tools (propose→confirm) — [`mutations.js`](functions/ai/mutations.js)
+### Write tools (propose→confirm) — [`tools/mutations.js`](functions/ai/tools/mutations.js)
 
 | Tool | Proposes |
 |---|---|
@@ -263,7 +269,7 @@ each iteration) but **never from diet tools** — there `null` is a semantic sig
 
 > `mark_meal_eaten` ticks a planned meal off; `log_food` records ad-hoc eating. Not interchangeable.
 
-### Elicitation tools (pause & ask) — [`elicitations.js`](functions/ai/elicitations.js)
+### Elicitation tools (pause & ask) — [`tools/elicitations.js`](functions/ai/tools/elicitations.js)
 
 Non-executing turn-enders (`elicits: true`). No pending-action doc, no confirm half — the user's
 answer returns as the next turn.
@@ -291,19 +297,19 @@ cached; only the appended `CONTEXT` block carries the date.
 | Feature | Callable / entry | Workflow |
 |---|---|---|
 | **Voice → text** | `aiTranscribe` → [`speech/gateway.js`](functions/ai/speech/gateway.js) | Audio → transcript (Gemini / OpenAI speech providers); the transcript then goes through a normal chat turn. |
-| **Workout PDF import** | `aiImportWorkoutPlan` → [`workout_import.js`](functions/ai/workout_import.js) | One-shot PDF → proposed split JSON (`toolChoice:"any"`). **No server write** — the client's `WorkoutPlanEditPage` is the human gate; saved via `WorkoutPlanRepository.saveSplit`. Streams `import_progress`. |
-| **Diet PDF/text import** | `aiImportDietPlan` → [`diet_import.js`](functions/ai/diet_import.js) | Mirrors workout import; **difference:** kcal/macros never null (schema forces an estimate; each item reports `estimated`). Reviewed in `DietPlanEditPage`, saved via `DietRepository.savePlan`. |
-| **Diet plan generation** | `aiGenerateDietPlan` → [`diet_generate.js`](functions/ai/diet_generate.js) | ADR-007: **model picks foods, catalog prices them, arithmetic fits them.** Two model calls (2nd disambiguates USDA-`ambiguous` items); fitting/allergen refusal is deterministic ([`plan_fitting.js`](functions/ai/plan_fitting.js)). Not streamed. |
-| **Weekly coach report** | `weeklyCoachReport` (scheduled) → [`coach_report.js`](functions/ai/coach_report.js) | **Proactive, deterministic template — no model call.** Pushed into the user's most recent Ask conversation; users with no conversation are skipped. |
+| **Workout PDF import** | `aiImportWorkoutPlan` → [`services/workout_import.js`](functions/ai/services/workout_import.js) | One-shot PDF → proposed split JSON (`toolChoice:"any"`). **No server write** — the client's `WorkoutPlanEditPage` is the human gate; saved via `WorkoutPlanRepository.saveSplit`. Streams `import_progress`. |
+| **Diet PDF/text import** | `aiImportDietPlan` → [`services/diet_import.js`](functions/ai/services/diet_import.js) | Mirrors workout import; **difference:** kcal/macros never null (schema forces an estimate; each item reports `estimated`). Reviewed in `DietPlanEditPage`, saved via `DietRepository.savePlan`. |
+| **Diet plan generation** | `aiGenerateDietPlan` → [`services/diet_generate.js`](functions/ai/services/diet_generate.js) | ADR-007: **model picks foods, catalog prices them, arithmetic fits them.** Two model calls (2nd disambiguates USDA-`ambiguous` items); fitting/allergen refusal is deterministic ([`plan_fitting.js`](functions/ai/plan_fitting.js)). Not streamed. |
+| **Weekly coach report** | `weeklyCoachReport` (scheduled) → [`services/coach_report.js`](functions/ai/services/coach_report.js) | **Proactive, deterministic template — no model call.** Pushed into the user's most recent Ask conversation; users with no conversation are skipped. |
 
 ### Deterministic engines the model only *explains* (Node mirrors of Dart, pinned by shared golden vectors)
 
 | Engine | Mirrors | Feeds |
 |---|---|---|
-| [`workout_analytics.js`](functions/ai/workout_analytics.js) | `workout_analytics.dart` | `get_training_analysis` (1RM, PRs, status, trends, findings). |
-| [`exercise_analytics.js`](functions/ai/exercise_analytics.js) | `exercise_analysis.dart` + `plan_adherence.dart` | `get_exercise_analysis` + `planAdherence`. |
-| [`readiness.js`](functions/ai/readiness.js) | `readiness.dart` | `get_readiness`. |
-| [`sleep_insights.js`](functions/ai/sleep_insights.js) | `sleep_metrics.dart` | Sleep interpretation (`groundedNumerals` filters every numeral). |
+| [`analytics/workout_analytics.js`](functions/ai/analytics/workout_analytics.js) | `workout_analytics.dart` | `get_training_analysis` (1RM, PRs, status, trends, findings). |
+| [`analytics/exercise_analytics.js`](functions/ai/analytics/exercise_analytics.js) | `exercise_analysis.dart` + `plan_adherence.dart` | `get_exercise_analysis` + `planAdherence`. |
+| [`analytics/readiness.js`](functions/ai/analytics/readiness.js) | `readiness.dart` | `get_readiness`. |
+| [`services/sleep_insights.js`](functions/ai/services/sleep_insights.js) | `sleep_metrics.dart` | Sleep interpretation (`groundedNumerals` filters every numeral). |
 | [`../nutrition/resolve.js`](functions/nutrition/resolve.js) | `CompositeFoodResolver` | The ONE food→calories path shared by `resolve_food`, `calculate_meal_nutrition`, `log_food`. |
 | [`../diet/rules.js`](functions/diet/rules.js) | diet rules engine | The `findings` the coach leads with. |
 

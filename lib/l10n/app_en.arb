@@ -4022,6 +4022,22 @@
   "@dietGoal": {
       "description": "Section label over the diet goal picker."
   },
+  "dietMaintenance": "Maintenance",
+  "@dietMaintenance": {
+      "description": "Label over the maintenance calorie figure on the Plan details target breakdown (plain case, unlike dietMaintenanceCaps)."
+  },
+  "dietDailyDeficit": "Daily deficit",
+  "@dietDailyDeficit": {
+      "description": "Label over the gap between maintenance and target when the target is below maintenance."
+  },
+  "dietDailySurplus": "Daily surplus",
+  "@dietDailySurplus": {
+      "description": "Label over the gap between maintenance and target when the target is above maintenance."
+  },
+  "dietHowCalculated": "How this was calculated",
+  "@dietHowCalculated": {
+      "description": "Toggle that reveals the BMR/activity breakdown behind a calculated target."
+  },
   "dietDailyNumbers": "Daily numbers",
   "@dietDailyNumbers": {
       "description": "Section label over the calorie and macro fields."
@@ -6040,6 +6056,11 @@
   "@importAnalyzingWait": {
       "description": "Subtitle under 'Analyzing your plan' setting the wait expectation for the single AI call."
   },
+  "importUsingModel": "Using {model}",
+  "@importUsingModel": {
+      "description": "Small badge on the analyzing/generating screen naming the active AI model answering this request.",
+      "placeholders": {"model": {"type": "String"}}
+  },
   "importBuildManuallyInstead": "Build manually instead",
   "@importBuildManuallyInstead": {
       "description": "Abandons the import and opens the empty editor."
@@ -8050,10 +8071,6 @@
   "@askModelClaudeSonnet": {"description": "Model option: Anthropic's Claude Sonnet. Product name — keep as-is."},
   "askModelClaudeSonnetDesc": "Anthropic's most capable everyday model — the best answers.",
   "@askModelClaudeSonnetDesc": {"description": "Description of the Claude Sonnet option."},
-  "askModelClaudeHaiku": "Claude Haiku",
-  "@askModelClaudeHaiku": {"description": "Model option: Anthropic's Claude Haiku. Product name — keep as-is."},
-  "askModelClaudeHaikuDesc": "Faster and cheaper than Sonnet, still sharp.",
-  "@askModelClaudeHaikuDesc": {"description": "Description of the Claude Haiku option."},
   "askModelGeminiFlash": "Gemini Flash",
   "@askModelGeminiFlash": {"description": "Model option: Google's Gemini Flash. Product name — keep as-is."},
   "askModelGeminiFlashDesc": "Google's fast model — the lowest cost.",
@@ -8062,6 +8079,8 @@
   "@askModelAppliesNote": {"description": "Note under the model list explaining scope and automatic fallback."},
   "askUsageRequests": "{count, plural, =1{1 request} other{{count} requests}}",
   "@askUsageRequests": {"description": "Number of AI requests, e.g. '37 requests'.", "placeholders": {"count": {"type": "int"}}},
+  "settingsAiModel": "AI model",
+  "@settingsAiModel": {"description": "Settings row opening the AI model picker (Ask settings page) from the main app Settings screen."},
   "aiUsageTitle": "AI usage",
   "@aiUsageTitle": {"description": "Title of the AI usage page (tokens + cost per provider/feature, recent requests)."},
   "aiUsageTotal": "Total",
@@ -8078,6 +8097,8 @@
   "@aiUsageFailed": {"description": "Badge on a request that failed."},
   "aiUsageCancelled": "Cancelled",
   "@aiUsageCancelled": {"description": "Badge on a request the user cancelled."},
+  "aiUsageSwitchedFrom": "Switched from {provider}",
+  "@aiUsageSwitchedFrom": {"description": "Shown on a request the router automatically moved to the other provider after the requested one (named here) failed. {provider} is a provider name like 'Gemini' or 'Claude'.", "placeholders": {"provider": {"type": "String"}}},
   "aiUsageCostNote": "Costs are estimates from list prices (Gemini's especially). Your provider's billing page is the source of truth.",
   "@aiUsageCostNote": {"description": "Footnote on the AI usage page about cost accuracy."},
   "aiFeatureChat": "Ask chat",
@@ -8132,8 +8153,8 @@
   "@aiIssueNotConfigured": {"description": "Provider failure: the server's key was rejected."},
   "aiIssueBusy": "Too many requests right now — try again in a minute.",
   "@aiIssueBusy": {"description": "Provider failure: rate-limited."},
-  "aiIssueOverloaded": "The provider is overloaded right now. Try again shortly, or switch model.",
-  "@aiIssueOverloaded": {"description": "Provider failure: overloaded."},
+  "aiIssueOverloaded": "AI models are busier than usual right now. Try again shortly.",
+  "@aiIssueOverloaded": {"description": "Both providers overloaded: the router already retried and tried the other provider automatically before surfacing this, so it no longer suggests switching model — there is no other one left to try."},
   "aiIssueNoResponse": "The AI model didn't answer in time. Try again.",
   "@aiIssueNoResponse": {"description": "Provider failure: timed out."},
   "aiIssueModelRetired": "This model is no longer offered. Pick another in Ask settings.",

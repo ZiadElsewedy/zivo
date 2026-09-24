@@ -404,7 +404,7 @@ void main() {
     await c.load();
     final original = c.modelSelection;
 
-    await c.setModelSelection('claude-haiku');
+    await c.setModelSelection('gemini-flash');
 
     expect(c.modelSelection, original);
     expect(reported, isNotNull);

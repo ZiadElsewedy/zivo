@@ -268,6 +268,14 @@ async function runAiTurn({
   let usedProvider = null;
   let usedModel = null;
   let usedModelKey = null;
+  // Set when ANY call in the turn required the router to fall back
+  // (`../routing/router.js`) — a turn spans several calls, and once the
+  // active provider has proven unreliable this turn, later calls fall back
+  // too, so these hold the FIRST fallback's requested model/reason.
+  let fellBack = false;
+  let requestedProvider = null;
+  let requestedModel = null;
+  let fallbackReason = null;
   const toolCalls = [];
   // Total characters of tool-result JSON fed back to the model this turn, so
   // the usage log can report roughly how much of the input was tool output
@@ -311,6 +319,12 @@ async function runAiTurn({
     if (resp.provider) usedProvider = resp.provider;
     if (resp.model) usedModel = resp.model;
     if (resp.modelKey) usedModelKey = resp.modelKey;
+    if (resp.fallbackOccurred && !fellBack) {
+      fellBack = true;
+      requestedProvider = resp.requestedProvider;
+      requestedModel = resp.requestedModel;
+      fallbackReason = resp.fallbackReason;
+    }
     usage.add(resp.usage, resp.provider, resp.model);
 
     if (resp.stopReason === "refusal") {
@@ -582,6 +596,12 @@ async function runAiTurn({
   // The provider that answered (e.g. 'anthropic' | 'gemini'), when the router
   // reported it — so a fallback is visible in usage, not silent.
   if (usedProvider) usageDoc.provider = usedProvider;
+  if (fellBack) {
+    usageDoc.fallbackOccurred = true;
+    usageDoc.fallbackReason = fallbackReason;
+    usageDoc.requestedProvider = requestedProvider;
+    usageDoc.requestedModel = requestedModel;
+  }
   // The turn's idempotency key, so a client can pair this usage record with the
   // assistant MESSAGE it produced (both carry the same clientTurnId) — that's
   // what the per-message "turn details" view queries on. Absent on turn-less

@@ -10,10 +10,12 @@
  * (`aiConfirmAction`/`aiCancelAction`): there is no pending-action record and
  * nothing to confirm server-side, because nothing was written yet.
  *
- * Model choice: `claude-sonnet-5`, matching `../gateway.js`'s `aiChat` model —
- * WORKOUT_SYSTEM.md §3.4 says to match the existing gateway's model unless
- * there's a reason to differ, and there isn't one strong enough to justify a
- * second model/pricing profile for a single-shot extraction call.
+ * Model choice: the catalog's `claude-sonnet` entry, matching `../gateway.js`'s
+ * `aiChat` model — WORKOUT_SYSTEM.md §3.4 says to match the existing gateway's
+ * model unless there's a reason to differ, and there isn't one strong enough
+ * to justify a second model/pricing profile for a single-shot extraction call.
+ * Read from `../routing/models.js` rather than a second hardcoded literal, so
+ * the two can't drift when the catalog's id changes.
  *
  * Kept free of `@anthropic-ai/sdk`/`firebase-admin` (only `callModel` is
  * injected) so it runs offline under `node --test`, same seam pattern as
@@ -25,8 +27,9 @@ const {AnthropicProvider} = require("../providers/anthropic_provider");
 const {legacyAnthropicClient} = require("../providers/legacy_client");
 const {isAbortError} = require("../shared/abort");
 const {AiUnavailableError} = require("../providers/classify");
+const {MODELS} = require("../routing/models");
 
-const MODEL = "claude-sonnet-5";
+const MODEL = MODELS["claude-sonnet"].id;
 const MAX_TOKENS = 8000;
 
 // The longest description this will read. A dictated or typed split is a few

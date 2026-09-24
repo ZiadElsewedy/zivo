@@ -3,6 +3,7 @@ import 'package:lottie/lottie.dart';
 
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../l10n/l10n.dart';
 import '../widgets/capture_widgets.dart';
 
@@ -110,6 +111,8 @@ class ImportAnalyzingState extends StatelessWidget {
   const ImportAnalyzingState({
     required this.statusLine,
     this.onCancel,
+    this.modelLabel,
+    this.onTapModel,
     Color? accent,
     Color? chipColor,
     super.key,
@@ -125,6 +128,24 @@ class ImportAnalyzingState extends StatelessWidget {
   /// Aborts the import (backend-side, via `aiCancelImport`). Null hides Cancel
   /// (e.g. diet generation, or an offline fake that cannot cancel).
   final VoidCallback? onCancel;
+
+  /// The active AI model's display name (e.g. "Gemini Flash"), read from the
+  /// user's saved selection. Null while that read hasn't resolved yet, or for
+  /// a caller that doesn't pass one — the badge is simply absent, never a
+  /// placeholder. Named so it's obvious *which* model is answering this
+  /// request, not just that "the AI" is working (the owner's ask: the model
+  /// switch is only worth having if you can see it took effect).
+  final String? modelLabel;
+
+  /// Lets [modelLabel] be tapped to switch model **while this request is
+  /// still in flight** — cancelling it and retrying with the new pick,
+  /// rather than making the user wait out a failure first (that's the
+  /// actual point of showing the badge, not just naming the model). Null
+  /// makes the badge informational only — diet generation's caller passes
+  /// null because that call can't be aborted server-side, so a mid-flight
+  /// switch would just orphan a second billed request rather than replace
+  /// the first.
+  final VoidCallback? onTapModel;
 
   final Color? _accent;
 
@@ -166,6 +187,70 @@ class ImportAnalyzingState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ),
+          if (modelLabel != null) ...[
+            const SizedBox(height: 16),
+            PressableScale(
+              enabled: onTapModel != null,
+              child: Material(
+                type: MaterialType.transparency,
+                child: InkWell(
+                  key: const Key('import-model-badge'),
+                  onTap: onTapModel,
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: TrainColors.greenWash,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: TrainColors.green.withValues(alpha: 0.28),
+                      ),
+                      boxShadow: TrainColors.actionGlow(
+                        TrainColors.green,
+                        alpha: 0.16,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: TrainColors.green,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 7),
+                        Text(
+                          l(context).importUsingModel(modelLabel!),
+                          style: AppText.meta.copyWith(
+                            color: TrainColors.green,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11.5,
+                            letterSpacing: 0.1,
+                          ),
+                        ),
+                        // The hint that this is a switch, not just a label —
+                        // only when it actually is one.
+                        if (onTapModel != null) ...[
+                          const SizedBox(width: 5),
+                          Icon(
+                            Icons.swap_horiz_rounded,
+                            size: 14,
+                            color: TrainColors.green,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
           if (onCancel != null) ...[
             const SizedBox(height: 24),
             TextButton(

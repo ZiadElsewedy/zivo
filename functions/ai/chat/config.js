@@ -7,8 +7,12 @@
  * reading the orchestration. `DEFAULT_CONFIG` is re-exported by `gateway.js`.
  */
 
+const {MODELS, DEFAULT_MODEL_FOR_PROVIDER} = require("../routing/models");
+
 // Provider-native default model for a chat turn. A route may override it.
-const MODEL = "claude-sonnet-5";
+// Read from the catalog rather than a second hardcoded literal, so this
+// can't drift from it when the id changes.
+const MODEL = MODELS["claude-sonnet"].id;
 
 const DEFAULT_CONVERSATION_TITLE = "Ask";
 
@@ -44,7 +48,6 @@ const DEFAULT_CONFIG = {
 // A turn whose calls were stamped with the exact model that answered is priced
 // per model instead (see `usage.js` `TurnUsage.add`); these per-provider rates
 // are the fallback for an unstamped call (the legacy seam, test fakes).
-const {MODELS, DEFAULT_MODEL_FOR_PROVIDER} = require("../routing/models");
 
 /**
  * @param {string} provider

@@ -830,18 +830,48 @@ class _DietHeroState extends State<_DietHero>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // "How much should I eat today?" answered first, plainly —
+                // the user's own chosen daily target (never the plan's own
+                // total; see [DietState.goal]'s doc), before anything about
+                // progress against it. Only drawn with a real target: a plan
+                // total nobody chose isn't "your daily target".
+                if (progress != null) ...[
+                  Text(
+                    ltrFor(
+                      context,
+                      '${progress.targets!.calories} ${l(context).unitKcal}',
+                    ),
+                    style: TrainType.ui(
+                      size: 19,
+                      weight: FontWeight.w800,
+                      color: TrainColors.inkPlain,
+                      height: 1.15,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    dietGoalText(context, progress.goal!),
+                    style: AppText.meta.copyWith(color: TrainColors.ink3),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 Text(
                   // No plan day means no meals to count — "0 of 0 meals
                   // eaten" would read as a failure rather than as an absence.
                   widget.loading || summary == null
                       ? l(context).workoutToday
                       : l(context).dietMealsEaten(summary.eaten, summary.total),
-                  style: TrainType.ui(
-                    size: 17,
-                    weight: FontWeight.w700,
-                    color: TrainColors.inkPlain,
-                    height: 1.2,
-                  ),
+                  // Demoted once the target line above leads — this was the
+                  // headline before there was something more direct to lead
+                  // with.
+                  style: progress != null
+                      ? AppText.meta.copyWith(color: TrainColors.ink3)
+                      : TrainType.ui(
+                          size: 17,
+                          weight: FontWeight.w700,
+                          color: TrainColors.inkPlain,
+                          height: 1.2,
+                        ),
                 ),
                 // Everything that used to follow — the "EATEN · TARGET" mono
                 // caption, the basis line and the three macro bars — is on
@@ -959,9 +989,19 @@ class _CalorieRingPainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
-/// One of today's meals, as the handoff draws it: a 24px check on the left,
-/// the meal's name with its items as a mono caption, and its calories with a
-/// `KCAL · P n G` caption right-aligned.
+/// One of today's meals: a 24px check on the left, then the meal's own name
+/// — "Breakfast", not "Meal 1" — with its calories read inline ("674 kcal"),
+/// and its items as a plain second line beneath.
+///
+/// This used to lead with a "Meal N" position label (the plan's own name for
+/// the meal demoted beside it) and push calories into a separate mono
+/// right-aligned block with its own "KCAL" caption underneath — four
+/// differently-styled text elements to read for one row. A meal card is
+/// meant to be scanned, not proofread: the name is what you're looking for,
+/// so it leads; the calorie figure reads as part of the same sentence rather
+/// than a second numeric column; and the ingredient line drops the
+/// all-caps mono treatment (`OATS · BANANA`) for plain sans text at prose
+/// size, which is what an ingredient list actually is.
 ///
 /// Two affordances, both visible: the **check ticks it eaten** (and drives
 /// the hero ring and macro bars live), the **row body opens the meal**. The
@@ -1032,8 +1072,13 @@ class _MealRowState extends State<_MealRow>
   Widget build(BuildContext context) {
     final meal = widget.meal;
     final kcal = mealCalories(meal);
-    // "OATS · BANANA" — what's in it, without opening it.
-    final items = meal.items.map((i) => i.name.toUpperCase()).join(' · ');
+    // The plan's own name leads; "Meal N" is only a fallback for a meal that
+    // was never given one.
+    final title = meal.label.trim().isNotEmpty
+        ? meal.label
+        : l(context).dietMealNumber(widget.number);
+    // "Eggs · Ful medames · Baladi bread" — what's in it, without opening it.
+    final items = meal.items.map((i) => i.name).join(' · ');
 
     return AnimatedBuilder(
       animation: _fill,
@@ -1045,7 +1090,10 @@ class _MealRowState extends State<_MealRow>
             behavior: HitTestBehavior.opaque,
             onTap: _open,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 17,
+                vertical: 14,
+              ),
               decoration: BoxDecoration(
                 color: Color.lerp(
                   TrainColors.glass,
@@ -1068,88 +1116,78 @@ class _MealRowState extends State<_MealRow>
                     progress: t,
                     onTap: _toggle,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
                           children: [
-                            Text(
-                              l(context).dietMealNumber(widget.number),
-                              style: TrainType.ui(
-                                size: 15,
-                                weight: FontWeight.w700,
-                                color: TrainColors.inkPlain,
-                                height: 1,
+                            Flexible(
+                              child: Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TrainType.ui(
+                                  size: 16,
+                                  weight: FontWeight.w700,
+                                  color: TrainColors.inkPlain,
+                                  height: 1.2,
+                                ),
                               ),
                             ),
-                            // The plan's own name for this meal, kept but
-                            // demoted — "Meal 3" is what you look for,
-                            // "Pre-workout" is what it happens to be.
-                            if (meal.label.trim().isNotEmpty) ...[
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  meal.label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TrainType.ui(
-                                    size: 13.5,
-                                    weight: FontWeight.w400,
-                                    color: TrainColors.ink3,
-                                    height: 1,
-                                  ),
+                            if (kcal != null) ...[
+                              Text(
+                                '  ·  ',
+                                style: TrainType.ui(
+                                  size: 14.5,
+                                  weight: FontWeight.w500,
+                                  color: TrainColors.ink4,
+                                ),
+                              ),
+                              Text(
+                                ltrFor(
+                                  context,
+                                  '${approx(mealEstimated(meal))}$kcal',
+                                ),
+                                style: TrainType.ui(
+                                  size: 14.5,
+                                  weight: FontWeight.w600,
+                                  color: TrainColors.ink3,
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                l(context).unitKcal,
+                                style: TrainType.ui(
+                                  size: 13,
+                                  weight: FontWeight.w500,
+                                  color: TrainColors.ink4,
                                 ),
                               ),
                             ],
                           ],
                         ),
                         if (items.isNotEmpty) ...[
-                          const SizedBox(height: 7),
+                          const SizedBox(height: 5),
                           Text(
                             items,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TrainType.mono(
-                              size: 10,
-                              tracking: 0.06,
-                              color: TrainColors.ink4,
+                            style: TrainType.ui(
+                              size: 13,
+                              weight: FontWeight.w400,
+                              color: TrainColors.ink3,
+                              height: 1.3,
                             ),
                           ),
                         ],
                       ],
                     ),
                   ),
-                  if (kcal != null) ...[
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          ltrFor(
-                            context,
-                            '${approx(mealEstimated(meal))}$kcal',
-                          ),
-                          style: TrainType.mono(
-                            size: 15,
-                            color: TrainColors.ink,
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        Text(
-                          l(context).unitKcal.toUpperCase(),
-                          style: TrainType.caption(
-                            size: 8.5,
-                            tracking: 0.12,
-                            color: TrainColors.ink4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
                 ],
               ),
             ),

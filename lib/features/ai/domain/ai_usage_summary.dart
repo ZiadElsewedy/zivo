@@ -48,6 +48,10 @@ class AiUsageRecord {
     required this.createdAt,
     this.latencyMs = 0,
     this.errorKind,
+    this.fallbackOccurred = false,
+    this.fallbackReason,
+    this.requestedProvider,
+    this.requestedModel,
   });
 
   /// What the request was for — 'chat', 'workout_import', 'diet_import',
@@ -77,6 +81,25 @@ class AiUsageRecord {
   /// Why a failed request failed ('billing', 'rate_limit', 'timeout', …) —
   /// the backend's classification, never a provider's raw text.
   final String? errorKind;
+
+  /// Whether the router had to fall back to the other provider — the
+  /// requested model's provider hit a transient failure and [provider]/
+  /// [model] name who actually answered instead
+  /// (`functions/ai/routing/router.js`).
+  final bool fallbackOccurred;
+
+  /// Why the fallback happened ('overloaded', 'rate_limit', 'timeout', …) —
+  /// the same classification as [errorKind], but for the REQUESTED provider's
+  /// failure, not this request's own outcome. Null unless [fallbackOccurred].
+  final String? fallbackReason;
+
+  /// The provider the user's active model actually named, before the router
+  /// fell back. Null unless [fallbackOccurred].
+  final String? requestedProvider;
+
+  /// The provider-native model id the user's active model named, before the
+  /// router fell back. Null unless [fallbackOccurred].
+  final String? requestedModel;
 
   bool get failed => status == 'error';
   bool get cancelled => status == 'cancelled';

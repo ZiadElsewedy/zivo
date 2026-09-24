@@ -38,7 +38,6 @@ String responseStyleDescription(BuildContext context, String style) =>
 /// Same id-vs-copy split as [responseStyleText].
 String aiModelSelectionText(BuildContext context, String selection) =>
     switch (validAiModelSelection(selection)) {
-      'claude-haiku' => l(context).askModelClaudeHaiku,
       'gemini-flash' => l(context).askModelGeminiFlash,
       _ => l(context).askModelClaudeSonnet,
     };
@@ -56,7 +55,6 @@ String aiProviderDisplayName(BuildContext context, String provider) =>
 /// context that makes the choice understandable at the point of decision.
 String aiModelSelectionDescription(BuildContext context, String selection) =>
     switch (validAiModelSelection(selection)) {
-      'claude-haiku' => l(context).askModelClaudeHaikuDesc,
       'gemini-flash' => l(context).askModelGeminiFlashDesc,
       _ => l(context).askModelClaudeSonnetDesc,
     };
@@ -67,10 +65,11 @@ String aiModelSelectionDescription(BuildContext context, String selection) =>
 String aiModelIdText(BuildContext context, String modelId) {
   final id = modelId.toLowerCase();
   if (id.startsWith('claude-sonnet')) return l(context).askModelClaudeSonnet;
-  if (id.startsWith('claude-haiku')) return l(context).askModelClaudeHaiku;
   if (id.startsWith('gemini') && id.contains('flash')) {
     return l(context).askModelGeminiFlash;
   }
+  // Covers a retired id too (Claude Haiku, removed 2026-09-24) — an old usage
+  // record naming it shows the raw id rather than mislabelling it as Sonnet.
   return modelId;
 }
 

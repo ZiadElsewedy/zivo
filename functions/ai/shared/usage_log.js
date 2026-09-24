@@ -40,8 +40,12 @@ const AiFeature = {
   TRANSCRIBE: "transcribe",
 };
 
-/** Bumped from chat's v3: adds `feature`, `modelKey`, `status`/`errorKind`. */
-const USAGE_SCHEMA_VERSION = 4;
+/**
+ * Bumped from v4: adds `requestedProvider`/`requestedModel`/
+ * `fallbackOccurred`/`fallbackReason`, present only when the router actually
+ * fell back to the other provider (`../routing/router.js`).
+ */
+const USAGE_SCHEMA_VERSION = 5;
 
 /**
  * Records every model call made through a wrapped provider.
@@ -89,7 +93,7 @@ class UsageMeter {
     const u = (response && response.usage) || {};
     const provider = response && response.provider;
     const model = response && response.model;
-    this.calls.push({
+    const call = {
       provider,
       model,
       modelKey: response && response.modelKey,
@@ -98,7 +102,17 @@ class UsageMeter {
       cacheReadTokens: u.cacheReadTokens || 0,
       cacheWriteTokens: u.cacheWriteTokens || 0,
       costUsd: costUsd(u, provider, model),
-    });
+    };
+    // Set only when the router actually fell back — see `../routing/
+    // router.js` — so an ordinary (non-fallback) call's record shape is
+    // unchanged.
+    if (response && response.fallbackOccurred) {
+      call.fallbackOccurred = true;
+      call.fallbackReason = response.fallbackReason;
+      call.requestedProvider = response.requestedProvider;
+      call.requestedModel = response.requestedModel;
+    }
+    this.calls.push(call);
   }
 
   /** @return {boolean} Whether any model call went through the meter. */
@@ -163,6 +177,12 @@ function buildUsageRecord(
     record.provider = who.provider;
     record.model = who.model;
     if (who.modelKey) record.modelKey = who.modelKey;
+    if (who.fallbackOccurred) {
+      record.fallbackOccurred = true;
+      record.fallbackReason = who.fallbackReason;
+      record.requestedProvider = who.requestedProvider;
+      record.requestedModel = who.requestedModel;
+    }
   }
   if (error) record.errorKind = errorKindFor(error);
   return Object.assign(record, extra || {});

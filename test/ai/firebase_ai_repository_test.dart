@@ -457,10 +457,10 @@ void main() {
         uidSource: _signedInAs('test-uid'),
       );
 
-      await repo.setModelSelection('claude-haiku');
+      await repo.setModelSelection('gemini-flash');
 
       final data = (await doc.get()).data()!;
-      expect(data['provider'], 'claude-haiku');
+      expect(data['provider'], 'gemini-flash');
       expect(data['responseStyle'], 'concise');
     });
 

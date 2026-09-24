@@ -60,7 +60,7 @@ owner decision (and an ADR) before implementation.
   trust feature).
 - **Readiness signals** — fold already-captured data (body-weight trend, step count) into
   coaching and session recommendations.
-- **The weekly coach report as a narrative** — turn `functions/ai/coach_report.js` output
+- **The weekly coach report as a narrative** — turn `functions/ai/services/coach_report.js` output
   into a story of your training block, not a stat dump.
 
 ## How the surrounding areas fit the training story

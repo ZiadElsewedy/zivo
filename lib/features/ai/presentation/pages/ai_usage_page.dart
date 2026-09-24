@@ -391,6 +391,13 @@ class _RequestRow extends StatelessWidget {
           ltrFor(context, compactTokens(record.tokensIn)),
           ltrFor(context, compactTokens(record.tokensOut)),
         ),
+      // The router's automatic fallback made this request succeed on a
+      // different provider than the one the user has active — said plainly,
+      // not left for the model name alone to imply.
+      if (record.fallbackOccurred && record.requestedProvider != null)
+        l(context).aiUsageSwitchedFrom(
+          aiProviderDisplayName(context, record.requestedProvider!),
+        ),
       if (record.createdAt != null) _when(context, record.createdAt!),
     ];
     final badge = record.failed
