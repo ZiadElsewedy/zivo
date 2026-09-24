@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../motion/springs.dart';
 import '../theme/app_spacing.dart';
 import '../theme/train_tokens.dart';
 import 'pressable_scale.dart';
@@ -304,6 +305,7 @@ class TrainSegmentBar extends StatelessWidget {
     required this.total,
     required this.completed,
     required this.current,
+    this.currentFraction,
     super.key,
   });
 
@@ -316,6 +318,11 @@ class TrainSegmentBar extends StatelessWidget {
   /// exercise finished).
   final int? current;
 
+  /// How far through itself the [current] segment is, 0..1. When given, that
+  /// segment draws as a dim ember track that fills as sets are logged; when
+  /// null it is solid ember, as before.
+  final double? currentFraction;
+
   @override
   Widget build(BuildContext context) {
     if (total <= 0) return const SizedBox(height: 3);
@@ -324,22 +331,61 @@ class TrainSegmentBar extends StatelessWidget {
         for (var i = 0; i < total; i++) ...[
           if (i > 0) const SizedBox(width: 3),
           Expanded(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 320),
-              curve: Curves.easeOut,
-              height: 3,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(3),
-                color: i < completed
-                    ? TrainColors.green
-                    : i == current
-                    ? TrainColors.ember.withValues(alpha: 0.85)
-                    : TrainColors.liftAt(0.1),
-              ),
-            ),
+            child: i == current && currentFraction != null
+                ? _FillingSegment(fraction: currentFraction!)
+                : AnimatedContainer(
+                    duration: const Duration(milliseconds: 320),
+                    curve: Curves.easeOut,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(3),
+                      color: i < completed
+                          ? TrainColors.green
+                          : i == current
+                          ? TrainColors.ember.withValues(alpha: 0.85)
+                          : TrainColors.liftAt(0.1),
+                    ),
+                  ),
           ),
         ],
       ],
+    );
+  }
+}
+
+/// The in-progress segment of [TrainSegmentBar]: a dim ember track with a
+/// solid ember fill that sweeps forward by one set's worth each time a set
+/// is logged. Fills from the reading edge, so it runs right-to-left in RTL.
+class _FillingSegment extends StatelessWidget {
+  const _FillingSegment({required this.fraction});
+
+  final double fraction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 3,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(3),
+        color: TrainColors.ember.withValues(alpha: 0.22),
+      ),
+      alignment: AlignmentDirectional.centerStart,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: fraction.clamp(0.0, 1.0)),
+        duration: reducedMotion(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
+        builder: (context, value, _) => FractionallySizedBox(
+          widthFactor: value,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(3),
+              color: TrainColors.ember.withValues(alpha: 0.85),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

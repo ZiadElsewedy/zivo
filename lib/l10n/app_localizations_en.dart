@@ -770,6 +770,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String liveSetLoggedMoment(int number) {
+    return 'SET $number LOGGED';
+  }
+
+  @override
+  String get liveExerciseDoneMoment => 'EXERCISE DONE';
+
+  @override
   String liveSetsLogged(String count) {
     return '$count SETS LOGGED';
   }

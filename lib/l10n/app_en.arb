@@ -1118,6 +1118,20 @@
       }
     }
   },
+  "liveSetLoggedMoment": "SET {number} LOGGED",
+  "@liveSetLoggedMoment": {
+    "description": "Caption under the checkmark that confirms a set was just logged.",
+    "placeholders": {
+      "number": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "liveExerciseDoneMoment": "EXERCISE DONE",
+  "@liveExerciseDoneMoment": {
+    "description": "Caption under the checkmark when the set just logged finished its exercise."
+  },
   "liveSetsLogged": "{count} SETS LOGGED",
   "@liveSetsLogged": {
     "description": "How many sets are done so far. Count is zero-padded by the caller.",

@@ -31,6 +31,7 @@ import '../widgets/live_session/phases/running_phase.dart';
 import '../widgets/live_session/live_session_format.dart';
 import '../widgets/live_session/session_header.dart';
 import '../widgets/live_session/session_review.dart';
+import '../widgets/live_session/set_logged_moment.dart';
 import '../../../music/presentation/spotify_strip.dart';
 import '../widgets/live_session/up_next_card.dart';
 
@@ -148,7 +149,60 @@ class _LiveSessionPageState extends State<LiveSessionPage>
 
   // ---- Commands the page owns because they navigate ------------------------
 
-  void _onSetDone() => _c.setDone(reducedMotion: reducedMotion(context));
+  void _onSetDone() {
+    final exerciseId = _c.session.currentExercise?.id;
+    final setId = _c.session.currentSet?.id;
+    _c.setDone(reducedMotion: reducedMotion(context));
+    if (exerciseId == null || setId == null) return;
+    final moment = _loggedMomentFor(exerciseId, setId);
+    if (moment != null) setState(() => _loggedMoment = moment);
+  }
+
+  /// The confirmation currently (or most recently) playing — see
+  /// [SetLoggedMoment]. Presentation only: it is derived from the session
+  /// the instant after the controller resolves the set, and nothing reads
+  /// it back.
+  SetLoggedEvent? _loggedMoment;
+
+  /// What to confirm for [setId] having just been logged, or null when
+  /// there is nothing to celebrate: the controller refused the tap (a
+  /// resolve already in flight — the set is still pending), or it was the
+  /// workout's final set, whose moment belongs to the completed screen's
+  /// own checkmark rather than two checks back to back.
+  SetLoggedEvent? _loggedMomentFor(String exerciseId, String setId) {
+    final exercise = _c.session.exercises
+        .where((e) => e.id == exerciseId)
+        .firstOrNull;
+    if (exercise == null) return null;
+    final index = exercise.sets.indexWhere((s) => s.id == setId);
+    if (index < 0 || !exercise.sets[index].done) return null;
+    if (_c.session.currentSet == null) return null;
+
+    final strings = l(context);
+    final serial = (_loggedMoment?.serial ?? 0) + 1;
+    final closesExercise = !exercise.sets.any((s) => s.pending);
+    if (!closesExercise) {
+      return SetLoggedEvent(
+        serial: serial,
+        caption: strings.liveSetLoggedMoment(index + 1),
+        detail: formatSetActuals(exercise.sets[index], _c.weightUnit),
+      );
+    }
+    final done = exercise.sets.where((s) => s.done).toList();
+    final volumeKg = done.fold<double>(
+      0,
+      (sum, s) => sum + (s.actualReps ?? 0) * (s.actualWeightKg ?? 0),
+    );
+    return SetLoggedEvent(
+      serial: serial,
+      caption: strings.liveExerciseDoneMoment,
+      exerciseName: exercise.name,
+      detail: [
+        strings.workoutSetCount(done.length),
+        if (volumeKg > 0) weightWithUnit(strings, volumeKg, _c.weightUnit),
+      ].join(' · '),
+    );
+  }
 
   void _onSetSkip() => _c.setSkip(reducedMotion: reducedMotion(context));
 
@@ -318,6 +372,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                                     total: _exerciseCount,
                                     completed: _exercisesBehind,
                                     current: _currentExerciseIndex,
+                                    currentFraction: _currentExerciseFraction,
                                   ),
                                   const SizedBox(height: 9),
                                   TrainSegmentCaptions(
@@ -389,13 +444,21 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                                           child: KeyedSubtree(
                                             key: ValueKey(_phaseKey),
                                             child: _buildPhase(
-                                            accent,
-                                            vivid,
-                                            vivid2,
-                                          ),
+                                              accent,
+                                              vivid,
+                                              vivid2,
+                                            ),
                                           ),
                                         ),
                                       ),
+                                    ),
+                                  ),
+                                  // The set-logged confirmation — above the phase
+                                  // because the running phase is already fading
+                                  // out when it plays (see [SetLoggedMoment]).
+                                  Positioned.fill(
+                                    child: SetLoggedMoment(
+                                      event: _loggedMoment,
                                     ),
                                   ),
                                   // Paused, the whole phase is inert — so the dimmed
@@ -535,6 +598,17 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   }
 
   int get _exercisesBehind => _currentExerciseIndex ?? _exerciseCount;
+
+  /// How far through its own sets the current exercise is — the current
+  /// segment fills by this much, so every logged set visibly moves the bar,
+  /// not only the last one of each exercise.
+  double get _currentExerciseFraction {
+    final index = _currentExerciseIndex;
+    if (index == null) return 0;
+    final sets = _c.session.exercises[index].sets;
+    if (sets.isEmpty) return 0;
+    return sets.where((s) => !s.pending).length / sets.length;
+  }
 
   String get _exerciseCaption {
     if (_exerciseCount == 0) return l(context).liveNoExercises;

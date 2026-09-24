@@ -225,6 +225,8 @@
   "liveNothingToDo": "لا يوجد ما تفعله.",
   "liveSetLogged": "سُجّلت المجموعة",
   "liveSetLoggedDetail": "سُجّلت المجموعة · {detail}",
+  "liveSetLoggedMoment": "سُجّلت المجموعة {number}",
+  "liveExerciseDoneMoment": "اكتمل التمرين",
   "liveSetsLogged": "{count} مجموعات مسجلة",
   "liveReps": "التكرارات",
   "liveWeightKg": "الوزن · كجم",

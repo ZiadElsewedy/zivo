@@ -1442,6 +1442,18 @@ abstract class AppLocalizations {
   /// **'SET LOGGED · {detail}'**
   String liveSetLoggedDetail(String detail);
 
+  /// Caption under the checkmark that confirms a set was just logged.
+  ///
+  /// In en, this message translates to:
+  /// **'SET {number} LOGGED'**
+  String liveSetLoggedMoment(int number);
+
+  /// Caption under the checkmark when the set just logged finished its exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'EXERCISE DONE'**
+  String get liveExerciseDoneMoment;
+
   /// How many sets are done so far. Count is zero-padded by the caller.
   ///
   /// In en, this message translates to:

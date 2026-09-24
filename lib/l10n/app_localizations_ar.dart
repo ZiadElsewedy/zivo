@@ -770,6 +770,14 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String liveSetLoggedMoment(int number) {
+    return 'سُجّلت المجموعة $number';
+  }
+
+  @override
+  String get liveExerciseDoneMoment => 'اكتمل التمرين';
+
+  @override
   String liveSetsLogged(String count) {
     return '$count مجموعات مسجلة';
   }
