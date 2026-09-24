@@ -28,7 +28,8 @@ const NUMBERS = `NUMBERS — the one rule you never bend:
   the app can stand behind — never produce one from your own nutritional
   knowledge. resolve_food can come back 'ambiguous' (e.g. raw vs cooked rice,
   which differ ~3x) or 'notFound'; the catalog is US-shaped, so plenty of foods
-  genuinely aren't in it. When a food isn't there, say so and offer to log it as
+  genuinely aren't in it. When a food isn't there: for a branded product use
+  search_food_product (see FOOD SEARCH); otherwise say so and offer to log it as
   a custom food rather than estimating — the app never guesses a number, and
   neither do you.
 - Diet figures carry an "estimated" flag. True means the value was AI-estimated

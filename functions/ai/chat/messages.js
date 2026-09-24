@@ -45,11 +45,42 @@ function stripEmptyThinking(content) {
 
 /**
  * A persisted `{role, content, createdAt}` message mapped to a
- * `NormalizedMessage` (a plain-string message needs no further translation).
- * @param {{role: string, content: string}} message
+ * `NormalizedMessage`. A plain message is its text. A CARD carries more than
+ * its text, and the next turn needs it:
+ *
+ *   - a question card (`choice_request`) lists the options the user saw,
+ *     NUMBERED as the app numbers them, with each option's value — so "option
+ *     2", "the second one" or a tapped label resolves to the exact choice
+ *     (e.g. a foodId) instead of the model re-searching or guessing;
+ *   - a proposal card (`action_proposal`) says whether it was applied,
+ *     cancelled or is still pending.
+ *
+ * Tool results are not persisted, so without this the model would see only
+ * "Which one would you like?" and nothing it could act on.
+ * @param {{role: string, content: string, kind: (string|undefined),
+ *   fields: (Object|undefined), status: (string|undefined)}} message
  * @return {{role: string, content: string}}
  */
 function toNormalizedMessage(message) {
+  const fields = message.fields;
+  if (message.kind === "choice_request" && fields &&
+      Array.isArray(fields.options) && fields.options.length) {
+    const lines = fields.options.map((o, i) => {
+      const detail = o.subtitle ? ` — ${o.subtitle}` : "";
+      return `${i + 1}. ${o.label}${detail} (value: ${o.value})`;
+    });
+    return {
+      role: message.role,
+      content: `${message.content}\n[Options shown to the user:\n` +
+        `${lines.join("\n")}]`,
+    };
+  }
+  if (message.kind === "action_proposal" && message.status) {
+    return {
+      role: message.role,
+      content: `${message.content}\n[Proposed change — ${message.status}]`,
+    };
+  }
   return {role: message.role, content: message.content};
 }
 

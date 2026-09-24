@@ -235,8 +235,11 @@ async function runRoute(
  * @param {!Object} normalizedRequest A `NormalizedRequest`; `model` is
  *   overridden by the route.
  * @param {{onText: (function(string): void),
- *   signal: (AbortSignal|undefined)}=} opts Passed through to the provider.
- *   An aborted `signal` (a user cancel) is rethrown unchanged.
+ *   signal: (AbortSignal|undefined),
+ *   onFallback: (function({from: string, to: string, reason: string}): void|
+ *     undefined)}=} opts Passed through to the provider. An aborted `signal`
+ *   (a user cancel) is rethrown unchanged; `onFallback` is called just before
+ *   the other provider is tried.
  * @param {!RouteOptions=} routeOpts
  * @return {!Promise<!Object>} A `NormalizedResponse`.
  * @throws {AiUnavailableError} When no provider could answer.
@@ -261,6 +264,13 @@ async function generate(
   }
 
   const fallback = route(FALLBACK_MODEL[primary.key]);
+  // Tell the caller BEFORE the fallback runs, so a streaming chat can drop
+  // whatever the failed attempt already streamed and show the switch as it
+  // happens rather than after the answer. Model keys only.
+  if (opts && typeof opts.onFallback === "function") {
+    opts.onFallback({from: primary.key, to: fallback.key,
+      reason: primaryResult.kind});
+  }
   const fallbackResult = await runRoute(
       registry, fallback, normalizedRequest, opts, ro.attemptTimeoutMs, false);
   if (fallbackResult.ok) {
@@ -278,7 +288,39 @@ async function generate(
       fallbackResult.kind, attempts, fallbackResult.cause);
 }
 
+/**
+ * A provider seam for ONE request (one chat turn, one import) that remembers a
+ * fallback: once the active model failed and the other one answered, the rest
+ * of this request's calls go straight to the model that works instead of
+ * re-trying the failing one (and its backoff) on every agent step. Each call
+ * still retries/falls back on its own terms, so this adds no unbounded path.
+ * Usage stays truthful: the turn records the FIRST call's fallback
+ * (`requestedModel`/`fallbackReason`), and each call is metered at the model
+ * that actually answered.
+ *
+ * @param {!Object} registry A `ProviderRegistry`.
+ * @param {string} capability
+ * @param {!RouteOptions=} routeOpts
+ * @return {{generate: function(!Object, !Object=): !Promise<!Object>}}
+ */
+function stickyProvider(registry, capability, routeOpts) {
+  let pinned = null;
+  return {
+    generate: async (normalizedRequest, opts) => {
+      const ro = pinned ?
+        Object.assign({}, routeOpts || {}, {preferModel: pinned}) : routeOpts;
+      const response = await generate(
+          registry, capability, normalizedRequest, opts, ro);
+      if (response.fallbackOccurred && response.modelKey) {
+        pinned = response.modelKey;
+      }
+      return response;
+    },
+  };
+}
+
 module.exports = {
+  stickyProvider,
   CAPABILITY_DEFAULTS,
   SELECTABLE_CAPABILITIES,
   resolve,

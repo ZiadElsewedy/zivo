@@ -31,7 +31,7 @@ ai/
 │
 ├─ tools/            everything the model can call
 │  ├─ read.js                 read-only tools (get_today, get_workouts, resolve_food,
-│  │                          suggest_meal_replacement, …)
+│  │                          search_food_alternatives, …)
 │  ├─ mutations.js            confirm-gated writes (create_expense, log_food,
 │  │                          create_custom_food, replace_meal_item, … — ADR-003)
 │  ├─ elicitations.js         turn-enders that ask the user (ask_choice, request_input)

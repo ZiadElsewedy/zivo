@@ -188,6 +188,7 @@ class AskController extends ChangeNotifier {
     _sending = false;
     _phase = null;
     _stepTool = null;
+    _activity.clear();
     _liveText = '';
     _liveTargetChars.clear();
     _liveShownChars = 0;
@@ -218,7 +219,10 @@ class AskController extends ChangeNotifier {
   Future<({String id, bool isUntitled})?> latestConversation() async {
     final latest = await _ai.latestConversation();
     if (latest == null) return null;
-    return (id: latest.id, isUntitled: latest.title == kUntitledConversationTitle);
+    return (
+      id: latest.id,
+      isUntitled: latest.title == kUntitledConversationTitle,
+    );
   }
 
   /// Picks a new reply-length style — applied optimistically (future sends
@@ -309,6 +313,7 @@ class AskController extends ChangeNotifier {
   bool _sending = false;
   AiPhase? _phase;
   String? _stepTool;
+  final List<AiActivityStep> _activity = [];
   bool _turnSlow = false;
   Timer? _slowTurnTimer;
   Timer? _landingWatchdog;
@@ -357,23 +362,29 @@ class AskController extends ChangeNotifier {
   /// mainly so tests can assert the rail follows the real loop.
   String? get stepTool => _stepTool;
 
+  /// The in-flight turn's activity timeline: every read tool the gateway has
+  /// started, in order, each with its latest status. Kept after the turn
+  /// ends (until the next send) so the live reply keeps its timeline until
+  /// the durable message — which carries the same list — replaces it.
+  List<AiActivityStep> get activity => List.unmodifiable(_activity);
+
   /// The rail label. A running step wins over the phase, because "Reading
   /// today's diet" says more than "Working…" — the phase is the fallback when
   /// no step is active (before the first tool, between tools, and for a
   /// non-streaming turn).
   ///
-  /// These strings are English-only, like the phase labels they replace: the
-  /// controller has no `BuildContext` by design (ADR-008), so it cannot reach
-  /// `AppLocalizations`. The app ships Arabic too, so this is real l10n debt —
-  /// pre-existing, and this widens it. Mapping lives here rather than on the
-  /// server so the wording can change without a functions deploy, and so a
-  /// future move to l10n is one file.
+  /// Localized through the [AppLocalizations] the page hands in
+  /// (`updateStrings`) — the controller has no `BuildContext` by design
+  /// (ADR-008). Mapping lives here rather than on the server so the wording
+  /// can change without a functions deploy. The chip above it ("Grab · Diet
+  /// details") is `aiActivityLabel`, resolved by the widget.
   String get railLabel {
     final step = _stepTool;
     if (step != null) return _stepLabel(step);
     return switch (_phase) {
       AiPhase.understanding => _strings.askUnderstanding,
       AiPhase.working => _strings.askWorking,
+      AiPhase.thinking => _strings.askThinking,
       AiPhase.preparingChange => _strings.askPreparingChange,
       _ => _strings.askThinking,
     };
@@ -389,6 +400,10 @@ class AskController extends ChangeNotifier {
     'get_diet' => _strings.askReadingDiet,
     'get_workouts' => _strings.askReadingTraining,
     'get_last_workout' => _strings.askReadingTraining,
+    'get_training_analysis' => _strings.askReadingTraining,
+    'get_exercise_analysis' => _strings.askReadingTraining,
+    'get_readiness' => _strings.askReadingReadiness,
+    'get_sleep_summary' => _strings.askReadingSleep,
     'get_expenses' => _strings.askReadingSpending,
     'summarize_week' => _strings.askSummarisingWeek,
     'resolve_food' => _strings.askLookingUpFood,
@@ -508,6 +523,7 @@ class AskController extends ChangeNotifier {
     _expectReveal = true;
     _phase = null;
     _stepTool = null;
+    _activity.clear();
     _liveText = '';
     _liveTargetChars.clear();
     _liveShownChars = 0;
@@ -558,6 +574,7 @@ class AskController extends ChangeNotifier {
         _turnSlow = false;
         _phase = null;
         _stepTool = null;
+        _activity.clear();
         _liveText = '';
         _liveTargetChars.clear();
         _liveShownChars = 0;
@@ -671,6 +688,7 @@ class AskController extends ChangeNotifier {
         // so the label falls back to the phase, rather than leaving a finished
         // step's line on screen claiming work that has already stopped.
         _stepTool = status == AiStepStatus.running ? tool : null;
+        _recordStep(tool, status);
         _notify();
       case AiDeltaEvent(:final text):
         _slowTurnTimer?.cancel();
@@ -678,6 +696,26 @@ class AskController extends ChangeNotifier {
         _streamed = true;
         _liveTargetChars.addAll(text.characters);
         _ensureRevealTicker();
+    }
+  }
+
+  /// Folds one step event into [_activity]: a start appends a running entry;
+  /// a finish settles the latest still-running entry for that tool (the same
+  /// tool can legitimately run twice in one turn). A finish with no matching
+  /// start — its opening event was dropped — is still recorded, so the
+  /// timeline never under-reports work that happened.
+  void _recordStep(String tool, AiStepStatus status) {
+    if (status == AiStepStatus.running) {
+      _activity.add(AiActivityStep(tool, status));
+      return;
+    }
+    final i = _activity.lastIndexWhere(
+      (s) => s.tool == tool && s.status == AiStepStatus.running,
+    );
+    if (i == -1) {
+      _activity.add(AiActivityStep(tool, status));
+    } else {
+      _activity[i] = AiActivityStep(tool, status);
     }
   }
 

@@ -159,7 +159,14 @@ Both surfaces report **real backend state**, never a timer.
   *name* crosses the wire — never its input or result — and `AskController._stepLabel`
   maps it to human copy ("Reading today's diet…"). A running step outranks the phase; an
   unknown tool falls back to "Working…" so a newer server can't leak a raw identifier onto
-  an older client. Mutating tools emit no step: they propose rather than execute, which
+  an older client. **Activity timeline:** the controller also keeps every step in order
+  (`AskController.activity`, `AiActivityStep`), drawn by `widgets/ask/activity_timeline.dart`
+  as chips — "✓ Grab · Diet details", "◌ Search · Food alternatives" (`aiActivityLabel` in
+  `ai_labels.dart`; unknown tools are omitted) — above the rail, which says "Thinking…"
+  on the `thinking` phase the gateway emits between tool rounds. The reply message carries
+  the same list (`AiMessage.activity`, from the doc's `activity`), so `MessageBubble` draws
+  the timeline above the reply live and on reload. Never the model's reasoning, never a
+  tool's input/result. The loop behind it is bounded — see `functions/ai/chat/README.md`. Mutating tools emit no step: they propose rather than execute, which
   `preparing_change` and the confirmation card already describe.
 - **PDF/photo import.** `aiImportWorkoutPlan` / `aiImportDietPlan` are single buffered
   extractions — one opaque model call (`toolChoice: "any"` forces a tool call, so the turn

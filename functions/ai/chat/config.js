@@ -17,8 +17,24 @@ const MODEL = MODELS["claude-sonnet"].id;
 const DEFAULT_CONVERSATION_TITLE = "Ask";
 
 const DEFAULT_CONFIG = {
-  // Max model↔tool round-trips per turn before aborting cleanly.
-  maxIterations: 5,
+  // MAX_AGENT_STEPS — the hard bound on the agent loop. One step is one model
+  // call; a step that asks for tools runs them and feeds the results into the
+  // next step. The LAST step is forced to answer (tools disabled via
+  // `toolChoice: 'none'`), so a turn makes at most this many model calls and
+  // up to `maxAgentSteps - 1` rounds of tools — never more, whatever the model
+  // asks for. Provider retries (`../routing/router.js`) happen inside a step
+  // and never add one. 6 = five tool rounds (enough for read diet → look up →
+  // compare → calculate) plus the answer.
+  maxAgentSteps: 6,
+  // Immediate re-runs of a tool whose failure looks transient (a Firestore
+  // hiccup — see `outcome.js` `isTransientToolError`). A retry is part of the
+  // same step. If it still fails, the turn stops with `tool_error`.
+  toolRetries: 1,
+  // How many times the SAME tool may fail within one turn. A non-transient
+  // failure (bad input) is fed back so the model can correct it once; the
+  // second failure of that tool ends the turn with `tool_error` instead of
+  // letting the model call it again and again.
+  maxToolFailuresPerTool: 2,
   // Max input+output tokens accumulated within a single turn.
   perTurnTokenCeiling: 50000,
   // Max turns (aiUsage docs) for the same calendar day.
@@ -95,12 +111,23 @@ function pricingFor(provider) {
 const DAILY_LIMIT_MESSAGE =
   "You've hit today's usage limit for Ask. It resets tomorrow — thanks " +
   "for your patience!";
+// The no-activity English form of the max-steps reply. A turn that ran any
+// tools says what it actually did instead — see `outcome.js`
+// `describeUnfinishedTurn`, which produces this exact text when nothing ran.
 const ITERATION_LIMIT_MESSAGE =
-  "I couldn't complete that in time — could you try asking in a simpler " +
-  "way, or split it into smaller questions?";
-const TOKEN_CEILING_MESSAGE =
-  "That question needed more digging than I'm allowed to do in one go — " +
-  "could you narrow it down a bit?";
+  "I couldn't complete this request within the steps I can take for one " +
+  "question. Try asking about one thing at a time.";
+// The token budget running out ends the turn the same way the step budget
+// does (`max_steps_reached`), so it says the same thing.
+const TOKEN_CEILING_MESSAGE = ITERATION_LIMIT_MESSAGE;
+// Handed to the model (as an uncached system block) on the forced final step:
+// tools are disabled for that call, and this tells it why and what to say.
+const FINAL_STEP_DIRECTIVE =
+  "STEP LIMIT — this is your final step for this question and tools are " +
+  "now disabled. Answer now using only the tool results you already have. " +
+  "If they aren't enough for a complete answer, say plainly what you " +
+  "checked, what you couldn't finish, and what the user can ask next. Do " +
+  "not invent any figure you didn't read.";
 const REFUSAL_MESSAGE = "I'm not able to help with that one.";
 const FALLBACK_MESSAGE = "I don't have anything to add for that.";
 // Shown when the model tries to propose a change while one is already awaiting
@@ -125,6 +152,7 @@ module.exports = {
   DAILY_LIMIT_MESSAGE,
   ITERATION_LIMIT_MESSAGE,
   TOKEN_CEILING_MESSAGE,
+  FINAL_STEP_DIRECTIVE,
   REFUSAL_MESSAGE,
   FALLBACK_MESSAGE,
   PENDING_ACTION_MESSAGE,

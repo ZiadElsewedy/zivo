@@ -4,6 +4,7 @@ import '../../../../../core/theme/train_tokens.dart';
 import '../../../../../core/util/bidi.dart';
 import '../../../domain/ai_message.dart';
 import '../../../domain/ai_role.dart';
+import 'activity_timeline.dart';
 
 class MessageBubble extends StatelessWidget {
   const MessageBubble(
@@ -59,78 +60,87 @@ class MessageBubble extends StatelessWidget {
             color: TrainColors.ink,
             height: 1.55,
           );
+    final row = Row(
+      mainAxisAlignment: isUser
+          ? MainAxisAlignment.end
+          : MainAxisAlignment.start,
+      children: [
+        Flexible(
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: isUser ? 16 : 2,
+              vertical: isUser ? 12 : 2,
+            ),
+            constraints: BoxConstraints(
+              // The handoff caps a user bubble at 74% so a long question
+              // still reads as a quoted aside, not a paragraph.
+              maxWidth: isUser
+                  ? MediaQuery.of(context).size.width * 0.74
+                  : double.infinity,
+            ),
+            decoration: isUser
+                // Glass, not a saturated fill: violet is the assistant's
+                // chrome here, and painting the USER's own words in it
+                // spends the hue on the wrong speaker. The softened
+                // bottom-right tail still points the pill at its author.
+                ? BoxDecoration(
+                    color: TrainColors.hairline,
+                    // Directional: the softened corner is a TAIL, and a
+                    // tail points at the side the pill is docked to. Under
+                    // RTL the pill moves to the left edge, so a physical
+                    // `bottomRight` left it pointing into the middle of the
+                    // screen, away from its author.
+                    borderRadius: BorderRadiusDirectional.only(
+                      topStart: Radius.circular(20),
+                      topEnd: Radius.circular(20),
+                      bottomStart: Radius.circular(20),
+                      bottomEnd: Radius.circular(6),
+                    ),
+                  )
+                : null,
+            child: animate
+                ? TypewriterText(
+                    message.content,
+                    style: style,
+                    textDirection: direction,
+                    onDone: onRevealDone,
+                  )
+                : streaming && !MediaQuery.of(context).disableAnimations
+                ? Text.rich(
+                    TextSpan(
+                      text: message.content,
+                      children: [
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: StreamCaret(),
+                        ),
+                      ],
+                    ),
+                    style: style,
+                    textDirection: direction,
+                    textAlign: TextAlign.start,
+                  )
+                : Text(
+                    message.content,
+                    style: style,
+                    textDirection: direction,
+                    textAlign: TextAlign.start,
+                  ),
+          ),
+        ),
+      ],
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: isUser
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
-        children: [
-          Flexible(
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: isUser ? 16 : 2,
-                vertical: isUser ? 12 : 2,
-              ),
-              constraints: BoxConstraints(
-                // The handoff caps a user bubble at 74% so a long question
-                // still reads as a quoted aside, not a paragraph.
-                maxWidth: isUser
-                    ? MediaQuery.of(context).size.width * 0.74
-                    : double.infinity,
-              ),
-              decoration: isUser
-                  // Glass, not a saturated fill: violet is the assistant's
-                  // chrome here, and painting the USER's own words in it
-                  // spends the hue on the wrong speaker. The softened
-                  // bottom-right tail still points the pill at its author.
-                  ? BoxDecoration(
-                      color: TrainColors.hairline,
-                      // Directional: the softened corner is a TAIL, and a
-                      // tail points at the side the pill is docked to. Under
-                      // RTL the pill moves to the left edge, so a physical
-                      // `bottomRight` left it pointing into the middle of the
-                      // screen, away from its author.
-                      borderRadius: BorderRadiusDirectional.only(
-                        topStart: Radius.circular(20),
-                        topEnd: Radius.circular(20),
-                        bottomStart: Radius.circular(20),
-                        bottomEnd: Radius.circular(6),
-                      ),
-                    )
-                  : null,
-              child: animate
-                  ? TypewriterText(
-                      message.content,
-                      style: style,
-                      textDirection: direction,
-                      onDone: onRevealDone,
-                    )
-                  : streaming && !MediaQuery.of(context).disableAnimations
-                  ? Text.rich(
-                      TextSpan(
-                        text: message.content,
-                        children: [
-                          WidgetSpan(
-                            alignment: PlaceholderAlignment.middle,
-                            child: StreamCaret(),
-                          ),
-                        ],
-                      ),
-                      style: style,
-                      textDirection: direction,
-                      textAlign: TextAlign.start,
-                    )
-                  : Text(
-                      message.content,
-                      style: style,
-                      textDirection: direction,
-                      textAlign: TextAlign.start,
-                    ),
-            ),
-          ),
-        ],
-      ),
+      // What the agent did to get here, above what it says — the same list
+      // the live turn drew, so the timeline doesn't jump when the durable
+      // reply replaces the streamed one.
+      child: !isUser && message.activity.isNotEmpty
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [ActivityTimeline(message.activity), row],
+            )
+          : row,
     );
   }
 }

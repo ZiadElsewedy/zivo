@@ -109,8 +109,9 @@
  * @property {number} maxTokens
  * @property {!Array<!NormalizedSystemBlock>=} system
  * @property {!Array<!NormalizedTool>=} tools
- * @property {('auto'|'any'|{type: string, name: string})=} toolChoice Omit
- *   for the provider's default (Anthropic: `auto`).
+ * @property {('auto'|'any'|'none'|{type: string, name: string})=} toolChoice
+ *   Omit for the provider's default (Anthropic: `auto`). `none` keeps the
+ *   tools declared but forbids calling one — the chat loop's final step.
  * @property {!Array<!NormalizedMessage>} messages
  * @property {{googleSearch: boolean}=} grounding Gemini-only: set
  *   `{googleSearch: true}` to ground the reply in a live Google Search instead

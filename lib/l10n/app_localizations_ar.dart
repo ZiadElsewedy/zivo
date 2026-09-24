@@ -2270,6 +2270,66 @@ class AppLocalizationsAr extends AppLocalizations {
   String get askFindingAlternatives => 'يبحث عن بدائل…';
 
   @override
+  String get askReadingReadiness => 'يراجع جاهزيتك…';
+
+  @override
+  String get askReadingSleep => 'يقرأ بيانات نومك…';
+
+  @override
+  String get askActivityGrab => 'جلب';
+
+  @override
+  String get askActivitySearch => 'بحث';
+
+  @override
+  String get askActivityCalculate => 'حساب';
+
+  @override
+  String get askActivityToday => 'تفاصيل اليوم';
+
+  @override
+  String get askActivityDiet => 'تفاصيل النظام الغذائي';
+
+  @override
+  String get askActivityWorkouts => 'تفاصيل التمارين';
+
+  @override
+  String get askActivityLastWorkout => 'آخر تمرين';
+
+  @override
+  String get askActivityTrainingAnalysis => 'تحليل التدريب';
+
+  @override
+  String get askActivityExerciseHistory => 'سجل التمرين';
+
+  @override
+  String get askActivitySpending => 'المصروفات';
+
+  @override
+  String get askActivityWeek => 'ملخص الأسبوع';
+
+  @override
+  String get askActivityReadiness => 'الجاهزية';
+
+  @override
+  String get askActivitySleep => 'ملخص النوم';
+
+  @override
+  String get askActivityFoodDetails => 'تفاصيل الطعام';
+
+  @override
+  String get askActivityMealNutrition => 'القيم الغذائية للوجبة';
+
+  @override
+  String get askActivityFoodProduct => 'منتج غذائي';
+
+  @override
+  String get askActivityFoodAlternatives => 'بدائل الطعام';
+
+  @override
+  String get askActivityFailed => 'تعذّر الحصول عليه';
+
+  @override
   String get askProposalConfirmed => 'تم التأكيد';
 
   @override
@@ -3642,6 +3702,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get settingsSectionApp => 'التطبيق';
+
+  @override
+  String get settingsSectionAi => 'الذكاء الاصطناعي';
 
   @override
   String get settingsSectionAccount => 'الحساب';
@@ -5972,7 +6035,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get askModelAppliesNote =>
-      'النموذج النشط يجيب على كل شيء — المحادثة واستيراد الخطط ومنشئ الخطط. لا يغيّر ZIVO النموذج من تلقاء نفسه: إذا لم يكن النموذج النشط متاحًا فسيُخبرك، ويمكنك تغييره من هنا.';
+      'النموذج النشط يجيب على كل شيء — المحادثة واستيراد الخطط ومنشئ الخطط. إذا كان غير متاح مؤقتًا، يواصل ZIVO تلقائيًا على النموذج الآخر بدلًا من مقاطعتك — ويظهر ذلك في استخدام الذكاء الاصطناعي كلما حدث.';
 
   @override
   String askUsageRequests(int count) {
@@ -5990,7 +6053,10 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get settingsAiModel => 'نموذج الذكاء الاصطناعي';
+  String get settingsAiModel => 'النموذج';
+
+  @override
+  String get settingsAiUsage => 'الاستخدام';
 
   @override
   String get aiUsageTitle => 'استخدام الذكاء الاصطناعي';

@@ -106,6 +106,11 @@ function toGeminiToolConfig(toolChoice) {
   if (toolChoice === "any") {
     return {functionCallingConfig: {mode: "ANY"}};
   }
+  // The agent loop's forced final step: tools stay declared (the history
+  // holds calls to them) but none may be called.
+  if (toolChoice === "none") {
+    return {functionCallingConfig: {mode: "NONE"}};
+  }
   // {type: 'tool'|'function', name}: force exactly this one function.
   return {
     functionCallingConfig: {mode: "ANY", allowedFunctionNames: [toolChoice.name]},

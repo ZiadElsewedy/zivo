@@ -7,6 +7,7 @@
  *
  *   persona    — who ZIVO is and how it talks (voice)
  *   focus      — answer the exact question asked; pull only relevant context
+ *   activity   — say what you did, not what you thought; plan in budget
  *   formatting — plain-text structure the client can actually render
  *   numbers    — figures come from tools, never invented   (LOAD-BEARING)
  *   training   — defer to the deterministic workout engine (LOAD-BEARING)
@@ -31,6 +32,7 @@
 
 const {PERSONA} = require("./sections/persona");
 const {FOCUS} = require("./sections/focus");
+const {ACTIVITY} = require("./sections/activity");
 const {FORMATTING} = require("./sections/formatting");
 const {NUMBERS} = require("./sections/numbers");
 const {TRAINING} = require("./sections/training");
@@ -46,6 +48,7 @@ const {SAFETY} = require("./sections/safety");
 const SYSTEM_PROMPT = [
   PERSONA,
   FOCUS,
+  ACTIVITY,
   FORMATTING,
   NUMBERS,
   TRAINING,

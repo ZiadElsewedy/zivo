@@ -1030,7 +1030,23 @@ class FirebaseAiRepository implements AiRepository {
       choiceRequest: _choiceRequestFrom(data),
       inputRequest: _inputRequestFrom(data),
       clientTurnId: data['clientTurnId'] as String?,
+      activity: _activityFrom(data['activity']),
     );
+  }
+
+  /// The reply's persisted activity timeline (`[{tool, status}]`). Malformed
+  /// entries are dropped rather than failing the message — a timeline is
+  /// decoration on the reply, never a reason not to show it.
+  List<AiActivityStep> _activityFrom(Object? raw) {
+    if (raw is! List) return const [];
+    return [
+      for (final entry in raw)
+        if (entry is Map && entry['tool'] is String)
+          AiActivityStep(
+            entry['tool'] as String,
+            entry['status'] == 'error' ? AiStepStatus.error : AiStepStatus.ok,
+          ),
+    ];
   }
 
   /// Maps an `input_request` message (Ask elicitation Phase 2) into an

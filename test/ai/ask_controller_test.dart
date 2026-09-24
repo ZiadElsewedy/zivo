@@ -494,6 +494,79 @@ void main() {
     },
   );
 
+  test(
+    'the activity timeline records every step in order, settling each one',
+    () async {
+      final timelines = <List<AiActivityStep>>[];
+      late final AskController c;
+      final ai = _FakeAi(
+        events: const [
+          AiPhaseEvent(AiPhase.working),
+          AiStepEvent('get_diet', AiStepStatus.running),
+          AiStepEvent('get_diet', AiStepStatus.ok),
+          AiPhaseEvent(AiPhase.thinking),
+          AiStepEvent('suggest_meal_replacement', AiStepStatus.running),
+          AiStepEvent('suggest_meal_replacement', AiStepStatus.error),
+        ],
+        afterEachEvent: () => timelines.add(c.activity),
+      );
+      c = _controller(ai);
+      addTearDown(c.dispose);
+      await c.load();
+
+      c.input.text = 'مش عايز ملوخية في الدايت';
+      await c.send();
+
+      expect(timelines[1], const [
+        AiActivityStep('get_diet', AiStepStatus.running),
+      ]);
+      expect(timelines[2], const [AiActivityStep('get_diet', AiStepStatus.ok)]);
+      expect(timelines.last, const [
+        AiActivityStep('get_diet', AiStepStatus.ok),
+        AiActivityStep('suggest_meal_replacement', AiStepStatus.error),
+      ]);
+      // Kept after the turn so the live reply holds its timeline until the
+      // durable copy (which carries the same list) lands.
+      expect(c.activity, timelines.last);
+    },
+  );
+
+  test('between tool rounds the rail says Thinking…', () async {
+    final labels = <String>[];
+    late final AskController c;
+    final ai = _FakeAi(
+      events: const [
+        AiStepEvent('get_diet', AiStepStatus.running),
+        AiStepEvent('get_diet', AiStepStatus.ok),
+        AiPhaseEvent(AiPhase.thinking),
+      ],
+      afterEachEvent: () => labels.add(c.railLabel),
+    );
+    c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+
+    c.input.text = "what's my lunch?";
+    await c.send();
+
+    expect(labels.last, 'Thinking…');
+  });
+
+  test('a new turn starts with an empty timeline', () async {
+    final ai = _FakeAi(
+      events: const [AiStepEvent('get_diet', AiStepStatus.ok)],
+    );
+    final c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+    c.input.text = 'first';
+    await c.send();
+    expect(c.activity, hasLength(1));
+
+    c.switchTo(null, isUntitled: true);
+    expect(c.activity, isEmpty);
+  });
+
   test('a step never survives its turn — the next turn starts calm', () async {
     final ai = _FakeAi(
       events: const [AiStepEvent('get_diet', AiStepStatus.running)],

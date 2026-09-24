@@ -556,6 +556,16 @@ class FirestoreStore {
     if (message.clientTurnId) {
       data.clientTurnId = message.clientTurnId;
     }
+    // The read tools the turn ran to produce this reply (`{tool, status}`,
+    // names only — never input or result), so the app can draw the activity
+    // timeline above the reply on reload, not just while it streams.
+    // A `{kind:'fallback', from, to}` entry records that the active model
+    // was unavailable and the turn continued on the other one (model keys).
+    if (Array.isArray(message.activity) && message.activity.length) {
+      data.activity = message.activity.map((a) => a.kind === "fallback" ?
+        {kind: "fallback", from: String(a.from), to: String(a.to)} :
+        {tool: String(a.tool), status: a.status === "error" ? "error" : "ok"});
+    }
     // An action_proposal message (ADR-003) carries the pending action the
     // client renders as a confirmation card. Its `status` mirrors the pending
     // action's lifecycle (pending → applied/cancelled/expired) so the card
@@ -633,11 +643,19 @@ class FirestoreStore {
     return snap.docs
         .map((doc) => {
           const d = doc.data();
-          return {
+          const m = {
             role: d.role,
             content: d.content,
             createdAt: toDate(d.createdAt) || new Date(0),
           };
+          // A card's structure travels with it, so the next turn can resolve
+          // "option 2" against the options the user actually saw.
+          if (d.kind) {
+            m.kind = d.kind;
+            m.fields = d.fields || null;
+            m.status = d.status || null;
+          }
+          return m;
         })
         .reverse();
   }

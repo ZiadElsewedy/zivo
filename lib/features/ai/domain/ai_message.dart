@@ -2,6 +2,7 @@ import 'ai_choice_request.dart';
 import 'ai_input_request.dart';
 import 'ai_pending_action.dart';
 import 'ai_role.dart';
+import 'ai_turn_event.dart';
 
 /// One turn in an [AiConversation] — the user's text, the assistant's reply,
 /// an (ADR-003) assistant proposal carrying a [pendingAction] the user can
@@ -18,6 +19,7 @@ class AiMessage {
     this.choiceRequest,
     this.inputRequest,
     this.clientTurnId,
+    this.activity = const [],
   });
 
   final String id;
@@ -43,6 +45,12 @@ class AiMessage {
   /// turn-less writes (confirm/cancel result lines).
   final String? clientTurnId;
 
+  /// The read tools the agent ran to produce this reply, in order — the
+  /// activity timeline drawn above it. Empty for user messages, cards, and
+  /// replies that needed no lookup (and for replies written before the
+  /// gateway recorded it).
+  final List<AiActivityStep> activity;
+
   AiMessage copyWith({
     AiPendingAction? pendingAction,
     AiChoiceRequest? choiceRequest,
@@ -56,5 +64,6 @@ class AiMessage {
     choiceRequest: choiceRequest ?? this.choiceRequest,
     inputRequest: inputRequest ?? this.inputRequest,
     clientTurnId: clientTurnId,
+    activity: activity,
   );
 }

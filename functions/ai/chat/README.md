@@ -21,7 +21,8 @@ the split is invisible to `index.js` and the other importers.
 | **Write use-cases** (propose → confirm → execute) | [`actions.js`](actions.js) |
 | **Token / context management** (ceilings, history, cost) | [`config.js`](config.js) + [`usage.js`](usage.js) + [`messages.js`](messages.js) |
 | **What decides how much a turn may do** | [`config.js`](config.js) (`DEFAULT_CONFIG`) enforced in [`turn.js`](turn.js) |
-| **The user-facing "can't answer" copy** | [`config.js`](config.js) |
+| **The user-facing "can't answer" copy** | [`outcome.js`](outcome.js) (activity-aware) + [`config.js`](config.js) |
+| **How a turn ends** (terminal states, tool retry rules) | [`outcome.js`](outcome.js) |
 
 ## The files
 
@@ -29,6 +30,13 @@ the split is invisible to `index.js` and the other importers.
   Enforces the ceilings, emits live phase/step events, runs read tools, turns a
   mutating tool call into a proposal, validates the diet reply, logs usage. This
   is the orchestrator; it stays thin by delegating to the modules below.
+- **`outcome.js`** — how a turn ENDS: the `TerminalState` enum
+  (`completed` · `needs_user_input` · `max_steps_reached` · `tool_error` ·
+  `provider_error` · `cancelled` · `daily_limit`), the legacy-status → state
+  map, `isTransientToolError` (which tool failures get their one retry), and
+  `describeUnfinishedTurn` — the factual en/ar reply for a turn that couldn't
+  finish ("I checked your diet and looked for alternatives, but…"), built from
+  the loop's own activity record, never vague and never a tool id.
 - **`actions.js`** — the confirm-gated writes (ADR-003 / ADR-005):
   `persistProposal` (propose), `confirmAction`, `cancelAction`, and the per-kind
   `applyProposedAction` dispatch. Nothing here calls the model.
@@ -52,6 +60,35 @@ the split is invisible to `index.js` and the other importers.
   referral). Called by `turn.js` after the model's last message; server-only, so
   it lives with the turn loop it guards rather than at the `ai/` root.
 
+## The agent loop contract (bounded — `turn.js` + `config.js`)
+
+```
+START → model call (agent step)
+  ├─ no tool requested ............ final answer → completed
+  ├─ write / question tool ........ card persisted → needs_user_input
+  └─ read tools → run each ........ (transient failure: ONE retry, same step)
+       ├─ still failing / same tool failed twice → tool_error (no more model calls)
+       ├─ client closed the stream ............... → cancelled (no reply persisted)
+       └─ results fed back → next step
+last step (maxAgentSteps, or once perTurnTokenCeiling is spent):
+  toolChoice 'none' + FINAL_STEP_DIRECTIVE → it must answer
+  └─ still asks for a tool → max_steps_reached (activity-aware reply)
+provider failure (after the router's own retry + fallback) → thrown, tagged provider_error
+```
+
+- **`maxAgentSteps` (6)** is MAX_AGENT_STEPS: at most 6 model calls per turn, up
+  to 5 tool rounds + a forced answer. No recursion anywhere.
+- **Provider retry ≠ agent step.** The router's retry/fallback happens inside one
+  `generate` call and never adds a step or re-runs a tool.
+- **Tool retry is bounded:** `toolRetries: 1` (transient only), and
+  `maxToolFailuresPerTool: 2` — the second failure of the same tool ends the turn.
+- **Live events:** `{type:'step', tool, status}` per read tool, `phase: 'thinking'`
+  before each model call that reads results back, and `done` carries
+  `terminalState`. The reply message persists `activity: [{tool, status}]`, which
+  the app draws as the "Grab · Diet details" timeline above the reply. Names only —
+  never a tool's input or result, never the model's reasoning.
+- **Usage** records `terminalState` (and `failedTool` on `tool_error`).
+
 ## The prompt (`prompt/`)
 
 `system_prompt.js` composes `SYSTEM_PROMPT` from the sections in `sections/`,
@@ -62,6 +99,7 @@ substrings, not order. Sections:
 |---|---|---|
 | `persona.js` | Who ZIVO is + how it talks (voice) | no — free to tune |
 | `focus.js` | Answer the exact question; pull only relevant context | tested (focus) |
+| `activity.js` | Say what you did (not what you thought); plan within the step budget; don't re-call a failed lookup | no |
 | `formatting.js` | Plain-text structure the client can actually render | tested (formatting) |
 | `numbers.js` | Every figure comes from a tool, never invented | **yes** — tested, safety-critical |
 | `training.js` | Defer to the deterministic workout engine + DATES | **yes** — tested |

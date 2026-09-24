@@ -189,17 +189,25 @@ User message
   ▼
 runAiTurn: SYSTEM_PROMPT (cached) + uncached CONTEXT block (user's local
   date/weekday/time from utcOffsetMinutes) + history → call provider
-  ▼  model ↔ tool loop, bounded by cost/iteration ceilings (chat/config.js)
+  ▼  BOUNDED agent loop: ≤ maxAgentSteps (6) model calls; the last one is forced
+  ▼  to answer (toolChoice 'none'); ends in a TerminalState (chat/outcome.js)
   ├─ TEXT only ............ validate → persist → done            ✅
   ├─ READ tool ........... run → feed result back → loop         🔁  (emits {step,tool,status})
   ├─ MUTATING tool ....... propose: persist pending action, end turn, show card  ⏸️
   └─ ELICITATION tool .... pause: persist choice/input request, end turn, ask     ⏸️
 ```
 
+- **Every turn terminates** in one of `completed · needs_user_input · max_steps_reached ·
+  tool_error · provider_error · cancelled` (+ `daily_limit`). A transient tool failure is
+  retried once; the same tool failing twice stops the turn. A turn that can't finish says
+  what it checked and what failed (`outcome.js`), never a vague "couldn't do that".
+  Contract + diagram: [`chat/README.md`](functions/ai/chat/README.md#the-agent-loop-contract-bounded--turnjs--configjs).
 - **Reads never end the turn**; **writes and elicitations do** — they hand control to the user,
   whose answer arrives as the *next* `aiChat` turn.
 - **Live progress:** only the tool *name* crosses the wire (`{type:'step',tool,status}`), never
-  its input/result; the client maps it to human copy ("Reading today's diet…").
+  its input/result; the client maps it to an activity chip ("Grab · Diet details",
+  `aiActivityLabel`) plus a rail line ("Reading today's diet…" / "Thinking…"). The reply
+  persists `activity` so the timeline survives reload.
 - **Providers:** behind a `NormalizedRequest`/`NormalizedResponse` seam
   ([`providers/`](functions/ai/providers) + [`routing/router.js`](functions/ai/routing/router.js),
   models + prices in [`routing/models.js`](functions/ai/routing/models.js): Claude Sonnet 5 ·

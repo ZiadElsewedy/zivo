@@ -8,7 +8,18 @@ sealed class AiTurnEvent {
 
 /// A coarse, user-facing stage of the turn. The confirmation card itself
 /// carries the "waiting for confirmation" state, so it is not a phase here.
-enum AiPhase { understanding, working, preparingChange, done, unknown }
+///
+/// [thinking] is the model call that reads tool results back between steps —
+/// execution progress the loop really is in, never the model's reasoning
+/// (which is not streamed at all).
+enum AiPhase {
+  understanding,
+  working,
+  thinking,
+  preparingChange,
+  done,
+  unknown,
+}
 
 /// The turn crossed into [phase].
 class AiPhaseEvent extends AiTurnEvent {
@@ -49,6 +60,26 @@ class AiStepEvent extends AiTurnEvent {
 /// announced once it actually starts.
 enum AiStepStatus { running, ok, error }
 
+/// One entry of a turn's activity timeline — a read tool the agent ran and
+/// how it went. Built live from [AiStepEvent]s while the turn streams, and
+/// persisted on the assistant's reply (`activity`) so the timeline is still
+/// there on reload. Carries the tool's NAME only; its input and result never
+/// reach the client, and the words shown are the client's
+/// (`aiActivityLabel`).
+class AiActivityStep {
+  const AiActivityStep(this.tool, this.status);
+
+  final String tool;
+  final AiStepStatus status;
+
+  @override
+  bool operator ==(Object other) =>
+      other is AiActivityStep && other.tool == tool && other.status == status;
+
+  @override
+  int get hashCode => Object.hash(tool, status);
+}
+
 /// A chunk of the assistant's reply text as it streams in.
 class AiDeltaEvent extends AiTurnEvent {
   const AiDeltaEvent(this.text);
@@ -61,6 +92,7 @@ class AiDeltaEvent extends AiTurnEvent {
 AiPhase aiPhaseFromName(String? name) => switch (name) {
   'understanding' => AiPhase.understanding,
   'working' => AiPhase.working,
+  'thinking' => AiPhase.thinking,
   'preparing_change' => AiPhase.preparingChange,
   'done' => AiPhase.done,
   _ => AiPhase.unknown,

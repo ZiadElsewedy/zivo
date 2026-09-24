@@ -252,7 +252,7 @@ test("empty thinking blocks are stripped from re-sent history; " +
   }
 });
 
-test("stops after maxIterations and calls the model exactly that many times",
+test("stops after maxAgentSteps and calls the model exactly that many times",
     async () => {
       const store = makeStore();
       const callModel = scriptedModel([
@@ -272,13 +272,232 @@ test("stops after maxIterations and calls the model exactly that many times",
         conversationId: CONVERSATION_ID,
         message: "keep going forever",
         now: makeClock(0),
-        config: {maxIterations: 3},
+        config: {maxAgentSteps: 3},
       });
 
       assert.equal(callModel.callCount(), 3);
+      // Only the LAST step is forced to answer; the earlier ones may use
+      // tools.
+      assert.equal(callModel.requests[0].tool_choice, undefined);
+      assert.equal(callModel.requests[1].tool_choice, undefined);
+      assert.deepEqual(callModel.requests[2].tool_choice, {type: "none"});
       assert.equal(result.status, "iteration-limit");
-      assert.equal(result.assistantText, ITERATION_LIMIT_MESSAGE);
+      assert.equal(result.terminalState, "max_steps_reached");
+      // Says what it actually did instead of a vague "needed more digging".
+      assert.match(result.assistantText, /I checked your workouts/);
+      assert.match(result.assistantText, /within the steps/);
+      assert.notEqual(result.assistantText, ITERATION_LIMIT_MESSAGE);
+      const reply = store.messages[store.messages.length - 1];
+      assert.equal(reply.content, result.assistantText);
+      assert.deepEqual(reply.activity, [
+        {tool: "get_workouts", status: "ok"},
+        {tool: "get_workouts", status: "ok"},
+      ]);
+      assert.equal(store.calls.logUsage[0].usageDoc.terminalState,
+          "max_steps_reached");
     });
+
+test("the final step answers with tools disabled instead of being cut off",
+    async () => {
+      const store = makeStore();
+      const callModel = scriptedModel([
+        {
+          stop_reason: "tool_use",
+          content: [
+            {type: "tool_use", id: "c1", name: "get_workouts", input: {}},
+          ],
+          usage: {input_tokens: 1, output_tokens: 1},
+        },
+        {
+          stop_reason: "end_turn",
+          content: [{type: "text", text: "I checked your workouts: 0."}],
+          usage: {input_tokens: 1, output_tokens: 1},
+        },
+      ]);
+
+      const result = await runAiTurn({
+        store,
+        callModel,
+        uid: UID,
+        conversationId: CONVERSATION_ID,
+        message: "how's training?",
+        now: makeClock(0),
+        config: {maxAgentSteps: 2},
+      });
+
+      assert.equal(callModel.callCount(), 2);
+      const last = callModel.requests[1];
+      assert.deepEqual(last.tool_choice, {type: "none"});
+      // The directive rides AFTER the cached prompt, which is untouched.
+      assert.equal(last.system[0].text, SYSTEM_PROMPT);
+      assert.match(last.system[last.system.length - 1].text, /STEP LIMIT/);
+      assert.equal(result.status, "ok");
+      assert.equal(result.terminalState, "completed");
+    });
+
+test("an Arabic question gets the unfinished-turn reply in Arabic",
+    async () => {
+      const store = makeStore();
+      const callModel = scriptedModel([
+        {
+          stop_reason: "tool_use",
+          content: [
+            {type: "tool_use", id: "c1", name: "get_workouts", input: {}},
+          ],
+          usage: {input_tokens: 1, output_tokens: 1},
+        },
+      ]);
+      const result = await runAiTurn({
+        store,
+        callModel,
+        uid: UID,
+        conversationId: CONVERSATION_ID,
+        message: "مش عايز ملوخية في الدايت",
+        now: makeClock(0),
+        config: {maxAgentSteps: 2},
+      });
+      assert.equal(result.terminalState, "max_steps_reached");
+      assert.match(result.assistantText, /راجعت تمارينك/);
+    });
+
+test("a transient tool failure is retried once, then the turn continues",
+    async () => {
+      let calls = 0;
+      const store = makeStore({
+        listWorkoutSessions: async () => {
+          calls++;
+          if (calls === 1) {
+            throw Object.assign(new Error("unavailable"), {code: 14});
+          }
+          return [];
+        },
+      });
+      const callModel = scriptedModel([
+        {
+          stop_reason: "tool_use",
+          content: [
+            {type: "tool_use", id: "c1", name: "get_workouts", input: {}},
+          ],
+          usage: {input_tokens: 1, output_tokens: 1},
+        },
+        {
+          stop_reason: "end_turn",
+          content: [{type: "text", text: "No workouts yet."}],
+          usage: {input_tokens: 1, output_tokens: 1},
+        },
+      ]);
+      const result = await runAiTurn({
+        store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+        message: "workouts?", now: makeClock(0),
+      });
+      assert.equal(calls, 2);
+      assert.equal(result.status, "ok");
+      const results = callModel.requests[1].messages
+          .filter((m) => m.role === "user" && Array.isArray(m.content))
+          .flatMap((m) => m.content);
+      assert.equal(results[0].is_error, undefined);
+    });
+
+test("a transient tool failure that survives its retry ends the turn " +
+    "with tool_error and no further model call", async () => {
+  let calls = 0;
+  const store = makeStore({
+    listWorkoutSessions: async () => {
+      calls++;
+      throw Object.assign(new Error("unavailable"), {code: 14});
+    },
+  });
+  const callModel = scriptedModel([
+    {
+      stop_reason: "tool_use",
+      content: [{type: "tool_use", id: "c1", name: "get_workouts", input: {}}],
+      usage: {input_tokens: 1, output_tokens: 1},
+    },
+  ]);
+  const events = [];
+  const result = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "workouts?", now: makeClock(0),
+    onEvent: (e) => events.push(e),
+  });
+  assert.equal(calls, 2, "one try + exactly one retry");
+  assert.equal(callModel.callCount(), 1);
+  assert.equal(result.status, "tool-error");
+  assert.equal(result.terminalState, "tool_error");
+  assert.match(result.assistantText, /tried to get your workout details/);
+  const done = events[events.length - 1];
+  assert.equal(done.terminalState, "tool_error");
+  assert.equal(store.calls.logUsage[0].usageDoc.failedTool, "get_workouts");
+});
+
+test("the same tool failing twice stops the turn instead of looping",
+    async () => {
+      let calls = 0;
+      const store = makeStore({
+        listWorkoutSessions: async () => {
+          calls++;
+          throw new Error("bad input");
+        },
+      });
+      // A model that would call the failing tool forever.
+      const callModel = scriptedModel([
+        {
+          stop_reason: "tool_use",
+          content: [
+            {type: "tool_use", id: "c1", name: "get_workouts", input: {}},
+          ],
+          usage: {input_tokens: 1, output_tokens: 1},
+        },
+      ]);
+      const result = await runAiTurn({
+        store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+        message: "workouts?", now: makeClock(0),
+      });
+      // Non-transient: no immediate retry; fed back once, the second failure
+      // is terminal.
+      assert.equal(calls, 2);
+      assert.equal(callModel.callCount(), 2);
+      assert.equal(result.terminalState, "tool_error");
+    });
+
+test("a closed stream cancels the turn before the next model call and " +
+    "persists no reply", async () => {
+  const controller = new AbortController();
+  const store = makeStore({
+    listWorkoutSessions: async () => {
+      controller.abort();
+      return [];
+    },
+  });
+  const callModel = scriptedModel([
+    {
+      stop_reason: "tool_use",
+      content: [{type: "tool_use", id: "c1", name: "get_workouts", input: {}}],
+      usage: {input_tokens: 1, output_tokens: 1},
+    },
+  ]);
+  const result = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "workouts?", now: makeClock(0), signal: controller.signal,
+  });
+  assert.equal(callModel.callCount(), 1);
+  assert.equal(result.status, "cancelled");
+  assert.equal(result.terminalState, "cancelled");
+  assert.ok(store.messages.every((m) => m.role !== "assistant"));
+});
+
+test("a provider failure is rethrown tagged provider_error", async () => {
+  const store = makeStore();
+  const callModel = async () => {
+    throw new Error("down");
+  };
+  await assert.rejects(
+      () => runAiTurn({
+        store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+        message: "hi", now: makeClock(0),
+      }),
+      (err) => err.terminalState === "provider_error");
+});
 
 test("the per-turn token ceiling aborts the loop cleanly", async () => {
   const store = makeStore();
@@ -307,9 +526,39 @@ test("the per-turn token ceiling aborts the loop cleanly", async () => {
     config: {perTurnTokenCeiling: 100},
   });
 
-  assert.equal(callModel.callCount(), 1);
+  // The budget is spent after step 1, so step 2 is the forced final one —
+  // the user gets an answer from what was already read, not a blind cut-off.
+  assert.equal(callModel.callCount(), 2);
+  assert.deepEqual(callModel.requests[1].tool_choice, {type: "none"});
+  assert.equal(result.status, "ok");
+});
+
+test("the token ceiling ends max_steps_reached when even the final step " +
+    "can't answer", async () => {
+  const store = makeStore();
+  const callModel = scriptedModel([
+    {
+      stop_reason: "tool_use",
+      content: [
+        {type: "tool_use", id: "call-1", name: "get_workouts", input: {}},
+      ],
+      usage: {input_tokens: 80, output_tokens: 80},
+    },
+  ]);
+  const result = await runAiTurn({
+    store,
+    callModel,
+    uid: UID,
+    conversationId: CONVERSATION_ID,
+    message: "hello",
+    now: makeClock(0),
+    config: {perTurnTokenCeiling: 100},
+  });
+  assert.equal(callModel.callCount(), 2);
   assert.equal(result.status, "token-ceiling");
-  assert.equal(result.assistantText, TOKEN_CEILING_MESSAGE);
+  assert.equal(result.terminalState, "max_steps_reached");
+  assert.notEqual(result.assistantText, TOKEN_CEILING_MESSAGE);
+  assert.match(result.assistantText, /I checked your workouts/);
 });
 
 test("the per-day cap short-circuits without calling the model", async () => {
@@ -887,7 +1136,8 @@ test("a read-tool turn emits understanding → working → done phases plus " +
 
   assert.equal(result.status, "ok");
   const phases = events.filter((e) => e.type === "phase").map((e) => e.phase);
-  assert.deepEqual(phases, ["understanding", "working", "done"]);
+  // `thinking` marks the model call that reads the tool results back.
+  assert.deepEqual(phases, ["understanding", "working", "thinking", "done"]);
   assert.equal(events[events.length - 1].status, "ok");
 
   const deltas = events.filter((e) => e.type === "delta").map((e) => e.text);

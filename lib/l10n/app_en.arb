@@ -3165,6 +3165,86 @@
   "@askFindingAlternatives": {
       "description": "Progress line: the assistant is ranking meal-replacement alternatives for a plan item. Keep the ellipsis."
   },
+  "askReadingReadiness": "Checking your readiness…",
+  "@askReadingReadiness": {
+      "description": "Progress line: the assistant is reading the daily readiness call. Keep the ellipsis."
+  },
+  "askReadingSleep": "Reading your sleep…",
+  "@askReadingSleep": {
+      "description": "Progress line: the assistant is reading sleep data. Keep the ellipsis."
+  },
+  "askActivityGrab": "Grab",
+  "@askActivityGrab": {
+      "description": "Verb on an activity-timeline chip in Ask for a step that READS the user's data, shown as 'Grab · Diet details'. One short word."
+  },
+  "askActivitySearch": "Search",
+  "@askActivitySearch": {
+      "description": "Verb on an activity-timeline chip in Ask for a step that looks something up, shown as 'Search · Food alternatives'. One short word."
+  },
+  "askActivityCalculate": "Calculate",
+  "@askActivityCalculate": {
+      "description": "Verb on an activity-timeline chip in Ask for a step that computes figures, shown as 'Calculate · Meal nutrition'. One short word."
+  },
+  "askActivityToday": "Today's details",
+  "@askActivityToday": {
+      "description": "Object on an Ask activity chip: today's summary was read."
+  },
+  "askActivityDiet": "Diet details",
+  "@askActivityDiet": {
+      "description": "Object on an Ask activity chip: the diet was read."
+  },
+  "askActivityWorkouts": "Workout details",
+  "@askActivityWorkouts": {
+      "description": "Object on an Ask activity chip: workout history was read."
+  },
+  "askActivityLastWorkout": "Last workout",
+  "@askActivityLastWorkout": {
+      "description": "Object on an Ask activity chip: the most recent workout was read."
+  },
+  "askActivityTrainingAnalysis": "Training analysis",
+  "@askActivityTrainingAnalysis": {
+      "description": "Object on an Ask activity chip: the training analysis was read."
+  },
+  "askActivityExerciseHistory": "Exercise history",
+  "@askActivityExerciseHistory": {
+      "description": "Object on an Ask activity chip: one exercise's history was read."
+  },
+  "askActivitySpending": "Spending",
+  "@askActivitySpending": {
+      "description": "Object on an Ask activity chip: expenses were read."
+  },
+  "askActivityWeek": "Weekly summary",
+  "@askActivityWeek": {
+      "description": "Object on an Ask activity chip: the weekly summary was built."
+  },
+  "askActivityReadiness": "Readiness",
+  "@askActivityReadiness": {
+      "description": "Object on an Ask activity chip: the daily readiness call was read."
+  },
+  "askActivitySleep": "Sleep summary",
+  "@askActivitySleep": {
+      "description": "Object on an Ask activity chip: sleep data was read."
+  },
+  "askActivityFoodDetails": "Food details",
+  "@askActivityFoodDetails": {
+      "description": "Object on an Ask activity chip: a food was looked up in the catalog."
+  },
+  "askActivityMealNutrition": "Meal nutrition",
+  "@askActivityMealNutrition": {
+      "description": "Object on an Ask activity chip: a meal's calories/macros were computed."
+  },
+  "askActivityFoodProduct": "Food product",
+  "@askActivityFoodProduct": {
+      "description": "Object on an Ask activity chip: a branded food product was searched for."
+  },
+  "askActivityFoodAlternatives": "Food alternatives",
+  "@askActivityFoodAlternatives": {
+      "description": "Object on an Ask activity chip: replacements for a meal item were found."
+  },
+  "askActivityFailed": "Couldn't get this",
+  "@askActivityFailed": {
+      "description": "Screen-reader / trailing note on an Ask activity chip whose step failed."
+  },
   "askProposalConfirmed": "Confirmed",
   "@askProposalConfirmed": {
       "description": "A proposed change the user accepted."
@@ -5018,6 +5098,10 @@
   "settingsSectionApp": "App",
   "@settingsSectionApp": {
       "description": "Settings section holding app-wide preferences."
+  },
+  "settingsSectionAi": "AI",
+  "@settingsSectionAi": {
+      "description": "Settings section holding the AI model picker and AI usage — its own section (not folded into App) so the two AI rows read as one topic, not two separate 'AI ...' entries in a list of unrelated app settings."
   },
   "settingsSectionAccount": "Account",
   "@settingsSectionAccount": {
@@ -8075,14 +8159,16 @@
   "@askModelGeminiFlash": {"description": "Model option: Google's Gemini Flash. Product name — keep as-is."},
   "askModelGeminiFlashDesc": "Google's fast model — the lowest cost.",
   "@askModelGeminiFlashDesc": {"description": "Description of the Gemini Flash option."},
-  "askModelAppliesNote": "The active model answers everything — chat, plan imports and the plan builder. ZIVO never switches models on its own: if the active one is unavailable, you'll be told, and you can switch here.",
-  "@askModelAppliesNote": {"description": "Note under the model list explaining scope and automatic fallback."},
+  "askModelAppliesNote": "The active model answers everything — chat, plan imports and the plan builder. If it's briefly unavailable, ZIVO automatically continues on the other model instead of interrupting you — AI usage shows whenever that happens.",
+  "@askModelAppliesNote": {"description": "Note under the model list explaining scope and automatic fallback. Updated 2026-09-24: the router now retries and falls back to the other provider on a transient failure rather than surfacing an error, so this must not claim ZIVO 'never switches models on its own'."},
   "askUsageRequests": "{count, plural, =1{1 request} other{{count} requests}}",
   "@askUsageRequests": {"description": "Number of AI requests, e.g. '37 requests'.", "placeholders": {"count": {"type": "int"}}},
-  "settingsAiModel": "AI model",
-  "@settingsAiModel": {"description": "Settings row opening the AI model picker (Ask settings page) from the main app Settings screen."},
+  "settingsAiModel": "Model",
+  "@settingsAiModel": {"description": "Settings row opening the AI model picker (Ask settings page) from the main app Settings screen. Sits under the 'AI' section label, so it doesn't repeat 'AI' itself."},
+  "settingsAiUsage": "Usage",
+  "@settingsAiUsage": {"description": "Settings row opening the AI usage page, from the main app Settings screen. Sits under the 'AI' section label (distinct from aiUsageTitle, which is that page's own header and needs to say 'AI usage' standing alone)."},
   "aiUsageTitle": "AI usage",
-  "@aiUsageTitle": {"description": "Title of the AI usage page (tokens + cost per provider/feature, recent requests)."},
+  "@aiUsageTitle": {"description": "Title of the AI usage page itself (tokens + cost per provider/feature, recent requests) — shown standalone once you've navigated in, so unlike settingsAiUsage it still says 'AI'."},
   "aiUsageTotal": "Total",
   "@aiUsageTotal": {"description": "Label for the all-time total on the AI usage page."},
   "aiUsageByFeature": "By feature",

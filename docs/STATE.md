@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-23 · **Active branch:** `feature/ai-gemini-provider`
+**Last updated:** 2026-09-24 · **Active branch:** `feature/ai-gemini-provider`
 (cut from `feature/readiness`); music-reactive session background on `upgrades`;
 Diet Builder wizard on `claude/affectionate-wozniak-wcnkpm`; AI food/diet
 interaction layer — all 5 phases shipped and deployed, on
@@ -96,6 +96,46 @@ notifications)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Bounded agent loop with explicit terminal states + a visible activity
+  timeline in Ask** (2026-09-24, on `upgrades`). Owner ask: the coach must never
+  loop on tools, must end in an explicit state, must show what it's doing
+  (not its reasoning), and must say concretely what it did when it can't finish.
+  - **Backend (`functions/ai/chat/`):** `maxIterations: 5` → **`maxAgentSteps: 6`**
+    (MAX_AGENT_STEPS — model calls per turn); the **last step is forced to answer**
+    (`toolChoice: 'none'` + an uncached `FINAL_STEP_DIRECTIVE` system block —
+    Gemini maps `none` → `NONE`), and the token ceiling now makes the *next* step
+    the forced one instead of cutting off blind. New `outcome.js`: `TerminalState`
+    (`completed · needs_user_input · max_steps_reached · tool_error ·
+    provider_error · cancelled · daily_limit`), on the result, the `done` event and
+    the usage record (+ `failedTool`). Tool failures: a transient one (Firestore
+    gRPC 4/8/10/13/14) gets **one** retry inside the step, else `tool_error`; the
+    **same tool failing twice** ends the turn — no further model call. Provider
+    errors are rethrown tagged `provider_error` (router retry/fallback is
+    unchanged and never adds an agent step). The callable's `response.signal`
+    is passed in: a closed stream ends the turn `cancelled` before the next model
+    call and persists **no** reply (so Retry of the same turn still runs). The
+    vague "needed more digging" / "couldn't complete that in time" copy is gone:
+    `describeUnfinishedTurn` writes what was checked / what failed / what next,
+    in Arabic when the user wrote Arabic (the Arabic is mine — worth a
+    native check). New prompt section `sections/activity.js` (open a multi-step
+    answer with what was checked; never narrate reasoning or tool names; don't
+    re-call a failed lookup). `phase: 'thinking'` is emitted before each model
+    call after the first; the reply persists `activity: [{tool, status}]`.
+  - **App:** `AiActivityStep` + `AiPhase.thinking`; `AskController.activity`;
+    `widgets/ask/activity_timeline.dart` draws "✓ Grab · Diet details" /
+    "◌ Search · Food alternatives" chips (`aiActivityLabel`; unknown tools
+    omitted) above the rail in the waiting slot, above the live reply, and — from
+    the persisted `activity` — above the durable reply on reload. 22 new ARB
+    keys (en + ar).
+  - Tests: functions 572/572 (`outcome.test.js` new; `gateway.test.js` +9 loop
+    cases, 3 updated for the new behaviour); Flutter `test/ai` 173 green
+    (`activity_timeline_test.dart` new). Full suite green except the
+    pre-existing `light_mode_smoke_test` Hub failure.
+  - **Owner action:** a **functions deploy** is needed for the backend half
+    (prompt + loop). The app half degrades cleanly against the old backend (no
+    `thinking` phase, no persisted `activity` — the live timeline still works
+    from the existing step events).
 
 - **The active model is reachable from the app's main Settings, and visible
   while a plan is being built or imported** (2026-09-23, on `upgrades`).

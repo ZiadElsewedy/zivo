@@ -153,28 +153,6 @@ class _SettingsPageState extends State<SettingsPage> {
                       );
                     },
                   ),
-                  // The active AI model — the one that answers chat, plan
-                  // imports and the plan builder. Reachable from the app's
-                  // own Settings, not just from inside Ask, so switching
-                  // provider (e.g. when one is out of credit or down)
-                  // doesn't require opening the chat feature first.
-                  const _AiModelRow(),
-                  // Every AI request's tokens and estimated cost, by
-                  // provider and by feature — the owner's view of what the
-                  // AI features are spending.
-                  SettingsRow(
-                    key: const Key('settings-ai-usage'),
-                    icon: AppIcons.ask,
-                    title: l(context).aiUsageTitle,
-                    value: '',
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const AiUsagePage(),
-                        ),
-                      );
-                    },
-                  ),
                   SettingsRow(
                     icon: AppIcons.version,
                     title: l(context).settingsVersion,
@@ -219,6 +197,43 @@ class _SettingsPageState extends State<SettingsPage> {
                         MaterialPageRoute(
                           builder: (_) => const PrivacyPage(),
                           fullscreenDialog: true,
+                        ),
+                      );
+                    },
+                    last: true,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Its own section, not two rows inside App: the model picker and
+            // usage view are one topic (what's answering, and what it's
+            // costing), and reading as two separate "AI ..." entries buried
+            // among unrelated app settings undersold that they're the same
+            // feature.
+            RiseIn(
+              delay: const Duration(milliseconds: 140),
+              child: SettingsSectionCard(
+                label: l(context).settingsSectionAi,
+                children: [
+                  // The active AI model — the one that answers chat, plan
+                  // imports and the plan builder. Reachable from the app's
+                  // own Settings, not just from inside Ask, so switching
+                  // provider (e.g. when one is out of credit or down)
+                  // doesn't require opening the chat feature first.
+                  const _AiModelRow(),
+                  // Every AI request's tokens and estimated cost, by
+                  // provider and by feature — the owner's view of what the
+                  // AI features are spending.
+                  SettingsRow(
+                    key: const Key('settings-ai-usage'),
+                    icon: AppIcons.ask,
+                    title: l(context).settingsAiUsage,
+                    value: '',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AiUsagePage(),
                         ),
                       );
                     },

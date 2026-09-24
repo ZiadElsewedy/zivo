@@ -2243,6 +2243,66 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askFindingAlternatives => 'Finding alternatives…';
 
   @override
+  String get askReadingReadiness => 'Checking your readiness…';
+
+  @override
+  String get askReadingSleep => 'Reading your sleep…';
+
+  @override
+  String get askActivityGrab => 'Grab';
+
+  @override
+  String get askActivitySearch => 'Search';
+
+  @override
+  String get askActivityCalculate => 'Calculate';
+
+  @override
+  String get askActivityToday => 'Today\'s details';
+
+  @override
+  String get askActivityDiet => 'Diet details';
+
+  @override
+  String get askActivityWorkouts => 'Workout details';
+
+  @override
+  String get askActivityLastWorkout => 'Last workout';
+
+  @override
+  String get askActivityTrainingAnalysis => 'Training analysis';
+
+  @override
+  String get askActivityExerciseHistory => 'Exercise history';
+
+  @override
+  String get askActivitySpending => 'Spending';
+
+  @override
+  String get askActivityWeek => 'Weekly summary';
+
+  @override
+  String get askActivityReadiness => 'Readiness';
+
+  @override
+  String get askActivitySleep => 'Sleep summary';
+
+  @override
+  String get askActivityFoodDetails => 'Food details';
+
+  @override
+  String get askActivityMealNutrition => 'Meal nutrition';
+
+  @override
+  String get askActivityFoodProduct => 'Food product';
+
+  @override
+  String get askActivityFoodAlternatives => 'Food alternatives';
+
+  @override
+  String get askActivityFailed => 'Couldn\'t get this';
+
+  @override
   String get askProposalConfirmed => 'Confirmed';
 
   @override
@@ -3576,6 +3636,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsSectionApp => 'App';
+
+  @override
+  String get settingsSectionAi => 'AI';
 
   @override
   String get settingsSectionAccount => 'Account';
@@ -5853,7 +5916,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get askModelAppliesNote =>
-      'The active model answers everything — chat, plan imports and the plan builder. ZIVO never switches models on its own: if the active one is unavailable, you\'ll be told, and you can switch here.';
+      'The active model answers everything — chat, plan imports and the plan builder. If it\'s briefly unavailable, ZIVO automatically continues on the other model instead of interrupting you — AI usage shows whenever that happens.';
 
   @override
   String askUsageRequests(int count) {
@@ -5867,7 +5930,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get settingsAiModel => 'AI model';
+  String get settingsAiModel => 'Model';
+
+  @override
+  String get settingsAiUsage => 'Usage';
 
   @override
   String get aiUsageTitle => 'AI usage';

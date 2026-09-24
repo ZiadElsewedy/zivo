@@ -62,7 +62,10 @@ const {
   normalizeItem,
   summariseFood,
 } = require("../../nutrition/resolve");
-const {rankAlternatives} = require("../../nutrition/meal_replacement");
+const {
+  priceReplacementCandidates,
+  classifyMacroRole,
+} = require("../../nutrition/meal_replacement");
 
 /**
  * ISO string for `date`, or null.
@@ -226,7 +229,9 @@ function stateForModel(state, log, localHour) {
       proteinG: e.proteinG,
       carbsG: e.carbsG,
       fatG: e.fatG,
-      source: e.source,
+      // `source` (usdaFdc/userCustom/dietPlan) stays on the stored entry for
+      // provenance; the coach doesn't need it and must never make the user
+      // think about where a figure came from — `estimated` says what matters.
       origin: e.origin,
       estimated: e.estimated,
     })),
@@ -920,7 +925,7 @@ const DIET_TOOL = {
         label: m.label,
         items: m.items.map((it, index) => ({
           // Position within THIS meal's items — a FoodItem has no id of its
-          // own (unlike a Meal), so this is what suggest_meal_replacement /
+          // own (unlike a Meal), so this is what search_food_alternatives /
           // replace_meal_item address it by. Not stable across a plan edit,
           // which is why both re-check the name at that index before writing.
           index,
@@ -943,6 +948,8 @@ const DIET_TOOL = {
 
 const RESOLVE_FOOD_TOOL = {
   name: "resolve_food",
+  // SEARCH class: looks a food up in ZIVO's own catalog.
+  search: true,
   description:
     "Identify a food in ZIVO's nutrition catalog (a USDA subset, plus any " +
     "foods the user defined themselves) so you can price or log it. Returns " +
@@ -1101,20 +1108,25 @@ const CALCULATE_MEAL_TOOL = {
   },
 };
 
-const SUGGEST_MEAL_REPLACEMENT_TOOL = {
-  name: "suggest_meal_replacement",
+const SEARCH_FOOD_ALTERNATIVES_TOOL = {
+  name: "search_food_alternatives",
+  // SEARCH class: finds and prices options, changes nothing.
+  search: true,
   description:
-    "Given one item in the user's active plan they want out (\"I don't want " +
-    "eggs\"), returns nutritionally comparable alternatives — same macro role " +
-    "(protein/carb/fat source), ranked by how alike their calories' " +
-    "composition is. Does not change the plan; call replace_meal_item with " +
-    "the user's pick (a `foodId` from the returned alternatives) to actually " +
-    "swap it. Identify the item with mealId, itemIndex and itemName EXACTLY " +
-    "as they appeared in get_today/get_diet's planItems — a stale reference " +
-    "comes back as notFound rather than a guess. If the user has stated " +
-    "foods they avoid or are allergic to earlier in this conversation, pass " +
-    "them so this doesn't suggest those back — this tool does not know the " +
-    "user's preferences on its own.",
+    "Find realistic replacements for ONE item in the user's active plan they " +
+    "don't want (\"I don't want molokhia\"). YOU propose the candidates: 3–6 " +
+    "foods a real person would actually eat in that meal instead of it — the " +
+    "same kind of food (a vegetable dish for a vegetable dish, a protein for " +
+    "a protein, a starch for a starch), fitting the meal and the user's " +
+    "cuisine, as simple single foods the catalog can price (\"green beans\", " +
+    "\"zucchini\", \"okra\" — not \"grilled vegetable platter\"), never canned, " +
+    "processed or fast food unless the user asked. ZIVO prices each one from " +
+    "its catalog and sizes a portion to the original item's calories; a " +
+    "candidate it can't price comes back found:false — drop it, never " +
+    "estimate it. Changes nothing: show the found options with ask_choice and " +
+    "WAIT for the user to pick before replace_meal_item. Identify the item " +
+    "with mealId, itemIndex and itemName exactly as get_today/get_diet gave " +
+    "them.",
   inputSchema: {
     type: "object",
     properties: {
@@ -1127,12 +1139,26 @@ const SUGGEST_MEAL_REPLACEMENT_TOOL = {
         type: "string",
         description: "the item's exact name from get_today/get_diet, to catch a stale reference",
       },
-      reason: {type: "string", description: "optional, why the user wants it swapped"},
-      avoid: {type: "array", items: {type: "string"}},
-      allergies: {type: "array", items: {type: "string"}},
+      candidates: {
+        type: "array",
+        description: "3–6 realistic replacement foods you propose, in order of fit",
+        items: {
+          type: "object",
+          properties: {
+            name: {type: "string", description: "a simple food name in English, e.g. 'green beans'"},
+            preparation: {type: "string", enum: ["raw", "cooked"]},
+          },
+          required: ["name"],
+        },
+      },
+      avoid: {
+        type: "array",
+        items: {type: "string"},
+        description: "foods the user said they don't want or are allergic to",
+      },
       day: {type: "string", description: "optional 'yyyy-MM-dd', default today"},
     },
-    required: ["mealId", "itemIndex", "itemName"],
+    required: ["mealId", "itemIndex", "itemName", "candidates"],
   },
   /**
    * @param {!Object} store
@@ -1147,10 +1173,19 @@ const SUGGEST_MEAL_REPLACEMENT_TOOL = {
     const itemIndex = Number.isInteger(input.itemIndex) ? input.itemIndex : -1;
     const itemName = typeof input.itemName === "string" ?
       input.itemName.trim() : "";
+    const candidates = (Array.isArray(input.candidates) ? input.candidates : [])
+        .map((c) => typeof c === "string" ? {name: c} : c)
+        .filter((c) => c && typeof c.name === "string" && c.name.trim());
     if (!mealId || itemIndex < 0 || !itemName) {
       return {
         outcome: "invalidInput",
         note: "Need mealId, itemIndex and itemName, all from get_today/get_diet.",
+      };
+    }
+    if (candidates.length === 0) {
+      return {
+        outcome: "invalidInput",
+        note: "Propose 3–6 realistic replacement foods in `candidates`.",
       };
     }
 
@@ -1188,42 +1223,43 @@ const SUGGEST_MEAL_REPLACEMENT_TOOL = {
     }
 
     const customFoods = await store.listCustomFoods(uid);
-    const {role, alternatives} = rankAlternatives({
+    const priced = priceReplacementCandidates({
       originalName: item.name,
-      originalMacros: {
-        proteinG: item.proteinG, carbsG: item.carbsG, fatG: item.fatG,
-      },
+      originalCalories: Number(item.calories),
+      candidates,
       customFoods,
       avoid: Array.isArray(input.avoid) ? input.avoid : [],
-      allergies: Array.isArray(input.allergies) ? input.allergies : [],
     });
-
-    if (role === "unknown") {
-      return {
-        outcome: "noNutritionData",
-        note: `"${item.name}" has no calorie/macro figures to compare ` +
-          "against — resolve_food it first, or ask the user what to " +
-          "replace it with instead.",
-      };
-    }
-    if (alternatives.length === 0) {
+    const found = priced.filter((c) => c.found);
+    const original = {
+      mealId,
+      mealLabel: meal.label,
+      itemIndex,
+      name: item.name,
+      quantity: item.quantity,
+      unit: item.unit,
+      calories: item.calories,
+      macroRole: classifyMacroRole({
+        proteinG: item.proteinG, carbsG: item.carbsG, fatG: item.fatG,
+      }),
+    };
+    if (found.length === 0) {
       return {
         outcome: "noAlternatives",
-        note: "Nothing close enough survived the avoid/allergy filter. " +
-          "Ask the user for a food to try instead.",
+        original,
+        notFound: priced.map((c) => c.name),
+        note: "None of those could be priced. Try simpler single-food names, " +
+          "or ask the user what they'd like instead — never estimate one.",
       };
     }
     return {
       outcome: "found",
-      original: {
-        name: item.name,
-        calories: item.calories,
-        proteinG: item.proteinG,
-        carbsG: item.carbsG,
-        fatG: item.fatG,
-        macroRole: role,
-      },
-      alternatives,
+      original,
+      // Each: foodId (pass to replace_meal_item), the portion sized to the
+      // original's calories (pass its grams as quantity, unit "g"), and the
+      // catalog's per-100g figures.
+      alternatives: found,
+      notFound: priced.filter((c) => !c.found).map((c) => c.name),
     };
   },
 };
@@ -1456,7 +1492,7 @@ const tools = [
   DIET_TOOL,
   RESOLVE_FOOD_TOOL,
   CALCULATE_MEAL_TOOL,
-  SUGGEST_MEAL_REPLACEMENT_TOOL,
+  SEARCH_FOOD_ALTERNATIVES_TOOL,
   SUMMARIZE_WEEK_TOOL,
 ];
 

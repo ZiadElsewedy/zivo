@@ -645,16 +645,23 @@ const LOG_FOOD = {
 const REPLACE_MEAL_ITEM = {
   name: "replace_meal_item",
   mutating: true,
+  // DISCOVER → CHOOSE → MUTATE: a proposal in the same turn as a search that
+  // OFFERED options (more than one candidate) is refused by the turn loop —
+  // the user hasn't chosen yet. A one-candidate search (pricing the food the
+  // user named themselves) doesn't count as offering.
+  refusedAfterOffer: "search_food_alternatives",
   kind: "replace_meal_item",
   description:
     "Propose swapping one item in the active plan for an alternative — does " +
-    "not save until confirmed. Use after suggest_meal_replacement and the " +
-    "user has picked one (or after resolve_food, for a food not among its " +
-    "alternatives). Identify the exact item with mealId, itemIndex and " +
-    "itemName — all exactly as they appeared in get_today/get_diet's " +
-    "planItems or suggest_meal_replacement's `original`. You do NOT provide " +
-    "calories or macros for the new food — ZIVO computes them from the " +
-    "catalog, same as log_food.",
+    "not save until confirmed. ONLY when the user has explicitly chosen the " +
+    "replacement: they picked one of the options you showed (\"option 2\", " +
+    "\"the green beans\", a tapped choice) or named it themselves (\"replace " +
+    "the molokhia with zucchini\"). Never in the same turn you searched for " +
+    "options to offer — show them and wait. Identify the exact item with " +
+    "mealId, itemIndex and itemName — all exactly as they appeared in " +
+    "get_today/get_diet or search_food_alternatives' `original`. You do NOT " +
+    "provide calories or macros for the new food — ZIVO computes them from " +
+    "the catalog, same as log_food.",
   inputSchema: {
     type: "object",
     properties: {
@@ -669,7 +676,7 @@ const REPLACE_MEAL_ITEM = {
       },
       foodId: {
         type: "string",
-        description: "from suggest_meal_replacement's alternatives, or resolve_food",
+        description: "from search_food_alternatives' alternatives, or resolve_food",
       },
       quantity: {type: "number"},
       unit: {type: "string", description: "g, oz, piece, …"},
@@ -763,7 +770,7 @@ const REPLACE_MEAL_ITEM = {
     if (result.outcome === "notFound") {
       throw new ValidationError(
           `"${named}" isn't in the nutrition catalog. Use resolve_food or ` +
-          "suggest_meal_replacement to find a real foodId — don't guess.");
+          "search_food_alternatives to find a real foodId — don't guess.");
     }
     if (result.outcome === "ambiguous") {
       const options = result.candidates

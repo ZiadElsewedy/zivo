@@ -792,7 +792,7 @@ function aiUnavailableHttpsError(err) {
  * `workout_import`/`diet_import` dropped from 150s (half of their 300s
  * callable, sized for a single attempt) to 90s for exactly this reason;
  * `diet_generate` similarly from 120s to 85s. `chat`'s 50s is unchanged: its
- * callable already budgets for up to `maxIterations` model calls in one
+ * callable already budgets for up to `maxAgentSteps` model calls in one
  * turn, not one, so it was never sized as "half the callable" to begin with.
  * @const {!Object<string, number>}
  */
@@ -887,10 +887,9 @@ function buildProviderRegistry(anthropic, genai) {
  * @return {!Object}
  */
 function providerForCapability(registry, capability, routeOpts) {
-  return {
-    generate: (normalizedRequest, opts) =>
-      router.generate(registry, capability, normalizedRequest, opts, routeOpts),
-  };
+  // Sticky per request: after one fallback the rest of the request's calls go
+  // to the model that answered (see `router.stickyProvider`).
+  return router.stickyProvider(registry, capability, routeOpts);
 }
 
 /**
@@ -987,6 +986,11 @@ exports.aiChat = onCall(
           responseStyle,
           clientTurnId,
           clientClock,
+          // Fires when the client closes the stream — the turn stops before
+          // its next model call instead of finishing for nobody.
+          signal: response ? response.signal : undefined,
+          // Product-label database lookup for search_food_product.
+          fetchImpl: fetch,
           now: () => new Date(),
         });
         await logMeteredUsage({
@@ -1007,7 +1011,10 @@ exports.aiChat = onCall(
         await logMeteredUsage({
           store, uid: auth.uid, feature: AiFeature.CHAT, meter: chatMeter,
           startedAt, offsetMinutes: clientClock.offsetMinutes, error: err,
-          extra: clientTurnId ? {clientTurnId} : undefined,
+          extra: Object.assign({},
+              clientTurnId ? {clientTurnId} : {},
+              err && err.terminalState ?
+                {terminalState: err.terminalState} : {}),
         });
         throw toHttpsError(err);
       }

@@ -3938,6 +3938,126 @@ abstract class AppLocalizations {
   /// **'Finding alternatives…'**
   String get askFindingAlternatives;
 
+  /// Progress line: the assistant is reading the daily readiness call. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking your readiness…'**
+  String get askReadingReadiness;
+
+  /// Progress line: the assistant is reading sleep data. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your sleep…'**
+  String get askReadingSleep;
+
+  /// Verb on an activity-timeline chip in Ask for a step that READS the user's data, shown as 'Grab · Diet details'. One short word.
+  ///
+  /// In en, this message translates to:
+  /// **'Grab'**
+  String get askActivityGrab;
+
+  /// Verb on an activity-timeline chip in Ask for a step that looks something up, shown as 'Search · Food alternatives'. One short word.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get askActivitySearch;
+
+  /// Verb on an activity-timeline chip in Ask for a step that computes figures, shown as 'Calculate · Meal nutrition'. One short word.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculate'**
+  String get askActivityCalculate;
+
+  /// Object on an Ask activity chip: today's summary was read.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s details'**
+  String get askActivityToday;
+
+  /// Object on an Ask activity chip: the diet was read.
+  ///
+  /// In en, this message translates to:
+  /// **'Diet details'**
+  String get askActivityDiet;
+
+  /// Object on an Ask activity chip: workout history was read.
+  ///
+  /// In en, this message translates to:
+  /// **'Workout details'**
+  String get askActivityWorkouts;
+
+  /// Object on an Ask activity chip: the most recent workout was read.
+  ///
+  /// In en, this message translates to:
+  /// **'Last workout'**
+  String get askActivityLastWorkout;
+
+  /// Object on an Ask activity chip: the training analysis was read.
+  ///
+  /// In en, this message translates to:
+  /// **'Training analysis'**
+  String get askActivityTrainingAnalysis;
+
+  /// Object on an Ask activity chip: one exercise's history was read.
+  ///
+  /// In en, this message translates to:
+  /// **'Exercise history'**
+  String get askActivityExerciseHistory;
+
+  /// Object on an Ask activity chip: expenses were read.
+  ///
+  /// In en, this message translates to:
+  /// **'Spending'**
+  String get askActivitySpending;
+
+  /// Object on an Ask activity chip: the weekly summary was built.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly summary'**
+  String get askActivityWeek;
+
+  /// Object on an Ask activity chip: the daily readiness call was read.
+  ///
+  /// In en, this message translates to:
+  /// **'Readiness'**
+  String get askActivityReadiness;
+
+  /// Object on an Ask activity chip: sleep data was read.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep summary'**
+  String get askActivitySleep;
+
+  /// Object on an Ask activity chip: a food was looked up in the catalog.
+  ///
+  /// In en, this message translates to:
+  /// **'Food details'**
+  String get askActivityFoodDetails;
+
+  /// Object on an Ask activity chip: a meal's calories/macros were computed.
+  ///
+  /// In en, this message translates to:
+  /// **'Meal nutrition'**
+  String get askActivityMealNutrition;
+
+  /// Object on an Ask activity chip: a branded food product was searched for.
+  ///
+  /// In en, this message translates to:
+  /// **'Food product'**
+  String get askActivityFoodProduct;
+
+  /// Object on an Ask activity chip: replacements for a meal item were found.
+  ///
+  /// In en, this message translates to:
+  /// **'Food alternatives'**
+  String get askActivityFoodAlternatives;
+
+  /// Screen-reader / trailing note on an Ask activity chip whose step failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t get this'**
+  String get askActivityFailed;
+
   /// A proposed change the user accepted.
   ///
   /// In en, this message translates to:
@@ -6005,6 +6125,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'App'**
   String get settingsSectionApp;
+
+  /// Settings section holding the AI model picker and AI usage — its own section (not folded into App) so the two AI rows read as one topic, not two separate 'AI ...' entries in a list of unrelated app settings.
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get settingsSectionAi;
 
   /// Settings section holding account actions.
   ///
@@ -9732,10 +9858,10 @@ abstract class AppLocalizations {
   /// **'Google\'s fast model — the lowest cost.'**
   String get askModelGeminiFlashDesc;
 
-  /// Note under the model list explaining scope and automatic fallback.
+  /// Note under the model list explaining scope and automatic fallback. Updated 2026-09-24: the router now retries and falls back to the other provider on a transient failure rather than surfacing an error, so this must not claim ZIVO 'never switches models on its own'.
   ///
   /// In en, this message translates to:
-  /// **'The active model answers everything — chat, plan imports and the plan builder. ZIVO never switches models on its own: if the active one is unavailable, you\'ll be told, and you can switch here.'**
+  /// **'The active model answers everything — chat, plan imports and the plan builder. If it\'s briefly unavailable, ZIVO automatically continues on the other model instead of interrupting you — AI usage shows whenever that happens.'**
   String get askModelAppliesNote;
 
   /// Number of AI requests, e.g. '37 requests'.
@@ -9744,13 +9870,19 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 request} other{{count} requests}}'**
   String askUsageRequests(int count);
 
-  /// Settings row opening the AI model picker (Ask settings page) from the main app Settings screen.
+  /// Settings row opening the AI model picker (Ask settings page) from the main app Settings screen. Sits under the 'AI' section label, so it doesn't repeat 'AI' itself.
   ///
   /// In en, this message translates to:
-  /// **'AI model'**
+  /// **'Model'**
   String get settingsAiModel;
 
-  /// Title of the AI usage page (tokens + cost per provider/feature, recent requests).
+  /// Settings row opening the AI usage page, from the main app Settings screen. Sits under the 'AI' section label (distinct from aiUsageTitle, which is that page's own header and needs to say 'AI usage' standing alone).
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get settingsAiUsage;
+
+  /// Title of the AI usage page itself (tokens + cost per provider/feature, recent requests) — shown standalone once you've navigated in, so unlike settingsAiUsage it still says 'AI'.
   ///
   /// In en, this message translates to:
   /// **'AI usage'**

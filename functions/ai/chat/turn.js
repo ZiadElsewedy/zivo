@@ -37,8 +37,7 @@ const {
   DEFAULT_CONVERSATION_TITLE,
   DEFAULT_CONFIG,
   DAILY_LIMIT_MESSAGE,
-  ITERATION_LIMIT_MESSAGE,
-  TOKEN_CEILING_MESSAGE,
+  FINAL_STEP_DIRECTIVE,
   REFUSAL_MESSAGE,
   FALLBACK_MESSAGE,
   PENDING_ACTION_MESSAGE,
@@ -58,6 +57,18 @@ const {
 const {AiFeature, USAGE_SCHEMA_VERSION} = require("../shared/usage_log");
 const {buildSystemBlocks} = require("./context");
 const {persistProposal, persistElicitation} = require("./actions");
+const {
+  TerminalState,
+  terminalStateFor,
+  isTransientToolError,
+  replyLanguageFor,
+  describeUnfinishedTurn,
+} = require("./outcome");
+
+// Most activity entries persisted on one assistant message — the timeline the
+// app draws above the reply. A turn can't run more than this many tools in
+// practice (the step budget stops it first); the cap only guards the doc.
+const MAX_PERSISTED_ACTIVITY = 16;
 
 // The model sees read + mutating + elicitation tools. The gateway routes by
 // `tool.mutating` (propose→confirm) and `tool.elicits` (pause and ask); a bare
@@ -68,9 +79,25 @@ const allToolsByName = new Map(allTools.map((t) => [t.name, t]));
 
 /**
  * Runs one user turn of the Ask conversation: persists the user message,
- * enforces the per-day cap, loops the model↔tool round-trip (bounded by
- * `config.maxIterations` and `config.perTurnTokenCeiling`), persists the
+ * enforces the per-day cap, runs the BOUNDED agent loop, persists the
  * assistant's reply, and logs usage.
+ *
+ * The loop contract (see `outcome.js` for the terminal states):
+ *
+ *   model call (one agent step)
+ *     ├─ no tool requested ........ final answer → COMPLETED
+ *     ├─ write / question tool .... persist card → NEEDS_USER_INPUT
+ *     └─ read tools ............... run each (one retry if transient)
+ *          ├─ a tool keeps failing → TOOL_ERROR (no further model calls)
+ *          ├─ caller went away ... → CANCELLED
+ *          └─ results fed back → next step
+ *   the last step (`maxAgentSteps`, or once the token budget is spent) is
+ *   called with tools disabled, so it must answer; if it still can't →
+ *   MAX_STEPS_REACHED. A provider failure (after the router's own retry and
+ *   fallback) is thrown tagged PROVIDER_ERROR.
+ *
+ * A turn therefore makes at most `maxAgentSteps` model calls, whatever the
+ * model asks for — there is no recursion and no unbounded retry anywhere.
  *
  * @param {!Object} args
  * @param {!Object} args.store The `FirestoreStore`-shaped read/write seam.
@@ -120,6 +147,15 @@ const allToolsByName = new Map(allTools.map((t) => [t.name, t]));
  *   `../routing/router.js`), passed through to `search_food_product`'s
  *   `execute` as `deps.foodSearchProvider`. Absent (no Gemini key bound) makes
  *   the tool degrade to its `unavailable` outcome rather than failing the turn.
+ * @param {(function(string, !Object): !Promise<!Object>)=} args.fetchImpl
+ *   The HTTP client `search_food_product` uses for its product-label
+ *   database lookup (production passes the global `fetch`). Absent — every
+ *   offline test — skips that lookup, so tests never touch the network.
+ * @param {(AbortSignal|undefined)} args.signal The caller's cancel signal
+ *   (the callable's `response.signal`, which fires when the client closes the
+ *   stream). Checked before every step and passed to the model call, so a
+ *   turn nobody is waiting for stops spending — it ends CANCELLED without an
+ *   assistant message, which leaves a retry of the same turn free to run.
  * @param {(!Object|undefined)} args.config Overrides for `DEFAULT_CONFIG`.
  * @param {(string|undefined)} args.clientTurnId Client-generated idempotency
  *   key for this turn. When supplied and a previous attempt of the SAME turn
@@ -146,6 +182,8 @@ async function runAiTurn({
   config,
   clientTurnId,
   foodSearchProvider,
+  fetchImpl,
+  signal,
 }) {
   const activeProvider = provider ||
     new AnthropicProvider(legacyAnthropicClient(callModel, streamModel));
@@ -191,7 +229,8 @@ async function runAiTurn({
     if (prior && prior.role === "assistant") {
       // The turn already completed server-side — replay its answer instead
       // of generating (and appending) a second one.
-      return {status: "replayed", assistantText: prior.content, usage: null};
+      return {status: "replayed", terminalState: TerminalState.COMPLETED,
+        assistantText: prior.content, usage: null};
     }
     // A user message exists but no answer yet: skip the re-append below and
     // let the model run proceed exactly once.
@@ -222,8 +261,8 @@ async function runAiTurn({
       content: DAILY_LIMIT_MESSAGE,
       createdAt: clock(),
     });
-    return {status: "daily-limit", assistantText: DAILY_LIMIT_MESSAGE,
-      usage: null};
+    return {status: "daily-limit", terminalState: TerminalState.DAILY_LIMIT,
+      assistantText: DAILY_LIMIT_MESSAGE, usage: null};
   }
 
   const history = await store.getRecentMessages(
@@ -286,7 +325,26 @@ async function runAiTurn({
   let toolResultChars = 0;
   let finalText = null;
   let refusal = false;
-  let tokenCeilingHit = false;
+  // Set once the turn's input+output passes `perTurnTokenCeiling`: the NEXT
+  // step becomes the forced final one, and if even that can't answer the turn
+  // ends `token-ceiling` (MAX_STEPS_REACHED) rather than `iteration-limit`.
+  let tokenBudgetSpent = false;
+  // The read tools the turn actually ran, in order, each with its final
+  // outcome after any retry — the user-visible activity timeline. Persisted
+  // on the assistant message, and the only source of the "here's what I
+  // checked" text when the turn can't finish. Names only, never input/result.
+  const activity = [];
+  // Failures per tool name this turn; see `cfg.maxToolFailuresPerTool`.
+  const toolFailures = new Map();
+  let toolErrorHit = false;
+  let failedTool = null;
+  let cancelled = false;
+  const isCancelled = () => !!(signal && signal.aborted);
+  // SEARCH tools that OFFERED the user options this turn (more than one
+  // candidate came back found). A mutation that declares `refusedAfterOffer`
+  // for one of them is refused in the same turn: DISCOVER → the user CHOOSES
+  // → MUTATE, never discover-and-mutate in one go.
+  const offered = new Set();
   let proposedAction = null;
   // Set when a valid elicitation (ask_choice) ended the turn — the persisted
   // question card the client renders, awaiting the user's answer.
@@ -304,17 +362,81 @@ async function runAiTurn({
   // The turn is committed to running (past validation and the daily cap).
   emitPhase("understanding");
 
-  for (let i = 0; i < cfg.maxIterations; i++) {
+  // Records a failed tool call and decides whether the turn must stop: a
+  // transient failure that survived its retry is fatal at once; any other
+  // failure is fed back to the model, until the same tool fails
+  // `maxToolFailuresPerTool` times.
+  const noteToolFailure = (name, fatal) => {
+    const count = (toolFailures.get(name) || 0) + 1;
+    toolFailures.set(name, count);
+    if (fatal || count >= cfg.maxToolFailuresPerTool) {
+      toolErrorHit = true;
+      failedTool = name;
+    }
+  };
+
+  for (let i = 0; i < cfg.maxAgentSteps; i++) {
+    if (isCancelled()) {
+      cancelled = true;
+      break;
+    }
     iterations = i + 1;
+    // The last step the budget allows — or the first one after the token
+    // budget ran out — must ANSWER: tools are disabled for it and the model
+    // is told why, so the loop ends with the best answer the data it already
+    // read supports instead of a blind cut-off.
+    const finalStep = i === cfg.maxAgentSteps - 1 || tokenBudgetSpent;
+    // Between tool rounds the model is reading what came back — the client
+    // shows that as "Thinking…" (execution progress, never the model's
+    // reasoning, which is not streamed).
+    if (i > 0) emitPhase("thinking");
     const normalizedRequest = {
       model: activeModel,
       maxTokens: cfg.maxTokens,
-      system: systemBlocks,
+      // An extra UNCACHED block after the cached prompt — element 0 is
+      // untouched, so the cache still hits on the final step.
+      system: finalStep ?
+        systemBlocks.concat([{text: FINAL_STEP_DIRECTIVE}]) : systemBlocks,
       tools: normalizedTools,
       messages,
     };
-    const resp = await activeProvider.generate(normalizedRequest, wantsStream ?
-      {onText: (text) => emit({type: "delta", text})} : undefined);
+    // `none`, not dropping `tools`: the tool list is part of the cached
+    // prefix (and a history holding tool calls needs it declared).
+    if (finalStep) normalizedRequest.toolChoice = "none";
+    const genOpts = {};
+    if (wantsStream) genOpts.onText = (text) => emit({type: "delta", text});
+    if (signal) genOpts.signal = signal;
+    // The router is about to re-run this step on the other provider after the
+    // active one failed (and its one retry). The user sees the switch as it
+    // happens; any text the failed attempt streamed is superseded — the
+    // client drops it on this event. Model KEYS only, never provider text.
+    genOpts.onFallback = (info) => {
+      const entry = {kind: "fallback", from: info.from, to: info.to};
+      if (!activity.some((a) => a.kind === "fallback" &&
+          a.from === entry.from && a.to === entry.to)) {
+        activity.push(entry);
+      }
+      emit({type: "fallback", from: info.from, to: info.to});
+    };
+    let resp;
+    try {
+      resp = await activeProvider.generate(normalizedRequest, genOpts);
+    } catch (err) {
+      // The caller closed the stream mid-call: the abort surfaces as an
+      // error, but it's a cancellation, not a provider failure.
+      if (isCancelled()) {
+        cancelled = true;
+        break;
+      }
+      // The router already retried / fell back (`../routing/router.js`);
+      // what reaches here is terminal. Rethrown — the callable maps it to
+      // "<provider> is unavailable" with Switch model / Retry — but tagged,
+      // so the usage record says how the turn ended.
+      if (err && typeof err === "object" && !err.terminalState) {
+        err.terminalState = TerminalState.PROVIDER_ERROR;
+      }
+      throw err;
+    }
 
     if (resp.provider) usedProvider = resp.provider;
     if (resp.model) usedModel = resp.model;
@@ -336,6 +458,11 @@ async function runAiTurn({
       finalText = extractText(resp.content);
       break;
     }
+
+    // Tools were disabled for this step and the model asked for one anyway
+    // (a provider that ignored `toolChoice`). Nothing more may run — the turn
+    // ends MAX_STEPS_REACHED below.
+    if (finalStep) break;
 
     // Round-trips the assistant turn verbatim (a signed `thinking` block's
     // signature included) by carrying each block's provider-native `raw`
@@ -361,6 +488,19 @@ async function runAiTurn({
         // At most one turn-ender per turn — a proposal never coexists with
         // another proposal or with a question.
         if (proposal || elicitation) continue;
+        if (tool.refusedAfterOffer && offered.has(tool.refusedAfterOffer)) {
+          // Not a tool failure (nothing is broken) — the model skipped the
+          // user's choice. Fed back so it shows the options instead.
+          toolResults.push({
+            type: "tool_result",
+            toolUseId: block.id,
+            content: JSON.stringify({error: "The user hasn't chosen yet. " +
+              "Show the options you found with ask_choice and wait for " +
+              "their pick — make this change only after they choose."}),
+            isError: true,
+          });
+          continue;
+        }
         try {
           const validated = tool.validate(block.input || {});
           // `validate` is pure and can only prove the SHAPE of the input — and
@@ -386,6 +526,8 @@ async function runAiTurn({
             content: JSON.stringify({error: err.message || "Invalid input."}),
             isError: true,
           });
+          noteToolFailure(block.name, false);
+          if (toolErrorHit) break;
         }
         continue;
       }
@@ -405,6 +547,8 @@ async function runAiTurn({
             content: JSON.stringify({error: err.message || "Invalid input."}),
             isError: true,
           });
+          noteToolFailure(block.name, false);
+          if (toolErrorHit) break;
         }
         continue;
       }
@@ -418,26 +562,49 @@ async function runAiTurn({
 
       let resultPayload;
       let isError = false;
+      // A failure that survived its retry(s) — the turn stops on it.
+      let fatal = false;
       if (!tool) {
         resultPayload = {error: `Unknown tool: ${block.name}`};
         isError = true;
       } else {
-        try {
-          resultPayload = await tool.execute(
-              store, uid, block.input || {}, turnNow, offsetMinutes,
-              {chatProvider: toolChatProvider, foodSearchProvider});
-          // Keep the structured diet state+findings so the reply can be checked
-          // against what the model actually read (Phase 7). The last one wins —
-          // the reply is about the most recently loaded day.
-          if (block.name === "get_today" || block.name === "get_diet") {
-            dietContext = resultPayload;
+        // Bounded retry: only a transient failure is re-run, at most
+        // `cfg.toolRetries` times, inside this same step. A tool that
+        // rejected its input would fail identically, so that goes straight
+        // back to the model.
+        for (let attempt = 0; ; attempt++) {
+          try {
+            resultPayload = await tool.execute(
+                store, uid, block.input || {}, turnNow, offsetMinutes,
+                {chatProvider: toolChatProvider, foodSearchProvider,
+                  fetch: fetchImpl});
+            // Keep the structured diet state+findings so the reply can be
+            // checked against what the model actually read (Phase 7). The
+            // last one wins — the reply is about the most recently loaded day.
+            if (block.name === "get_today" || block.name === "get_diet") {
+              dietContext = resultPayload;
+            }
+            if (tool.search && resultPayload &&
+                Array.isArray(resultPayload.alternatives) &&
+                resultPayload.alternatives.length > 1) {
+              offered.add(block.name);
+            }
+            break;
+          } catch (err) {
+            const transient = isTransientToolError(err);
+            if (transient && attempt < cfg.toolRetries && !isCancelled()) {
+              continue;
+            }
+            resultPayload = {error: err.message || "Tool execution failed."};
+            isError = true;
+            fatal = transient;
+            break;
           }
-        } catch (err) {
-          resultPayload = {error: err.message || "Tool execution failed."};
-          isError = true;
         }
       }
       emitStep(block.name, isError ? "error" : "ok");
+      activity.push({tool: block.name, status: isError ? "error" : "ok"});
+      if (isError) noteToolFailure(block.name, fatal);
       const toolResult = {
         type: "tool_result",
         toolUseId: block.id,
@@ -447,6 +614,8 @@ async function runAiTurn({
       if (isError) toolResult.isError = true;
       toolResultChars += toolResult.content.length;
       toolResults.push(toolResult);
+      // Stop running this step's remaining tools: the turn is ending.
+      if (toolErrorHit || isCancelled()) break;
     }
 
     // A valid proposal ends the turn: persist a pending action + an
@@ -494,12 +663,17 @@ async function runAiTurn({
       break;
     }
 
-    messages.push({role: "user", content: toolResults});
-
-    if (usage.total > cfg.perTurnTokenCeiling) {
-      tokenCeilingHit = true;
+    // A tool kept failing: stop here rather than hand the model another
+    // chance to call it. No further model call is made.
+    if (toolErrorHit) break;
+    if (isCancelled()) {
+      cancelled = true;
       break;
     }
+
+    messages.push({role: "user", content: toolResults});
+
+    if (usage.total > cfg.perTurnTokenCeiling) tokenBudgetSpent = true;
   }
 
   let status = "ok";
@@ -527,9 +701,11 @@ async function runAiTurn({
   } else if (refusal) {
     status = "refusal";
     assistantText = REFUSAL_MESSAGE;
-  } else if (tokenCeilingHit) {
-    status = "token-ceiling";
-    assistantText = TOKEN_CEILING_MESSAGE;
+  } else if (cancelled) {
+    status = "cancelled";
+    assistantText = null;
+  } else if (toolErrorHit) {
+    status = "tool-error";
   } else if (finalText !== null) {
     assistantText = finalText || FALLBACK_MESSAGE;
     // Validate the reply against the diet numbers it was handed. A reply that
@@ -550,18 +726,39 @@ async function runAiTurn({
       }
     }
   } else {
-    status = "iteration-limit";
-    assistantText = ITERATION_LIMIT_MESSAGE;
+    // The budget ran out without an answer (the forced final step still
+    // asked for a tool, or the loop never got that far).
+    status = tokenBudgetSpent ? "token-ceiling" : "iteration-limit";
+  }
+  const terminalState = terminalStateFor(status);
+  // A turn that stopped without an answer says what it actually did — what it
+  // checked, what failed, what to try next — built from the loop's own record,
+  // in the language the user wrote in. Never a vague "needed more digging".
+  if (terminalState === TerminalState.MAX_STEPS_REACHED ||
+      terminalState === TerminalState.TOOL_ERROR) {
+    assistantText = describeUnfinishedTurn({
+      terminalState,
+      activity,
+      failedTool,
+      lang: replyLanguageFor(trimmed),
+    });
   }
 
   const finishedAt = clock();
-  if (!alreadyAppended) {
-    await store.appendMessage(uid, conversationId, {
+  // A cancelled turn persists no reply: nobody is waiting for it, and an
+  // assistant message under this clientTurnId would make the client's retry
+  // replay "stopped" instead of actually answering.
+  if (!alreadyAppended && !cancelled) {
+    const reply = {
       role: "assistant",
       content: assistantText,
       createdAt: finishedAt,
       clientTurnId,
-    });
+    };
+    if (activity.length) {
+      reply.activity = activity.slice(0, MAX_PERSISTED_ACTIVITY);
+    }
+    await store.appendMessage(uid, conversationId, reply);
   }
 
   const usageDoc = {
@@ -587,6 +784,9 @@ async function runAiTurn({
     calls: iterations,
     tools: toolCalls,
     iterations,
+    // How the bounded loop ended (`outcome.js`) — the closed set a dashboard
+    // can count, alongside the finer-grained `status`.
+    terminalState,
     latencyMs: finishedAt.getTime() - turnNow.getTime(),
     model: usedModel || activeModel,
     createdAt: finishedAt,
@@ -610,6 +810,8 @@ async function runAiTurn({
   // Recorded so the validator's real-world hit rate (and any false positives)
   // are observable in production, not a black box.
   if (validation) usageDoc.validation = validation;
+  if (failedTool) usageDoc.failedTool = failedTool;
+  if (cancelled) usageDoc.status = "cancelled";
   await store.logUsage(uid, usageDoc);
 
   // The durable record is written; the turn is done. Carries the terminal
@@ -620,11 +822,13 @@ async function runAiTurn({
     type: "phase",
     phase: "done",
     status,
+    terminalState,
     replaced: validation ? !validation.ok : false,
   });
 
   return {
     status,
+    terminalState,
     assistantText,
     actionId: proposedAction ? proposedAction.actionId : null,
     requestId: elicitedRequest ? elicitedRequest.requestId : null,

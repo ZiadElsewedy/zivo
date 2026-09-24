@@ -118,6 +118,13 @@ void main() {
       expect(event.replaced, isFalse);
     });
 
+    test('parses the thinking phase the loop emits between tool rounds', () {
+      final event =
+          aiTurnEventFromChunk({'type': 'phase', 'phase': 'thinking'})
+              as AiPhaseEvent;
+      expect(event.phase, AiPhase.thinking);
+    });
+
     test('parses a step chunk, keeping the tool name verbatim', () {
       final event =
           aiTurnEventFromChunk({
