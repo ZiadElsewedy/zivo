@@ -104,7 +104,12 @@ provider failure (after the router's own retry + fallback) → thrown, tagged pr
   `refusedAfterOffer`), and records new results on top. Why: tool results used to
   die with their turn, so every follow-up re-ran the same reads. Usage logs
   `contextCarried` / `contextCarriedTokens`.
-- **"Other options".** A card bound to a verified offer gets ZIVO's own unbound
+- **Skip vs swap (workout rotation).** `preview_workout_change` is a SEARCH
+  whose `choiceOffer` binds 'skip' and 'swap' to the exact
+  `change_workout_day` call; the tap proposes it with no model call. An
+  explicit request skips the preview and proposes directly.
+- **"Other options".** A card bound to a verified offer from a `moreOptions`
+  tool (food alternatives only) gets ZIVO's own unbound
   `__more__` option (`choices.js` `withMoreOption`, en/ar label); tapping it
   reaches the model as "find different ones", with the plan already in the ledger.
 - **Usage** records `terminalState` (and `failedTool` on `tool_error`).

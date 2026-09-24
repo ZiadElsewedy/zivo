@@ -154,6 +154,11 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   stores an `order`, so it keeps pointing at the same position. `slot` stays with
   its day (identity, not position — the editor's reorder doesn't reassign it
   either).
+- **Ask changes the rotation by the same two rules.** The coach's
+  `change_workout_day` (functions/ai) mirrors `swapDays` (mode `swap`) and the
+  cursor move (mode `skip`) in `functions/ai/tools/workout_rotation.js`,
+  writing the raw plan doc in a transaction. Change a rotation rule here and
+  change it there.
 - **Never do calendar maths with `Duration`.** `Duration(days: 1)` is 24
   absolute hours; a calendar day on a DST transition is 23 or 25. Both old
   streak engines walked the calendar that way and zeroed themselves twice a

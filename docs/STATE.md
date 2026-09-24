@@ -97,6 +97,35 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Ask can change today's workout — skip vs swap; premium confirmation
+  card** (2026-09-24, on `upgrades`, NOT deployed).
+  - **Rotation tools** (the Node mirror of `WorkoutPlan.swapDays` / the
+    cursor, `functions/ai/tools/workout_rotation.js`): `get_workout_schedule`
+    (today = the day up next, the rotation, `trainedToday`),
+    `preview_workout_change` (SEARCH: lays out skip and swap as a verified
+    offer, each option bound to the exact change), `change_workout_day`
+    (MUTATION, confirm-gated, `refusedAfterOffer` the preview). SWAP = the two
+    days trade `order`, cursor stays (Pull today, Push next). SKIP = the
+    cursor moves onto the chosen day (Push drops out this round). The write
+    (`store.updateWorkoutRotation`) runs in a transaction over the raw plan
+    doc and refuses if the due day changed since the proposal. Prompt:
+    `chat/prompt/sections/workout_schedule.js` — ask when ambiguous ("I want
+    to do Pull today"), act when explicit.
+  - **"Other options"** is now only on offers that declare `moreOptions`
+    (food alternatives), never on a skip-or-swap question.
+  - **Card** (`widgets/ask/proposal_card.dart`): a slip with a hue spine,
+    kind label, headline (money in Azeret Mono), receipt rows instead of pill
+    chips, ember Confirm (was violet); new kinds `replace_meal_item` and
+    `change_workout_day`; built-in expense categories in the reader's words.
+    The confirm/cancel echo line ("Logged expense · 500.00 EGP · food") now
+    carries `resultOf` and is left out of the thread — the card shows the
+    outcome (older echoes, written before this, still show).
+  - **Chips:** short one-line answers wrap in a row instead of a tall stack;
+    skip/swap chips explain themselves in the reader's language
+    (`AiChoiceOption.metadata` now holds numbers or short strings).
+  - **Owner actions:** deploy functions; try "I want to do Pull today" with
+    Push up next → tap Swap → Confirm → check the Workout tab shows Pull,
+    then Push next.
 - **Ask: human thought states, no-snap streaming, answer chips, context
   carry-over** (2026-09-24, on `upgrades`, NOT deployed — the functions half
   needs an owner deploy; the app half works against the old backend, minus
