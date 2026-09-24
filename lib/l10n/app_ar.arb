@@ -664,6 +664,7 @@
   "askProposalCancelled": "أُلغيت",
   "askProposalExpired": "انتهت صلاحيتها",
   "askProposalConfirm": "تأكيد",
+  "askChoiceNutrition": "{grams} جم · {kcal} سعرة · {protein} جم بروتين",
   "askActionNewExpense": "مصروف جديد",
   "askActionEditExpense": "تعديل مصروف",
   "askActionDeleteExpense": "حذف مصروف",

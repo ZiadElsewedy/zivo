@@ -4082,6 +4082,12 @@ abstract class AppLocalizations {
   /// **'Confirm'**
   String get askProposalConfirm;
 
+  /// Detail line under a tappable food option in an Ask question card: the verified portion, its calories and its protein.
+  ///
+  /// In en, this message translates to:
+  /// **'{grams} g · {kcal} kcal · {protein} g protein'**
+  String askChoiceNutrition(String grams, String kcal, String protein);
+
   /// Kind label on a proposal card: ZIVO wants to add an expense.
   ///
   /// In en, this message translates to:

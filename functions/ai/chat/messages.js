@@ -69,10 +69,20 @@ function toNormalizedMessage(message) {
       const detail = o.subtitle ? ` — ${o.subtitle}` : "";
       return `${i + 1}. ${o.label}${detail} (value: ${o.value})`;
     });
+    const answered = message.status === "answered" && message.selectedValue ?
+      `\n[Answered: value=${message.selectedValue}]` : "";
     return {
       role: message.role,
       content: `${message.content}\n[Options shown to the user:\n` +
-        `${lines.join("\n")}]`,
+        `${lines.join("\n")}]${answered}`,
+    };
+  }
+  // A tapped answer: its label, plus the structured pick it stands for.
+  if (message.role === "user" && message.choice && message.choice.value) {
+    return {
+      role: message.role,
+      content: `${message.content}\n[Tapped option value=` +
+        `${message.choice.value} on the question above]`,
     };
   }
   if (message.kind === "action_proposal" && message.status) {

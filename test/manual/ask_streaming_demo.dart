@@ -12,6 +12,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/domain/ai_conversation.dart';
+import 'package:zivo/features/ai/domain/ai_choice_request.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_pending_action.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
@@ -104,6 +105,7 @@ class DemoAi implements AiRepository {
     String responseStyle = kDefaultResponseStyle,
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
+    AiChoiceSelection? choice,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;

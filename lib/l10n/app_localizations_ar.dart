@@ -2344,6 +2344,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get askProposalConfirm => 'تأكيد';
 
   @override
+  String askChoiceNutrition(String grams, String kcal, String protein) {
+    return '$grams جم · $kcal سعرة · $protein جم بروتين';
+  }
+
+  @override
   String get askActionNewExpense => 'مصروف جديد';
 
   @override

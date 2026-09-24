@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/l10n/app_localizations_en.dart';
 import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_failure.dart';
+import 'package:zivo/features/ai/domain/ai_choice_request.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_pending_action.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
@@ -288,6 +289,42 @@ void main() {
     expect(c.sendFailed, isFalse);
   });
 
+  test('a tapped choice sends its structured pick, and a retry re-sends the '
+      'same pick — never just its label', () async {
+    final ai = _FakeAi(failSend: true);
+    final c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+
+    await c.answerChoice('req-1', 'usda:175160', 'Tuna salad');
+    expect(ai.sent.single.text, 'Tuna salad');
+    expect(ai.sent.single.choice!.requestId, 'req-1');
+    expect(ai.sent.single.choice!.value, 'usda:175160');
+    expect(c.answeredChoices['req-1'], 'usda:175160');
+
+    await c.retry(c.activeConversationId!);
+    expect(ai.sent, hasLength(2));
+    expect(ai.sent.last.choice!.value, 'usda:175160');
+    expect(ai.sent.last.turnId, ai.sent.first.turnId);
+
+    // A typed message afterwards carries no pick.
+    c.input.text = 'thanks';
+    await c.send();
+    expect(ai.sent.last.choice, isNull);
+  });
+
+  test('a second tap on an answered card sends nothing', () async {
+    final ai = _FakeAi();
+    final c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+
+    await c.answerChoice('req-1', 'a', 'A');
+    await c.answerChoice('req-1', 'b', 'B');
+    expect(ai.sent, hasLength(1));
+    expect(ai.sent.single.choice!.value, 'a');
+  });
+
   test('a retry reuses the turn id, so the server can dedupe it', () async {
     final ai = _FakeAi(failSend: true);
     final c = _controller(ai);
@@ -316,8 +353,8 @@ void main() {
       addTearDown(c.dispose);
       await c.load();
 
-      c.input.text = 'hello';
-      await c.send();
+    c.input.text = 'hello';
+    await c.send();
 
       expect(c.sendFailed, isTrue);
       expect(c.sending, isFalse);
@@ -377,24 +414,33 @@ void main() {
     expect(reported, isNotNull);
   });
 
-  test('setModelSelection persists and is forwarded on the next send', () async {
-    final ai = _FakeAi();
-    final c = _controller(ai);
-    addTearDown(c.dispose);
-    await c.load();
-    expect(c.modelSelection, 'claude-sonnet',
-        reason: 'default before any choice');
+  test(
+    'setModelSelection persists and is forwarded on the next send',
+    () async {
+      final ai = _FakeAi();
+      final c = _controller(ai);
+      addTearDown(c.dispose);
+      await c.load();
+      expect(
+        c.modelSelection,
+        'claude-sonnet',
+        reason: 'default before any choice',
+      );
 
-    await c.setModelSelection('gemini-flash');
-    expect(c.modelSelection, 'gemini-flash');
-    expect(await ai.getModelSelection(), 'gemini-flash', reason: 'persisted');
+      await c.setModelSelection('gemini-flash');
+      expect(c.modelSelection, 'gemini-flash');
+      expect(await ai.getModelSelection(), 'gemini-flash', reason: 'persisted');
 
-    c.input.text = 'hello';
-    await c.send();
+      c.input.text = 'hello';
+      await c.send();
 
-    expect(ai.sent.single.modelSelection, 'gemini-flash',
-        reason: 'the chosen provider rides along on send');
-  });
+      expect(
+        ai.sent.single.modelSelection,
+        'gemini-flash',
+        reason: 'the chosen provider rides along on send',
+      );
+    },
+  );
 
   test('a failed model-selection save rolls back and reports', () async {
     final ai = _FakeAi(failStyleSave: true);
@@ -679,6 +725,7 @@ typedef _Sent = ({
   String text,
   String? turnId,
   String modelSelection,
+  AiChoiceSelection? choice,
 });
 
 /// A scripted [AiRepository] — only the members Ask actually drives are
@@ -777,12 +824,14 @@ class _FakeAi implements AiRepository {
     String responseStyle = kDefaultResponseStyle,
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
+    AiChoiceSelection? choice,
   }) async {
     sent.add((
       conversationId: conversationId,
       text: text,
       turnId: clientTurnId,
       modelSelection: modelSelection,
+      choice: choice,
     ));
     for (final phase in phases) {
       observedPhases.add(phase);
@@ -824,14 +873,14 @@ class _FakeAi implements AiRepository {
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
     ImportCancellation? cancellation,
-  }) => throw UnimplementedError();
+  }) =>
+      throw UnimplementedError();
 
   @override
   Future<DietImportOutcome> importDietPlan(
     DietImportInput input, {
     ImportCancellation? cancellation,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<DietImportOutcome> generateDietPlan({

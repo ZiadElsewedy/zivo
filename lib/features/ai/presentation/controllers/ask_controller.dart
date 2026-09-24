@@ -8,6 +8,7 @@ import '../../data/audio_recorder.dart';
 import '../../../../core/util/parse.dart';
 import '../../../../l10n/l10n.dart';
 import '../../domain/body_data_writer.dart';
+import '../../domain/ai_choice_request.dart';
 import '../../domain/ai_conversation.dart';
 import '../../domain/ai_failure.dart';
 import '../../domain/ai_message.dart';
@@ -336,6 +337,11 @@ class AskController extends ChangeNotifier {
   // A turn that then fails on the model left Retry with nothing to send (it
   // read [_pendingText], already null) — the "Retry does nothing" bug.
   String? _turnText;
+
+  /// The tapped answer the current turn carries, if it answers a question
+  /// card — kept with [_turnText] so [retry] re-sends the same structured
+  /// pick, not just its label.
+  AiChoiceSelection? _turnChoice;
   int _baselineUserCount = 0;
   int _baselineAssistantCount = 0;
   String? _activeTurnId;
@@ -438,7 +444,7 @@ class AskController extends ChangeNotifier {
   /// Sends the composer's text — lazily creating the active conversation
   /// first if this is an unsaved "New chat" (nothing is persisted until the
   /// first message actually goes out).
-  Future<void> send() async {
+  Future<void> send({AiChoiceSelection? choice}) async {
     if (!_activeResolved) return;
     if (_sending) return;
     if (!_canSend) return;
@@ -487,7 +493,7 @@ class AskController extends ChangeNotifier {
     _baselineAssistantCount = baselineAssistantCount;
     _draftTitle = null;
     _notify();
-    await runSend(conversationId, text);
+    await runSend(conversationId, text, choice: choice);
   }
 
   /// Fills the composer with an empty-state suggestion and sends it —
@@ -509,7 +515,7 @@ class AskController extends ChangeNotifier {
   Future<void> retry(String conversationId) async {
     final text = _pendingText ?? _turnText;
     if (text == null || _sending) return;
-    await runSend(conversationId, text);
+    await runSend(conversationId, text, choice: _turnChoice);
   }
 
   /// Best-effort: a failed rename just leaves the conversation titled 'New
@@ -526,8 +532,13 @@ class AskController extends ChangeNotifier {
     }
   }
 
-  Future<void> runSend(String conversationId, String text) async {
+  Future<void> runSend(
+    String conversationId,
+    String text, {
+    AiChoiceSelection? choice,
+  }) async {
     _turnText = text;
+    _turnChoice = choice;
     _slowTurnTimer?.cancel();
     _landingWatchdog?.cancel();
     _sending = true;
@@ -571,6 +582,7 @@ class AskController extends ChangeNotifier {
         conversationId: conversationId,
         text: text,
         clientTurnId: _activeTurnId,
+        choice: choice,
         onEvent: _onTurnEvent,
         responseStyle: _responseStyle,
         modelSelection: _modelSelection,
@@ -835,24 +847,35 @@ class AskController extends ChangeNotifier {
   // ---- Question cards (Ask elicitation) ------------------------------------
 
   /// Choice cards answered this session, keyed by requestId → the picked
-  /// option's value, so the chips settle into a disabled "picked" state the
-  /// instant they tap rather than staying live while the answer's turn is
-  /// already on its way. Not persisted — a reopened card is tappable again
-  /// (Phase 1), which just sends another turn.
+  /// option's value, so the card settles into its "picked" state the instant
+  /// they tap rather than staying live while the answer's turn is on its way.
+  /// The durable record is the server's [AiChoiceRequest.selectedValue]; this
+  /// only covers the beat before it lands.
   final Map<String, String> _answeredChoices = {};
   Map<String, String> get answeredChoices => _answeredChoices;
 
-  /// Answers a [choice_request] by sending the chosen option's [label] as an
-  /// ordinary next message — the coach continues from it exactly as if the
-  /// user had typed it. Reuses the whole send path (optimistic bubble,
-  /// idempotency key, auto-title), so a picked chip behaves like any send.
-  /// [value] is the option's stable key, recorded so the card can mark which
-  /// chip was chosen.
+  /// The picked option for [request]: this session's tap, else the answer the
+  /// server recorded. Null while the question is open.
+  String? pickedValueFor(AiChoiceRequest request) =>
+      _answeredChoices[request.requestId] ?? request.selectedValue;
+
+  /// Answers a [choice_request] by tap. The turn carries the structured pick
+  /// ([AiChoiceSelection] — the card's requestId and the option's stable
+  /// [value]); the server resolves it against the stored card and continues
+  /// from that exact option (proposing a bound change directly), so nothing
+  /// depends on the model re-reading text. [label] is only what the user's
+  /// bubble shows. Reuses the whole send path (optimistic bubble, idempotency
+  /// key, retry), so a tap behaves like any send.
+  ///
+  /// Ignored while another turn is still in flight — marking the card picked
+  /// then would leave it settled with nothing sent.
   Future<void> answerChoice(String requestId, String value, String label) {
     if (_answeredChoices.containsKey(requestId)) return Future<void>.value();
     _answeredChoices[requestId] = value;
     input.text = label;
-    return send();
+    return send(
+      choice: AiChoiceSelection(requestId: requestId, value: value),
+    );
   }
 
   /// Input forms (`input_request`) submitted this session, keyed by requestId →

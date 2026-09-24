@@ -86,12 +86,15 @@ async function persistProposal({
  * @param {!Object} args.tool The elicitation tool (has messageKind/summarize/
  *   fields).
  * @param {!Object} args.validated The tool's normalized card spec.
+ * @param {(?Object)=} args.bindings Server-side resolution for a choice card:
+ *   option value → the verified `{tool, input}` choosing it means
+ *   (`choices.js`). Stored on the message, never rendered.
  * @param {function(): !Date} args.clock
  * @return {!Promise<{requestId: string, prompt: string, fields: !Object,
  *   kind: string}>}
  */
 async function persistElicitation({
-  store, uid, conversationId, tool, validated, clock,
+  store, uid, conversationId, tool, validated, bindings, clock,
 }) {
   const requestId = randomUUID();
   const createdAt = clock();
@@ -104,6 +107,7 @@ async function persistElicitation({
     content: prompt,
     requestId,
     fields,
+    bindings: bindings || null,
     status: "pending",
     createdAt,
   });

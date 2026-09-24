@@ -936,6 +936,13 @@ exports.aiChat = onCall(
       // Client-generated idempotency key — makes a retried turn safe.
       const clientTurnId =
         (data.clientTurnId || "").toString() || undefined;
+      // A tapped answer to a question card — `{requestId, value}`, the
+      // option's stable id. Untrusted: runAiTurn resolves it against the
+      // stored card and rejects anything that isn't one of its options.
+      const choice = data.choice && typeof data.choice === "object" ? {
+        requestId: (data.choice.requestId || "").toString(),
+        value: (data.choice.value || "").toString(),
+      } : undefined;
       // The device's own clock. Functions run in UTC but the app writes diet
       // entries against the DEVICE's calendar date, so without this the
       // server's "today" is a different day from the user's for anyone east
@@ -989,6 +996,7 @@ exports.aiChat = onCall(
           uid: auth.uid,
           conversationId,
           message,
+          choice,
           responseStyle,
           clientTurnId,
           clientClock,

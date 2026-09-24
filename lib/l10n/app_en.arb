@@ -3262,6 +3262,15 @@
   "@askProposalConfirm": {
       "description": "Accepts a change ZIVO proposed. A deletion says \"Delete\" instead."
   },
+  "askChoiceNutrition": "{grams} g · {kcal} kcal · {protein} g protein",
+  "@askChoiceNutrition": {
+      "description": "Detail line under a tappable food option in an Ask question card: the verified portion, its calories and its protein.",
+      "placeholders": {
+          "grams": {"type": "String", "example": "90"},
+          "kcal": {"type": "String", "example": "239"},
+          "protein": {"type": "String", "example": "12.8"}
+      }
+  },
   "askActionNewExpense": "New expense",
   "@askActionNewExpense": {
       "description": "Kind label on a proposal card: ZIVO wants to add an expense."

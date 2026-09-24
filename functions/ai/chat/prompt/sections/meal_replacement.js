@@ -27,14 +27,19 @@ const MEAL_REPLACEMENT = `MEAL REPLACEMENT ("I don't want molokhia", "مش عا�
   priced ("green beans", not "grilled veggie platter").
 - Step 2, the user CHOOSES: present 2–4 of the found alternatives with
   ask_choice — label in the user's language (e.g. "فاصوليا خضراء"), value =
-  the alternative's foodId, subtitle = its portion and kcal ("200 g · 70 kcal").
-  Open with one line of what you found ("I found the molokhia in your lunch.").
+  the alternative's foodId. ZIVO fills in each option's portion and figures
+  itself and drops any option that wasn't found, so offer only found ones.
+  Put your one-line intro in the ask_choice prompt ("I found 3 swaps close to
+  the original calories. Which one would you like?"). NEVER write the options
+  out as a list or bullets in your reply — the card is how they're shown.
   Do NOT pick one for them and do NOT call replace_meal_item in this turn.
-- Step 3, MUTATE — only once the user has chosen: they tapped an option, said
-  "option 2" / "the second one" / "اختار رقم 2", or named the replacement
-  themselves ("replace the molokhia with zucchini" is explicit — price that one
-  food with search_food_alternatives, then propose). The earlier options are in
-  the conversation with their numbers and values; map the choice to its foodId,
+- Step 3, MUTATE — only once the user has chosen. A TAPPED option is handled
+  by ZIVO directly (it proposes the exact swap it priced); you only see it if
+  that failed. When they typed their pick instead ("option 2" / "the second
+  one" / "اختار رقم 2") or named the replacement themselves ("replace the
+  molokhia with zucchini" is explicit — price that one food with
+  search_food_alternatives, then propose): the earlier options are in the
+  conversation with their numbers and values; map the choice to its foodId,
   re-read get_diet for the item's current mealId/index/name, then call
   replace_meal_item with that foodId, quantity = the portion's grams, unit "g".
   You never supply calories or macros — ZIVO computes them. Like every

@@ -6,6 +6,7 @@ import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/core/theme/app_icons.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_conversation.dart';
+import 'package:zivo/features/ai/domain/ai_choice_request.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_turn_usage.dart';
@@ -74,6 +75,7 @@ class _RecordingAi implements AiRepository {
     String responseStyle = kDefaultResponseStyle,
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
+    AiChoiceSelection? choice,
   }) {
     sentStyles.add(responseStyle);
     sentModels.add(modelSelection);

@@ -134,6 +134,38 @@ notifications)**.
     Google project (free tier = 20 req/day); confirm Gemini's live price —
     `models.js` still prices Flash at $0.30/$2.50 while the alias serves
     `gemini-3.8-flash` (unchanged, deliberately).
+- **Ask choices are real, structured, tappable UI** (2026-09-24, on `upgrades`,
+  NOT deployed). Owner ask: AI choices rendered as Markdown bullets; wanted
+  native choice cards resolved by id, generic across scenarios.
+  - **Root causes:** (1) `store.appendMessage` never persisted `requestId`, so
+    the app's `_choiceRequestFrom` returned null and EVERY choice card fell back
+    to a plain text bubble. (2) Nothing stopped the model writing the options
+    as bullets instead of calling `ask_choice`. (3) A tap was sent as the
+    label's text, and the model had to re-map it to a foodId.
+  - **Contract:** `functions/ai/chat/choices.js` (new). `choice_request` doc =
+    `{requestId, content, fields:{options:[{value, label, subtitle?,
+    metadata?}]}, bindings?:{value:{tool,input}}, status, selectedValue?}`.
+    `search_food_alternatives.choiceOffer` supplies verified options bound to
+    the exact `replace_meal_item`; `ask_choice` after it is pinned to them
+    (unverified dropped, server figures); prose-instead-of-card → card built
+    from the offer. `aiChat` takes `choice:{requestId,value}` → resolved against
+    the stored card (unknown/stale rejected, nothing written) → bound pick is
+    proposed with NO model call (still confirm-gated); unbound pick goes to the
+    model as the exact option. Store: `getChoiceRequest`, `markChoiceAnswered`.
+  - **App:** `AiChoiceOption.metadata`, `AiChoiceRequest.selectedValue`,
+    `AiChoiceSelection`; `AiRepository.send(choice:)` (every fake updated);
+    `AskController.answerChoice` sends the pick (retry keeps it; ignored while a
+    turn is in flight); `widgets/ask/choice_chips.dart` → `choice_card.dart`
+    (violet option rows, localized "90 g · 239 kcal · 12.8 g protein", ring →
+    check, selected/disabled semantics). New ARB key `askChoiceNutrition`
+    (ar is mine — worth a native check).
+  - Tests: functions 612/612 (8 new gateway cases + store `requestId` pin);
+    Flutter `test/ai/ask_choice_test.dart` (9) + 2 controller cases; full suite
+    green except the pre-existing `light_mode_smoke_test` Hub failure.
+  - **Owner action:** `firebase deploy --only functions` (the app half against
+    the old backend still renders nothing new — the old backend never wrote
+    `requestId`).
+
 - **AI food behaviour audit: realistic replacements, real product search,
   choose-before-change, visible fallback** (2026-09-24, on `upgrades`, NOT
   deployed — owner asked to hold the deploy).

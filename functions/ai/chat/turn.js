@@ -24,7 +24,7 @@
 
 const {dayKeyFor, localNowFacts, isUsableOffset} = require("../shared/dates");
 const {tools} = require("../tools/read");
-const {mutatingTools} = require("../tools/mutations");
+const {mutatingTools, mutatingToolsByName} = require("../tools/mutations");
 const {elicitationTools} = require("../tools/elicitations");
 const {foodSearchTools} = require("../tools/food_search_product");
 const {validateAdvice} = require("./validator");
@@ -59,6 +59,12 @@ const {AiFeature, USAGE_SCHEMA_VERSION} = require("../shared/usage_log");
 const {buildSystemBlocks} = require("./context");
 const {persistProposal, persistElicitation} = require("./actions");
 const {
+  bindOfferedOptions,
+  cardFromOffer,
+  resolveChoiceAnswer,
+  selectionNote,
+} = require("./choices");
+const {
   TerminalState,
   terminalStateFor,
   isTransientToolError,
@@ -77,6 +83,7 @@ const MAX_PERSISTED_ACTIVITY = 16;
 const allTools = tools.concat(mutatingTools).concat(elicitationTools)
     .concat(foodSearchTools);
 const allToolsByName = new Map(allTools.map((t) => [t.name, t]));
+const {ASK_CHOICE} = require("../tools/elicitations");
 
 /**
  * Runs one user turn of the Ask conversation: persists the user message,
@@ -133,6 +140,12 @@ const allToolsByName = new Map(allTools.map((t) => [t.name, t]));
  * @param {string} args.uid
  * @param {string} args.conversationId
  * @param {string} args.message
+ * @param {(!Object|undefined)} args.choice A tapped answer to a question card,
+ *   `{requestId, value}` (untrusted). Resolved against the STORED card
+ *   (`choices.js`): the user message becomes that option's label, the card is
+ *   marked answered, and — when the option is bound to a verified change —
+ *   that change is proposed directly with no model call. An unknown, stale or
+ *   already-answered choice is rejected before anything is written.
  * @param {string=} args.responseStyle The user's saved reply-length
  *   preference ('concise'|'balanced'|'detailed'). Anything else (including
  *   omitted) is treated as 'balanced' — never trust client input directly.
@@ -177,6 +190,7 @@ async function runAiTurn({
   uid,
   conversationId,
   message,
+  choice,
   responseStyle,
   now,
   clientClock,
@@ -238,13 +252,32 @@ async function runAiTurn({
     priorUserMessage = prior != null;
   }
 
+  // A tapped choice is resolved against the stored card BEFORE anything is
+  // written, so a stale or forged answer leaves no trace. The persisted user
+  // message is the option's own label — the answer is the structured pick,
+  // not whatever text the client displayed.
+  const picked = choice ? await resolveChoiceAnswer({
+    store, uid, conversationId, choice, isRetry: priorUserMessage,
+  }) : null;
+  const userContent = picked ? picked.option.label : trimmed;
+
   if (!priorUserMessage) {
-    await store.appendMessage(uid, conversationId, {
+    const userMessage = {
       role: "user",
-      content: trimmed,
+      content: userContent,
       createdAt: turnNow,
       clientTurnId,
-    });
+    };
+    if (picked) {
+      userMessage.choice = {
+        requestId: picked.requestId, value: picked.option.value,
+      };
+    }
+    await store.appendMessage(uid, conversationId, userMessage);
+  }
+  if (picked) {
+    await store.markChoiceAnswered(
+        uid, conversationId, picked.requestId, picked.option.value);
   }
   await store.touchConversation(uid, conversationId, {
     title: DEFAULT_CONVERSATION_TITLE,
@@ -255,6 +288,60 @@ async function runAiTurn({
   // The daily cap resets at the USER's midnight, not the server's — "it
   // resets tomorrow" should mean their tomorrow.
   const dayKey = dayKeyFor(turnNow, offsetMinutes);
+
+  // A tapped option that is BOUND to a verified change (a food swap priced by
+  // search_food_alternatives) needs no model at all: the change it means was
+  // fixed when the card was built. It goes through the same validate → verify
+  // → propose path as a model's call — re-proven against the live plan, and
+  // still confirm-gated — so nothing is guessed and nothing is written yet.
+  // If the plan moved under the card, verification fails and the model takes
+  // over below with the failure in hand.
+  let bindingFailure = null;
+  const boundTool = picked && picked.binding ?
+    mutatingToolsByName.get(picked.binding.tool) : null;
+  if (boundTool) {
+    try {
+      const validated = boundTool.validate(picked.binding.input || {});
+      const patch = typeof boundTool.verify === "function" ?
+        await boundTool.verify(
+            {store, uid, validated, now: turnNow, offsetMinutes}) :
+        null;
+      const active = await store.getActivePendingAction(
+          uid, conversationId, turnNow);
+      const status = active ? "proposal-blocked" : "proposed";
+      let proposed = null;
+      if (active) {
+        await store.appendMessage(uid, conversationId, {
+          role: "assistant",
+          content: PENDING_ACTION_MESSAGE,
+          createdAt: clock(),
+          clientTurnId,
+        });
+      } else {
+        emitPhase("preparing_change");
+        proposed = await persistProposal({
+          store, uid, conversationId, tool: boundTool,
+          validated: patch ? Object.assign({}, validated, patch) : validated,
+          clock, ttlMs: cfg.pendingActionTtlMs,
+        });
+      }
+      const terminalState = terminalStateFor(status);
+      emit({type: "phase", phase: "done", status, terminalState,
+        replaced: false});
+      return {
+        status,
+        terminalState,
+        assistantText: proposed ? proposed.summary : PENDING_ACTION_MESSAGE,
+        actionId: proposed ? proposed.actionId : null,
+        requestId: null,
+        validation: null,
+        usage: null,
+      };
+    } catch (err) {
+      bindingFailure = err && err.message ?
+        err.message : "It couldn't be applied.";
+    }
+  }
   const totals = await store.getTodayUsageTotals(uid, dayKey);
   // Checked before ANY model call, so no provider — and no fallback between
   // providers — ever runs for a user who is over ZIVO's own allowance.
@@ -276,7 +363,15 @@ async function runAiTurn({
   const history = await store.getRecentMessages(
       uid, conversationId, cfg.historyWindow);
   const messages = history.map(toNormalizedMessage);
-  messages.push({role: "user", content: trimmed});
+  // History already holds this turn's user message on a retry; the model is
+  // handed the fresh copy below either way (the existing behaviour).
+  let userTurn = picked ? selectionNote(picked) : trimmed;
+  if (bindingFailure) {
+    userTurn += `\n[Proposing that change failed: ${bindingFailure} Re-read ` +
+      "the plan and continue from the user's pick — don't offer the same " +
+      "options again unless they're still valid.]";
+  }
+  messages.push({role: "user", content: userTurn});
 
   const normalizedTools = allTools.map((t) => ({
     name: t.name,
@@ -358,6 +453,10 @@ async function runAiTurn({
   // for one of them is refused in the same turn: DISCOVER → the user CHOOSES
   // → MUTATE, never discover-and-mutate in one go.
   const offered = new Set();
+  // The latest verified option set a search produced this turn
+  // (`tool.choiceOffer`), which an ask_choice is pinned to and which becomes
+  // the card itself if the model answers in prose instead of asking.
+  let offer = null;
   let proposedAction = null;
   // Set when a valid elicitation (ask_choice) ended the turn — the persisted
   // question card the client renders, awaiting the user's answer.
@@ -557,7 +656,13 @@ async function runAiTurn({
       if (tool && tool.elicits) {
         if (proposal || elicitation) continue;
         try {
-          elicitation = {tool, validated: tool.validate(block.input || {})};
+          const spec = tool.validate(block.input || {});
+          // A choice after a verified search offers only what was verified —
+          // with the server's figures and the change each one means.
+          const bound = tool === ASK_CHOICE ?
+            bindOfferedOptions(spec, offer) : {spec, bindings: null};
+          elicitation = {tool, validated: bound.spec,
+            bindings: bound.bindings};
         } catch (err) {
           toolResults.push({
             type: "tool_result",
@@ -606,6 +711,13 @@ async function runAiTurn({
                 Array.isArray(resultPayload.alternatives) &&
                 resultPayload.alternatives.length > 1) {
               offered.add(block.name);
+            }
+            if (typeof tool.choiceOffer === "function") {
+              const options =
+                tool.choiceOffer(resultPayload, block.input || {});
+              if (options && options.length >= 2) {
+                offer = {tool: block.name, options};
+              }
             }
             break;
           } catch (err) {
@@ -676,6 +788,7 @@ async function runAiTurn({
         conversationId,
         tool: elicitation.tool,
         validated: elicitation.validated,
+        bindings: elicitation.bindings,
         clock,
       });
       break;
@@ -692,6 +805,20 @@ async function runAiTurn({
     messages.push({role: "user", content: toolResults});
 
     if (usage.total > cfg.perTurnTokenCeiling) tokenBudgetSpent = true;
+  }
+
+  // The safety net: the turn verified options but the model answered in prose
+  // (typically listing them as bullets) instead of asking. The card is built
+  // from the verified offer itself, so options are never shown as text the
+  // user has to retype — and never promised without being shown.
+  if (offer && finalText && !elicitedRequest && !proposedAction &&
+      !refusal && !cancelled && !toolErrorHit) {
+    const card = cardFromOffer(offer, finalText, replyLanguageFor(trimmed));
+    emitPhase("awaiting_input");
+    elicitedRequest = await persistElicitation({
+      store, uid, conversationId, tool: ASK_CHOICE,
+      validated: card.spec, bindings: card.bindings, clock,
+    });
   }
 
   let status = "ok";

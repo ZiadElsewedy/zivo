@@ -6,6 +6,7 @@ import '../../diet/domain/nutrition_targets.dart';
 import '../../diet/domain/plan_preferences.dart';
 import '../../workout/domain/workout_import_input.dart';
 import '../../workout/domain/workout_import_outcome.dart';
+import 'ai_choice_request.dart';
 import 'ai_conversation.dart';
 import 'ai_message.dart';
 import 'ai_model_selection.dart';
@@ -126,6 +127,11 @@ abstract interface class AiRepository {
     /// reply instead of generating a second one when a retry races a slow
     /// first attempt that actually succeeded server-side.
     String? clientTurnId,
+
+    /// Set when this turn answers a question card by tap: the card and the
+    /// option's stable id. The server resolves the answer from it (and
+    /// rejects a stale or unknown one) — [text] is only what the bubble shows.
+    AiChoiceSelection? choice,
   });
 
   /// Confirms a proposed action (ADR-003), executing its write server-side via

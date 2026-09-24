@@ -129,7 +129,7 @@ void main() {
         firestore: firestore,
         uidSource: _signedInAs('test-uid'),
         invokeChat:
-            (conversationId, message, responseStyle, provider, clientTurnId) async {
+            (conversationId, message, responseStyle, provider, clientTurnId, _) async {
           calls.add((conversationId, message, responseStyle, provider));
         },
       );
@@ -171,7 +171,7 @@ void main() {
         firestore: firestore,
         uidSource: _signedInAs('test-uid'),
         invokeChat:
-            (conversationId, message, responseStyle, provider, clientTurnId) async {
+            (conversationId, message, responseStyle, provider, clientTurnId, _) async {
           callCount++;
         },
       );

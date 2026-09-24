@@ -143,3 +143,45 @@ test("the chat cap counts fresh tokens — cache reads of ZIVO's own prompt " +
   // Counted the old way this was 568,854 — over the 500K ceiling.
   assert.ok(totals.tokens < 500000);
 });
+
+// --- Question cards keep what the app and the answer path need ---------------
+
+/**
+ * An Admin-SDK look-alike for `appendMessage`: records the doc it sets.
+ * @return {{db: !Object, written: !Array<!Object>}}
+ */
+function fakeMessageDb() {
+  const written = [];
+  const ref = {id: "m-1", set: async (data) => written.push(data)};
+  const chain = {
+    collection: () => chain,
+    doc: () => Object.assign({}, chain, ref),
+  };
+  return {db: chain, written};
+}
+
+test("a choice card persists its requestId and bindings; a tapped answer " +
+    "persists its structured pick", async () => {
+  // The bug this pins: appendMessage dropped `requestId`, so the app's
+  // `_choiceRequestFrom` returned null and every choice card rendered as a
+  // plain text bubble.
+  const {FirestoreStore} = require("./store");
+  const {db, written} = fakeMessageDb();
+  const store = new FirestoreStore(db);
+  await store.appendMessage("u", "c", {
+    role: "assistant", kind: "choice_request", content: "Which one?",
+    requestId: "req-1", status: "pending",
+    fields: {options: [{value: "a", label: "A"}, {value: "b", label: "B"}]},
+    bindings: {a: {tool: "replace_meal_item", input: {foodId: "a"}}},
+    createdAt: new Date(0),
+  });
+  await store.appendMessage("u", "c", {
+    role: "user", content: "A", choice: {requestId: "req-1", value: "a"},
+    createdAt: new Date(1),
+  });
+  assert.equal(written[0].requestId, "req-1");
+  assert.deepEqual(written[0].bindings,
+      {a: {tool: "replace_meal_item", input: {foodId: "a"}}});
+  assert.deepEqual(written[1].choice, {requestId: "req-1", value: "a"});
+  assert.equal(written[1].kind, undefined);
+});

@@ -10,6 +10,8 @@ import '../../workout/domain/workout_import_input.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
 import '../domain/ai_conversation.dart';
+import '../domain/ai_choice_request.dart';
+import '../domain/ai_failure.dart';
 import '../domain/ai_message.dart';
 import '../domain/ai_model_selection.dart';
 import '../domain/ai_pending_action.dart';
@@ -349,11 +351,42 @@ class FakeAiRepository implements AiRepository {
     String responseStyle = kDefaultResponseStyle,
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
+    AiChoiceSelection? choice,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
     final convo = _conversations[conversationId];
     if (convo == null) return;
+
+    // A tapped answer is resolved against the stored card, as the gateway
+    // does (`functions/ai/chat/choices.js`): an unknown card or option, or a
+    // card already answered, is rejected before anything is written, and the
+    // user message is the option's own label.
+    var userContent = trimmed;
+    if (choice != null) {
+      final index = convo.messages.indexWhere(
+        (m) => m.choiceRequest?.requestId == choice.requestId,
+      );
+      final card = index < 0 ? null : convo.messages[index].choiceRequest;
+      final option = card?.options
+          .where((o) => o.value == choice.value)
+          .firstOrNull;
+      if (card == null || option == null || card.selectedValue != null) {
+        throw const AiFailure(AiFailureKind.unknown);
+      }
+      userContent = option.label;
+      final message = convo.messages[index];
+      convo.messages[index] = message.copyWith(
+        choiceRequest: AiChoiceRequest(
+          requestId: card.requestId,
+          prompt: card.prompt,
+          options: card.options,
+          allowMultiple: card.allowMultiple,
+          selectedValue: option.value,
+        ),
+      );
+      lastChoice = choice;
+    }
 
     onEvent?.call(const AiPhaseEvent(AiPhase.understanding));
 
@@ -362,7 +395,7 @@ class FakeAiRepository implements AiRepository {
       AiMessage(
         id: userId,
         role: AiRole.user,
-        content: trimmed,
+        content: userContent,
         createdAt: userCreatedAt,
         clientTurnId: clientTurnId,
       ),
@@ -421,6 +454,39 @@ class FakeAiRepository implements AiRepository {
     _emitConversations();
     convo.controller.add(List.unmodifiable(convo.messages));
     onEvent?.call(const AiPhaseEvent(AiPhase.done));
+  }
+
+  /// The last tapped answer [send] resolved — test hook.
+  AiChoiceSelection? lastChoice;
+
+  /// Appends an assistant question card (tappable options) to
+  /// [conversationId] (defaulting to the conversation [ensureConversation]
+  /// created). Test/offline-demo hook. Returns the card's requestId.
+  String askChoice({
+    String? conversationId,
+    required String prompt,
+    required List<AiChoiceOption> options,
+  }) {
+    final convo = _conversations[conversationId ?? _defaultConversationId];
+    if (convo == null) return '';
+    final (id, createdAt) = _next();
+    convo.messages.add(
+      AiMessage(
+        id: id,
+        role: AiRole.assistant,
+        content: prompt,
+        createdAt: createdAt,
+        choiceRequest: AiChoiceRequest(
+          requestId: 'req-$id',
+          prompt: prompt,
+          options: options,
+        ),
+      ),
+    );
+    convo.updatedAt = createdAt;
+    _emitConversations();
+    convo.controller.add(List.unmodifiable(convo.messages));
+    return 'req-$id';
   }
 
   /// Appends an assistant proposal (confirmation card) to [conversationId]

@@ -94,6 +94,15 @@ function makeStore(overrides) {
     saveCustomFood: async (uid, data) => writes.customFoods.push(data),
     savePlanDays: async (uid, planId, days) =>
       writes.planDays.push({uid, planId, days}),
+    // Question cards are messages with a requestId (as in store.js).
+    getChoiceRequest: async (uid, cid, requestId) => {
+      const m = messages.find((x) => x.requestId === requestId);
+      return m ? Object.assign({selectedValue: null}, m) : null;
+    },
+    markChoiceAnswered: async (uid, cid, requestId, value) => {
+      const m = messages.find((x) => x.requestId === requestId);
+      if (m) Object.assign(m, {status: "answered", selectedValue: value});
+    },
   };
   return Object.assign(store, overrides || {});
 }
@@ -1091,10 +1100,12 @@ async () => {
     // …is told to ask instead, and does.
     toolUse("ask_choice", {
       prompt: "ممكن تستبدل الملوخية بـ:",
+      // Referenced by the names the search priced (a value it never returned
+      // would be dropped); the model's own subtitle figures are ignored.
       options: [
-        {value: "food-a", label: "فاصوليا خضراء", subtitle: "200 g · 70 kcal"},
-        {value: "food-b", label: "كوسة", subtitle: "400 g · 60 kcal"},
-        {value: "food-c", label: "بامية", subtitle: "320 g · 70 kcal"},
+        {value: "green beans", label: "فاصوليا خضراء", subtitle: "1 kcal"},
+        {value: "zucchini", label: "كوسة"},
+        {value: "okra", label: "بامية"},
       ],
     }, "t-ask"),
   ]);
@@ -1119,6 +1130,21 @@ async () => {
   const steps = events.filter((e) => e.type === "step" && e.status === "ok")
       .map((e) => e.tool);
   assert.deepEqual(steps, ["get_diet", "search_food_alternatives"]);
+  // The card carries the verified options: the model's labels, the server's
+  // foodIds and figures, and the exact swap each one means.
+  const card = store.messages.find((m) => m.kind === "choice_request");
+  assert.deepEqual(card.fields.options.map((o) => o.label),
+      ["فاصوليا خضراء", "كوسة", "بامية"]);
+  for (const o of card.fields.options) {
+    assert.notEqual(o.subtitle, "1 kcal");
+    assert.match(o.subtitle, /^\d+ g · \d+ kcal · [\d.]+ g protein$/);
+    assert.ok(Number.isFinite(o.metadata.kcal));
+    const binding = card.bindings[o.value];
+    assert.equal(binding.tool, "replace_meal_item");
+    assert.equal(binding.input.foodId, o.value);
+    assert.equal(binding.input.mealId, "lunch-1");
+    assert.equal(binding.input.quantity, o.metadata.grams);
+  }
 });
 
 test("'option 2' next turn: the model sees the numbered options and the " +
@@ -1155,4 +1181,315 @@ test("'option 2' next turn: the model sees the numbered options and the " +
   assert.equal(result.status, "proposed");
   const pending = store.pendingActions.get(result.actionId);
   assert.equal(pending.status, "pending", "still needs the user's Confirm");
+});
+
+// ---- Structured choices: verified options → tap → resolve by id -------------
+
+/**
+ * A plan whose breakfast is eggs — the "I don't want egg" scenario — built
+ * fresh per test, since a confirmed swap mutates the plan it's handed.
+ * @return {!Object}
+ */
+function eggPlan() {
+  return {
+    id: "plan-1",
+    name: "Cut",
+    status: "active",
+    days: [{
+      weekday: null,
+      label: "Every day",
+      meals: [{
+        id: "breakfast-1",
+        label: "Breakfast",
+        items: [
+          {name: "Eggs", quantity: 2, unit: "piece", calories: 240,
+            proteinG: 12, carbsG: 1, fatG: 10},
+          {name: "Bread", quantity: 60, unit: "g", calories: 160,
+            proteinG: 5, carbsG: 30, fatG: 2},
+        ],
+      }],
+    }],
+  };
+}
+
+/**
+ * A store holding `plan` (default: a fresh eggPlan) with the diet reads
+ * stubbed empty.
+ * @param {!Object=} plan
+ * @return {!Object}
+ */
+function eggStore(plan) {
+  const p = plan || eggPlan();
+  return makeStore({
+    plan: p,
+    getActiveDietPlan: async () => p,
+    getDietTargets: async () => null,
+    getBodyProfile: async () => null,
+    getDateOfBirthMs: async () => null,
+    listBodyWeights: async () => [],
+    listDietEntries: async () => [],
+    listFoodLogs: async () => [],
+    listFoodLogRange: async () => [],
+    findMessageByClientTurnId: async () => null,
+  });
+}
+
+const EGG_SEARCH = {
+  mealId: "breakfast-1", itemIndex: 0, itemName: "Eggs",
+  candidates: [
+    {name: "feta cheese"}, {name: "tuna salad"}, {name: "turkey breast"},
+  ],
+};
+
+const FETA = "usda:173420";
+const TUNA = "usda:175160";
+const TURKEY = "usda:171501";
+
+/**
+ * Runs the discovery turn ("I don't want egg") to a choice card.
+ * @param {!Object} store
+ * @param {!Object=} lastResponse What the model does after the search.
+ * @return {!Promise<!Object>} The turn result.
+ */
+async function discoverEggSwaps(store, lastResponse) {
+  const callModel = scriptedModel([
+    toolUse("get_diet", {}, "t-diet"),
+    toolUse("search_food_alternatives", EGG_SEARCH, "t-search"),
+    lastResponse || toolUse("ask_choice", {
+      prompt: "I found 3 verified swaps that are close to the original " +
+        "calories. Which one would you like?",
+      options: [
+        {value: FETA, label: "Feta cheese"},
+        {value: TUNA, label: "Tuna salad"},
+        {value: TURKEY, label: "Turkey breast"},
+      ],
+    }, "t-ask"),
+  ]);
+  return runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "I don't want to eat egg in my breakfast", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0},
+  });
+}
+
+test("structured choices: verified swaps become a choice card with the " +
+    "server's figures — and nothing is proposed or written", async () => {
+  const store = eggStore();
+  const result = await discoverEggSwaps(store);
+
+  assert.equal(result.status, "awaiting-input");
+  assert.ok(result.requestId);
+  const card = store.messages.find((m) => m.kind === "choice_request");
+  assert.equal(card.requestId, result.requestId);
+  assert.deepEqual(card.fields.options, [
+    {value: FETA, label: "Feta cheese",
+      subtitle: "90 g · 239 kcal · 12.8 g protein",
+      metadata: {grams: 90, kcal: 239, proteinG: 12.8, carbsG: 3.5,
+        fatG: 19.4}},
+    {value: TUNA, label: "Tuna salad",
+      subtitle: "130 g · 243 kcal · 20.8 g protein",
+      metadata: {grams: 130, kcal: 243, proteinG: 20.8, carbsG: 12.2,
+        fatG: 12.1}},
+    {value: TURKEY, label: "Turkey breast",
+      subtitle: "190 g · 239 kcal · 42.2 g protein",
+      metadata: {grams: 190, kcal: 239, proteinG: 42.2, carbsG: 0, fatG: 6.7}},
+  ]);
+  assert.deepEqual(card.bindings[TUNA], {
+    tool: "replace_meal_item",
+    input: {mealId: "breakfast-1", itemIndex: 0, itemName: "Eggs",
+      foodId: TUNA, quantity: 130, unit: "g"},
+  });
+  // Mutation only after selection.
+  assert.equal(store.pendingActions.size, 0);
+  assert.equal(store.writes.planDays.length, 0);
+});
+
+test("structured choices: an option the search never verified is dropped, " +
+    "not rendered", async () => {
+  const store = eggStore();
+  await discoverEggSwaps(store, toolUse("ask_choice", {
+    prompt: "Which one?",
+    options: [
+      {value: FETA, label: "Feta cheese"},
+      {value: "usda:000000", label: "Invented omelette", subtitle: "9 kcal"},
+      {value: TURKEY, label: "Turkey breast"},
+    ],
+  }, "t-ask"));
+  const card = store.messages.find((m) => m.kind === "choice_request");
+  assert.deepEqual(card.fields.options.map((o) => o.value), [FETA, TURKEY]);
+});
+
+test("structured choices: a reply that lists the options as bullets still " +
+    "ships the card, built from the verified options", async () => {
+  const store = eggStore();
+  const result = await discoverEggSwaps(store, textResponse(
+      "I found 3 verified swaps close to the original calories:\n" +
+      "- Feta cheese — 90 g\n- Tuna salad — 130 g\n- Turkey breast — 190 g"));
+
+  assert.equal(result.status, "awaiting-input");
+  const card = store.messages.find((m) => m.kind === "choice_request");
+  assert.equal(card.content,
+      "I found 3 verified swaps close to the original calories:");
+  assert.deepEqual(card.fields.options.map((o) => o.value),
+      [FETA, TUNA, TURKEY]);
+  assert.ok(card.bindings[FETA]);
+  // No second, plain-text copy of the list.
+  assert.equal(store.messages.filter((m) =>
+    m.role === "assistant" && !m.kind).length, 0);
+});
+
+test("structured choices: zero verified options → no card, a normal reply",
+    async () => {
+      const store2 = eggStore();
+      const callModel = scriptedModel([
+        toolUse("search_food_alternatives", Object.assign({}, EGG_SEARCH, {
+          candidates: [{name: "zzqx unobtainium"}, {name: "qqzv nothing"}],
+        }), "t-search"),
+        textResponse("I couldn't find a swap I can price — what would you " +
+          "like instead?"),
+      ]);
+      const r2 = await runAiTurn({
+        store: store2, callModel, uid: UID, conversationId: CONVERSATION_ID,
+        message: "I don't want egg", now: makeClock(1000),
+        clientClock: {offsetMinutes: 0},
+      });
+      assert.equal(r2.status, "ok");
+      assert.equal(r2.requestId, null);
+      assert.equal(store2.messages.filter((m) =>
+        m.kind === "choice_request").length, 0);
+    });
+
+test("structured choices: tapping an option resolves it by id and proposes " +
+    "exactly that swap — no model call; confirm then writes it", async () => {
+  const store = eggStore();
+  const first = await discoverEggSwaps(store);
+  const callModel = scriptedModel([textResponse("should not be reached")]);
+
+  const result = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    // Whatever the client displayed, the pick is the structured choice.
+    message: "something the client displayed",
+    choice: {requestId: first.requestId, value: TUNA},
+    clientTurnId: "turn-2",
+    now: makeClock(5000), clientClock: {offsetMinutes: 0},
+  });
+
+  assert.equal(callModel.callCount(), 0, "the model never guesses the pick");
+  assert.equal(result.status, "proposed");
+  assert.equal(result.terminalState, "needs_user_input");
+  const user = store.messages.filter((m) => m.role === "user").pop();
+  assert.equal(user.content, "Tuna salad", "the option's own label");
+  assert.deepEqual(user.choice, {requestId: first.requestId, value: TUNA});
+  const card = store.messages.find((m) => m.kind === "choice_request");
+  assert.equal(card.status, "answered");
+  assert.equal(card.selectedValue, TUNA);
+
+  const pending = store.pendingActions.get(result.actionId);
+  assert.equal(pending.tool, "replace_meal_item");
+  assert.equal(pending.input.item.foodId, TUNA);
+  assert.equal(pending.input.newItem.quantity, 130);
+  assert.equal(store.writes.planDays.length, 0, "not written before confirm");
+
+  await confirmAction({
+    store, uid: UID, conversationId: CONVERSATION_ID,
+    actionId: result.actionId, now: makeClock(9000),
+  });
+  assert.equal(store.writes.planDays.length, 1);
+  const swapped = store.plan.days[0].meals[0].items[0];
+  assert.equal(swapped.quantity, 130);
+  assert.equal(swapped.calories, 243);
+});
+
+test("structured choices: an unknown option, an unknown card and a " +
+    "re-answered card are rejected before anything is written", async () => {
+  const store = eggStore();
+  const first = await discoverEggSwaps(store);
+  const before = store.messages.length;
+  const turn = (choice) => runAiTurn({
+    store, callModel: scriptedModel([textResponse("x")]), uid: UID,
+    conversationId: CONVERSATION_ID, message: "pick", choice,
+    now: makeClock(5000), clientClock: {offsetMinutes: 0},
+  });
+
+  await assert.rejects(turn({requestId: first.requestId, value: "usda:1"}),
+      (e) => e instanceof GatewayError && e.code === "invalid-argument");
+  await assert.rejects(turn({requestId: "no-such-card", value: FETA}),
+      (e) => e instanceof GatewayError && e.code === "not-found");
+  await assert.rejects(turn({requestId: first.requestId}),
+      (e) => e instanceof GatewayError && e.code === "invalid-argument");
+  assert.equal(store.messages.length, before, "nothing persisted");
+
+  await turn({requestId: first.requestId, value: FETA});
+  const after = store.messages.length;
+  await assert.rejects(turn({requestId: first.requestId, value: TUNA}),
+      (e) => e instanceof GatewayError && e.code === "failed-precondition");
+  assert.equal(store.messages.length, after, "a stale card stays answered once");
+  assert.equal(store.pendingActions.size, 1);
+});
+
+test("structured choices: a bound pick whose item moved hands the model the " +
+    "pick and the failure instead of proposing a stale swap", async () => {
+  const plan = eggPlan();
+  const store = eggStore(plan);
+  const first = await discoverEggSwaps(store);
+  // The plan changes under the card.
+  plan.days[0].meals[0].items.reverse();
+  const callModel = scriptedModel([textResponse("Your breakfast changed — " +
+    "want me to look again?")]);
+  const result = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "Feta cheese", choice: {requestId: first.requestId, value: FETA},
+    now: makeClock(5000), clientClock: {offsetMinutes: 0},
+  });
+  assert.equal(result.status, "ok");
+  assert.equal(store.pendingActions.size, 0);
+  const sent = callModel.requests[0].messages.pop().content;
+  assert.match(sent, /value=usda:173420/);
+  assert.match(sent, /Proposing that change failed/);
+});
+
+test("structured choices are generic: an unbound question's pick reaches " +
+    "the model as its exact option, across different scenarios", async () => {
+  for (const scenario of [
+    {prompt: "Which plan do you want?", options: [
+      {value: "plan-cut", label: "Cut — 2,000 kcal"},
+      {value: "plan-maintain", label: "Maintain"},
+    ], pick: "plan-maintain"},
+    {prompt: "Which version?", options: [
+      {value: "recommended", label: "Recommended"},
+      {value: "higher-protein", label: "Higher protein"},
+      {value: "lower-calorie", label: "Lower calorie"},
+    ], pick: "higher-protein"},
+    {prompt: "Today's session?", options: [
+      {value: "push", label: "Push day"},
+      {value: "rest", label: "Rest"},
+    ], pick: "rest"},
+  ]) {
+    const store = makeStore();
+    const ask = await runAiTurn({
+      store, callModel: scriptedModel([toolUse("ask_choice", {
+        prompt: scenario.prompt, options: scenario.options,
+      })]),
+      uid: UID, conversationId: CONVERSATION_ID, message: "help me decide",
+      now: makeClock(1000),
+    });
+    const card = store.messages.find((m) => m.kind === "choice_request");
+    assert.equal(card.bindings, null, "a plain question binds no change");
+
+    const callModel = scriptedModel([textResponse("Got it.")]);
+    const answer = await runAiTurn({
+      store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+      message: "ignored", choice: {requestId: ask.requestId,
+        value: scenario.pick},
+      now: makeClock(5000),
+    });
+    assert.equal(answer.status, "ok");
+    const label = scenario.options.find((o) => o.value === scenario.pick).label;
+    const sent = callModel.requests[0].messages.pop().content;
+    assert.ok(sent.startsWith(label));
+    assert.match(sent, new RegExp(`value=${scenario.pick}`));
+    assert.equal(store.messages.filter((m) => m.role === "user").pop().content,
+        label);
+    assert.equal(store.pendingActions.size, 0);
+  }
 });

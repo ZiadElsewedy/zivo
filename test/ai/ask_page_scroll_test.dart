@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/domain/ai_conversation.dart';
+import 'package:zivo/features/ai/domain/ai_choice_request.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_turn_usage.dart';
@@ -56,6 +57,7 @@ class _LongThreadAi implements AiRepository {
     String responseStyle = kDefaultResponseStyle,
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
+    AiChoiceSelection? choice,
   }) async {
     onEvent?.call(const AiPhaseEvent(AiPhase.done));
   }

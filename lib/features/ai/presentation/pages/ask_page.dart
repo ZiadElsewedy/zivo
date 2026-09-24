@@ -25,7 +25,7 @@ import '../widgets/ask/error_retry.dart';
 import '../widgets/ask/message_bubble.dart';
 import '../widgets/ask/message_details_sheet.dart';
 import '../../data/repository_body_data_writer.dart';
-import '../widgets/ask/choice_chips.dart';
+import '../widgets/ask/choice_card.dart';
 import '../widgets/ask/input_request_card.dart';
 import '../widgets/ask/proposal_card.dart';
 import '../widgets/ask/sessions_sheet.dart';
@@ -723,12 +723,13 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                           final inputReq = message.inputRequest;
                                           Widget content;
                                           if (choice != null) {
-                                            content = ChoiceChips(
+                                            content = ChoiceCard(
                                               request: choice,
-                                              pickedValue: _c.answeredChoices[choice
-                                                  .requestId],
-                                              onSelect: (value, label) => _c
-                                                  .answerChoice(
+                                              pickedValue: _c.pickedValueFor(
+                                                choice,
+                                              ),
+                                              onSelect: (value, label) =>
+                                                  _c.answerChoice(
                                                     choice.requestId,
                                                     value,
                                                     label,

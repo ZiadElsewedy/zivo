@@ -572,8 +572,24 @@ class FirestoreStore {
     // action's lifecycle (pending → applied/cancelled/expired) so the card
     // reflects the true server state — including on reopen and however it was
     // resolved (button tap or otherwise) — not just an optimistic client flag.
+    // A user message that answers a question card carries the structured
+    // pick `{requestId, value}` — the answer itself, not its label.
+    if (message.choice && message.choice.requestId) {
+      data.choice = {
+        requestId: String(message.choice.requestId),
+        value: String(message.choice.value),
+      };
+    }
     if (message.kind) {
       data.kind = message.kind;
+      // A question card's id — the client answers it by this, and the server
+      // looks it up by it (`getChoiceRequest`). Without it the app can't
+      // render the card at all and falls back to a plain text bubble.
+      if (message.requestId) data.requestId = message.requestId;
+      // Server-side resolution of a choice card (option value → the verified
+      // change choosing it means). Written only here, by the gateway; the
+      // messages rule makes it read-only to the client.
+      if (message.bindings) data.bindings = message.bindings;
       data.actionId = message.actionId || null;
       data.actionKind = message.actionKind || null;
       data.fields = message.fields || null;
@@ -655,10 +671,61 @@ class FirestoreStore {
             m.kind = d.kind;
             m.fields = d.fields || null;
             m.status = d.status || null;
+            if (d.selectedValue) m.selectedValue = d.selectedValue;
           }
+          if (d.choice) m.choice = d.choice;
           return m;
         })
         .reverse();
+  }
+
+  /**
+   * The `choice_request` card with this `requestId`, or null — what a tapped
+   * answer is resolved against (`../chat/choices.js`).
+   * @param {string} uid
+   * @param {string} conversationId
+   * @param {string} requestId
+   * @return {!Promise<?Object>}
+   */
+  async getChoiceRequest(uid, conversationId, requestId) {
+    const snap = await this._user(uid)
+        .collection("aiConversations")
+        .doc(conversationId)
+        .collection("messages")
+        .where("requestId", "==", requestId)
+        .limit(1)
+        .get();
+    if (snap.empty) return null;
+    const d = snap.docs[0].data();
+    return {
+      kind: d.kind || null,
+      content: d.content || "",
+      fields: d.fields || null,
+      bindings: d.bindings || null,
+      status: d.status || null,
+      selectedValue: d.selectedValue || null,
+    };
+  }
+
+  /**
+   * Marks a question card answered with the option the user tapped, so it
+   * renders settled on every device and can't be answered twice.
+   * @param {string} uid
+   * @param {string} conversationId
+   * @param {string} requestId
+   * @param {string} value
+   * @return {!Promise<void>}
+   */
+  async markChoiceAnswered(uid, conversationId, requestId, value) {
+    const snap = await this._user(uid)
+        .collection("aiConversations")
+        .doc(conversationId)
+        .collection("messages")
+        .where("requestId", "==", requestId)
+        .limit(1)
+        .get();
+    if (snap.empty) return;
+    await snap.docs[0].ref.update({status: "answered", selectedValue: value});
   }
 
   /**

@@ -2318,6 +2318,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askProposalConfirm => 'Confirm';
 
   @override
+  String askChoiceNutrition(String grams, String kcal, String protein) {
+    return '$grams g · $kcal kcal · $protein g protein';
+  }
+
+  @override
   String get askActionNewExpense => 'New expense';
 
   @override

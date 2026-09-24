@@ -215,6 +215,7 @@ class FirebaseAiRepository implements AiRepository {
       String responseStyle,
       String provider,
       String? clientTurnId,
+      AiChoiceSelection? choice,
     )?
     invokeChat,
     Future<void> Function(
@@ -223,6 +224,7 @@ class FirebaseAiRepository implements AiRepository {
       String responseStyle,
       String provider,
       String? clientTurnId,
+      AiChoiceSelection? choice,
       void Function(AiTurnEvent event) onEvent,
     )?
     invokeChatStream,
@@ -272,6 +274,7 @@ class FirebaseAiRepository implements AiRepository {
     String responseStyle,
     String provider,
     String? clientTurnId,
+    AiChoiceSelection? choice,
   )
   _invokeChat;
   final Future<void> Function(
@@ -280,6 +283,7 @@ class FirebaseAiRepository implements AiRepository {
     String responseStyle,
     String provider,
     String? clientTurnId,
+    AiChoiceSelection? choice,
     void Function(AiTurnEvent event) onEvent,
   )
   _invokeChatStream;
@@ -323,9 +327,17 @@ class FirebaseAiRepository implements AiRepository {
     String responseStyle,
     String provider,
     String? clientTurnId,
+    AiChoiceSelection? choice,
   )
   _defaultInvokeChat(FirebaseFunctions? functions) {
-    return (conversationId, message, responseStyle, provider, clientTurnId) async {
+    return (
+      conversationId,
+      message,
+      responseStyle,
+      provider,
+      clientTurnId,
+      choice,
+    ) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
       await f
@@ -334,15 +346,22 @@ class FirebaseAiRepository implements AiRepository {
             options: HttpsCallableOptions(timeout: kAiChatCallTimeout),
           )
           .call({
-        'conversationId': conversationId,
-        'message': message,
-        'responseStyle': responseStyle,
-        'provider': provider,
-        'clientTurnId': ?clientTurnId,
-        ...clientClockFields(),
-      });
+            'conversationId': conversationId,
+            'message': message,
+            'responseStyle': responseStyle,
+            'provider': provider,
+            'clientTurnId': ?clientTurnId,
+            'choice': ?_choicePayload(choice),
+            ...clientClockFields(),
+          });
     };
   }
+
+  /// The wire shape of a tapped answer — the card and the option's stable id.
+  static Map<String, String>? _choicePayload(AiChoiceSelection? choice) =>
+      choice == null
+      ? null
+      : {'requestId': choice.requestId, 'value': choice.value};
 
   /// The default streaming `send` invoker: consumes `aiChat` over callable
   /// streaming (`httpsCallable.stream()`), forwarding each phase/delta chunk to
@@ -360,6 +379,7 @@ class FirebaseAiRepository implements AiRepository {
     String responseStyle,
     String provider,
     String? clientTurnId,
+    AiChoiceSelection? choice,
     void Function(AiTurnEvent event) onEvent,
   )
   _defaultInvokeChatStream(FirebaseFunctions? functions) {
@@ -369,6 +389,7 @@ class FirebaseAiRepository implements AiRepository {
       responseStyle,
       provider,
       clientTurnId,
+      choice,
       onEvent,
     ) async {
       final f =
@@ -379,14 +400,15 @@ class FirebaseAiRepository implements AiRepository {
             options: HttpsCallableOptions(timeout: kAiChatCallTimeout),
           )
           .stream({
-        'conversationId': conversationId,
-        'message': message,
-        'responseStyle': responseStyle,
-        'provider': provider,
-        'acceptsStreaming': true,
-        'clientTurnId': ?clientTurnId,
-        ...clientClockFields(),
-      });
+            'conversationId': conversationId,
+            'message': message,
+            'responseStyle': responseStyle,
+            'provider': provider,
+            'acceptsStreaming': true,
+            'clientTurnId': ?clientTurnId,
+            'choice': ?_choicePayload(choice),
+            ...clientClockFields(),
+          });
       await for (final response in stream) {
         if (response is Chunk) {
           final event = aiTurnEventFromChunk(response.partialData);
@@ -782,6 +804,7 @@ class FirebaseAiRepository implements AiRepository {
     String responseStyle = kDefaultResponseStyle,
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
+    AiChoiceSelection? choice,
   }) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return Future.value();
@@ -799,6 +822,7 @@ class FirebaseAiRepository implements AiRepository {
               responseStyle,
               provider,
               clientTurnId,
+              choice,
             )
           : _invokeChatStream(
               conversationId,
@@ -806,6 +830,7 @@ class FirebaseAiRepository implements AiRepository {
               responseStyle,
               provider,
               clientTurnId,
+              choice,
               onEvent,
             ),
     );
@@ -1105,11 +1130,18 @@ class FirebaseAiRepository implements AiRepository {
       final label = o['label'] as String?;
       if (label == null || label.isEmpty) continue;
       final subtitle = o['subtitle'] as String?;
+      final rawMeta = o['metadata'];
       options.add(
         AiChoiceOption(
           value: (o['value'] as String?) ?? label,
           label: label,
           subtitle: subtitle != null && subtitle.isNotEmpty ? subtitle : null,
+          metadata: {
+            if (rawMeta is Map)
+              for (final e in rawMeta.entries)
+                if (e.key is String && e.value is num)
+                  e.key as String: e.value as num,
+          },
         ),
       );
     }
@@ -1129,11 +1161,19 @@ class FirebaseAiRepository implements AiRepository {
     if (fields is! Map) return null;
     final options = _optionsFrom(fields['options']);
     if (options.length < 2) return null;
+    final selected = data['selectedValue'] as String?;
     return AiChoiceRequest(
       requestId: requestId,
       prompt: data['content'] as String? ?? '',
       options: options,
       allowMultiple: fields['allowMultiple'] == true,
+      // Only an answer that is one of the options counts — a stray value
+      // would leave every option dimmed and none picked.
+      selectedValue:
+          data['status'] == 'answered' &&
+              options.any((o) => o.value == selected)
+          ? selected
+          : null,
     );
   }
 

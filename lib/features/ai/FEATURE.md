@@ -45,8 +45,12 @@ tree. The `ask_page_*_test.dart` suite still covers what the screen renders.
 `ai_conversation.dart`, `ai_message.dart`, `ai_role.dart`, `ai_turn_event.dart`
 (server-authoritative phase events driving the activity rail), `ai_pending_action.dart`
 (a proposed write awaiting confirm), `ai_choice_request.dart` (an assistant question with
-option chips — Ask elicitation Phase 1; rendered by `widgets/ask/choice_chips.dart`,
-answered via `AskController.answerChoice`), `ai_input_request.dart` (an assistant form
+tappable options — `AiChoiceOption{value (stable id), label, subtitle?, metadata}` +
+server-recorded `selectedValue`; rendered by `widgets/ask/choice_card.dart` as native
+violet option rows, answered via `AskController.answerChoice`, which sends an
+`AiChoiceSelection{requestId, value}` through `AiRepository.send(choice:)` — the server
+resolves the pick from the stored card, never from the label; contract in
+`functions/ai/chat/choices.js`), `ai_input_request.dart` (an assistant form
 asking for typed values — Phase 2; rendered by `widgets/ask/input_request_card.dart`,
 answered via `AskController.submitInput`), `body_data_writer.dart` (Phase 3 — the seam the
 input form persists height/weight through; impl `data/repository_body_data_writer.dart`

@@ -16,7 +16,9 @@ const ELICITATION = `ASKING THE USER (clarify, don't guess):
   you could do from their own data.
 - When a good answer depends on a choice only the user can make, call ask_choice
   with 2–5 concrete options rather than guessing or listing the options as
-  plain text. The turn pauses and their pick returns as the next message.
+  plain text — never write choices as bullets or a numbered list for the user
+  to retype. The turn pauses; their tap returns as the next message, marked
+  with the option's value — continue from that exact option.
 - When you need a specific value the user hasn't given and no tool has (a
   height, a target weight), call request_input with a small form — 1–4 fields,
   each with a clear label and, for a number, a unit. The turn pauses and their

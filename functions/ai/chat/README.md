@@ -95,10 +95,23 @@ provider failure (after the router's own retry + fallback) → thrown, tagged pr
   options (more than one alternative) earlier in the same turn, the proposal
   is refused back to the model — DISCOVER → the user CHOOSES → MUTATE
   (`replace_meal_item` after `search_food_alternatives`).
-- **Choices survive the turn.** History carries a question card's options,
-  numbered as the app numbers its chips, with their values (`messages.js`
-  `toNormalizedMessage`), so "option 2" / "اختار رقم 2" maps to the exact
-  foodId next turn. Proposal cards carry their status.
+- **Choices are structured, end to end (`choices.js`).** A search tool may
+  declare `choiceOffer(result, input)` — the verified options its result
+  supports, each `binding` the exact mutating call choosing it means
+  (`search_food_alternatives` → `replace_meal_item` with the foodId + priced
+  portion). An `ask_choice` after such a search is pinned to the offer:
+  unverified options are dropped, figures (`subtitle` + `metadata`) are the
+  server's, and the card persists `bindings`. If the model answers in prose
+  instead of asking, the card is built from the offer anyway (safety net).
+  The app answers with `aiChat({choice: {requestId, value}})`:
+  `resolveChoiceAnswer` loads the card, rejects an unknown card/option or an
+  already-answered card (before anything is written), persists the option's
+  own label as the user message + `choice`, marks the card `answered`; a
+  BOUND pick is proposed directly (validate → verify → pending action, no
+  model call), an unbound one reaches the model as the exact option
+  (`selectionNote`). Typed picks ("option 2") still work: history carries the
+  options numbered with their values (`messages.js` `toNormalizedMessage`).
+  Proposal cards carry their status.
 - **Fallback is visible.** `router.generate` calls `opts.onFallback` just
   before trying the other provider; the turn emits `{type:'fallback', from, to}`
   (model keys) and persists `{kind:'fallback', from, to}` in `activity`. Per

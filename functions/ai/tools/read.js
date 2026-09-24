@@ -1262,6 +1262,52 @@ const SEARCH_FOOD_ALTERNATIVES_TOOL = {
       notFound: priced.filter((c) => !c.found).map((c) => c.name),
     };
   },
+  /**
+   * The verified options this result supports, for the choice card
+   * (`../chat/choices.js`). One per found alternative, keyed by its foodId,
+   * each bound to the exact `replace_meal_item` call choosing it means — the
+   * item reference from `original` and the portion ZIVO priced — so a tapped
+   * option is proposed as-is, never re-derived by the model. Null when fewer
+   * than two were found: one option is not a choice, and none is a "no
+   * alternatives" reply, not an empty card.
+   * @param {!Object} result This tool's `execute` result.
+   * @param {!Object} input The tool input it ran with.
+   * @return {?Array<!Object>}
+   */
+  choiceOffer(result, input) {
+    if (!result || result.outcome !== "found" ||
+        !Array.isArray(result.alternatives) ||
+        result.alternatives.length < 2) {
+      return null;
+    }
+    const day = typeof input.day === "string" ?
+      /^\d{4}-\d{2}-\d{2}$/.exec(input.day.trim()) : null;
+    const o = result.original;
+    return result.alternatives.map((alt) => {
+      const p = alt.portion;
+      const label = alt.name.charAt(0).toUpperCase() + alt.name.slice(1);
+      const replaceInput = {
+        mealId: o.mealId,
+        itemIndex: o.itemIndex,
+        itemName: o.name,
+        foodId: alt.foodId,
+        quantity: p.grams,
+        unit: "g",
+      };
+      if (day) replaceInput.date = `${day[0]}T12:00:00Z`;
+      return {
+        value: alt.foodId,
+        label,
+        aliases: [alt.name, alt.catalogName],
+        subtitle: `${p.grams} g · ${p.kcal} kcal · ${p.proteinG} g protein`,
+        metadata: {
+          grams: p.grams, kcal: p.kcal, proteinG: p.proteinG,
+          carbsG: p.carbsG, fatG: p.fatG,
+        },
+        binding: {tool: "replace_meal_item", input: replaceInput},
+      };
+    });
+  },
 };
 
 const SUMMARIZE_WEEK_TOOL = {
