@@ -9,6 +9,8 @@
 /// floating composer needs" had to become something with an address.
 library;
 
+import 'package:flutter/foundation.dart';
+
 /// How long a voice-note transcription may run before the UI gives up
 /// waiting and offers a friendly retry — a hung request must never leave the
 /// composer locked.
@@ -22,6 +24,24 @@ const kSlowTurnAfter = Duration(seconds: 18);
 /// durable user message to land before concluding the send failed — covering
 /// silent server drops that would otherwise look like an eternal hang.
 const kLandingGrace = Duration(seconds: 12);
+
+/// The streamed reply's writing pace, in characters per second, once it has
+/// caught up with the network — a calm, legible write rather than a dump.
+const kRevealFloorCps = 55.0;
+
+/// How long a backlog of streamed text takes to unroll: the pace rises with
+/// what's waiting so a burst lands over this long, and the display never
+/// trails the network by much more.
+const kRevealCatchUp = Duration(milliseconds: 450);
+
+/// With no new reply text for this long mid-turn, ZIVO isn't writing any more
+/// (it's composing a lookup after a lead-in) — the thought line comes back.
+const kWritingIdle = Duration(milliseconds: 700);
+
+/// Whether the thought trail also shows each step's raw tool id. On in debug
+/// builds only, so the team can see exactly what ran while the chat is being
+/// tuned; a release build never shows an identifier.
+const kShowAiToolIds = kDebugMode;
 
 /// Bottom clearance beneath the message list (and empty state) so content
 /// scrolls UNDER the floating composer island instead of ending above it —

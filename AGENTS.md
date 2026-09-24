@@ -207,9 +207,17 @@ runAiTurn: SYSTEM_PROMPT (cached) + uncached CONTEXT block (user's local
 - **Reads never end the turn**; **writes and elicitations do** — they hand control to the user,
   whose answer arrives as the *next* `aiChat` turn.
 - **Live progress:** only the tool *name* crosses the wire (`{type:'step',tool,status}`), never
-  its input/result; the client maps it to an activity chip ("Grab · Diet details",
-  `aiActivityLabel`) plus a rail line ("Reading today's diet…" / "Thinking…"). The reply
-  persists `activity` so the timeline survives reload.
+  its input/result; the client maps it to a human **thought state** — Reading · Analyzing ·
+  Calculating · Searching · Suggesting · Preparing · Thinking (`presentation/ai_thought.dart`)
+  — drawn by the thought trail ("Reading your meal plan…" live, "● Read ● Suggested" once
+  settled). The reply persists `activity` so the trail survives reload; raw tool ids appear
+  only in debug builds.
+- **Follow-ups reuse what was already read** (`chat/context_ledger.js`): the latest reply
+  carries its turn's read/search results; the next turn gets them as an EARLIER RESULTS
+  block (15-min TTL, same day, broken by a confirmed write) and calls a tool only for
+  genuinely new information.
+- **Everything the model writes is saved** — text before a tool call included — so the
+  streamed words and the saved words are identical, and a card keeps its lead-in (`preface`).
 - **Providers:** behind a `NormalizedRequest`/`NormalizedResponse` seam
   ([`providers/`](functions/ai/providers) + [`routing/router.js`](functions/ai/routing/router.js),
   models + prices in [`routing/models.js`](functions/ai/routing/models.js): Claude Sonnet 5 ·

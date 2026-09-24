@@ -40,6 +40,41 @@ const {ElicitationError} = require("../tools/elicitations");
 const MAX_OFFER_OPTIONS = 4;
 const MIN_OPTIONS = 2;
 
+// The one option ZIVO adds itself to a card built from a verified offer: "none
+// of these — show me others". Unbound (it means no change), so a tap reaches
+// the model, which already holds the plan in its EARLIER RESULTS and only has
+// to search again (`selectionNote`). The value is a reserved id no catalog
+// food can have.
+const MORE_OPTIONS_VALUE = "__more__";
+const MORE_OPTIONS_LABEL = {
+  en: "Other options",
+  ar: "اختيارات تانية",
+};
+
+/**
+ * Appends the "other options" choice to a card pinned to a verified offer.
+ * A card with no bindings (a plain question) is returned unchanged — there
+ * is nothing to search again for.
+ * @param {{spec: !Object, bindings: ?Object}} bound
+ * @param {string} lang 'en' | 'ar'
+ * @return {{spec: !Object, bindings: ?Object}}
+ */
+function withMoreOption(bound, lang) {
+  if (!bound.bindings) return bound;
+  if (bound.spec.options.some((o) => o.value === MORE_OPTIONS_VALUE)) {
+    return bound;
+  }
+  const more = {
+    value: MORE_OPTIONS_VALUE,
+    label: MORE_OPTIONS_LABEL[lang] || MORE_OPTIONS_LABEL.en,
+  };
+  return {
+    spec: Object.assign({}, bound.spec,
+        {options: bound.spec.options.concat([more])}),
+    bindings: bound.bindings,
+  };
+}
+
 /**
  * A lower-cased, trimmed comparison key.
  * @param {*} s
@@ -215,7 +250,7 @@ async function resolveChoiceAnswer({
   }
   const binding = card.bindings && card.bindings[value] ?
     card.bindings[value] : null;
-  return {requestId, prompt: card.content || "", option, binding};
+  return {requestId, prompt: card.content || "", option, binding, options};
 }
 
 /**
@@ -227,6 +262,15 @@ async function resolveChoiceAnswer({
  */
 function selectionNote(resolved) {
   const o = resolved.option;
+  if (o.value === MORE_OPTIONS_VALUE) {
+    const shown = (resolved.options || [])
+        .filter((x) => x && x.value !== MORE_OPTIONS_VALUE)
+        .map((x) => x.label).join(", ");
+    return `${o.label}\n[The user tapped "${o.label}" on the question ` +
+      `"${resolved.prompt}": none of these suit them (${shown}). Find ` +
+      "DIFFERENT ones — don't repeat these — reusing what EARLIER RESULTS " +
+      "already holds instead of re-reading it, then ask again.]";
+  }
   const meta = o.metadata ? ` ${JSON.stringify(o.metadata)}` : "";
   return `${o.label}\n[The user tapped this option on the question ` +
     `"${resolved.prompt}": value=${o.value}${meta}. This is their answer — ` +
@@ -235,6 +279,8 @@ function selectionNote(resolved) {
 
 module.exports = {
   MAX_OFFER_OPTIONS,
+  MORE_OPTIONS_VALUE,
+  withMoreOption,
   bindOfferedOptions,
   cardFromOffer,
   resolveChoiceAnswer,

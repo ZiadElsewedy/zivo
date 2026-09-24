@@ -20,6 +20,7 @@ import '../../domain/ai_role.dart';
 import '../../domain/ai_turn_event.dart';
 import '../../domain/stt_error.dart';
 import '../../domain/stt_outcome.dart';
+import '../ai_thought.dart';
 import '../ask_constants.dart';
 
 /// A turn's machinery, with none of the chat's chrome.
@@ -190,9 +191,7 @@ class AskController extends ChangeNotifier {
     _phase = null;
     _stepTool = null;
     _activity.clear();
-    _liveText = '';
-    _liveTargetChars.clear();
-    _liveShownChars = 0;
+    _resetLive();
     _streamed = false;
     _expectReveal = false;
     _turnSlow = false;
@@ -384,51 +383,59 @@ class AskController extends ChangeNotifier {
   /// the durable message — which carries the same list — replaces it.
   List<AiActivityStep> get activity => List.unmodifiable(_activity);
 
-  /// The rail label. A running step wins over the phase, because "Reading
-  /// today's diet" says more than "Working…" — the phase is the fallback when
-  /// no step is active (before the first tool, between tools, and for a
-  /// non-streaming turn).
+  /// The live thought line — what ZIVO is doing right now, in the user's
+  /// terms. A running step wins over the phase, because "Reading your meal
+  /// plan…" says more than "Thinking…"; the phase is the fallback before the
+  /// first lookup, between lookups ("Analyzing what I found…"), and while a
+  /// change is drafted.
   ///
   /// Localized through the [AppLocalizations] the page hands in
   /// (`updateStrings`) — the controller has no `BuildContext` by design
-  /// (ADR-008). Mapping lives here rather than on the server so the wording
-  /// can change without a functions deploy. The chip above it ("Grab · Diet
-  /// details") is `aiActivityLabel`, resolved by the widget.
+  /// (ADR-008). The words live on the client (`ai_thought.dart`) so they stay
+  /// localizable and can change without a functions deploy; the gateway only
+  /// ever names the tool, and an unknown one reads as "Thinking…" — never as
+  /// its identifier.
   String get railLabel {
     final step = _stepTool;
-    if (step != null) return _stepLabel(step);
+    if (step != null) return aiThoughtLiveLabel(_strings, step);
     return switch (_phase) {
-      AiPhase.understanding => _strings.askUnderstanding,
-      AiPhase.working => _strings.askWorking,
-      AiPhase.thinking => _strings.askThinking,
+      AiPhase.thinking => _strings.askThoughtAnalyzingResults,
       AiPhase.preparingChange => _strings.askPreparingChange,
       _ => _strings.askThinking,
     };
   }
 
-  /// A read tool's name → what it is actually doing, in the user's terms.
-  ///
-  /// An unknown name falls back to the generic line rather than showing a raw
-  /// identifier: a tool added server-side must degrade to "Working…" on an
-  /// older build, never leak `get_body_composition` onto the screen.
-  String _stepLabel(String tool) => switch (tool) {
-    'get_today' => _strings.askReadingDay,
-    'get_diet' => _strings.askReadingDiet,
-    'get_workouts' => _strings.askReadingTraining,
-    'get_last_workout' => _strings.askReadingTraining,
-    'get_training_analysis' => _strings.askReadingTraining,
-    'get_exercise_analysis' => _strings.askReadingTraining,
-    'get_readiness' => _strings.askReadingReadiness,
-    'get_sleep_summary' => _strings.askReadingSleep,
-    'get_expenses' => _strings.askReadingSpending,
-    'summarize_week' => _strings.askSummarisingWeek,
-    'resolve_food' => _strings.askLookingUpFood,
-    'calculate_meal_nutrition' => _strings.askCalculating,
-    'search_food_product' => _strings.askSearchingForProduct,
-    'search_food_alternatives' => _strings.askFindingAlternatives,
-    'suggest_meal_replacement' => _strings.askFindingAlternatives,
-    _ => _strings.askWorking,
-  };
+  /// The kind of work behind [railLabel] — what tints the live line.
+  AiThoughtKind get railThought {
+    final step = _stepTool;
+    if (step != null) return aiThoughtKindForTool(step);
+    return switch (_phase) {
+      AiPhase.thinking => AiThoughtKind.analyzing,
+      AiPhase.preparingChange => AiThoughtKind.preparing,
+      _ => AiThoughtKind.thinking,
+    };
+  }
+
+  /// True while reply text is actively arriving — the caret is then the live
+  /// signal and the thought line steps aside. Goes false the moment a lookup
+  /// starts, a new step begins, or text has been quiet for [kWritingIdle]
+  /// (the model is composing a tool call after a lead-in sentence), so the
+  /// screen is never a still paragraph with nothing saying ZIVO is working.
+  bool get writing => _writing;
+  bool _writing = false;
+  Timer? _writingIdle;
+
+  void _setWriting(bool value) {
+    _writingIdle?.cancel();
+    if (value) {
+      _writingIdle = Timer(kWritingIdle, () {
+        if (_disposed || !_writing) return;
+        _writing = false;
+        _notify();
+      });
+    }
+    _writing = value;
+  }
 
   /// Drops text into the composer as editable content — never auto-sent.
   /// Used by the shell's voice quick-log and by transcription.
@@ -546,9 +553,7 @@ class AskController extends ChangeNotifier {
     _phase = null;
     _stepTool = null;
     _activity.clear();
-    _liveText = '';
-    _liveTargetChars.clear();
-    _liveShownChars = 0;
+    _resetLive();
     _streamed = false;
     _sendFailed = false;
     _turnSlow = false;
@@ -603,9 +608,7 @@ class AskController extends ChangeNotifier {
         _phase = null;
         _stepTool = null;
         _activity.clear();
-        _liveText = '';
-        _liveTargetChars.clear();
-        _liveShownChars = 0;
+        _resetLive();
         _notify();
       }
       return;
@@ -619,6 +622,7 @@ class AskController extends ChangeNotifier {
     _phase = null;
     _stepTool = null;
     _turnSlow = false;
+    _setWriting(false);
     _notify();
     // [liveText] is deliberately NOT cleared here: the durable reply may not
     // have landed in the watch snapshot yet, and dropping the live bubble now
@@ -652,9 +656,11 @@ class AskController extends ChangeNotifier {
 
   // ---- Live reply pacing ---------------------------------------------------
   // Streamed deltas are NOT painted directly: they land in [_liveTargetChars]
-  // and a per-frame ticker reveals characters at a fast, adaptive rate — an
-  // immediate start, a smooth continuous write, and exponential catch-up so
-  // the display never lags more than a few frames behind the network.
+  // and a ticker reveals them at a rate measured in characters per SECOND —
+  // not per frame, so a 120Hz display writes at the same pace as a 60Hz one.
+  // The rate rises with the backlog, so a burst that arrives after a long
+  // lookup unrolls over about half a second instead of landing all at once,
+  // and the text never trails the network by much more than that.
 
   String _liveText = '';
   bool _streamed = false;
@@ -662,6 +668,22 @@ class AskController extends ChangeNotifier {
   final List<String> _liveTargetChars = [];
   int _liveShownChars = 0;
   Ticker? _revealTicker;
+  Duration? _lastRevealTick;
+  double _revealCarry = 0;
+
+  /// Where the current agent step's text begins in [_liveTargetChars]. A
+  /// model fallback supersedes only what the failed attempt wrote in THIS
+  /// step — the lead-in an earlier step already wrote stays on screen.
+  int _stepStartChars = 0;
+
+  void _resetLive() {
+    _liveText = '';
+    _liveTargetChars.clear();
+    _liveShownChars = 0;
+    _stepStartChars = 0;
+    _revealCarry = 0;
+    _setWriting(false);
+  }
 
   /// Assistant reply text accumulated from live stream deltas — shown in a
   /// provisional bubble while the turn runs, replaced by the durable message
@@ -681,6 +703,10 @@ class AskController extends ChangeNotifier {
   /// Consumed by the builder the moment it hands a reply to the typewriter.
   void consumeExpectReveal() => _expectReveal = false;
 
+  /// Everything streamed for the live reply so far, revealed or not.
+  @visibleForTesting
+  String get liveTargetText => _liveTargetChars.join();
+
   /// True while the paced reveal still has characters left to write.
   bool get revealInFlight => _liveShownChars < _liveTargetChars.length;
 
@@ -694,6 +720,12 @@ class AskController extends ChangeNotifier {
         _slowTurnTimer?.cancel();
         if (_turnSlow) _turnSlow = false;
         _phase = phase;
+        // A new agent step starts here: its text (if any) begins a new
+        // paragraph, and a fallback inside it truncates back to this point.
+        if (phase == AiPhase.thinking) {
+          _stepStartChars = _liveTargetChars.length;
+          _setWriting(false);
+        }
         // A phase boundary outlives any step inside it — notably `done`, which
         // must not leave a step label behind if a tool's closing event was
         // dropped.
@@ -716,26 +748,31 @@ class AskController extends ChangeNotifier {
         // so the label falls back to the phase, rather than leaving a finished
         // step's line on screen claiming work that has already stopped.
         _stepTool = status == AiStepStatus.running ? tool : null;
+        if (status == AiStepStatus.running) _setWriting(false);
         _recordStep(tool, status);
         _notify();
       case AiFallbackEvent(:final from, :final to):
         _slowTurnTimer?.cancel();
         if (_turnSlow) _turnSlow = false;
-        if (!_activity.any((s) => s.fallbackFrom == from && s.fallbackTo == to)) {
+        if (!_activity.any(
+          (s) => s.fallbackFrom == from && s.fallbackTo == to,
+        )) {
           _activity.add(AiActivityStep.fallback(from, to));
         }
-        // Whatever the failed model had streamed is superseded by the
-        // fallback's answer — drop it so the reply isn't written twice.
-        if (_streamed || _liveTargetChars.isNotEmpty) {
-          _streamed = false;
-          retireLiveReply();
-        }
+        // Whatever the failed model streamed in this step is superseded by
+        // the fallback's answer — drop it so the reply isn't written twice,
+        // but keep what earlier steps already said.
+        _truncateLiveTo(_stepStartChars);
+        _setWriting(false);
         _notify();
       case AiDeltaEvent(:final text):
         _slowTurnTimer?.cancel();
         if (_turnSlow) _turnSlow = false;
         _streamed = true;
         _liveTargetChars.addAll(text.characters);
+        final wasWriting = _writing;
+        _setWriting(true);
+        if (!wasWriting) _notify();
         _ensureRevealTicker();
     }
   }
@@ -760,24 +797,45 @@ class AskController extends ChangeNotifier {
     }
   }
 
+  /// Drops live text back to [chars] (a superseded attempt), keeping what
+  /// came before it.
+  void _truncateLiveTo(int chars) {
+    final keep = math.max(0, math.min(chars, _liveTargetChars.length));
+    if (keep == _liveTargetChars.length) return;
+    _liveTargetChars.removeRange(keep, _liveTargetChars.length);
+    _liveShownChars = math.min(_liveShownChars, keep);
+    _liveText = _liveTargetChars.take(_liveShownChars).join();
+    if (_liveTargetChars.isEmpty) _streamed = false;
+  }
+
   void _ensureRevealTicker() {
     if (_revealTicker != null || _disposed) return;
+    _lastRevealTick = null;
     _revealTicker = _vsync.createTicker(_onRevealTick)..start();
   }
 
-  /// The pacer's per-frame step: a small floor keeps the write visibly moving
-  /// between network chunks; the exponential term drains any accumulated
-  /// backlog within a handful of frames, so the display tracks the server
-  /// closely no matter how bursty the deltas are. At 60fps this reads as
-  /// fast, fluid typing — never a crawl, never an instant dump.
+  /// The pacer's step. [kRevealFloorCps] keeps the write visibly moving
+  /// between network chunks; the backlog term drains any accumulation within
+  /// [kRevealCatchUp], so the display tracks the server closely however bursty
+  /// the deltas are — never a crawl, never an instant dump.
   void _onRevealTick(Duration elapsed) {
     if (_disposed) return;
     final remaining = _liveTargetChars.length - _liveShownChars;
     if (remaining <= 0) return;
-    // ~1 char/frame once caught up, with a gentle exponential catch-up so a
-    // big buffered delta still drains within a few frames rather than lagging
-    // seconds behind.
-    final step = math.max(1, remaining >> 4);
+    final last = _lastRevealTick;
+    _lastRevealTick = elapsed;
+    // The first frame writes one frame's worth; a long gap (the app was
+    // paused) is clamped so it can't dump the whole backlog in one frame.
+    final dt = last == null
+        ? 1 / 60
+        : math.min((elapsed - last).inMicroseconds / 1e6, 0.05);
+    final catchUpSeconds =
+        kRevealCatchUp.inMicroseconds / Duration.microsecondsPerSecond;
+    final cps = math.max(kRevealFloorCps, remaining / catchUpSeconds);
+    _revealCarry += cps * dt;
+    final step = _revealCarry.floor();
+    if (step < 1) return;
+    _revealCarry -= step;
     final next = math.min(_liveTargetChars.length, _liveShownChars + step);
     _liveShownChars = next;
     _liveText = _liveTargetChars.take(next).join();
@@ -789,6 +847,7 @@ class AskController extends ChangeNotifier {
       // Fully caught up — idle the ticker until the next delta arrives.
       _revealTicker?.dispose();
       _revealTicker = null;
+      _revealCarry = 0;
     }
   }
 
@@ -799,9 +858,7 @@ class AskController extends ChangeNotifier {
     _revealTicker?.dispose();
     _revealTicker = null;
     if (_disposed) return;
-    _liveText = '';
-    _liveTargetChars.clear();
-    _liveShownChars = 0;
+    _resetLive();
     _notify();
   }
 
@@ -1106,6 +1163,7 @@ class AskController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _slowTurnTimer?.cancel();
+    _writingIdle?.cancel();
     _landingWatchdog?.cancel();
     _revealTicker?.dispose();
     input.dispose();

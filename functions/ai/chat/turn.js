@@ -63,7 +63,9 @@ const {
   cardFromOffer,
   resolveChoiceAnswer,
   selectionNote,
+  withMoreOption,
 } = require("./choices");
+const {ContextLedger} = require("./context_ledger");
 const {
   TerminalState,
   terminalStateFor,
@@ -323,6 +325,7 @@ async function runAiTurn({
           store, uid, conversationId, tool: boundTool,
           validated: patch ? Object.assign({}, validated, patch) : validated,
           clock, ttlMs: cfg.pendingActionTtlMs,
+          turn: {clientTurnId},
         });
       }
       const terminalState = terminalStateFor(status);
@@ -363,6 +366,10 @@ async function runAiTurn({
   const history = await store.getRecentMessages(
       uid, conversationId, cfg.historyWindow);
   const messages = history.map(toNormalizedMessage);
+  // What the previous turn already looked up, still fresh enough to reuse
+  // (`context_ledger.js`). A plan the user just confirmed a change to breaks
+  // the chain, so a follow-up never reasons over data it changed.
+  const ledger = ContextLedger.fromHistory(history, {now: turnNow, dayKey});
   // History already holds this turn's user message on a retry; the model is
   // handed the fresh copy below either way (the existing behaviour).
   let userTurn = picked ? selectionNote(picked) : trimmed;
@@ -371,7 +378,14 @@ async function runAiTurn({
       "the plan and continue from the user's pick — don't offer the same " +
       "options again unless they're still valid.]";
   }
-  messages.push({role: "user", content: userTurn});
+  // The carried results go AHEAD of the user's words, so the question is the
+  // last thing the model reads. A failed binding means the plan moved: the
+  // model is told to re-read, so nothing stale is offered to it.
+  const earlier = bindingFailure ? "" : ledger.toPromptBlock(turnNow);
+  messages.push({
+    role: "user",
+    content: earlier ? `${earlier}\n\n${userTurn}` : userTurn,
+  });
 
   const normalizedTools = allTools.map((t) => ({
     name: t.name,
@@ -465,6 +479,31 @@ async function runAiTurn({
   // (from get_today/get_diet), kept so the reply can be validated against the
   // very numbers it read (Phase 7). Null when the turn read no diet data.
   let dietContext = null;
+  // A diet state carried from the previous turn is what a reply that reuses
+  // it is checked against — the validator must see the numbers the model saw.
+  const carriedDiet = ledger.latest(["get_today", "get_diet"]);
+  if (carriedDiet) dietContext = carriedDiet.result;
+  // An offer the previous turn verified, re-derived from its carried search
+  // result — so "what were those options again?" can still show a bound card.
+  // Never used for the prose safety net (that needs an offer made THIS turn).
+  let carriedOffer = null;
+  for (const e of ledger.entries) {
+    const t = allToolsByName.get(e.tool);
+    if (!t || typeof t.choiceOffer !== "function") continue;
+    const parsed = ledger.latest([e.tool]);
+    const options = parsed ? t.choiceOffer(parsed.result, parsed.input) : null;
+    if (options && options.length >= 2) {
+      carriedOffer = {tool: e.tool, options};
+    }
+  }
+  // Text the model wrote in a step that then called a tool ("Let me check
+  // your plan…"). It streamed to the screen, so it is part of the reply: the
+  // persisted message keeps it, or the text the user watched being written
+  // would shrink the moment the durable copy lands.
+  const narration = [];
+  // Whether any earlier step already streamed visible text — the next step's
+  // text starts a new paragraph (see `onText` below).
+  let streamedAny = false;
   // Set when the model tries to propose while an unexpired pending action
   // already awaits the user — the new proposal is suppressed (no duplicate).
   let proposalBlocked = false;
@@ -486,6 +525,15 @@ async function runAiTurn({
       failedTool = name;
     }
   };
+
+  // What a card ending this turn carries, like a text reply would: the turn
+  // id, what the model said before it, the lookups behind it, and the ledger.
+  const turnCarry = (preface = narration.join("\n\n")) => ({
+    clientTurnId,
+    preface,
+    activity: activity.slice(0, MAX_PERSISTED_ACTIVITY),
+    context: ledger.toPersisted(),
+  });
 
   for (let i = 0; i < cfg.maxAgentSteps; i++) {
     if (isCancelled()) {
@@ -516,7 +564,34 @@ async function runAiTurn({
     // prefix (and a history holding tool calls needs it declared).
     if (finalStep) normalizedRequest.toolChoice = "none";
     const genOpts = {};
-    if (wantsStream) genOpts.onText = (text) => emit({type: "delta", text});
+    // Each step's text is its own paragraph, exactly as the persisted reply
+    // joins them (`narration` + the final text, "\n\n" apart): a step's
+    // leading whitespace is dropped and, when an earlier step already wrote
+    // something, the paragraph break is sent first — so the words streamed
+    // are the words saved, and nothing jumps when the saved copy lands.
+    // Trailing whitespace is held back until more text follows it in the
+    // same step (and dropped if none does) — the saved text is trimmed, so
+    // this keeps the two identical to the character.
+    const priorStreamed = streamedAny;
+    let stepStreamed = false;
+    let heldSpace = "";
+    if (wantsStream) {
+      genOpts.onText = (text) => {
+        let t = String(text || "");
+        if (!stepStreamed) {
+          t = t.replace(/^\s+/, "");
+          if (!t) return;
+          if (priorStreamed) t = `\n\n${t}`;
+          stepStreamed = true;
+          streamedAny = true;
+        }
+        t = heldSpace + t;
+        const tail = /\s+$/.exec(t);
+        heldSpace = tail ? tail[0] : "";
+        if (tail) t = t.slice(0, t.length - heldSpace.length);
+        if (t) emit({type: "delta", text: t});
+      };
+    }
     if (signal) genOpts.signal = signal;
     // The router is about to re-run this step on the other provider after the
     // active one failed (and its one retry). The user sees the switch as it
@@ -529,6 +604,11 @@ async function runAiTurn({
           a.from === entry.from && a.to === entry.to)) {
         activity.push(entry);
       }
+      // The failed attempt's text is superseded: the client truncates back
+      // to where this step began, and the retry starts its paragraph afresh.
+      stepStreamed = false;
+      streamedAny = priorStreamed;
+      heldSpace = "";
       emit({type: "fallback", from: info.from, to: info.to});
     };
     let resp;
@@ -575,6 +655,8 @@ async function runAiTurn({
       finalText = extractText(resp.content);
       break;
     }
+    const stepText = extractText(resp.content);
+    if (stepText) narration.push(stepText);
 
     // Tools were disabled for this step and the model asked for one anyway
     // (a provider that ignored `toolChoice`). Nothing more may run — the turn
@@ -659,8 +741,21 @@ async function runAiTurn({
           const spec = tool.validate(block.input || {});
           // A choice after a verified search offers only what was verified —
           // with the server's figures and the change each one means.
-          const bound = tool === ASK_CHOICE ?
-            bindOfferedOptions(spec, offer) : {spec, bindings: null};
+          let bound = {spec, bindings: null};
+          if (tool === ASK_CHOICE) {
+            if (offer) {
+              bound = bindOfferedOptions(spec, offer);
+            } else if (carriedOffer) {
+              // A question that isn't about the carried options is just a
+              // plain question — the carried offer only binds what it matches.
+              try {
+                bound = bindOfferedOptions(spec, carriedOffer);
+              } catch (_) {
+                bound = {spec, bindings: null};
+              }
+            }
+            bound = withMoreOption(bound, replyLanguageFor(trimmed));
+          }
           elicitation = {tool, validated: bound.spec,
             bindings: bound.bindings};
         } catch (err) {
@@ -742,6 +837,10 @@ async function runAiTurn({
             JSON.stringify(resultPayload), cfg.maxToolResultChars),
       };
       if (isError) toolResult.isError = true;
+      else {
+        ledger.record(block.name, block.input || {}, toolResult.content,
+            turnNow, dayKey);
+      }
       toolResultChars += toolResult.content.length;
       toolResults.push(toolResult);
       // Stop running this step's remaining tools: the turn is ending.
@@ -771,6 +870,7 @@ async function runAiTurn({
         validated: proposal.validated,
         clock,
         ttlMs: cfg.pendingActionTtlMs,
+        turn: turnCarry(),
       });
       break;
     }
@@ -790,6 +890,7 @@ async function runAiTurn({
         validated: elicitation.validated,
         bindings: elicitation.bindings,
         clock,
+        turn: turnCarry(),
       });
       break;
     }
@@ -813,11 +914,13 @@ async function runAiTurn({
   // user has to retype — and never promised without being shown.
   if (offer && finalText && !elicitedRequest && !proposedAction &&
       !refusal && !cancelled && !toolErrorHit) {
-    const card = cardFromOffer(offer, finalText, replyLanguageFor(trimmed));
+    const lang = replyLanguageFor(trimmed);
+    const card = withMoreOption(cardFromOffer(offer, finalText, lang), lang);
     emitPhase("awaiting_input");
     elicitedRequest = await persistElicitation({
       store, uid, conversationId, tool: ASK_CHOICE,
       validated: card.spec, bindings: card.bindings, clock,
+      turn: turnCarry(),
     });
   }
 
@@ -852,7 +955,10 @@ async function runAiTurn({
   } else if (toolErrorHit) {
     status = "tool-error";
   } else if (finalText !== null) {
-    assistantText = finalText || FALLBACK_MESSAGE;
+    // Everything the model wrote this turn, in order — what the user watched
+    // stream in. Validated as one: a figure in a lead-in counts too.
+    const said = narration.concat(finalText ? [finalText] : []);
+    assistantText = said.length ? said.join("\n\n") : FALLBACK_MESSAGE;
     // Validate the reply against the diet numbers it was handed. A reply that
     // states a calorie figure the state can't account for, or that recommends
     // eating below the safety floor, is replaced with deterministic text —
@@ -881,12 +987,14 @@ async function runAiTurn({
   // in the language the user wrote in. Never a vague "needed more digging".
   if (terminalState === TerminalState.MAX_STEPS_REACHED ||
       terminalState === TerminalState.TOOL_ERROR) {
-    assistantText = describeUnfinishedTurn({
+    // Kept after whatever the model already said (it streamed), so the
+    // explanation extends the reply instead of replacing it.
+    assistantText = narration.concat([describeUnfinishedTurn({
       terminalState,
       activity,
       failedTool,
       lang: replyLanguageFor(trimmed),
-    });
+    })]).join("\n\n");
   }
 
   const finishedAt = clock();
@@ -903,6 +1011,11 @@ async function runAiTurn({
     if (activity.length) {
       reply.activity = activity.slice(0, MAX_PERSISTED_ACTIVITY);
     }
+    // The next turn's head start. Not after a refusal or a failed tool — a
+    // follow-up there should look again.
+    const context = status === "ok" || status === "validated-fallback" ?
+      ledger.toPersisted() : null;
+    if (context) reply.context = context;
     await store.appendMessage(uid, conversationId, reply);
   }
 
@@ -923,6 +1036,11 @@ async function runAiTurn({
     // provider's tokenizer) — the lever the context-engineering pass moves, so
     // it needs to be measurable, not inferred. See `approxTokensFromChars`.
     toolResultTokens: approxTokensFromChars(toolResultChars),
+    // The context ledger's effect, measurable: how many earlier lookups this
+    // turn was handed instead of re-running, and what they cost in input.
+    contextCarried: ledger.carriedCount,
+    contextCarriedTokens: bindingFailure ? 0 :
+      approxTokensFromChars(earlier.length),
     // Priced at the provider that actually answered (Gemini on a fallback
     // turn), not always Anthropic. Null (legacy seam) prices at the default.
     costUsd: totalCostUsd(usage, usedProvider),

@@ -33,11 +33,13 @@ const {GatewayError, assertDocumentId} = require("./errors");
  * @param {!Object} args.validated The tool's normalized, JSON-safe payload.
  * @param {function(): !Date} args.clock
  * @param {number} args.ttlMs Pending-action lifetime.
+ * @param {(!Object)=} args.turn What the turn that proposed it carries onto
+ *   the card's message — see `turnFields`.
  * @return {!Promise<{actionId: string, summary: string, fields: !Object,
  *   kind: string}>}
  */
 async function persistProposal({
-  store, uid, conversationId, tool, validated, clock, ttlMs,
+  store, uid, conversationId, tool, validated, clock, ttlMs, turn,
 }) {
   const actionId = randomUUID();
   const createdAt = clock();
@@ -56,7 +58,7 @@ async function persistProposal({
     createdAt,
     expiresAt,
   });
-  await store.appendMessage(uid, conversationId, {
+  await store.appendMessage(uid, conversationId, Object.assign({
     role: "assistant",
     kind: "action_proposal",
     content: summary,
@@ -68,7 +70,7 @@ async function persistProposal({
     // the TTL passes, without waiting for a confirm attempt to flip the status.
     expiresAt,
     createdAt,
-  });
+  }, turnFields(turn)));
   return {actionId, summary, fields, kind: tool.kind};
 }
 
@@ -90,18 +92,19 @@ async function persistProposal({
  *   option value → the verified `{tool, input}` choosing it means
  *   (`choices.js`). Stored on the message, never rendered.
  * @param {function(): !Date} args.clock
+ * @param {(!Object)=} args.turn See `turnFields`.
  * @return {!Promise<{requestId: string, prompt: string, fields: !Object,
  *   kind: string}>}
  */
 async function persistElicitation({
-  store, uid, conversationId, tool, validated, bindings, clock,
+  store, uid, conversationId, tool, validated, bindings, clock, turn,
 }) {
   const requestId = randomUUID();
   const createdAt = clock();
   const prompt = tool.summarize(validated);
   const fields = tool.fields(validated);
 
-  await store.appendMessage(uid, conversationId, {
+  await store.appendMessage(uid, conversationId, Object.assign({
     role: "assistant",
     kind: tool.messageKind,
     content: prompt,
@@ -110,8 +113,37 @@ async function persistElicitation({
     bindings: bindings || null,
     status: "pending",
     createdAt,
-  });
+  }, turnFields(turn)));
   return {requestId, prompt, fields, kind: tool.messageKind};
+}
+
+/**
+ * The turn-level fields a CARD message carries, exactly like a text reply
+ * does — so a card is one of its turn's messages rather than an orphan:
+ *
+ *   clientTurnId  pairs it with the turn (the app's live reply hands over to
+ *                 it in place, and a retry replays it instead of asking twice)
+ *   preface       what the coach SAID before calling the tool ("Based on your
+ *                 plan, here are two swaps…") — it streamed to the screen, so
+ *                 it must persist, or it vanishes the moment the card lands
+ *   activity      the lookups behind it (the thought trail above it)
+ *   context       the turn's context ledger (`context_ledger.js`)
+ *
+ * @param {(!Object)=} turn
+ * @return {!Object}
+ */
+function turnFields(turn) {
+  const out = {};
+  if (!turn) return out;
+  if (turn.clientTurnId) out.clientTurnId = turn.clientTurnId;
+  if (typeof turn.preface === "string" && turn.preface.trim()) {
+    out.preface = turn.preface.trim();
+  }
+  if (Array.isArray(turn.activity) && turn.activity.length) {
+    out.activity = turn.activity;
+  }
+  if (turn.context) out.context = turn.context;
+  return out;
 }
 
 /**

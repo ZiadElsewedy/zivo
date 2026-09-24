@@ -4,21 +4,37 @@ import '../../../../../core/theme/train_tokens.dart';
 import '../../../../../core/util/bidi.dart';
 import '../../../domain/ai_message.dart';
 import '../../../domain/ai_role.dart';
-import 'activity_timeline.dart';
+import 'thought_trail.dart';
 
 class MessageBubble extends StatelessWidget {
   const MessageBubble(
     this.message, {
+    this.text,
     this.animate = false,
+    this.revealFrom = 0,
     this.onRevealDone,
     this.streaming = false,
+    this.thought,
     super.key,
   });
 
   final AiMessage message;
 
+  /// The words to show, when they aren't simply [AiMessage.content] — a
+  /// card's lead-in, or a question's lead-in and question together. Empty
+  /// draws no paragraph at all (just the thought trail, while a turn works).
+  final String? text;
+
   /// When true, the (assistant) text types in rather than appearing at once.
   final bool animate;
+
+  /// Where the typing starts, in characters. A reply that already streamed
+  /// part-way continues from what was on screen instead of snapping to its
+  /// full length (or restarting) when its saved copy lands.
+  final int revealFrom;
+
+  /// While the turn works: what ZIVO is doing now — the head of the trail.
+  final LiveThought? thought;
 
   /// Called once the typewriter reveal finishes — the page drops the
   /// message's reveal flag so later rebuilds render it statically.
@@ -31,6 +47,7 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == AiRole.user;
+    final content = text ?? message.content;
     // A message is written in whatever language its author used, which is not
     // necessarily the language the app is set to: ZIVO answers an English
     // question in English while the UI is Arabic, and the user types Arabic
@@ -42,7 +59,7 @@ class MessageBubble extends StatelessWidget {
     //
     // Only the paragraph flips. The bubble's SIDE stays with the UI, because
     // that says who is speaking, not what language they said it in.
-    final direction = directionOfFor(context, message.content);
+    final direction = directionOfFor(context, content);
     // ZIVO's replies read a touch larger than the user's own lines — it's the
     // long-form text the user actually reads, so a bump to 16 (from body's
     // 14.5) with generous leading makes it easier on the eyes without
@@ -100,15 +117,16 @@ class MessageBubble extends StatelessWidget {
                 : null,
             child: animate
                 ? TypewriterText(
-                    message.content,
+                    content,
                     style: style,
                     textDirection: direction,
+                    from: revealFrom,
                     onDone: onRevealDone,
                   )
                 : streaming && !MediaQuery.of(context).disableAnimations
                 ? Text.rich(
                     TextSpan(
-                      text: message.content,
+                      text: content,
                       children: [
                         WidgetSpan(
                           alignment: PlaceholderAlignment.middle,
@@ -121,7 +139,7 @@ class MessageBubble extends StatelessWidget {
                     textAlign: TextAlign.start,
                   )
                 : Text(
-                    message.content,
+                    content,
                     style: style,
                     textDirection: direction,
                     textAlign: TextAlign.start,
@@ -130,17 +148,26 @@ class MessageBubble extends StatelessWidget {
         ),
       ],
     );
+    if (isUser) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: row,
+      );
+    }
+    // What ZIVO did to get here, above what it says — the same trail the
+    // live turn drew, so nothing jumps when the saved reply replaces the
+    // streamed one. An empty paragraph (the turn is still working, or a card
+    // said nothing before itself) draws only the trail.
+    final showTrail = thought != null || message.activity.isNotEmpty;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      // What the agent did to get here, above what it says — the same list
-      // the live turn drew, so the timeline doesn't jump when the durable
-      // reply replaces the streamed one.
-      child: !isUser && message.activity.isNotEmpty
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [ActivityTimeline(message.activity), row],
-            )
-          : row,
+      padding: EdgeInsets.symmetric(vertical: content.isEmpty ? 0 : 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (showTrail) ThoughtTrail(steps: message.activity, live: thought),
+          if (content.isNotEmpty) row,
+        ],
+      ),
     );
   }
 }
@@ -178,7 +205,7 @@ class _StreamCaretState extends State<StreamCaret>
         height: 14,
         margin: const EdgeInsetsDirectional.only(start: 2),
         decoration: BoxDecoration(
-          color: TrainColors.violetGlyph,
+          color: TrainColors.thoughtThink,
           borderRadius: BorderRadius.circular(2),
         ),
       ),
@@ -196,11 +223,16 @@ class TypewriterText extends StatefulWidget {
     this.text, {
     required this.style,
     this.textDirection,
+    this.from = 0,
     this.onDone,
     super.key,
   });
 
   final String text;
+
+  /// Characters already on screen before this reveal — it types on from
+  /// there. Clamped to the text's length.
+  final int from;
   final TextStyle style;
 
   /// The finished message's direction, resolved once by the caller from the
@@ -224,8 +256,13 @@ class _TypewriterTextState extends State<TypewriterText>
     super.initState();
     // ~20ms/char with a hard cap — a calm, natural write (matching the
     // streamed path's slower cadence) that still never crawls on long replies.
-    // This is only the fallback for turns that arrived without deltas.
-    final ms = math.min(widget.text.characters.length * 20, 3200);
+    // A continuation (the saved copy of a reply that was mid-stream) only has
+    // the rest to write, so it finishes sooner.
+    final length = widget.text.characters.length;
+    final start = widget.from.clamp(0, length);
+    final ms = start > 0
+        ? math.min((length - start) * 18, 1600)
+        : math.min(length * 20, 3200);
     _c = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: math.max(ms, 1)),
@@ -254,10 +291,11 @@ class _TypewriterTextState extends State<TypewriterText>
       );
     }
     final chars = widget.text.characters;
+    final start = widget.from.clamp(0, chars.length);
     return AnimatedBuilder(
       animation: _c,
       builder: (context, _) {
-        final shown = (chars.length * _c.value).round();
+        final shown = start + ((chars.length - start) * _c.value).round();
         return Text(
           chars.take(shown).toString(),
           style: widget.style,

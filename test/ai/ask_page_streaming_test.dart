@@ -38,6 +38,28 @@ import '../support/fake_profile_repository.dart';
 /// durable reply. Proves the rail is authoritative (server-labelled) and that
 /// live text renders before the durable message arrives.
 class _StreamingAi implements AiRepository {
+  _StreamingAi({
+    this.deltas = const ['Hello ', 'world'],
+    this.beforeDeltas = const [],
+    AiMessage Function(String? turnId)? reply,
+  }) : reply =
+           reply ??
+           ((turnId) => AiMessage(
+             id: 'a',
+             role: AiRole.assistant,
+             content: 'Hello world',
+             createdAt: DateTime.now(),
+           ));
+
+  /// The reply text as it streams, chunk by chunk.
+  final List<String> deltas;
+
+  /// Events emitted while the turn works, before any text streams.
+  final List<AiTurnEvent> beforeDeltas;
+
+  /// The saved reply that lands when the turn is done.
+  final AiMessage Function(String? turnId) reply;
+
   final List<AiMessage> _messages = [];
   final StreamController<List<AiMessage>> _controller =
       StreamController<List<AiMessage>>.broadcast();
@@ -105,26 +127,22 @@ class _StreamingAi implements AiRepository {
         role: AiRole.user,
         content: text,
         createdAt: DateTime.now(),
+        clientTurnId: clientTurnId,
       ),
     );
     _controller.add(List.unmodifiable(_messages));
 
     onEvent?.call(const AiPhaseEvent(AiPhase.understanding));
     onEvent?.call(const AiPhaseEvent(AiPhase.working));
+    beforeDeltas.forEach(onEvent ?? (_) {});
     await releaseDeltas.future;
 
-    onEvent?.call(const AiDeltaEvent('Hello '));
-    onEvent?.call(const AiDeltaEvent('world'));
+    for (final d in deltas) {
+      onEvent?.call(AiDeltaEvent(d));
+    }
     await releaseDone.future;
 
-    _messages.add(
-      AiMessage(
-        id: 'a',
-        role: AiRole.assistant,
-        content: 'Hello world',
-        createdAt: DateTime.now(),
-      ),
-    );
+    _messages.add(reply(clientTurnId));
     _controller.add(List.unmodifiable(_messages));
     onEvent?.call(const AiPhaseEvent(AiPhase.done));
   }
@@ -151,8 +169,7 @@ class _StreamingAi implements AiRepository {
   Future<DietImportOutcome> importDietPlan(
     DietImportInput input, {
     ImportCancellation? cancellation,
-  }) =>
-      throw UnimplementedError('not exercised by this test');
+  }) => throw UnimplementedError('not exercised by this test');
 
   @override
   Future<DietImportOutcome> generateDietPlan({
@@ -199,7 +216,7 @@ void main() {
     await tester.pump();
 
     // Authoritative phase from the gateway drives the rail (not a guess).
-    expect(find.text('Working…'), findsOneWidget);
+    expect(find.text('Thinking…'), findsOneWidget);
     expect(find.text('Hello world'), findsNothing);
 
     // Deltas stream into a provisional bubble before the durable doc exists.
@@ -210,7 +227,7 @@ void main() {
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 16));
     }
-    expect(find.text('Working…'), findsNothing);
+    expect(find.text('Thinking…'), findsNothing);
     expect(
       find.byWidgetPredicate(
         (widget) =>
@@ -225,6 +242,102 @@ void main() {
     ai.releaseDone.complete();
     await tester.pumpAndSettle();
     expect(find.text('Hello world'), findsOneWidget);
-    expect(find.text('Working…'), findsNothing);
+    expect(find.text('Thinking…'), findsNothing);
+  });
+
+  testWidgets('while ZIVO works the trail names a human state — never a tool '
+      '— then settles into a quiet summary that unfolds on tap', (
+    tester,
+  ) async {
+    final ai = _StreamingAi(
+      beforeDeltas: const [AiStepEvent('get_diet', AiStepStatus.running)],
+      reply: (turnId) => AiMessage(
+        id: 'a',
+        role: AiRole.assistant,
+        content: 'Hello world',
+        createdAt: DateTime.now(),
+        clientTurnId: turnId,
+        activity: const [AiActivityStep('get_diet', AiStepStatus.ok)],
+      ),
+    );
+    addTearDown(ai.dispose);
+    await tester.pumpWidget(_host(ai));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'what is for breakfast?');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('composer-send')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Reading your meal plan…'), findsOneWidget);
+    expect(find.textContaining('get_diet'), findsNothing);
+    expect(find.textContaining('Grab'), findsNothing);
+
+    ai.releaseDeltas.complete();
+    ai.releaseDone.complete();
+    await tester.pumpAndSettle();
+
+    // Settled: one quiet line of what it did, the words below it.
+    expect(find.text('Reading your meal plan…'), findsNothing);
+    expect(find.text('Read'), findsOneWidget);
+    expect(find.text('Hello world'), findsOneWidget);
+    await tester.tap(find.text('Read'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Read your meal plan'), findsOneWidget);
+  });
+
+  testWidgets('a question\'s saved copy types ON from the streamed lead-in — '
+      'the words on screen never shrink or snap', (tester) async {
+    const lead = 'Your breakfast has 3 eggs, about 234 kcal.';
+    const question = 'Which one would you prefer?';
+    final ai = _StreamingAi(
+      deltas: const ['Your breakfast has 3 eggs, ', 'about 234 kcal.'],
+      reply: (turnId) => AiMessage(
+        id: 'q',
+        role: AiRole.assistant,
+        content: question,
+        preface: lead,
+        createdAt: DateTime.now(),
+        clientTurnId: turnId,
+        choiceRequest: const AiChoiceRequest(
+          requestId: 'req-1',
+          prompt: question,
+          options: [
+            AiChoiceOption(value: 'a', label: 'Greek yogurt'),
+            AiChoiceOption(value: 'b', label: 'Cottage cheese'),
+          ],
+        ),
+      ),
+    );
+    addTearDown(ai.dispose);
+    await tester.pumpWidget(_host(ai));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), "I don't want eggs");
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('composer-send')));
+    await tester.pump();
+    ai.releaseDeltas.complete();
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    String shown() => tester
+        .widgetList<RichText>(find.byType(RichText))
+        .map((w) => w.text.toPlainText())
+        .firstWhere((t) => t.startsWith('Your breakfast'), orElse: () => '');
+    expect(shown(), startsWith(lead));
+
+    ai.releaseDone.complete();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+    // Mid-handoff: still at least the lead-in, not yet the whole question.
+    expect(shown(), startsWith(lead));
+    expect(shown().length, lessThan('$lead\n\n$question'.length));
+
+    await tester.pumpAndSettle();
+    expect(shown(), '$lead\n\n$question');
+    // The answers wait by the composer.
+    expect(find.byKey(const ValueKey('choice-option-a')), findsOneWidget);
   });
 }

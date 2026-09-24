@@ -3848,18 +3848,6 @@ abstract class AppLocalizations {
   /// **'Thinking…'**
   String get askThinking;
 
-  /// The assistant is interpreting the question. Keep the ellipsis.
-  ///
-  /// In en, this message translates to:
-  /// **'Understanding…'**
-  String get askUnderstanding;
-
-  /// Generic progress line while the assistant runs a step. Keep the ellipsis.
-  ///
-  /// In en, this message translates to:
-  /// **'Working…'**
-  String get askWorking;
-
   /// The assistant is drafting a change for the user to confirm. Keep the ellipsis.
   ///
   /// In en, this message translates to:
@@ -3872,173 +3860,227 @@ abstract class AppLocalizations {
   /// **'Still working on this one…'**
   String get askStillWorking;
 
-  /// Progress line: the assistant is reading today's summary. Keep the ellipsis.
+  /// Progress line: ZIVO is reading back the results of its lookups. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing what I found…'**
+  String get askThoughtAnalyzingResults;
+
+  /// Live thought line in Ask while ZIVO works on today's summary. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
   /// **'Reading your day…'**
-  String get askReadingDay;
+  String get askThoughtDay;
 
-  /// Progress line: the assistant is reading the diet log. Keep the ellipsis.
+  /// The same step once finished, in the expanded list of what ZIVO did (today's summary). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Reading today\'s diet…'**
-  String get askReadingDiet;
+  /// **'Read your day'**
+  String get askThoughtDayDone;
 
-  /// Progress line: the assistant is reading workout history. Keep the ellipsis.
+  /// Live thought line in Ask while ZIVO works on the diet / meal plan. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Reading your training…'**
-  String get askReadingTraining;
+  /// **'Reading your meal plan…'**
+  String get askThoughtDiet;
 
-  /// Progress line: the assistant is reading the expense log. Keep the ellipsis.
+  /// The same step once finished, in the expanded list of what ZIVO did (the diet / meal plan). Past tense, no ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Read your meal plan'**
+  String get askThoughtDietDone;
+
+  /// Live thought line in Ask while ZIVO works on logged workouts. Present tense, keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your workouts…'**
+  String get askThoughtWorkouts;
+
+  /// The same step once finished, in the expanded list of what ZIVO did (logged workouts). Past tense, no ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Read your workouts'**
+  String get askThoughtWorkoutsDone;
+
+  /// Live thought line in Ask while ZIVO works on the most recent workout. Present tense, keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your last workout…'**
+  String get askThoughtLastWorkout;
+
+  /// The same step once finished, in the expanded list of what ZIVO did (the most recent workout). Past tense, no ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Read your last workout'**
+  String get askThoughtLastWorkoutDone;
+
+  /// Live thought line in Ask while ZIVO works on the training analysis. Present tense, keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing your training…'**
+  String get askThoughtTraining;
+
+  /// The same step once finished, in the expanded list of what ZIVO did (the training analysis). Past tense, no ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzed your training'**
+  String get askThoughtTrainingDone;
+
+  /// Live thought line in Ask while ZIVO works on one exercise's history. Present tense, keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing this lift…'**
+  String get askThoughtExercise;
+
+  /// The same step once finished, in the expanded list of what ZIVO did (one exercise's history). Past tense, no ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzed this lift'**
+  String get askThoughtExerciseDone;
+
+  /// Live thought line in Ask while ZIVO works on expenses. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
   /// **'Reading your spending…'**
-  String get askReadingSpending;
+  String get askThoughtSpending;
 
-  /// Progress line: the assistant is building a weekly summary. Keep the ellipsis.
+  /// The same step once finished, in the expanded list of what ZIVO did (expenses). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Summarising your week…'**
-  String get askSummarisingWeek;
+  /// **'Read your spending'**
+  String get askThoughtSpendingDone;
 
-  /// Progress line: the assistant is resolving a food item. Keep the ellipsis.
+  /// Live thought line in Ask while ZIVO works on the weekly summary. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Looking that food up…'**
-  String get askLookingUpFood;
+  /// **'Analyzing your week…'**
+  String get askThoughtWeek;
 
-  /// Progress line: the assistant is computing nutrition figures. Keep the ellipsis.
+  /// The same step once finished, in the expanded list of what ZIVO did (the weekly summary). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Working out the numbers…'**
-  String get askCalculating;
+  /// **'Analyzed your week'**
+  String get askThoughtWeekDone;
 
-  /// Progress line: the assistant is searching the web for a branded/packaged food not in ZIVO's catalog. Keep the ellipsis.
+  /// Live thought line in Ask while ZIVO works on the daily readiness call. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Searching for that product…'**
-  String get askSearchingForProduct;
+  /// **'Analyzing your readiness…'**
+  String get askThoughtReadiness;
 
-  /// Progress line: the assistant is ranking meal-replacement alternatives for a plan item. Keep the ellipsis.
+  /// The same step once finished, in the expanded list of what ZIVO did (the daily readiness call). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Finding alternatives…'**
-  String get askFindingAlternatives;
+  /// **'Analyzed your readiness'**
+  String get askThoughtReadinessDone;
 
-  /// Progress line: the assistant is reading the daily readiness call. Keep the ellipsis.
-  ///
-  /// In en, this message translates to:
-  /// **'Checking your readiness…'**
-  String get askReadingReadiness;
-
-  /// Progress line: the assistant is reading sleep data. Keep the ellipsis.
+  /// Live thought line in Ask while ZIVO works on sleep data. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
   /// **'Reading your sleep…'**
-  String get askReadingSleep;
+  String get askThoughtSleep;
 
-  /// Verb on an activity-timeline chip in Ask for a step that READS the user's data, shown as 'Grab · Diet details'. One short word.
+  /// The same step once finished, in the expanded list of what ZIVO did (sleep data). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Grab'**
-  String get askActivityGrab;
+  /// **'Read your sleep'**
+  String get askThoughtSleepDone;
 
-  /// Verb on an activity-timeline chip in Ask for a step that looks something up, shown as 'Search · Food alternatives'. One short word.
+  /// Live thought line in Ask while ZIVO works on a food lookup in the catalog. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Search'**
-  String get askActivitySearch;
+  /// **'Searching the food catalog…'**
+  String get askThoughtFoodDetails;
 
-  /// Verb on an activity-timeline chip in Ask for a step that computes figures, shown as 'Calculate · Meal nutrition'. One short word.
+  /// The same step once finished, in the expanded list of what ZIVO did (a food lookup in the catalog). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Calculate'**
-  String get askActivityCalculate;
+  /// **'Searched the food catalog'**
+  String get askThoughtFoodDetailsDone;
 
-  /// Object on an Ask activity chip: today's summary was read.
+  /// Live thought line in Ask while ZIVO works on the meal nutrition calculation. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Today\'s details'**
-  String get askActivityToday;
+  /// **'Calculating the nutrition…'**
+  String get askThoughtNutrition;
 
-  /// Object on an Ask activity chip: the diet was read.
+  /// The same step once finished, in the expanded list of what ZIVO did (the meal nutrition calculation). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Diet details'**
-  String get askActivityDiet;
+  /// **'Calculated the nutrition'**
+  String get askThoughtNutritionDone;
 
-  /// Object on an Ask activity chip: workout history was read.
+  /// Live thought line in Ask while ZIVO works on a branded product search. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Workout details'**
-  String get askActivityWorkouts;
+  /// **'Searching for that product…'**
+  String get askThoughtProduct;
 
-  /// Object on an Ask activity chip: the most recent workout was read.
+  /// The same step once finished, in the expanded list of what ZIVO did (a branded product search). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Last workout'**
-  String get askActivityLastWorkout;
+  /// **'Searched for that product'**
+  String get askThoughtProductDone;
 
-  /// Object on an Ask activity chip: the training analysis was read.
+  /// Live thought line in Ask while ZIVO works on finding food alternatives. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Training analysis'**
-  String get askActivityTrainingAnalysis;
+  /// **'Suggesting alternatives…'**
+  String get askThoughtAlternatives;
 
-  /// Object on an Ask activity chip: one exercise's history was read.
+  /// The same step once finished, in the expanded list of what ZIVO did (finding food alternatives). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Exercise history'**
-  String get askActivityExerciseHistory;
+  /// **'Suggested alternatives'**
+  String get askThoughtAlternativesDone;
 
-  /// Object on an Ask activity chip: expenses were read.
+  /// One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. "Read · Analyzed"). A single word.
   ///
   /// In en, this message translates to:
-  /// **'Spending'**
-  String get askActivitySpending;
+  /// **'Read'**
+  String get askThoughtVerbRead;
 
-  /// Object on an Ask activity chip: the weekly summary was built.
+  /// One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. "Read · Analyzed"). A single word.
   ///
   /// In en, this message translates to:
-  /// **'Weekly summary'**
-  String get askActivityWeek;
+  /// **'Analyzed'**
+  String get askThoughtVerbAnalyzed;
 
-  /// Object on an Ask activity chip: the daily readiness call was read.
+  /// One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. "Read · Analyzed"). A single word.
   ///
   /// In en, this message translates to:
-  /// **'Readiness'**
-  String get askActivityReadiness;
+  /// **'Calculated'**
+  String get askThoughtVerbCalculated;
 
-  /// Object on an Ask activity chip: sleep data was read.
+  /// One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. "Read · Analyzed"). A single word.
   ///
   /// In en, this message translates to:
-  /// **'Sleep summary'**
-  String get askActivitySleep;
+  /// **'Searched'**
+  String get askThoughtVerbSearched;
 
-  /// Object on an Ask activity chip: a food was looked up in the catalog.
+  /// One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. "Read · Analyzed"). A single word.
   ///
   /// In en, this message translates to:
-  /// **'Food details'**
-  String get askActivityFoodDetails;
+  /// **'Suggested'**
+  String get askThoughtVerbSuggested;
 
-  /// Object on an Ask activity chip: a meal's calories/macros were computed.
+  /// Screen-reader hint on the collapsed summary of what ZIVO did — tapping expands the list.
   ///
   /// In en, this message translates to:
-  /// **'Meal nutrition'**
-  String get askActivityMealNutrition;
+  /// **'Show steps'**
+  String get askThoughtShowSteps;
 
-  /// Object on an Ask activity chip: a branded food product was searched for.
+  /// Screen-reader hint on the expanded list of what ZIVO did — tapping collapses it.
   ///
   /// In en, this message translates to:
-  /// **'Food product'**
-  String get askActivityFoodProduct;
+  /// **'Hide steps'**
+  String get askThoughtHideSteps;
 
-  /// Object on an Ask activity chip: replacements for a meal item were found.
+  /// Screen-reader label for the answer chips shown above the Ask composer when ZIVO asks a question.
   ///
   /// In en, this message translates to:
-  /// **'Food alternatives'**
-  String get askActivityFoodAlternatives;
+  /// **'Choose an answer'**
+  String get askChoiceTray;
 
   /// Screen-reader / trailing note on an Ask activity chip whose step failed.
   ///

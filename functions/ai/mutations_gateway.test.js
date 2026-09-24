@@ -1133,9 +1133,10 @@ async () => {
   // The card carries the verified options: the model's labels, the server's
   // foodIds and figures, and the exact swap each one means.
   const card = store.messages.find((m) => m.kind === "choice_request");
+  // ZIVO appends its own "other options" chip, in the user's language.
   assert.deepEqual(card.fields.options.map((o) => o.label),
-      ["فاصوليا خضراء", "كوسة", "بامية"]);
-  for (const o of card.fields.options) {
+      ["فاصوليا خضراء", "كوسة", "بامية", "اختيارات تانية"]);
+  for (const o of card.fields.options.filter((x) => x.value !== "__more__")) {
     assert.notEqual(o.subtitle, "1 kcal");
     assert.match(o.subtitle, /^\d+ g · \d+ kcal · [\d.]+ g protein$/);
     assert.ok(Number.isFinite(o.metadata.kcal));
@@ -1293,7 +1294,10 @@ test("structured choices: verified swaps become a choice card with the " +
     {value: TURKEY, label: "Turkey breast",
       subtitle: "190 g · 239 kcal · 42.2 g protein",
       metadata: {grams: 190, kcal: 239, proteinG: 42.2, carbsG: 0, fatG: 6.7}},
+    // ZIVO's own "none of these" chip — unbound, it means search again.
+    {value: "__more__", label: "Other options"},
   ]);
+  assert.equal(card.bindings.__more__, undefined);
   assert.deepEqual(card.bindings[TUNA], {
     tool: "replace_meal_item",
     input: {mealId: "breakfast-1", itemIndex: 0, itemName: "Eggs",
@@ -1316,7 +1320,8 @@ test("structured choices: an option the search never verified is dropped, " +
     ],
   }, "t-ask"));
   const card = store.messages.find((m) => m.kind === "choice_request");
-  assert.deepEqual(card.fields.options.map((o) => o.value), [FETA, TURKEY]);
+  assert.deepEqual(card.fields.options.map((o) => o.value),
+      [FETA, TURKEY, "__more__"]);
 });
 
 test("structured choices: a reply that lists the options as bullets still " +
@@ -1331,7 +1336,7 @@ test("structured choices: a reply that lists the options as bullets still " +
   assert.equal(card.content,
       "I found 3 verified swaps close to the original calories:");
   assert.deepEqual(card.fields.options.map((o) => o.value),
-      [FETA, TUNA, TURKEY]);
+      [FETA, TUNA, TURKEY, "__more__"]);
   assert.ok(card.bindings[FETA]);
   // No second, plain-text copy of the list.
   assert.equal(store.messages.filter((m) =>
@@ -1492,4 +1497,161 @@ test("structured choices are generic: an unbound question's pick reaches " +
         label);
     assert.equal(store.pendingActions.size, 0);
   }
+});
+
+// ---- Context carry-over (chat/context_ledger.js) --------------------------
+
+/**
+ * A store whose history is its own appended messages, the way Firestore's
+ * getRecentMessages returns them (oldest first, cards with their fields and
+ * the context ledger they carry).
+ * @return {!Object}
+ */
+function eggStoreWithHistory() {
+  const store = eggStore();
+  store.getRecentMessages = async () => store.messages.map((m) =>
+    Object.assign({}, m));
+  return store;
+}
+
+test("context ledger: the turn after a choice reuses the diet + search it " +
+    "already ran instead of re-reading them", async () => {
+  const store = eggStoreWithHistory();
+  await discoverEggSwaps(store);
+  const card = store.messages.find((m) => m.kind === "choice_request");
+  // The card carries the lookups behind it, not just their names.
+  assert.deepEqual(card.context.entries.map((e) => e.tool),
+      ["get_diet", "search_food_alternatives"]);
+  assert.deepEqual(card.activity.map((a) => a.tool),
+      ["get_diet", "search_food_alternatives"]);
+
+  // Five minutes later: "is there another option?" — answered straight from
+  // what the model was handed, no lookup.
+  const callModel = scriptedModel([textResponse("Cottage cheese works too.")]);
+  const result = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "is there another option?", now: makeClock(1000 + 5 * 60000),
+    clientClock: {offsetMinutes: 0},
+  });
+  assert.equal(result.status, "ok");
+  const lastUser = callModel.requests[0].messages.at(-1);
+  const text = typeof lastUser.content === "string" ?
+    lastUser.content : JSON.stringify(lastUser.content);
+  assert.match(text, /EARLIER RESULTS/);
+  assert.match(text, /get_diet/);
+  assert.match(text, /search_food_alternatives/);
+  assert.match(text, /read 5 min ago/);
+  // The user's own words come last.
+  assert.ok(text.trimEnd().endsWith("is there another option?"));
+  assert.equal(result.usage.contextCarried, 2);
+  assert.ok(result.usage.contextCarriedTokens > 0);
+  // …and the reply hands the same ledger on to the next turn.
+  const reply = store.messages.at(-1);
+  assert.equal(reply.context.entries.length, 2);
+});
+
+test("context ledger: results older than the window, or from another day, " +
+    "are not carried", async () => {
+  const store = eggStoreWithHistory();
+  await discoverEggSwaps(store);
+  const callModel = scriptedModel([textResponse("ok")]);
+  await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "and now?", now: makeClock(1000 + 40 * 60000),
+    clientClock: {offsetMinutes: 0},
+  });
+  const lastUser = callModel.requests[0].messages.at(-1);
+  assert.doesNotMatch(JSON.stringify(lastUser.content), /EARLIER RESULTS/);
+});
+
+test("'Other options' is ZIVO's own chip: tapping it reaches the model as " +
+    "'find different ones' — with the plan already in hand", async () => {
+  const store = eggStoreWithHistory();
+  const discover = await discoverEggSwaps(store);
+  const callModel = scriptedModel([textResponse("Here are a few more.")]);
+  const result = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "Other options",
+    choice: {requestId: discover.requestId, value: "__more__"},
+    now: makeClock(1000 + 60000), clientClock: {offsetMinutes: 0},
+  });
+  assert.equal(result.status, "ok");
+  // Nothing was proposed — "none of these" means no change.
+  assert.equal(store.pendingActions.size, 0);
+  const lastUser = callModel.requests[0].messages.at(-1).content;
+  assert.match(lastUser, /DIFFERENT/);
+  assert.match(lastUser, /Feta cheese, Tuna salad, Turkey breast/);
+  assert.match(lastUser, /EARLIER RESULTS/);
+});
+
+test("narration: what the model wrote before a tool call stays in the " +
+    "reply, and the streamed words are exactly the saved words", async () => {
+  const store = eggStoreWithHistory();
+  const responses = [
+    {
+      stop_reason: "tool_use",
+      content: [
+        {type: "text", text: "Let me look at today's breakfast."},
+        {type: "tool_use", id: "t-diet", name: "get_diet", input: {}},
+      ],
+      usage: {input_tokens: 10, output_tokens: 5},
+    },
+    textResponse("Your breakfast is eggs and bread."),
+  ];
+  let i = 0;
+  const streamModel = async (req, onText) => {
+    const r = responses[i++];
+    for (const b of r.content) {
+      // Providers often open a step with whitespace — it must not leak.
+      if (b.type === "text") onText(i > 1 ? `\n ${b.text}` : b.text);
+    }
+    return r;
+  };
+  const deltas = [];
+  await runAiTurn({
+    store, streamModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "what's for breakfast?", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0}, clientTurnId: "turn-1",
+    onEvent: (e) => {
+      if (e.type === "delta") deltas.push(e.text);
+    },
+  });
+  const reply = store.messages.at(-1);
+  assert.equal(reply.content,
+      "Let me look at today's breakfast.\n\nYour breakfast is eggs and bread.");
+  assert.equal(deltas.join(""), reply.content);
+});
+
+test("a card keeps what the model said before it (preface) and belongs to " +
+    "its turn (clientTurnId)", async () => {
+  const store = eggStoreWithHistory();
+  const callModel = scriptedModel([
+    toolUse("get_diet", {}, "t-diet"),
+    toolUse("search_food_alternatives", EGG_SEARCH, "t-search"),
+    {
+      stop_reason: "tool_use",
+      content: [
+        {type: "text", text: "Your breakfast has 2 eggs. I found swaps " +
+          "that land close to that."},
+        {type: "tool_use", id: "t-ask", name: "ask_choice", input: {
+          prompt: "Which one would you prefer?",
+          options: [
+            {value: FETA, label: "Feta cheese"},
+            {value: TURKEY, label: "Turkey breast"},
+          ],
+        }},
+      ],
+      usage: {input_tokens: 10, output_tokens: 5},
+    },
+  ]);
+  await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "I don't want eggs", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0}, clientTurnId: "turn-9",
+  });
+  const card = store.messages.find((m) => m.kind === "choice_request");
+  assert.equal(card.content, "Which one would you prefer?");
+  assert.equal(card.preface,
+      "Your breakfast has 2 eggs. I found swaps that land close to that.");
+  assert.equal(card.clientTurnId, "turn-9");
 });

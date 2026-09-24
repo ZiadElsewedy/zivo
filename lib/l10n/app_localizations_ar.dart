@@ -2223,100 +2223,121 @@ class AppLocalizationsAr extends AppLocalizations {
   String get askThinking => 'يفكّر…';
 
   @override
-  String get askUnderstanding => 'يفهم طلبك…';
-
-  @override
-  String get askWorking => 'يعمل…';
-
-  @override
   String get askPreparingChange => 'يجهّز التعديل…';
 
   @override
   String get askStillWorking => 'ما زال يعمل على هذه…';
 
   @override
-  String get askReadingDay => 'يقرأ يومك…';
+  String get askThoughtAnalyzingResults => 'يحلّل ما وجده…';
 
   @override
-  String get askReadingDiet => 'يقرأ نظامك الغذائي اليوم…';
+  String get askThoughtDay => 'يقرأ يومك…';
 
   @override
-  String get askReadingTraining => 'يقرأ تدريبك…';
+  String get askThoughtDayDone => 'قرأ يومك';
 
   @override
-  String get askReadingSpending => 'يقرأ مصروفاتك…';
+  String get askThoughtDiet => 'يقرأ خطة وجباتك…';
 
   @override
-  String get askSummarisingWeek => 'يلخّص أسبوعك…';
+  String get askThoughtDietDone => 'قرأ خطة وجباتك';
 
   @override
-  String get askLookingUpFood => 'يبحث عن هذا الطعام…';
+  String get askThoughtWorkouts => 'يقرأ تمارينك…';
 
   @override
-  String get askCalculating => 'يحسب الأرقام…';
+  String get askThoughtWorkoutsDone => 'قرأ تمارينك';
 
   @override
-  String get askSearchingForProduct => 'يبحث عن هذا المنتج…';
+  String get askThoughtLastWorkout => 'يقرأ آخر تمرين لك…';
 
   @override
-  String get askFindingAlternatives => 'يبحث عن بدائل…';
+  String get askThoughtLastWorkoutDone => 'قرأ آخر تمرين لك';
 
   @override
-  String get askReadingReadiness => 'يراجع جاهزيتك…';
+  String get askThoughtTraining => 'يحلّل تدريبك…';
 
   @override
-  String get askReadingSleep => 'يقرأ بيانات نومك…';
+  String get askThoughtTrainingDone => 'حلّل تدريبك';
 
   @override
-  String get askActivityGrab => 'جلب';
+  String get askThoughtExercise => 'يحلّل هذا التمرين…';
 
   @override
-  String get askActivitySearch => 'بحث';
+  String get askThoughtExerciseDone => 'حلّل هذا التمرين';
 
   @override
-  String get askActivityCalculate => 'حساب';
+  String get askThoughtSpending => 'يقرأ مصروفاتك…';
 
   @override
-  String get askActivityToday => 'تفاصيل اليوم';
+  String get askThoughtSpendingDone => 'قرأ مصروفاتك';
 
   @override
-  String get askActivityDiet => 'تفاصيل النظام الغذائي';
+  String get askThoughtWeek => 'يحلّل أسبوعك…';
 
   @override
-  String get askActivityWorkouts => 'تفاصيل التمارين';
+  String get askThoughtWeekDone => 'حلّل أسبوعك';
 
   @override
-  String get askActivityLastWorkout => 'آخر تمرين';
+  String get askThoughtReadiness => 'يحلّل جاهزيتك…';
 
   @override
-  String get askActivityTrainingAnalysis => 'تحليل التدريب';
+  String get askThoughtReadinessDone => 'حلّل جاهزيتك';
 
   @override
-  String get askActivityExerciseHistory => 'سجل التمرين';
+  String get askThoughtSleep => 'يقرأ بيانات نومك…';
 
   @override
-  String get askActivitySpending => 'المصروفات';
+  String get askThoughtSleepDone => 'قرأ بيانات نومك';
 
   @override
-  String get askActivityWeek => 'ملخص الأسبوع';
+  String get askThoughtFoodDetails => 'يبحث في دليل الأطعمة…';
 
   @override
-  String get askActivityReadiness => 'الجاهزية';
+  String get askThoughtFoodDetailsDone => 'بحث في دليل الأطعمة';
 
   @override
-  String get askActivitySleep => 'ملخص النوم';
+  String get askThoughtNutrition => 'يحسب القيم الغذائية…';
 
   @override
-  String get askActivityFoodDetails => 'تفاصيل الطعام';
+  String get askThoughtNutritionDone => 'حسب القيم الغذائية';
 
   @override
-  String get askActivityMealNutrition => 'القيم الغذائية للوجبة';
+  String get askThoughtProduct => 'يبحث عن هذا المنتج…';
 
   @override
-  String get askActivityFoodProduct => 'منتج غذائي';
+  String get askThoughtProductDone => 'بحث عن هذا المنتج';
 
   @override
-  String get askActivityFoodAlternatives => 'بدائل الطعام';
+  String get askThoughtAlternatives => 'يقترح بدائل…';
+
+  @override
+  String get askThoughtAlternativesDone => 'اقترح بدائل';
+
+  @override
+  String get askThoughtVerbRead => 'قرأ';
+
+  @override
+  String get askThoughtVerbAnalyzed => 'حلّل';
+
+  @override
+  String get askThoughtVerbCalculated => 'حسب';
+
+  @override
+  String get askThoughtVerbSearched => 'بحث';
+
+  @override
+  String get askThoughtVerbSuggested => 'اقترح';
+
+  @override
+  String get askThoughtShowSteps => 'اعرض الخطوات';
+
+  @override
+  String get askThoughtHideSteps => 'أخفِ الخطوات';
+
+  @override
+  String get askChoiceTray => 'اختر إجابة';
 
   @override
   String get askActivityFailed => 'تعذّر الحصول عليه';

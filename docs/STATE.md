@@ -97,6 +97,50 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Ask: human thought states, no-snap streaming, answer chips, context
+  carry-over** (2026-09-24, on `upgrades`, NOT deployed — the functions half
+  needs an owner deploy; the app half works against the old backend, minus
+  lead-ins/ledger/"Other options").
+  - **Thought trail** (`widgets/ask/thought_trail.dart`, replaces
+    `activity_timeline` + `thinking_rail`): tools become human states —
+    Reading · Analyzing · Calculating · Searching · Suggesting · Preparing ·
+    Thinking (`presentation/ai_thought.dart`) — each in a muted mineral tint
+    (new `thought*` tokens, both skins, AA-tested). Live: finished steps on a
+    hairline + a breathing dot and sheen on the current state. Settled: one
+    line of past verbs ("● Read ● Suggested"), tap to unfold. Raw tool ids show
+    in the unfolded list in DEBUG builds only (`kShowAiToolIds`). "Grab" is
+    gone; ZIVO's signature is neutral, not violet.
+  - **Streaming glitch — root causes:** (1) text a model wrote before a tool
+    call streamed but was never saved (reply = last step only), so the saved
+    copy was SHORTER; (2) cards had no `clientTurnId`, so a streamed lead-in
+    vanished when the card landed; (3) the live bubble was swapped for the
+    saved one mid-reveal (snap to full); (4) steps' text was glued with no
+    break; (5) a fallback wiped earlier steps' text; (6) the pacer was
+    per-frame (2× on 120Hz, dumps after long lookups); (7) after a lead-in the
+    screen showed a still paragraph while tools ran. Fixed: `turn.js` saves
+    every step's text ("\n\n"-joined, streamed byte-identically), cards carry
+    `clientTurnId`/`preface`/`activity`; the page types on from the shared
+    prefix at handoff; per-step fallback truncation; time-based pacer
+    (`kRevealFloorCps`/`kRevealCatchUp`); one live item per turn;
+    `AskController.writing` brings the thought line back after 700 ms quiet.
+  - **Ask flow:** the prompt now answers in words first, then `ask_choice`
+    with the question as its prompt; the options render as **answer chips
+    docked above the composer** (`widgets/ask/choice_tray.dart`, replaces
+    `choice_card.dart`) while the question stays in the thread as ZIVO's text.
+    Only the conversation's latest open question gets chips. ZIVO appends its
+    own **"Other options"** (`__more__`, unbound) to verified-offer cards.
+  - **Architecture decision — reuse, don't re-call:** tool results used to die
+    with their turn, so every follow-up ("another option?") re-ran `get_diet`.
+    New `chat/context_ledger.js`: the latest reply/card carries its turn's
+    read/search results (`context`, ≤6 entries/14k chars, 15-min TTL,
+    same user-day; a confirmed write breaks the chain); the next turn gets them
+    as a fenced EARLIER RESULTS block and seeds the validator + a carried
+    choice offer from them. NUMBERS/ACTIVITY/SAFETY prompt sections updated
+    (pinned phrases intact). Measurable: usage `contextCarried` +
+    `contextCarriedTokens`. Tools stay visible to the team via usage `tools`
+    and the debug-only ids.
+  - **Owner actions:** deploy functions; try "I don't want eggs for
+    breakfast" → pick "Other options" and check usage shows one lookup, not two.
 - **Ask limit vs provider failures, Gemini root cause, cross-provider fallback,
   Settings → AI, Plans declutter, chat-delete crash** (2026-09-24, on
   `upgrades`, NOT deployed — functions changes need an owner deploy).

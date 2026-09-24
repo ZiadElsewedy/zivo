@@ -3100,14 +3100,6 @@
   "@askThinking": {
       "description": "The assistant is composing a reply. Keep the ellipsis."
   },
-  "askUnderstanding": "Understanding…",
-  "@askUnderstanding": {
-      "description": "The assistant is interpreting the question. Keep the ellipsis."
-  },
-  "askWorking": "Working…",
-  "@askWorking": {
-      "description": "Generic progress line while the assistant runs a step. Keep the ellipsis."
-  },
   "askPreparingChange": "Preparing your change…",
   "@askPreparingChange": {
       "description": "The assistant is drafting a change for the user to confirm. Keep the ellipsis."
@@ -3116,117 +3108,153 @@
   "@askStillWorking": {
       "description": "Shown when a turn is taking unusually long. Keep the ellipsis."
   },
-  "askReadingDay": "Reading your day…",
-  "@askReadingDay": {
-      "description": "Progress line: the assistant is reading today's summary. Keep the ellipsis."
+  "askThoughtAnalyzingResults": "Analyzing what I found…",
+  "@askThoughtAnalyzingResults": {
+      "description": "Progress line: ZIVO is reading back the results of its lookups. Keep the ellipsis."
   },
-  "askReadingDiet": "Reading today's diet…",
-  "@askReadingDiet": {
-      "description": "Progress line: the assistant is reading the diet log. Keep the ellipsis."
+  "askThoughtDay": "Reading your day…",
+  "@askThoughtDay": {
+      "description": "Live thought line in Ask while ZIVO works on today's summary. Present tense, keep the ellipsis."
   },
-  "askReadingTraining": "Reading your training…",
-  "@askReadingTraining": {
-      "description": "Progress line: the assistant is reading workout history. Keep the ellipsis."
+  "askThoughtDayDone": "Read your day",
+  "@askThoughtDayDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (today's summary). Past tense, no ellipsis."
   },
-  "askReadingSpending": "Reading your spending…",
-  "@askReadingSpending": {
-      "description": "Progress line: the assistant is reading the expense log. Keep the ellipsis."
+  "askThoughtDiet": "Reading your meal plan…",
+  "@askThoughtDiet": {
+      "description": "Live thought line in Ask while ZIVO works on the diet / meal plan. Present tense, keep the ellipsis."
   },
-  "askSummarisingWeek": "Summarising your week…",
-  "@askSummarisingWeek": {
-      "description": "Progress line: the assistant is building a weekly summary. Keep the ellipsis."
+  "askThoughtDietDone": "Read your meal plan",
+  "@askThoughtDietDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (the diet / meal plan). Past tense, no ellipsis."
   },
-  "askLookingUpFood": "Looking that food up…",
-  "@askLookingUpFood": {
-      "description": "Progress line: the assistant is resolving a food item. Keep the ellipsis."
+  "askThoughtWorkouts": "Reading your workouts…",
+  "@askThoughtWorkouts": {
+      "description": "Live thought line in Ask while ZIVO works on logged workouts. Present tense, keep the ellipsis."
   },
-  "askCalculating": "Working out the numbers…",
-  "@askCalculating": {
-      "description": "Progress line: the assistant is computing nutrition figures. Keep the ellipsis."
+  "askThoughtWorkoutsDone": "Read your workouts",
+  "@askThoughtWorkoutsDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (logged workouts). Past tense, no ellipsis."
   },
-  "askSearchingForProduct": "Searching for that product…",
-  "@askSearchingForProduct": {
-      "description": "Progress line: the assistant is searching the web for a branded/packaged food not in ZIVO's catalog. Keep the ellipsis."
+  "askThoughtLastWorkout": "Reading your last workout…",
+  "@askThoughtLastWorkout": {
+      "description": "Live thought line in Ask while ZIVO works on the most recent workout. Present tense, keep the ellipsis."
   },
-  "askFindingAlternatives": "Finding alternatives…",
-  "@askFindingAlternatives": {
-      "description": "Progress line: the assistant is ranking meal-replacement alternatives for a plan item. Keep the ellipsis."
+  "askThoughtLastWorkoutDone": "Read your last workout",
+  "@askThoughtLastWorkoutDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (the most recent workout). Past tense, no ellipsis."
   },
-  "askReadingReadiness": "Checking your readiness…",
-  "@askReadingReadiness": {
-      "description": "Progress line: the assistant is reading the daily readiness call. Keep the ellipsis."
+  "askThoughtTraining": "Analyzing your training…",
+  "@askThoughtTraining": {
+      "description": "Live thought line in Ask while ZIVO works on the training analysis. Present tense, keep the ellipsis."
   },
-  "askReadingSleep": "Reading your sleep…",
-  "@askReadingSleep": {
-      "description": "Progress line: the assistant is reading sleep data. Keep the ellipsis."
+  "askThoughtTrainingDone": "Analyzed your training",
+  "@askThoughtTrainingDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (the training analysis). Past tense, no ellipsis."
   },
-  "askActivityGrab": "Grab",
-  "@askActivityGrab": {
-      "description": "Verb on an activity-timeline chip in Ask for a step that READS the user's data, shown as 'Grab · Diet details'. One short word."
+  "askThoughtExercise": "Analyzing this lift…",
+  "@askThoughtExercise": {
+      "description": "Live thought line in Ask while ZIVO works on one exercise's history. Present tense, keep the ellipsis."
   },
-  "askActivitySearch": "Search",
-  "@askActivitySearch": {
-      "description": "Verb on an activity-timeline chip in Ask for a step that looks something up, shown as 'Search · Food alternatives'. One short word."
+  "askThoughtExerciseDone": "Analyzed this lift",
+  "@askThoughtExerciseDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (one exercise's history). Past tense, no ellipsis."
   },
-  "askActivityCalculate": "Calculate",
-  "@askActivityCalculate": {
-      "description": "Verb on an activity-timeline chip in Ask for a step that computes figures, shown as 'Calculate · Meal nutrition'. One short word."
+  "askThoughtSpending": "Reading your spending…",
+  "@askThoughtSpending": {
+      "description": "Live thought line in Ask while ZIVO works on expenses. Present tense, keep the ellipsis."
   },
-  "askActivityToday": "Today's details",
-  "@askActivityToday": {
-      "description": "Object on an Ask activity chip: today's summary was read."
+  "askThoughtSpendingDone": "Read your spending",
+  "@askThoughtSpendingDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (expenses). Past tense, no ellipsis."
   },
-  "askActivityDiet": "Diet details",
-  "@askActivityDiet": {
-      "description": "Object on an Ask activity chip: the diet was read."
+  "askThoughtWeek": "Analyzing your week…",
+  "@askThoughtWeek": {
+      "description": "Live thought line in Ask while ZIVO works on the weekly summary. Present tense, keep the ellipsis."
   },
-  "askActivityWorkouts": "Workout details",
-  "@askActivityWorkouts": {
-      "description": "Object on an Ask activity chip: workout history was read."
+  "askThoughtWeekDone": "Analyzed your week",
+  "@askThoughtWeekDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (the weekly summary). Past tense, no ellipsis."
   },
-  "askActivityLastWorkout": "Last workout",
-  "@askActivityLastWorkout": {
-      "description": "Object on an Ask activity chip: the most recent workout was read."
+  "askThoughtReadiness": "Analyzing your readiness…",
+  "@askThoughtReadiness": {
+      "description": "Live thought line in Ask while ZIVO works on the daily readiness call. Present tense, keep the ellipsis."
   },
-  "askActivityTrainingAnalysis": "Training analysis",
-  "@askActivityTrainingAnalysis": {
-      "description": "Object on an Ask activity chip: the training analysis was read."
+  "askThoughtReadinessDone": "Analyzed your readiness",
+  "@askThoughtReadinessDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (the daily readiness call). Past tense, no ellipsis."
   },
-  "askActivityExerciseHistory": "Exercise history",
-  "@askActivityExerciseHistory": {
-      "description": "Object on an Ask activity chip: one exercise's history was read."
+  "askThoughtSleep": "Reading your sleep…",
+  "@askThoughtSleep": {
+      "description": "Live thought line in Ask while ZIVO works on sleep data. Present tense, keep the ellipsis."
   },
-  "askActivitySpending": "Spending",
-  "@askActivitySpending": {
-      "description": "Object on an Ask activity chip: expenses were read."
+  "askThoughtSleepDone": "Read your sleep",
+  "@askThoughtSleepDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (sleep data). Past tense, no ellipsis."
   },
-  "askActivityWeek": "Weekly summary",
-  "@askActivityWeek": {
-      "description": "Object on an Ask activity chip: the weekly summary was built."
+  "askThoughtFoodDetails": "Searching the food catalog…",
+  "@askThoughtFoodDetails": {
+      "description": "Live thought line in Ask while ZIVO works on a food lookup in the catalog. Present tense, keep the ellipsis."
   },
-  "askActivityReadiness": "Readiness",
-  "@askActivityReadiness": {
-      "description": "Object on an Ask activity chip: the daily readiness call was read."
+  "askThoughtFoodDetailsDone": "Searched the food catalog",
+  "@askThoughtFoodDetailsDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (a food lookup in the catalog). Past tense, no ellipsis."
   },
-  "askActivitySleep": "Sleep summary",
-  "@askActivitySleep": {
-      "description": "Object on an Ask activity chip: sleep data was read."
+  "askThoughtNutrition": "Calculating the nutrition…",
+  "@askThoughtNutrition": {
+      "description": "Live thought line in Ask while ZIVO works on the meal nutrition calculation. Present tense, keep the ellipsis."
   },
-  "askActivityFoodDetails": "Food details",
-  "@askActivityFoodDetails": {
-      "description": "Object on an Ask activity chip: a food was looked up in the catalog."
+  "askThoughtNutritionDone": "Calculated the nutrition",
+  "@askThoughtNutritionDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (the meal nutrition calculation). Past tense, no ellipsis."
   },
-  "askActivityMealNutrition": "Meal nutrition",
-  "@askActivityMealNutrition": {
-      "description": "Object on an Ask activity chip: a meal's calories/macros were computed."
+  "askThoughtProduct": "Searching for that product…",
+  "@askThoughtProduct": {
+      "description": "Live thought line in Ask while ZIVO works on a branded product search. Present tense, keep the ellipsis."
   },
-  "askActivityFoodProduct": "Food product",
-  "@askActivityFoodProduct": {
-      "description": "Object on an Ask activity chip: a branded food product was searched for."
+  "askThoughtProductDone": "Searched for that product",
+  "@askThoughtProductDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (a branded product search). Past tense, no ellipsis."
   },
-  "askActivityFoodAlternatives": "Food alternatives",
-  "@askActivityFoodAlternatives": {
-      "description": "Object on an Ask activity chip: replacements for a meal item were found."
+  "askThoughtAlternatives": "Suggesting alternatives…",
+  "@askThoughtAlternatives": {
+      "description": "Live thought line in Ask while ZIVO works on finding food alternatives. Present tense, keep the ellipsis."
+  },
+  "askThoughtAlternativesDone": "Suggested alternatives",
+  "@askThoughtAlternativesDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (finding food alternatives). Past tense, no ellipsis."
+  },
+  "askThoughtVerbRead": "Read",
+  "@askThoughtVerbRead": {
+      "description": "One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. \"Read · Analyzed\"). A single word."
+  },
+  "askThoughtVerbAnalyzed": "Analyzed",
+  "@askThoughtVerbAnalyzed": {
+      "description": "One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. \"Read · Analyzed\"). A single word."
+  },
+  "askThoughtVerbCalculated": "Calculated",
+  "@askThoughtVerbCalculated": {
+      "description": "One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. \"Read · Analyzed\"). A single word."
+  },
+  "askThoughtVerbSearched": "Searched",
+  "@askThoughtVerbSearched": {
+      "description": "One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. \"Read · Analyzed\"). A single word."
+  },
+  "askThoughtVerbSuggested": "Suggested",
+  "@askThoughtVerbSuggested": {
+      "description": "One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. \"Read · Analyzed\"). A single word."
+  },
+  "askThoughtShowSteps": "Show steps",
+  "@askThoughtShowSteps": {
+      "description": "Screen-reader hint on the collapsed summary of what ZIVO did — tapping expands the list."
+  },
+  "askThoughtHideSteps": "Hide steps",
+  "@askThoughtHideSteps": {
+      "description": "Screen-reader hint on the expanded list of what ZIVO did — tapping collapses it."
+  },
+  "askChoiceTray": "Choose an answer",
+  "@askChoiceTray": {
+      "description": "Screen-reader label for the answer chips shown above the Ask composer when ZIVO asks a question."
   },
   "askActivityFailed": "Couldn't get this",
   "@askActivityFailed": {

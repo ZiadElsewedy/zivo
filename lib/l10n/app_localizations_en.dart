@@ -2197,100 +2197,121 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askThinking => 'Thinking…';
 
   @override
-  String get askUnderstanding => 'Understanding…';
-
-  @override
-  String get askWorking => 'Working…';
-
-  @override
   String get askPreparingChange => 'Preparing your change…';
 
   @override
   String get askStillWorking => 'Still working on this one…';
 
   @override
-  String get askReadingDay => 'Reading your day…';
+  String get askThoughtAnalyzingResults => 'Analyzing what I found…';
 
   @override
-  String get askReadingDiet => 'Reading today\'s diet…';
+  String get askThoughtDay => 'Reading your day…';
 
   @override
-  String get askReadingTraining => 'Reading your training…';
+  String get askThoughtDayDone => 'Read your day';
 
   @override
-  String get askReadingSpending => 'Reading your spending…';
+  String get askThoughtDiet => 'Reading your meal plan…';
 
   @override
-  String get askSummarisingWeek => 'Summarising your week…';
+  String get askThoughtDietDone => 'Read your meal plan';
 
   @override
-  String get askLookingUpFood => 'Looking that food up…';
+  String get askThoughtWorkouts => 'Reading your workouts…';
 
   @override
-  String get askCalculating => 'Working out the numbers…';
+  String get askThoughtWorkoutsDone => 'Read your workouts';
 
   @override
-  String get askSearchingForProduct => 'Searching for that product…';
+  String get askThoughtLastWorkout => 'Reading your last workout…';
 
   @override
-  String get askFindingAlternatives => 'Finding alternatives…';
+  String get askThoughtLastWorkoutDone => 'Read your last workout';
 
   @override
-  String get askReadingReadiness => 'Checking your readiness…';
+  String get askThoughtTraining => 'Analyzing your training…';
 
   @override
-  String get askReadingSleep => 'Reading your sleep…';
+  String get askThoughtTrainingDone => 'Analyzed your training';
 
   @override
-  String get askActivityGrab => 'Grab';
+  String get askThoughtExercise => 'Analyzing this lift…';
 
   @override
-  String get askActivitySearch => 'Search';
+  String get askThoughtExerciseDone => 'Analyzed this lift';
 
   @override
-  String get askActivityCalculate => 'Calculate';
+  String get askThoughtSpending => 'Reading your spending…';
 
   @override
-  String get askActivityToday => 'Today\'s details';
+  String get askThoughtSpendingDone => 'Read your spending';
 
   @override
-  String get askActivityDiet => 'Diet details';
+  String get askThoughtWeek => 'Analyzing your week…';
 
   @override
-  String get askActivityWorkouts => 'Workout details';
+  String get askThoughtWeekDone => 'Analyzed your week';
 
   @override
-  String get askActivityLastWorkout => 'Last workout';
+  String get askThoughtReadiness => 'Analyzing your readiness…';
 
   @override
-  String get askActivityTrainingAnalysis => 'Training analysis';
+  String get askThoughtReadinessDone => 'Analyzed your readiness';
 
   @override
-  String get askActivityExerciseHistory => 'Exercise history';
+  String get askThoughtSleep => 'Reading your sleep…';
 
   @override
-  String get askActivitySpending => 'Spending';
+  String get askThoughtSleepDone => 'Read your sleep';
 
   @override
-  String get askActivityWeek => 'Weekly summary';
+  String get askThoughtFoodDetails => 'Searching the food catalog…';
 
   @override
-  String get askActivityReadiness => 'Readiness';
+  String get askThoughtFoodDetailsDone => 'Searched the food catalog';
 
   @override
-  String get askActivitySleep => 'Sleep summary';
+  String get askThoughtNutrition => 'Calculating the nutrition…';
 
   @override
-  String get askActivityFoodDetails => 'Food details';
+  String get askThoughtNutritionDone => 'Calculated the nutrition';
 
   @override
-  String get askActivityMealNutrition => 'Meal nutrition';
+  String get askThoughtProduct => 'Searching for that product…';
 
   @override
-  String get askActivityFoodProduct => 'Food product';
+  String get askThoughtProductDone => 'Searched for that product';
 
   @override
-  String get askActivityFoodAlternatives => 'Food alternatives';
+  String get askThoughtAlternatives => 'Suggesting alternatives…';
+
+  @override
+  String get askThoughtAlternativesDone => 'Suggested alternatives';
+
+  @override
+  String get askThoughtVerbRead => 'Read';
+
+  @override
+  String get askThoughtVerbAnalyzed => 'Analyzed';
+
+  @override
+  String get askThoughtVerbCalculated => 'Calculated';
+
+  @override
+  String get askThoughtVerbSearched => 'Searched';
+
+  @override
+  String get askThoughtVerbSuggested => 'Suggested';
+
+  @override
+  String get askThoughtShowSteps => 'Show steps';
+
+  @override
+  String get askThoughtHideSteps => 'Hide steps';
+
+  @override
+  String get askChoiceTray => 'Choose an answer';
 
   @override
   String get askActivityFailed => 'Couldn\'t get this';

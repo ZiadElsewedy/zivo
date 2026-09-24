@@ -574,6 +574,18 @@ class FirestoreStore {
     // resolved (button tap or otherwise) — not just an optimistic client flag.
     // A user message that answers a question card carries the structured
     // pick `{requestId, value}` — the answer itself, not its label.
+    // What the coach said before a card (`../chat/actions.js` turnFields) —
+    // the lead-in the app shows above the proposal / beside the options.
+    if (typeof message.preface === "string" && message.preface) {
+      data.preface = message.preface.slice(0, 4000);
+    }
+    // The turn's context ledger (`../chat/context_ledger.js`): the lookups
+    // it already ran, so the NEXT turn can reuse them. Server-written only
+    // (the messages rule is read-only to the client), read back by
+    // getRecentMessages.
+    if (message.context && Array.isArray(message.context.entries)) {
+      data.context = message.context;
+    }
     if (message.choice && message.choice.requestId) {
       data.choice = {
         requestId: String(message.choice.requestId),
@@ -674,6 +686,8 @@ class FirestoreStore {
             if (d.selectedValue) m.selectedValue = d.selectedValue;
           }
           if (d.choice) m.choice = d.choice;
+          if (d.preface) m.preface = d.preface;
+          if (d.context) m.context = d.context;
           return m;
         })
         .reverse();

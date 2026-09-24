@@ -55,14 +55,19 @@ function stripEmptyThinking(content) {
  *   - a proposal card (`action_proposal`) says whether it was applied,
  *     cancelled or is still pending.
  *
- * Tool results are not persisted, so without this the model would see only
+ * Tool results only survive a turn through the context ledger (fresh, latest
+ * turn only — `context_ledger.js`), so without this the model would see only
  * "Which one would you like?" and nothing it could act on.
  * @param {{role: string, content: string, kind: (string|undefined),
- *   fields: (Object|undefined), status: (string|undefined)}} message
+ *   fields: (Object|undefined), status: (string|undefined),
+ *   preface: (string|undefined)}} message
  * @return {{role: string, content: string}}
  */
 function toNormalizedMessage(message) {
   const fields = message.fields;
+  // A card's lead-in is part of what the coach said that turn.
+  const said = message.preface ?
+    `${message.preface}\n\n${message.content}` : message.content;
   if (message.kind === "choice_request" && fields &&
       Array.isArray(fields.options) && fields.options.length) {
     const lines = fields.options.map((o, i) => {
@@ -73,7 +78,7 @@ function toNormalizedMessage(message) {
       `\n[Answered: value=${message.selectedValue}]` : "";
     return {
       role: message.role,
-      content: `${message.content}\n[Options shown to the user:\n` +
+      content: `${said}\n[Options shown to the user:\n` +
         `${lines.join("\n")}]${answered}`,
     };
   }
@@ -88,7 +93,7 @@ function toNormalizedMessage(message) {
   if (message.kind === "action_proposal" && message.status) {
     return {
       role: message.role,
-      content: `${message.content}\n[Proposed change — ${message.status}]`,
+      content: `${said}\n[Proposed change — ${message.status}]`,
     };
   }
   return {role: message.role, content: message.content};

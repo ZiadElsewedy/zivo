@@ -105,6 +105,28 @@ void main() {
       }
     });
 
+    test('Ask\'s thought tints are body-legible in both skins', () {
+      // The live thought line is text in these tones, so they hold AA on
+      // either ground — muted, never faint.
+      for (final skin in [ZivoPalette.dark, ZivoPalette.light]) {
+        for (final (name, tint) in [
+          ('thoughtRead', skin.thoughtRead),
+          ('thoughtAnalyze', skin.thoughtAnalyze),
+          ('thoughtCalculate', skin.thoughtCalculate),
+          ('thoughtSearch', skin.thoughtSearch),
+          ('thoughtSuggest', skin.thoughtSuggest),
+          ('thoughtPrepare', skin.thoughtPrepare),
+          ('thoughtThink', skin.thoughtThink),
+        ]) {
+          expect(
+            _contrast(tint, skin.base),
+            greaterThanOrEqualTo(4.5),
+            reason: '$name on the ${skin.brightness.name} base',
+          );
+        }
+      }
+    });
+
     test('a label on a filled hue is legible on that fill', () {
       // Each of these hues is a fill as often as it is a glyph, and this is
       // usually the binding constraint on how deep it has to go — deeper
