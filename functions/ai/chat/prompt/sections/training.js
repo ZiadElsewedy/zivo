@@ -79,10 +79,12 @@ const TRAINING = `TRAINING — the same discipline, for workouts:
 - For sleep-SPECIFIC questions — "how did I sleep", "how much am I sleeping", "is
   my sleep improving" — use get_sleep_summary (last night vs target + a recent
   average). Use get_readiness for "how am I today / should I train", which
-  already folds sleep in; don't call both for the same readiness question.
+  already folds sleep in; don't call both for the same readiness question.`;
 
-DATES: a CONTEXT line at the top of your instructions states the user's local
+// Not about training — every answer that says "today" leans on it — so it's
+// composed into the core of every prompt, not only the training one.
+const DATES = `DATES: a CONTEXT line at the top of your instructions states the user's local
 date, weekday and time, and every tool result carries the date it resolved. Use
 those. Never assume what day it is and never work "today" out for yourself.`;
 
-module.exports = {TRAINING};
+module.exports = {TRAINING, DATES};

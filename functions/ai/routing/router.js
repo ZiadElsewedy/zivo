@@ -1,36 +1,39 @@
 /**
- * Which model answers an AI call, with automatic fallback. The model the user
- * marked active in the app (`users/{uid}/settings/ai.provider`, a
- * `./models.js` key) is the one that answers — ONE active model — and the
- * OTHER provider (`./models.js`'s `FALLBACK_MODEL`) is its emergency
- * fallback, never a second active model.
+ * Which model answers an AI call. The model the user marked active in the app
+ * (`users/{uid}/settings/ai.provider`, a `./models.js` key) is the one that
+ * answers — ONE active model, deterministically: Gemini selected → Gemini
+ * only; Claude selected → Claude only.
  *
- * When the active provider fails:
+ * NO CROSS-PROVIDER FALLBACK (owner decision 2026-09-26, replacing the
+ * automatic fallback of 2026-09-24). When the selected provider fails, its
+ * OWN failure is what the caller gets — `AiUnavailableError` naming that
+ * provider, model and why (`kind`) — and the app shows it with a "Switch
+ * model" action. The other provider is never called behind the user's back:
+ * a Gemini that's out of quota, or a Claude that's out of credit, must be
+ * visible, not papered over. Switching is the user's choice, through the
+ * existing model selection.
+ *
+ * When the selected provider fails:
  *   - TRANSIENT (down, overloaded, rate-limited, timed out — see
- *     `../providers/classify.js`'s `isTransientFailure`): retried once on the
- *     same provider after a short backoff, then re-run on the other provider.
- *   - PROVIDER-SIDE BUT NOT TRANSIENT (its API quota is used up, out of
- *     credit, key rejected, model retired): not retried — the same provider
- *     won't answer 350ms later — but re-run on the other provider straight
- *     away (owner decision 2026-09-24, replacing "transient only": Gemini's
- *     free-tier quota 429 was surfacing as "Gemini is unavailable — usage
- *     limit reached" while Claude could have answered). It is never hidden:
- *     the turn's timeline shows "<model> unavailable → switched to <other>",
- *     and the response carries `requestedProvider`/`requestedModel`/
- *     `fallbackOccurred`/`fallbackReason` plus `failedAttempts`, which the
- *     usage record keeps (`../shared/usage_log.js`, `../chat/turn.js`).
- *   - A MALFORMED REQUEST (`bad_request`) is rethrown as-is: that's our bug,
- *     and the other provider would be sent the same thing.
+ *     `../providers/classify.js`'s `isTransientFailure`): retried on the SAME
+ *     provider after a short backoff (twice for a fast failure, once for a
+ *     timeout — `attemptsFor`), then it fails. This file is the ONLY retry
+ *     layer: the SDK clients' own retries are off.
+ *   - PROVIDER-SIDE BUT NOT TRANSIENT (quota used up, out of credit, key
+ *     rejected, model retired): not retried — it won't answer 350ms later —
+ *     it fails at once.
+ *   - A MALFORMED REQUEST (`bad_request`) is rethrown as-is: that's our bug.
+ *
+ * The cross-provider path itself (`FALLBACK_MODEL`, `onFallback`,
+ * `stickyProvider`, the `fallbackOccurred` stamps) is kept, switched off by
+ * `CROSS_PROVIDER_FALLBACK` — so re-enabling it is one deliberate change,
+ * not a rebuild, and old usage records that carry those stamps still read.
  *
  * ZIVO's own daily Ask allowance is NOT a provider failure and never reaches
- * this file: `../chat/turn.js` checks it before any model call, so a
- * fallback can't be used to get around it.
+ * this file: `../chat/turn.js` checks it before any model call.
  *
- * The one capability excluded from fallback is `food_search`: Google Search
- * grounding exists only on Gemini, so that single tool call (see
- * `../tools/food_search_product.js`) always runs on Gemini Flash — Claude
- * can't do the same job, so falling back to it would "succeed" at the wrong
- * task. See `SELECTABLE_CAPABILITIES`, which fallback also gates on.
+ * `food_search` is Gemini-only whatever the selection: Google Search
+ * grounding exists only on Gemini (`../tools/food_search_product.js`).
  */
 
 const {
@@ -42,8 +45,39 @@ const {
 } = require("../providers/classify");
 const {MODELS, modelSpec, FALLBACK_MODEL} = require("./models");
 
-/** A short pause before the one same-provider retry. @const {number} */
-const RETRY_BACKOFF_MS = 350;
+/**
+ * Whether a failed call may be re-run on the OTHER provider. Off: the
+ * selected model answers or its failure is returned (see the file header).
+ * @const {boolean}
+ */
+const CROSS_PROVIDER_FALLBACK = false;
+
+/**
+ * The pause before each same-provider retry, in order.
+ *
+ * THIS FILE IS THE ONLY RETRY OWNER. The SDK clients are built with their own
+ * retries OFF (`maxRetries: 0` — `functions/index.js`); before that, the
+ * Anthropic SDK's default 2 retries ran INSIDE each attempt here, so one
+ * overloaded call could become 6 provider requests (3 per attempt × 2
+ * attempts) before the fallback — invisible to the usage log. Now every
+ * request to a provider is an attempt this file makes, times and records
+ * (`tries`).
+ * @const {!Array<number>}
+ */
+const RETRY_BACKOFF_MS = [350, 1000];
+
+/**
+ * Same-provider attempts for a transient failure, by kind. A fast failure
+ * (overloaded, rate-limited, a 5xx, a dropped connection) gets two retries —
+ * what the SDK's own retries used to provide, now in one place. A TIMEOUT gets
+ * one: each costs a full per-attempt deadline, and three of them would outlast
+ * the callable itself.
+ * @param {string} kind
+ * @return {number}
+ */
+function attemptsFor(kind) {
+  return kind === ProviderErrorKind.TIMEOUT ? 2 : 3;
+}
 
 /**
  * @param {number} ms
@@ -164,14 +198,18 @@ async function attempt(provider, request, opts, timeoutMs) {
  * One route's outcome: either a stamped response, or a classified failure
  * kind with nothing thrown yet — `generate` decides what a failure MEANS
  * (retry, fall back, or give up) rather than unwinding the stack for it.
- * @typedef {{ok: true, response: !Object} |
- *   {ok: false, kind: string, permanent: boolean, cause: *}}
+ * Both carry `tries` — every request actually sent, `{provider, model, ok,
+ * kind?, latencyMs}`.
+ * @typedef {{ok: true, response: !Object, tries: !Array<!Object>} |
+ *   {ok: false, kind: string, permanent: boolean, cause: *,
+ *     tries: !Array<!Object>}}
  *   RouteAttemptResult
  */
 
 /**
- * Runs `route` through `registry`, retrying once after a short backoff on a
- * transient failure when `allowRetry`. Never throws for a provider failure —
+ * Runs `route` through `registry`, retrying a transient failure after a
+ * short backoff when `allowRetry` (`attemptsFor`: twice for a fast
+ * failure, once for a timeout). Never throws for a provider failure —
  * callers read `.ok`/`.kind`/`.permanent`. A user cancel (`opts.signal`
  * aborted) and a malformed request (`bad_request`) are the two exceptions:
  * both are rethrown immediately, since neither retrying nor falling back
@@ -195,47 +233,64 @@ async function runRoute(
       kind: ProviderErrorKind.AUTH,
       permanent: true,
       cause: new Error(`No registered AI provider: ${target.provider}`),
+      // Nothing was sent to the provider.
+      tries: [],
     };
   }
   const provider = registry.get(target.provider);
-  const attempts = allowRetry ? 2 : 1;
-  for (let i = 0; i < attempts; i++) {
-    if (i > 0) await delay(RETRY_BACKOFF_MS);
+  // Every request sent to the provider, in order — what the usage record
+  // shows as `tries` (`../shared/usage_log.js`, `../chat/turn.js`).
+  const tries = [];
+  const backoff = (opts && opts.retryBackoffMs) || RETRY_BACKOFF_MS;
+  for (let i = 0; ; i++) {
+    if (i > 0) await delay(backoff[Math.min(i - 1, backoff.length - 1)]);
+    const startedAt = Date.now();
     try {
       const response = await attempt(provider,
           Object.assign({}, normalizedRequest, {model: target.model}),
           opts, attemptTimeoutMs);
+      tries.push({provider: target.provider, model: target.model, ok: true,
+        latencyMs: Date.now() - startedAt});
       response.provider = target.provider;
       response.model = target.model;
       response.modelKey = target.key;
-      return {ok: true, response};
+      return {ok: true, response, tries};
     } catch (err) {
-      if (opts && opts.signal && opts.signal.aborted) throw err;
       const kind = classifyProviderError(err);
-      if (kind === ProviderErrorKind.BAD_REQUEST) throw err;
-      if (!isTransientFailure(kind)) {
-        return {ok: false, kind, permanent: true, cause: err};
+      tries.push({provider: target.provider, model: target.model, ok: false,
+        kind, latencyMs: Date.now() - startedAt});
+      if (opts && opts.signal && opts.signal.aborted) throw err;
+      if (kind === ProviderErrorKind.BAD_REQUEST) {
+        // Our own malformed request: never retried or fallen back for, but
+        // it IS a failed request — tagged so the usage log records it
+        // instead of losing it (`UsageMeter`).
+        if (err && typeof err === "object") err.tries = tries;
+        throw err;
       }
-      if (i === attempts - 1) {
-        return {ok: false, kind, permanent: false, cause: err};
+      if (!isTransientFailure(kind)) {
+        return {ok: false, kind, permanent: true, cause: err, tries};
+      }
+      if (!allowRetry || i >= attemptsFor(kind) - 1) {
+        return {ok: false, kind, permanent: false, cause: err, tries};
       }
       // Transient and another attempt remains — loop retries after the delay.
     }
   }
-  // Unreachable (the loop always returns), but keeps the function's return
-  // type honest for anything analyzing it statically.
-  throw new Error("unreachable");
 }
 
 /**
  * Calls the capability's model through `registry` — retrying a transient
- * failure, falling back to the other provider for any provider-side failure
- * (see the file header). The route that actually answered is stamped onto the
- * response — `provider`, `model` (provider-native id), `modelKey` — so the
- * usage record says exactly which model did the work; a response that
- * required a fallback also carries `requestedProvider`, `requestedModel`,
- * `fallbackOccurred: true`, `fallbackReason` (the primary's failure kind)
- * and `failedAttempts` (`[{provider, model, kind}]`).
+ * failure on the same provider, and throwing that provider's failure
+ * (`AiUnavailableError`) when it can't answer; the other provider is tried
+ * only if `CROSS_PROVIDER_FALLBACK` is on, which it isn't (see the header).
+ * The route that answered is stamped onto the response — `provider`,
+ * `model` (provider-native id), `modelKey` — and every provider request it
+ * took (`tries`), so the usage record says exactly which model did the
+ * work. (With fallback on, a response that needed it would also carry
+ * `requestedProvider`, `requestedModel`, `fallbackOccurred: true`,
+ * `fallbackReason` (the primary's failure kind) and `failedAttempts`
+ * (`[{provider, model, kind}]`).) A failure carries
+ * `tries` too.
  *
  * @param {!Object} registry A `ProviderRegistry`.
  * @param {string} capability
@@ -257,17 +312,23 @@ async function generate(
   const primary = resolve(capability, ro);
   const primaryResult = await runRoute(
       registry, primary, normalizedRequest, opts, ro.attemptTimeoutMs, true);
-  if (primaryResult.ok) return primaryResult.response;
+  if (primaryResult.ok) {
+    primaryResult.response.tries = primaryResult.tries;
+    return primaryResult.response;
+  }
 
   const attempts = [
     {provider: primary.provider, model: primary.model,
       kind: primaryResult.kind},
   ];
-  const canFallBack = canFallBackFor(primaryResult.kind) &&
+  const canFallBack = CROSS_PROVIDER_FALLBACK &&
+    canFallBackFor(primaryResult.kind) &&
     SELECTABLE_CAPABILITIES.has(capability) && FALLBACK_MODEL[primary.key];
   if (!canFallBack) {
-    throw new AiUnavailableError(
+    const err = new AiUnavailableError(
         primaryResult.kind, attempts, primaryResult.cause);
+    err.tries = primaryResult.tries;
+    throw err;
   }
 
   const fallback = route(FALLBACK_MODEL[primary.key]);
@@ -289,13 +350,16 @@ async function generate(
     // What was tried and why it failed — the usage record keeps it, so a
     // provider that keeps failing is visible even while the other answers.
     response.failedAttempts = attempts;
+    response.tries = primaryResult.tries.concat(fallbackResult.tries);
     return response;
   }
   attempts.push(
       {provider: fallback.provider, model: fallback.model,
         kind: fallbackResult.kind});
-  throw new AiUnavailableError(
+  const err = new AiUnavailableError(
       fallbackResult.kind, attempts, fallbackResult.cause);
+  err.tries = primaryResult.tries.concat(fallbackResult.tries);
+  throw err;
 }
 
 /**
@@ -330,6 +394,7 @@ function stickyProvider(registry, capability, routeOpts) {
 }
 
 module.exports = {
+  CROSS_PROVIDER_FALLBACK,
   stickyProvider,
   CAPABILITY_DEFAULTS,
   SELECTABLE_CAPABILITIES,

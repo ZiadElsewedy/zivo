@@ -1,8 +1,9 @@
 /**
- * Offline unit tests for `./router.js`: the active model answers a request;
- * a TRANSIENT failure retries once then falls back to the other provider; a
- * PERMANENT one fails immediately, named, on neither provider tried twice.
- * No network — providers are plain fakes.
+ * Offline unit tests for `./router.js`: the SELECTED model answers a request
+ * — Gemini selected → Gemini only, Claude selected → Claude only. A TRANSIENT
+ * failure is retried on the same provider; any failure that survives is
+ * returned as THAT provider's error. Nothing ever falls back to the other
+ * provider (owner decision 2026-09-26). No network — providers are fakes.
  */
 
 const assert = require("node:assert/strict");
@@ -10,6 +11,7 @@ const {test} = require("node:test");
 
 const {
   resolve, generate, stickyProvider, CAPABILITY_DEFAULTS,
+  CROSS_PROVIDER_FALLBACK,
 } = require("./router");
 const {ProviderRegistry} = require("../providers/registry");
 const {AiUnavailableError} = require("../providers/classify");
@@ -97,30 +99,40 @@ test("an unknown capability throws", async () => {
   await assert.rejects(() => generate(new ProviderRegistry(), "nope", REQ));
 });
 
-test("Claude out of credit (a 400!) continues on Gemini at once — no " +
-    "retry, and the failure is kept on the response", async () => {
-  const anthropic = fakeProvider({fail: {status: 400, message:
-    "400 {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\"," +
-    "\"message\":\"Your credit balance is too low to access the Anthropic " +
-    "API.\"}}"}});
-  const gemini = fakeProvider({response: {stopReason: "end"}});
-  const registry = new ProviderRegistry()
-      .register("anthropic", anthropic).register("gemini", gemini);
+// No backoff in tests — the retry COUNT is what's under test, not the wait.
+const FAST = {retryBackoffMs: [0]};
 
-  const resp = await generate(registry, "chat", REQ, undefined,
-      {preferModel: "claude-sonnet"});
-  assert.equal(anthropic.calls.length, 1, "billing is not retried");
-  assert.equal(gemini.calls.length, 1);
-  assert.equal(resp.provider, "gemini");
-  assert.equal(resp.fallbackOccurred, true);
-  assert.equal(resp.fallbackReason, "billing");
-  assert.deepEqual(resp.failedAttempts, [
-    {provider: "anthropic", model: "claude-sonnet-5", kind: "billing"},
-  ]);
+test("cross-provider fallback is off", () => {
+  assert.equal(CROSS_PROVIDER_FALLBACK, false);
 });
 
-test("Gemini's quota 429 (the production failure) is not retried and " +
-    "continues on Claude", async () => {
+test("(a) Gemini selected and healthy → Gemini answers, Claude is never called",
+    async () => {
+      const {registry, anthropic, gemini} = bothHealthy();
+      const resp = await generate(registry, "chat", REQ, undefined,
+          {preferModel: "gemini-flash"});
+      assert.equal(gemini.calls.length, 1);
+      assert.equal(anthropic.calls.length, 0);
+      assert.equal(resp.provider, "gemini");
+      assert.equal(resp.fallbackOccurred, undefined);
+      assert.deepEqual(resp.tries.map((t) => [t.provider, t.ok]),
+          [["gemini", true]]);
+    });
+
+test("(c) Claude selected and healthy → Claude answers, Gemini is never called",
+    async () => {
+      const {registry, anthropic, gemini} = bothHealthy();
+      const resp = await generate(registry, "chat", REQ, undefined,
+          {preferModel: "claude-sonnet"});
+      assert.equal(anthropic.calls.length, 1);
+      assert.equal(anthropic.calls[0].model, "claude-sonnet-5");
+      assert.equal(gemini.calls.length, 0);
+      assert.equal(resp.provider, "anthropic");
+      assert.equal(resp.modelKey, "claude-sonnet");
+    });
+
+test("(b) Gemini's quota 429 (the production failure) returns GEMINI's " +
+    "error — not retried, and Claude is never called", async () => {
   const gemini = fakeProvider({fail: {status: 429, message:
     "{\"error\":{\"code\":429,\"message\":\"You exceeded your current " +
     "quota, please check your plan and billing details.\",\"status\":" +
@@ -129,124 +141,161 @@ test("Gemini's quota 429 (the production failure) is not retried and " +
   const registry = new ProviderRegistry()
       .register("gemini", gemini).register("anthropic", anthropic);
   const seen = [];
-  const resp = await generate(registry, "chat", REQ,
-      {onFallback: (info) => seen.push(info)}, {preferModel: "gemini-flash"});
-  assert.equal(gemini.calls.length, 1);
-  assert.equal(resp.provider, "anthropic");
-  assert.equal(resp.requestedModel, "gemini-flash-latest");
-  assert.equal(resp.fallbackReason, "quota");
-  assert.deepEqual(seen, [
-    {from: "gemini-flash", to: "claude-sonnet", reason: "quota"},
-  ]);
+  await assert.rejects(
+      () => generate(registry, "chat", REQ,
+          {onFallback: (info) => seen.push(info)},
+          {preferModel: "gemini-flash"}),
+      (err) => err instanceof AiUnavailableError && err.kind === "quota" &&
+        err.attempts.length === 1 && err.attempts[0].provider === "gemini" &&
+        err.attempts[0].model === "gemini-flash-latest");
+  assert.equal(gemini.calls.length, 1, "quota is not retried");
+  assert.equal(anthropic.calls.length, 0, "Claude is never called");
+  assert.deepEqual(seen, [], "no fallback is announced");
 });
 
-test("a malformed request is never re-sent to the other provider", async () => {
-  const anthropic = fakeProvider({fail: {status: 400, message:
-    "messages.0.content: field required"}});
-  const gemini = fakeProvider({response: {stopReason: "end"}});
-  const registry = new ProviderRegistry()
-      .register("anthropic", anthropic).register("gemini", gemini);
-  await assert.rejects(() => generate(registry, "chat", REQ, undefined,
-      {preferModel: "claude-sonnet"}), (err) => err.status === 400);
-  assert.equal(gemini.calls.length, 0);
-});
-
-test("a transient failure on BOTH providers surfaces the fallback's own " +
-    "kind, having tried the primary's retry first", async () => {
-  for (const [status, kind] of [[529, "overloaded"], [429, "rate_limit"],
-    [503, "overloaded"], [500, "server"]]) {
-    const gemini = fakeProvider({fail: {status, message: "x"}});
-    const anthropic = fakeProvider({fail: {status, message: "x"}});
+test("(b) every kind of Gemini failure is returned as Gemini's, with no " +
+    "Claude call", async () => {
+  for (const [fail, kind] of [
+    [{status: 529, message: "x"}, "overloaded"],
+    [{status: 429, message: "x"}, "rate_limit"],
+    [{status: 500, message: "x"}, "server"],
+    [{status: 401, message: "API key not valid"}, "auth"],
+    [{status: 402, message: "payment required"}, "billing"],
+    [{status: 404, message: "model not found"}, "model_unavailable"],
+    ["socket hang up", "network"],
+  ]) {
+    const gemini = fakeProvider({fail});
+    const anthropic = fakeProvider({response: {stopReason: "end"}});
     const registry = new ProviderRegistry()
         .register("gemini", gemini).register("anthropic", anthropic);
     await assert.rejects(
-        () => generate(registry, "chat", REQ, undefined,
+        () => generate(registry, "chat", REQ, FAST,
             {preferModel: "gemini-flash"}),
-        (err) => err instanceof AiUnavailableError && err.kind === kind);
-    // Primary retried once (2 calls), fallback tried once with no retry of
-    // its own (1 call) — 3 attempts total, not an unbounded loop.
-    assert.equal(gemini.calls.length, 2, kind);
-    assert.equal(anthropic.calls.length, 1, kind);
+        (err) => err instanceof AiUnavailableError && err.kind === kind &&
+          err.attempts.every((a) => a.provider === "gemini"), kind);
+    assert.equal(anthropic.calls.length, 0, kind);
   }
 });
 
-test("a transient failure retries the SAME provider once before giving up " +
-    "on it", async () => {
-  const gemini = fakeProvider({
-    fail: {status: 503, message: "overloaded"},
-    failCount: 1,
-    response: {stopReason: "end"},
-  });
-  const registry = new ProviderRegistry().register("gemini", gemini);
-
-  const resp = await generate(registry, "chat", REQ, undefined,
-      {preferModel: "gemini-flash"});
-
-  assert.equal(gemini.calls.length, 2, "failed once, retried, succeeded");
-  assert.equal(resp.provider, "gemini");
-  assert.equal(resp.fallbackOccurred, undefined, "no fallback needed");
+test("(d) Claude out of credit (a 400!) returns CLAUDE's billing error — " +
+    "no retry, and Gemini is never called", async () => {
+  const anthropic = fakeProvider({fail: {status: 400, message:
+    "400 {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\"," +
+    "\"message\":\"Your credit balance is too low to access the Anthropic " +
+    "API.\"}}"}});
+  const gemini = fakeProvider({response: {stopReason: "end"}});
+  const registry = new ProviderRegistry()
+      .register("anthropic", anthropic).register("gemini", gemini);
+  await assert.rejects(
+      () => generate(registry, "chat", REQ, undefined,
+          {preferModel: "claude-sonnet"}),
+      (err) => err instanceof AiUnavailableError && err.kind === "billing" &&
+        err.attempts[0].provider === "anthropic" &&
+        err.attempts[0].model === "claude-sonnet-5");
+  assert.equal(anthropic.calls.length, 1, "billing is not retried");
+  assert.equal(gemini.calls.length, 0, "Gemini is never called");
 });
 
-test("still-transient after the retry falls back to the other provider, " +
-    "and the response says so", async () => {
-  const gemini = fakeProvider({fail: {status: 503, message: "overloaded"}});
-  const anthropic = fakeProvider({response: {stopReason: "end"}});
+test("(d) Claude overloaded: retried on Claude, then Claude's error — " +
+    "Gemini is never called", async () => {
+  const anthropic = fakeProvider({fail: {status: 529, message: "overloaded"}});
+  const gemini = fakeProvider({response: {stopReason: "end"}});
   const registry = new ProviderRegistry()
       .register("gemini", gemini).register("anthropic", anthropic);
-
-  const resp = await generate(registry, "chat", REQ, undefined,
-      {preferModel: "gemini-flash"});
-
-  assert.equal(gemini.calls.length, 2, "primary tried, then retried");
-  assert.equal(anthropic.calls.length, 1, "fallback tried once, no retry");
-  assert.equal(resp.provider, "anthropic");
-  assert.equal(resp.modelKey, "claude-sonnet");
-  assert.equal(resp.fallbackOccurred, true);
-  assert.equal(resp.fallbackReason, "overloaded");
-  assert.equal(resp.requestedProvider, "gemini");
-  assert.equal(resp.requestedModel, "gemini-flash-latest");
-});
-
-test("food_search never falls back, even for a transient Gemini failure — " +
-    "Claude can't ground a search", async () => {
-  const gemini = fakeProvider({fail: {status: 503, message: "overloaded"}});
-  const anthropic = fakeProvider({response: {stopReason: "end"}});
-  const registry = new ProviderRegistry()
-      .register("gemini", gemini).register("anthropic", anthropic);
-
   await assert.rejects(
-      () => generate(registry, "food_search", REQ),
-      (err) => err instanceof AiUnavailableError && err.kind === "overloaded");
-  assert.equal(anthropic.calls.length, 0, "never tried — wrong tool for it");
-});
-
-test("a malformed request is rethrown as-is (our bug, not the provider's)", async () => {
-  const registry = new ProviderRegistry().register("anthropic",
-      fakeProvider({fail: {status: 400, message: "bad schema"}}));
-  await assert.rejects(() => generate(registry, "chat", REQ),
-      (err) => !(err instanceof AiUnavailableError) &&
-        err.message === "bad schema");
-});
-
-test("a provider with no bound key falls back to the other; with neither " +
-    "bound it is unavailable, not a crash", async () => {
-  const registry = new ProviderRegistry()
-      .register("anthropic", fakeProvider({response: {stopReason: "end"}}));
-  const resp = await generate(registry, "chat", REQ, undefined,
-      {preferModel: "gemini-flash"});
-  assert.equal(resp.provider, "anthropic");
-  assert.equal(resp.fallbackReason, "auth");
-
-  await assert.rejects(
-      () => generate(new ProviderRegistry(), "chat", REQ, undefined,
-          {preferModel: "gemini-flash"}),
+      () => generate(registry, "chat", REQ, FAST,
+          {preferModel: "claude-sonnet"}),
       (err) => err instanceof AiUnavailableError &&
-        err.attempts[0].provider === "gemini" &&
-        err.attempts[1].provider === "anthropic");
+        err.kind === "overloaded" && err.tries.length === 3 &&
+        err.tries.every((t) => t.provider === "anthropic" && !t.ok));
+  assert.equal(anthropic.calls.length, 3, "one call + two retries");
+  assert.equal(gemini.calls.length, 0);
 });
 
-test("a hung provider is abandoned at attemptTimeoutMs as a clean timeout " +
-    "— on both providers, once the retry and fallback are exhausted too", async () => {
+test("(e) the explicit selection decides, whatever the default is", () => {
+  assert.equal(resolve("chat", {preferModel: "gemini-flash"}).provider,
+      "gemini");
+  assert.equal(resolve("chat", {preferModel: "claude-sonnet"}).provider,
+      "anthropic");
+  for (const cap of ["workout_import", "diet_import", "diet_generate"]) {
+    assert.equal(resolve(cap, {preferModel: "gemini-flash"}).provider,
+        "gemini", cap);
+  }
+});
+
+test("(e) stickyProvider never switches: every call of a request goes to " +
+    "the selected model, failing or not", async () => {
+  const gemini = fakeProvider({fail: {status: 503, message: "overloaded"}});
+  const anthropic = fakeProvider({response: {stopReason: "end"}});
+  const registry = new ProviderRegistry()
+      .register("gemini", gemini).register("anthropic", anthropic);
+  const provider = stickyProvider(registry, "chat",
+      {preferModel: "gemini-flash"});
+  await assert.rejects(() => provider.generate(REQ, FAST), AiUnavailableError);
+  await assert.rejects(() => provider.generate(REQ, FAST), AiUnavailableError);
+  assert.equal(anthropic.calls.length, 0);
+  assert.equal(gemini.calls.length, 6, "3 tries per call, Gemini only");
+});
+
+test("a malformed request is never re-sent anywhere, and carries its tries",
+    async () => {
+      const anthropic = fakeProvider({fail: {status: 400, message:
+        "messages.0.content: field required"}});
+      const gemini = fakeProvider({response: {stopReason: "end"}});
+      const registry = new ProviderRegistry()
+          .register("anthropic", anthropic).register("gemini", gemini);
+      await assert.rejects(() => generate(registry, "chat", REQ, undefined,
+          {preferModel: "claude-sonnet"}), (err) => err.status === 400 &&
+          !(err instanceof AiUnavailableError) &&
+          err.tries.length === 1 && err.tries[0].kind === "bad_request");
+      assert.equal(anthropic.calls.length, 1);
+      assert.equal(gemini.calls.length, 0);
+    });
+
+test("a transient failure retries the SAME provider before giving up on it",
+    async () => {
+      const gemini = fakeProvider({
+        fail: {status: 503, message: "overloaded"},
+        failCount: 2,
+        response: {stopReason: "end"},
+      });
+      const registry = new ProviderRegistry().register("gemini", gemini);
+      const resp = await generate(registry, "chat", REQ, FAST,
+          {preferModel: "gemini-flash"});
+      assert.equal(gemini.calls.length, 3, "failed twice, retried, succeeded");
+      assert.equal(resp.provider, "gemini");
+      assert.equal(resp.fallbackOccurred, undefined);
+      // Every provider request is recorded, failures included.
+      assert.deepEqual(resp.tries.map((t) => t.ok), [false, false, true]);
+      assert.ok(resp.tries.every((t) => typeof t.latencyMs === "number"));
+    });
+
+test("food_search never leaves Gemini — Claude can't ground a search",
+    async () => {
+      const gemini = fakeProvider({fail: {status: 503, message: "x"}});
+      const anthropic = fakeProvider({response: {stopReason: "end"}});
+      const registry = new ProviderRegistry()
+          .register("gemini", gemini).register("anthropic", anthropic);
+      await assert.rejects(() => generate(registry, "food_search", REQ, FAST),
+          (err) => err instanceof AiUnavailableError &&
+            err.kind === "overloaded");
+      assert.equal(anthropic.calls.length, 0);
+    });
+
+test("a selected provider with no bound key is unavailable (auth), naming " +
+    "it — the other provider is not tried", async () => {
+  const anthropic = fakeProvider({response: {stopReason: "end"}});
+  const registry = new ProviderRegistry().register("anthropic", anthropic);
+  await assert.rejects(
+      () => generate(registry, "chat", REQ, undefined,
+          {preferModel: "gemini-flash"}),
+      (err) => err instanceof AiUnavailableError && err.kind === "auth" &&
+        err.attempts.length === 1 && err.attempts[0].provider === "gemini");
+  assert.equal(anthropic.calls.length, 0);
+});
+
+test("a hung provider is abandoned at attemptTimeoutMs as a clean timeout, " +
+    "retried once on the same provider — never three deadlines", async () => {
   const signals = [];
   const makeHung = () => ({
     generate: (_req, opts) => {
@@ -256,14 +305,11 @@ test("a hung provider is abandoned at attemptTimeoutMs as a clean timeout " +
   });
   const registry = new ProviderRegistry()
       .register("anthropic", makeHung()).register("gemini", makeHung());
-
   await assert.rejects(
-      () => generate(registry, "chat", REQ, undefined, {attemptTimeoutMs: 20}),
+      () => generate(registry, "chat", REQ, FAST, {attemptTimeoutMs: 20}),
       (err) => err instanceof AiUnavailableError && err.kind === "timeout");
-  // Primary (retried once) + fallback = 3 hung calls, each abandoned on its
-  // own deadline rather than left to hang forever.
-  assert.equal(signals.length, 3);
-  assert.ok(signals.every((s) => s.aborted), "every hung call was aborted");
+  assert.equal(signals.length, 2, "the call + one retry, both Claude");
+  assert.ok(signals.every((sig) => sig.aborted), "every hung call aborted");
 });
 
 test("a user cancel is rethrown unchanged", async () => {
@@ -281,90 +327,4 @@ test("a user cancel is rethrown unchanged", async () => {
   await assert.rejects(
       () => generate(registry, "chat", REQ, {signal: controller.signal}),
       (err) => err.name === "AbortError");
-});
-
-test("Gemini down → retried → Claude: onFallback fires before the fallback " +
-    "runs, with model keys only", async () => {
-  const order = [];
-  const gemini = fakeProvider({fail: {status: 503, message: "overloaded"}});
-  const anthropic = {
-    calls: [],
-    generate: async (req) => {
-      order.push("anthropic");
-      anthropic.calls.push(req);
-      return {stopReason: "end"};
-    },
-  };
-  const registry = new ProviderRegistry()
-      .register("gemini", gemini).register("anthropic", anthropic);
-  const seen = [];
-  await generate(registry, "chat", REQ, {onFallback: (info) => {
-    order.push("onFallback");
-    seen.push(info);
-  }}, {preferModel: "gemini-flash"});
-  assert.deepEqual(order, ["onFallback", "anthropic"]);
-  assert.deepEqual(seen,
-      [{from: "gemini-flash", to: "claude-sonnet", reason: "overloaded"}]);
-});
-
-test("Claude down → retried → Gemini, the other way round", async () => {
-  const anthropic = fakeProvider({fail: {status: 529, message: "overloaded"}});
-  const gemini = fakeProvider({response: {stopReason: "end"}});
-  const registry = new ProviderRegistry()
-      .register("gemini", gemini).register("anthropic", anthropic);
-  const seen = [];
-  const resp = await generate(registry, "chat", REQ,
-      {onFallback: (info) => seen.push(info)}, {preferModel: "claude-sonnet"});
-  assert.equal(anthropic.calls.length, 2);
-  assert.equal(resp.modelKey, "gemini-flash");
-  assert.equal(resp.fallbackOccurred, true);
-  assert.deepEqual(seen.map((i) => [i.from, i.to]),
-      [["claude-sonnet", "gemini-flash"]]);
-});
-
-test("a rejected key is not retried, falls back once, and onFallback " +
-    "fires before the other provider runs", async () => {
-  const anthropic = fakeProvider({fail: {status: 401, message: "bad key"}});
-  const gemini = fakeProvider({response: {stopReason: "end"}});
-  const registry = new ProviderRegistry()
-      .register("gemini", gemini).register("anthropic", anthropic);
-  const order = [];
-  const origGenerate = gemini.generate;
-  gemini.generate = (...a) => {
-    order.push("gemini");
-    return origGenerate(...a);
-  };
-  const resp = await generate(registry, "chat", REQ,
-      {onFallback: () => order.push("onFallback")},
-      {preferModel: "claude-sonnet"});
-  assert.deepEqual(order, ["onFallback", "gemini"]);
-  assert.equal(anthropic.calls.length, 1);
-  assert.equal(resp.fallbackReason, "auth");
-});
-
-test("food_search never falls back, whatever the failure", async () => {
-  const gemini = fakeProvider({fail: {status: 503, message: "x"}});
-  const anthropic = fakeProvider({response: {stopReason: "end"}});
-  const registry = new ProviderRegistry()
-      .register("gemini", gemini).register("anthropic", anthropic);
-  await assert.rejects(() => generate(registry, "food_search", REQ),
-      AiUnavailableError);
-  assert.equal(anthropic.calls.length, 0);
-});
-
-test("stickyProvider: after one fallback, the rest of the request goes " +
-    "straight to the model that answered", async () => {
-  const gemini = fakeProvider({fail: {status: 503, message: "overloaded"}});
-  const anthropic = fakeProvider({response: {stopReason: "end"}});
-  const registry = new ProviderRegistry()
-      .register("gemini", gemini).register("anthropic", anthropic);
-  const provider = stickyProvider(registry, "chat",
-      {preferModel: "gemini-flash"});
-
-  const first = await provider.generate(REQ);
-  const second = await provider.generate(REQ);
-  assert.equal(first.fallbackOccurred, true);
-  assert.equal(second.modelKey, "claude-sonnet");
-  assert.equal(gemini.calls.length, 2, "only the first call tried Gemini");
-  assert.equal(anthropic.calls.length, 2);
 });

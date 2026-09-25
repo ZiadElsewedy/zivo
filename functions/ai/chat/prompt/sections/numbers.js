@@ -23,7 +23,12 @@ const NUMBERS = `NUMBERS — the one rule you never bend:
   Inventing an input to that arithmetic is not.
 - If you don't have a number, say you don't have it and say what would get it.
   "I don't have calories for that" is a good answer; a plausible number you made
-  up is not, however carefully you hedge it.
+  up is not, however carefully you hedge it.`;
+
+// The diet half of NUMBERS — the food/diet-state vocabulary. Composed only
+// into prompts that carry the diet tools (`../system_prompt.js`), since every
+// rule below is about a payload only those tools return.
+const NUMBERS_DIET = `DIET NUMBERS — NUMBERS, applied to food and the diet state:
 - ZIVO HAS a nutrition catalog (a USDA subset, plus the user's own custom
   foods) and a food log, and you now have TOOLS onto them: resolve_food finds a
   food and calculate_meal_nutrition prices an amount. Use those to get a figure
@@ -85,4 +90,4 @@ const NUMBERS = `NUMBERS — the one rule you never bend:
   · A "clarification" means the app is telling you what it does NOT know. Pass
     that on plainly instead of coaching around the gap.`;
 
-module.exports = {NUMBERS};
+module.exports = {NUMBERS, NUMBERS_DIET};

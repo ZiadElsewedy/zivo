@@ -651,25 +651,19 @@ const TRAINING_ANALYSIS_TOOL = {
   name: "get_training_analysis",
   description:
     "ZIVO's deterministic workout analysis over the user's whole session " +
-    "history — the SAME numbers the Progress screen shows, so you never have " +
-    "to compute strength, PRs or trends yourself (and must not contradict " +
-    "them). Returns: overallStatus + a plain summary; overallStrengthChangePercent " +
+    "history — the SAME numbers the Progress screen shows. Returns: " +
+    "overallStatus + a plain summary; overallStrengthChangePercent " +
     "(estimated 1RM change over ~6 weeks); per-exercise status " +
     "(progressing/maintaining/plateauing/regressing/building) with " +
-    "strengthChangePercent and currentE1RM; a simple per-muscle weekly rollup; " +
-    "weekly working volume vs last week; recentPrs (last 30 days); improving / " +
-    "needsAttention lists; a nextStep; `findings` — typed, ranked coaching " +
-    "conclusions each marked confidence 'fact' (measured) or 'interpretation'; " +
-    "and `planAdherence` — planned movements the user is SKIPPING (reason " +
-    "'neverTrained') or has let go STALE ('stale', with daysSinceLast). " +
-    "`trainingCalendar` — the last 4 weeks of CALENDAR adherence from actual " +
-    "sessions: active vs inactive days (with the inactive dates), training " +
-    "days per week, days since last training, per-week counts. " +
-    "**Lead with findings**, keep facts and interpretations distinct, and if " +
-    "there is no data say so. This is the WHOLE-training summary — for one " +
-    "specific lift's session-by-session detail, use get_exercise_analysis. " +
-    "Estimated strength is e1RM — call it 'estimated strength', never expose " +
-    "the formula.",
+    "strengthChangePercent and currentE1RM; a per-muscle weekly rollup; " +
+    "weekly working volume vs last week; recentPrs (last 30 days); " +
+    "improving / needsAttention lists; a nextStep; ranked `findings` " +
+    "(confidence 'fact' or 'interpretation'); `planAdherence` (planned " +
+    "movements 'neverTrained' or 'stale' with daysSinceLast); and " +
+    "`trainingCalendar` (last 4 weeks: active vs inactive days with the " +
+    "inactive dates, training days per week, days since last training). " +
+    "The WHOLE-training summary — for one lift's session-by-session " +
+    "detail use get_exercise_analysis.",
   inputSchema: {type: "object", properties: {}},
   /**
    * @param {!Object} store
@@ -708,23 +702,19 @@ const TRAINING_ANALYSIS_TOOL = {
 const EXERCISE_ANALYSIS_TOOL = {
   name: "get_exercise_analysis",
   description:
-    "ZIVO's deterministic drill-down for ONE exercise — the SAME session-by-" +
-    "session analysis its Exercise Analysis screen shows. Pass the exercise by " +
-    "name (e.g. 'incline dumbbell press'); it's matched against the user's " +
-    "logged movements. Use this for any question about a SPECIFIC lift ('how " +
-    "is my bench going', 'why did my incline improve', 'did I progress even " +
-    "with fewer reps', 'what should I do on squats next'). Returns the full " +
-    "history oldest→newest (each session's sets, reps, load, total volume, " +
-    "average load, rep range, estimated 1RM), the session-to-session " +
-    "`comparisons` (load/reps/volume/estimated-1RM deltas + typed `tags` + a " +
-    "`tone` of improved/declined/mixed/maintained), all-time PRs, frequency, " +
+    "ZIVO's deterministic drill-down for ONE exercise — the SAME " +
+    "session-by-session analysis its Exercise Analysis screen shows. Pass " +
+    "the exercise by name (e.g. 'incline dumbbell press'); it's matched " +
+    "against the user's logged movements. Use it for any question about a " +
+    "SPECIFIC lift ('how is my bench going', 'what should I do on squats " +
+    "next'). Returns the full history oldest→newest (each session's sets, " +
+    "reps, load, total volume, average load, rep range, estimated 1RM), " +
+    "the session-to-session `comparisons` (load/reps/volume/estimated-1RM " +
+    "deltas + typed `tags` + a `tone` of " +
+    "improved/declined/mixed/maintained), all-time PRs, frequency, " +
     "daysSinceLast, the overall `status`/`verdict`, and a deterministic " +
-    "`insight` (whatHappened / whyItMatters / whatToDo). These are FACTS — " +
-    "explain and coach on them; never recompute them or overturn the verdict. " +
-    "In particular a heavier load for fewer reps can be an improvement when " +
-    "estimated 1RM rose: trust `tone`/`verdict`, don't call it a regression " +
-    "because reps fell. If `matched` is false, tell the user and offer the " +
-    "listed candidates.",
+    "`insight` (whatHappened / whyItMatters / whatToDo). If `matched` is " +
+    "false, tell the user and offer the listed candidates.",
   inputSchema: {
     type: "object",
     properties: {
@@ -1192,19 +1182,14 @@ const SEARCH_FOOD_ALTERNATIVES_TOOL = {
   // foods to look for (`../chat/choices.js` withMoreOption).
   moreOptions: true,
   description:
-    "Find realistic replacements for ONE item in the user's active plan they " +
-    "don't want (\"I don't want molokhia\"). YOU propose the candidates: 3–6 " +
-    "foods a real person would actually eat in that meal instead of it — the " +
-    "same kind of food (a vegetable dish for a vegetable dish, a protein for " +
-    "a protein, a starch for a starch), fitting the meal and the user's " +
-    "cuisine, as simple single foods the catalog can price (\"green beans\", " +
-    "\"zucchini\", \"okra\" — not \"grilled vegetable platter\"), never canned, " +
-    "processed or fast food unless the user asked. ZIVO prices each one from " +
-    "its catalog and sizes a portion to the original item's calories; a " +
-    "candidate it can't price comes back found:false — drop it, never " +
-    "estimate it. Changes nothing: show the found options with ask_choice and " +
-    "WAIT for the user to pick before replace_meal_item. Identify the item " +
-    "with mealId, itemIndex and itemName exactly as get_today/get_diet gave " +
+    "Find realistic replacements for ONE item in the user's active plan " +
+    "they don't want. Pass 3–6 candidate foods YOU choose (see MEAL " +
+    "REPLACEMENT for how) as simple single foods the catalog can price. " +
+    "ZIVO prices each one and sizes a portion to the original item's " +
+    "calories; a candidate it can't price comes back found:false — drop " +
+    "it, never estimate it. Changes nothing: show the found options with " +
+    "ask_choice and wait for the user's pick. Identify the item with " +
+    "mealId, itemIndex and itemName exactly as get_today/get_diet gave " +
     "them.",
   inputSchema: {
     type: "object",
@@ -1438,19 +1423,17 @@ const READINESS_TOOL = {
   name: "get_readiness",
   description:
     "ZIVO's Daily Readiness call — the SAME train-hard / go-light / rest " +
-    "recommendation the Today screen shows, fused deterministically from last " +
-    "night's sleep, the training stall/deload signal, how recently the user " +
-    "trained, and their body-weight trend. Use it for 'how am I today', 'should " +
-    "I train hard', 'what should I do today' and anything about recovery. " +
-    "Returns `available:false` when there is not enough data for a call. " +
-    "Otherwise returns `verdict` (trainHard | goLight | rest) and `factors` — " +
+    "recommendation the Today screen shows, fused from last night's " +
+    "sleep, the training stall/deload signal, how recently the user " +
+    "trained, and their body-weight trend. Use it for 'how am I today', " +
+    "'should I train hard', 'what should I do today' and recovery " +
+    "questions. Returns `available:false` when there is not enough data. " +
+    "Otherwise `verdict` (trainHard | goLight | rest) and `factors` — " +
     "each with the number behind it: `sleep` (sleepDurationMinutes, " +
-    "sleepDeltaMinutes vs target), `deload` (deloadExerciseCount stalled lifts), " +
-    "`recentLoad` (restDays since last session), `bodyWeight` (weightChangeKg " +
-    "over ~30 days) — and a `direction` of supports / caution / limits. LEAD " +
-    "with the verdict and cite the factors; these are FACTS — never invent a " +
-    "readiness number or overturn the call. It is a training guide, not a " +
-    "medical or HRV score.",
+    "sleepDeltaMinutes vs target), `deload` (deloadExerciseCount stalled " +
+    "lifts), `recentLoad` (restDays since last session), `bodyWeight` " +
+    "(weightChangeKg over ~30 days) — and a `direction` of supports / " +
+    "caution / limits.",
   inputSchema: {type: "object", properties: {}},
   /**
    * @param {!Object} store
@@ -1528,17 +1511,15 @@ const READINESS_TOOL = {
 const SLEEP_SUMMARY_TOOL = {
   name: "get_sleep_summary",
   description:
-    "A compact sleep summary: last night's sleep duration and how it compares " +
-    "to the user's sleep-duration target, plus a rolling average over their " +
-    "most recent nights. Use this for sleep-SPECIFIC questions — 'how did I " +
-    "sleep', 'how much am I sleeping', 'is my sleep improving'. For 'should I " +
-    "train today' / 'how am I today' use get_readiness instead — it already " +
-    "fuses sleep with training load and recovery into one call, so don't call " +
-    "both for a readiness question. Durations are in minutes; a positive " +
-    "`deltaMinutes` means over target, negative means short. `available:false` " +
-    "when no sleep is recorded. `latestNightDaysAgo` says how fresh the newest " +
-    "night is — when it's not last night, `lastNight` is null and you should " +
-    "say the freshest data is from N days ago rather than call it last night.",
+    "A compact sleep summary: last night's duration vs the user's " +
+    "sleep-duration target, plus a rolling average over their most recent " +
+    "nights. For sleep-SPECIFIC questions ('how did I sleep', 'is my " +
+    "sleep improving'); readiness questions belong to get_readiness. " +
+    "Durations are in minutes; a positive `deltaMinutes` means over " +
+    "target, negative means short. `available:false` when no sleep is " +
+    "recorded. `latestNightDaysAgo` says how fresh the newest night is — " +
+    "when it's not last night, `lastNight` is null: say the freshest data " +
+    "is from N days ago rather than call it last night.",
   inputSchema: {type: "object", properties: {}},
   /**
    * @param {!Object} store

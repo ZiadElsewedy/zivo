@@ -24,6 +24,8 @@ the split is invisible to `index.js` and the other importers.
 | **The user-facing "can't answer" copy** | [`outcome.js`](outcome.js) (activity-aware) + [`config.js`](config.js) |
 | **How a turn ends** (terminal states, tool retry rules) | [`outcome.js`](outcome.js) |
 | **What a follow-up reuses** (carried tool results) | [`context_ledger.js`](context_ledger.js) |
+| **Which area a turn is about** (intent routing) | [`intent.js`](intent.js) |
+| **Which prompt + tools a turn gets** (per-intent scope, `load_tools`) | [`scope.js`](scope.js) |
 
 ## The files
 
@@ -137,11 +139,12 @@ provider failure (after the router's own retry + fallback) → thrown, tagged pr
   (`selectionNote`). Typed picks ("option 2") still work: history carries the
   options numbered with their values (`messages.js` `toNormalizedMessage`).
   Proposal cards carry their status.
-- **Fallback is visible.** `router.generate` calls `opts.onFallback` just
-  before trying the other provider; the turn emits `{type:'fallback', from, to}`
-  (model keys) and persists `{kind:'fallback', from, to}` in `activity`. Per
-  request the provider is sticky (`router.stickyProvider`): after one
-  fallback, the rest of the turn uses the model that answered.
+- **No cross-provider fallback.** The selected model answers or its own
+  failure ends the turn (`../routing/router.js`, `CROSS_PROVIDER_FALLBACK`
+  off). The turn attaches its usage record to the error (`err.turnUsage`:
+  steps that did run, intent, `failedProvider`/`failedModel`, `failedTries`)
+  and the callable logs it. The `onFallback` → `{type:'fallback'}` path and
+  the sticky provider are kept for when fallback is switched back on.
 
 ## The prompt (`prompt/`)
 
@@ -182,14 +185,20 @@ data.** Concretely, and worth keeping intact:
   unconditionally is the one-line `CONTEXT` date block; everything else arrives
   only when the model calls a tool for it. There is no RAG, no vector store, no
   eager preamble — and adding one would be a regression, not a feature.
-- **The cached prefix must stay stable — so tools are NOT varied per turn.**
-  Anthropic's cache prefix order is `tools → system → messages`, so changing the
-  tool set invalidates the cache for the system prompt too. Exposing a different
-  subset of tools per turn ("conditional tool exposure") therefore trades the
-  ~0.1× cache read on the whole prefix for a smaller-but-uncached one, and
-  fragments the cache across domains. It was evaluated and **deliberately not
-  done**; revisit only if telemetry (below) shows cold-prefix cost actually
-  dominates. Keep `SYSTEM_PROMPT` element 0 and the tool list stable.
+- **Tools and prompt are scoped by INTENT — and each scope is stable.**
+  (Owner decision 2026-09-26, reversing the earlier "never vary tools per
+  turn".) `intent.js` routes a turn deterministically (no model call) to
+  GENERAL · TRAINING · DIET · MONEY · AMBIGUOUS; `scope.js` hands the model
+  that area's prompt modules (`prompt/system_prompt.js`) and tools, built once
+  at load so each intent's prefix is byte-identical turn to turn and caches on
+  its own. At ZIVO's traffic a cache READ of the full ~56K-char prefix was
+  cheap, but every cold turn paid a 1.25× WRITE on all of it and every call
+  re-processed it; a scoped prefix is 30–70% smaller even when it's cold.
+  AMBIGUOUS is the full prompt + every tool (the old behaviour), and a scoped
+  turn can widen itself with `load_tools`. Invariant: a tool is never exposed
+  without its area's module, so a tool description never needs to repeat the
+  area's policy. `intent`, `expandedTo` and `unexposedToolCalls` in usage
+  show when routing misses.
 - **Prefer a narrow tool over a broad one.** `get_last_workout` reads ONE session
   (not a week) for "what did I do last workout"; `get_sleep_summary` returns last
   night + a rolling average for sleep questions (`get_readiness` still owns "how
@@ -201,7 +210,13 @@ data.** Concretely, and worth keeping intact:
   every iteration and mean nothing. It is **not** applied to the diet tools: there
   `null` is a signal the prompt reasons about (`targets: null` = no objective set;
   a null macro in `remaining` = untracked, not zero) and the tests pin it.
-- **Every turn's cost is observable (usage schema v3).** `turn.js` logs, per turn:
+- **History is a character budget** (`messages.js` `selectHistory`,
+  `config.js` `history*`): the current message is never in it (it was sent
+  twice), the newest 4 messages are verbatim, older replies are shortened,
+  user messages and open cards are kept whole, and older messages stop at
+  the budget. The ledger is capped at 8K and filtered to the turn's area.
+- **Every turn's cost is observable (usage schema v3, now v7 — `perCall`,
+  `context` sizes, `intent`, `promptVersion`).** `turn.js` logs, per turn:
   `provider`, `model`, `tokensIn` (total), `uncachedTokensIn`, `cacheReadTokens`,
   `cacheWriteTokens`, `tokensOut`, `toolResultTokens` (approx), `tools`,
   `iterations`, `latencyMs`, `costUsd`. This is what makes Claude-vs-Gemini and

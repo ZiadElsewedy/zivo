@@ -145,17 +145,15 @@ const ASK_CHOICE = {
   // The assistant-message `kind` the client switches on to render chips.
   messageKind: "choice_request",
   description:
-    "Ask the user a multiple-choice question when a good answer depends on a " +
-    "choice only they can make — pick this over guessing, or over writing the " +
-    "options out as plain text. The turn PAUSES: the user taps one option (or " +
-    "more, if allowMultiple) and their pick returns as the next message for " +
-    "you to continue from. Do NOT use it to ask for a fact a tool can supply " +
-    "(get_today already carries the user's profile, latest weight and age). " +
-    "Provide prompt (the question) and 2–5 options as {value, label}; value " +
-    "is a stable key, label is what the user sees. An option may also carry a " +
-    "short subtitle (e.g. '247 kcal / 100g') for a second line of detail — use " +
-    "it for search_food_product candidates so the user can tell them apart. " +
-    "Write both in the user's language. At most one question per turn.",
+    "Ask the user a multiple-choice question when a good answer depends " +
+    "on a choice only they can make — instead of guessing or writing the " +
+    "options out as text. The turn PAUSES: the user taps one option (or " +
+    "more, if allowMultiple) and their pick returns as the next message " +
+    "for you to continue from. Provide prompt (the question) and 2–5 " +
+    "options as {value, label}; value is a stable key, label is what the " +
+    "user sees. An option may also carry a short subtitle (e.g. '247 kcal " +
+    "/ 100g') for a second line of detail — use it for " +
+    "search_food_product candidates so the user can tell them apart.",
   inputSchema: {
     type: "object",
     properties: {
@@ -218,20 +216,16 @@ const REQUEST_INPUT = {
   // The assistant-message `kind` the client switches on to render the form.
   messageKind: "input_request",
   description:
-    "Ask the user to fill in a small form when you genuinely lack a specific " +
-    "piece of data AND no tool can supply it (get_today already carries the " +
-    "user's profile, latest weight and age — read it first). The turn PAUSES: " +
-    "the user fills the fields and their entries return as the next message " +
-    "for you to continue from. Provide prompt (what you need and why, one " +
-    "line) and 1–4 fields. Each field: key (a short stable id like " +
-    "'heightCm'), label (what the user sees), type ('number', 'text' or " +
-    "'choice'), and optionally unit ('cm', 'kg', …), options (for 'choice', " +
-    "2–5 {value, label}), and required (default true). Ask only for the fields " +
-    "you truly need, in the user's language. To have a value REMEMBERED into " +
-    "the user's profile (so you never ask again), use these exact keys and " +
-    "units: 'heightCm' (a number in centimetres) and 'weightKg' (their current " +
-    "weight in kilograms). Any other key is used only for this reply. At most " +
-    "one question per turn.",
+    "Ask the user to fill in a small form when you genuinely lack a " +
+    "specific value AND no tool can supply it. The turn PAUSES: their " +
+    "entries return as the next message for you to continue from. Provide " +
+    "prompt (what you need and why, one line) and 1–4 fields. Each field: " +
+    "key (a short stable id), label (what the user sees), type ('number', " +
+    "'text' or 'choice'), and optionally unit ('cm', 'kg', …), options " +
+    "(for 'choice', 2–5 {value, label}), and required (default true). The " +
+    "keys 'heightCm' (centimetres) and 'weightKg' (current weight, " +
+    "kilograms) are REMEMBERED into the user's profile; any other key is " +
+    "used only for this reply.",
   inputSchema: {
     type: "object",
     properties: {

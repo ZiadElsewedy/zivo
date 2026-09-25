@@ -224,25 +224,30 @@ runAiTurn: SYSTEM_PROMPT (cached) + uncached CONTEXT block (user's local
 - **Providers:** behind a `NormalizedRequest`/`NormalizedResponse` seam
   ([`providers/`](functions/ai/providers) + [`routing/router.js`](functions/ai/routing/router.js),
   models + prices in [`routing/models.js`](functions/ai/routing/models.js): Claude Sonnet 5 ·
-  Gemini Flash — one model per provider). **Automatic retry + fallback** (owner decision
-  2026-09-24, replacing the one-model-no-fallback rule from 2026-09-23): the model the user marks
-  active (`settings/ai.provider`, default `claude-sonnet`) answers chat, plan import and the plan
-  builder; on a TRANSIENT failure (overload, rate limit, server error, timeout, network — see
-  `isTransientFailure` in `providers/classify.js`) it's retried once on the same provider after a
-  short backoff, then automatically re-run on the OTHER provider if it's still failing. A
-  PERMANENT failure (bad key, out of credit — Anthropic sends that as a 400 —, retired model, a
-  malformed request) is never retried or fallen back for — it fails immediately with
-  `AiUnavailableError` → `HttpsError('unavailable', …, {reason:'ai_unavailable', provider, kind})`,
-  and the app names the provider and the reason with a "Switch model" action. A response that
-  needed fallback carries `requestedProvider`/`requestedModel`/`fallbackOccurred`/`fallbackReason`
-  so usage stays truthful about it. Only `food_search`'s grounding call always runs on Gemini and
-  never falls back (Anthropic has no search grounding).
-- **Usage** is logged for **every** AI request, not just chat turns (`aiUsage` v5, `feature` field:
+  Gemini Flash — one model per provider). **The selected model answers — no cross-provider
+  fallback** (owner decision 2026-09-26, replacing the automatic fallback of 2026-09-24): the
+  model the user marks active (`settings/ai.provider`, default `claude-sonnet`) answers chat,
+  plan import and the plan builder — Gemini selected → Gemini only, Claude → Claude only. A
+  TRANSIENT failure (overload, rate limit, server error, network — see `isTransientFailure` in
+  `providers/classify.js`) is retried on the SAME provider (twice; a timeout once); anything that
+  survives, and any PERMANENT failure (quota, bad key, out of credit — Anthropic sends that as a
+  400 —, retired model), fails with THAT provider's `AiUnavailableError` →
+  `HttpsError('unavailable', …, {reason:'ai_unavailable', provider, kind})`, and the app names the
+  provider and the reason with a "Switch model" action. The router is the only retry layer (SDK
+  clients run `maxRetries: 0`). The fallback path is kept but off (`CROSS_PROVIDER_FALLBACK`).
+  `food_search`'s grounding call always runs on Gemini (Anthropic has no search grounding).
+- **Scoped context:** each turn is routed deterministically (`chat/intent.js`, no model call) to
+  GENERAL · TRAINING · DIET · MONEY or AMBIGUOUS, and `chat/scope.js` hands the model only that
+  area's prompt modules + tools (AMBIGUOUS = everything, as before; scoped turns can widen with
+  `load_tools`). A tool is never exposed without its area's prompt module.
+- **Usage** is logged for **every** AI request, not just chat turns (`aiUsage` v7, `feature` field:
   chat · workout_import · diet_import · diet_generate · food_search · transcribe) —
   [`shared/usage_log.js`](functions/ai/shared/usage_log.js) meters the non-chat callables,
   [`chat/usage.js`](functions/ai/chat/usage.js) the turn: provider/model, type (`feature`),
-  tokens in/out, cost at the answering model's rate, status/errorKind, and (when a request
-  fell back) the requested provider/model and why. The chat daily cap counts chat records only.
+  tokens in/out, cost at the answering model's rate, status/errorKind, `perCall` rows (tokens
+  by bucket, stop reason, latency, provider `tries`) and, on a failure, `failedProvider`/
+  `failedModel`; chat turns add `intent`, `promptVersion` and a `context` size breakdown
+  (sizes only, never text). The chat daily cap counts chat records only.
   The app reads it on the AI usage page (Settings → AI usage): pick Claude or Gemini to see its
   total/chat/generate/import requests, tokens in/out, estimated cost and cost per request.
 

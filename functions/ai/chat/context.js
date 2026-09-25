@@ -9,7 +9,8 @@
  * appended AFTER it as its own uncached block, or it would invalidate the
  * breakpoint:
  *
- *   [0] SYSTEM_PROMPT            (cached — never changes)
+ *   [0] the intent's prompt      (cached — fixed per intent, see scope.js;
+ *                                 the full SYSTEM_PROMPT for AMBIGUOUS)
  *   [1] style directive          (uncached — only if concise/detailed)
  *   [last] CONTEXT (date/time)   (uncached — changes every turn)
  *
@@ -75,10 +76,12 @@ Today is ${facts.weekday}, ${facts.longDate} (${facts.dayKey}). ` +
  * @param {!Object} args
  * @param {?string} args.responseStyle 'concise'|'balanced'|'detailed'|other.
  * @param {!Object} args.facts A `localNowFacts()` result for the CONTEXT block.
+ * @param {string=} args.systemPrompt The intent's prompt (`scope.js`);
+ *   defaults to the full SYSTEM_PROMPT.
  * @return {!Array<{text: string, cache: (string|undefined)}>}
  */
-function buildSystemBlocks({responseStyle, facts}) {
-  const blocks = [{text: SYSTEM_PROMPT, cache: "ephemeral"}];
+function buildSystemBlocks({responseStyle, facts, systemPrompt}) {
+  const blocks = [{text: systemPrompt || SYSTEM_PROMPT, cache: "ephemeral"}];
   const styleDirective = styleDirectiveFor(responseStyle);
   if (styleDirective) blocks.push({text: styleDirective});
   blocks.push({text: contextBlockFor(facts)});

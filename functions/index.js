@@ -820,13 +820,12 @@ function aiUnavailableHttpsError(err) {
  * callable's own `timeoutSeconds`, so a hung provider never surfaces as the
  * client's opaque DEADLINE_EXCEEDED.
  *
- * Sized to leave room for the router's retry-then-fallback (`./ai/routing/
- * router.js`): up to 3 attempts now run for a transient failure (primary,
- * its retry, the fallback provider), so each attempt's budget is roughly a
- * THIRD of the callable's own `timeoutSeconds`, not the whole thing —
- * `workout_import`/`diet_import` dropped from 150s (half of their 300s
- * callable, sized for a single attempt) to 90s for exactly this reason;
- * `diet_generate` similarly from 120s to 85s. `chat`'s 50s is unchanged: its
+ * Sized to leave room for the router's retry (`./ai/routing/router.js`): a
+ * timed-out call is retried ONCE on the same provider (no cross-provider
+ * fallback any more), so at most 2 deadlines run per call, well inside the
+ * callable's `timeoutSeconds` — `workout_import`/`diet_import` at 90s and
+ * `diet_generate` at 85s were sized for the old 3-attempt fallback chain
+ * and are left as they are. `chat`'s 50s is unchanged: its
  * callable already budgets for up to `maxAgentSteps` model calls in one
  * turn, not one, so it was never sized as "half the callable" to begin with.
  * @const {!Object<string, number>}
@@ -869,12 +868,15 @@ async function savedModelPreference(store, uid) {
  * a quota refusal) — there is nothing to account for.
  * @param {{store: !FirestoreStore, uid: string, feature: string,
  *   meter: !UsageMeter, startedAt: !Date, offsetMinutes: (number|undefined),
- *   error: *, extra: (!Object|undefined)}} args
+ *   error: *, extra: (!Object|undefined), force: (boolean|undefined)}} args
+ *   `force` logs a failed request even when no model call went through the
+ *   meter (an unexpected error before the model was reached).
  * @return {!Promise<void>}
  */
-async function logMeteredUsage(
-    {store, uid, feature, meter, startedAt, offsetMinutes, error, extra}) {
-  if (!meter.used) return;
+async function logMeteredUsage({
+  store, uid, feature, meter, startedAt, offsetMinutes, error, extra, force,
+}) {
+  if (!meter.used && !force) return;
   const finishedAt = new Date();
   await saveUsageRecord(store, uid, buildUsageRecord({
     feature,
@@ -885,6 +887,18 @@ async function logMeteredUsage(
     error,
     extra,
   }), (msg, data) => logger.warn(msg, data));
+}
+
+/**
+ * The Anthropic client every AI callable uses — with the SDK's own retries
+ * OFF. The router (`./ai/routing/router.js`) is the one retry owner: with the
+ * SDK's default `maxRetries: 2` running inside each router attempt, one
+ * overloaded call became up to six provider requests, none of them visible
+ * in the usage log. (The Gemini client retries nothing unless asked.)
+ * @return {!Anthropic}
+ */
+function newAnthropic() {
+  return new Anthropic({apiKey: ANTHROPIC_API_KEY.value(), maxRetries: 0});
 }
 
 /**
@@ -965,6 +979,10 @@ exports.aiChat = onCall(
       // Client-generated idempotency key — makes a retried turn safe.
       const clientTurnId =
         (data.clientTurnId || "").toString() || undefined;
+      // The screen Ask was opened from — one routing signal among several
+      // (`./ai/chat/intent.js`). Untrusted: an unknown value is ignored.
+      const entryPoint =
+        (data.entryPoint || "").toString().slice(0, 40) || undefined;
       // A tapped answer to a question card — `{requestId, value}`, the
       // option's stable id. Untrusted: runAiTurn resolves it against the
       // stored card and rejects anything that isn't one of its options.
@@ -984,7 +1002,7 @@ exports.aiChat = onCall(
           undefined,
       };
 
-      const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      const anthropic = newAnthropic();
       const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic, genai);
       const store = new FirestoreStore(db);
@@ -1029,6 +1047,7 @@ exports.aiChat = onCall(
           responseStyle,
           clientTurnId,
           clientClock,
+          entryPoint,
           // Fires when the client closes the stream — the turn stops before
           // its next model call instead of finishing for nobody.
           signal: response ? response.signal : undefined,
@@ -1050,15 +1069,26 @@ exports.aiChat = onCall(
         });
         // A turn that died on the model call leaves a failed chat record, so
         // "what happened to that message?" has an answer in the usage log.
-        // (Kept out of the daily cap — see `getTodayUsageTotals`.)
-        await logMeteredUsage({
-          store, uid: auth.uid, feature: AiFeature.CHAT, meter: chatMeter,
-          startedAt, offsetMinutes: clientClock.offsetMinutes, error: err,
-          extra: Object.assign({},
-              clientTurnId ? {clientTurnId} : {},
-              err && err.terminalState ?
-                {terminalState: err.terminalState} : {}),
-        });
+        // (Kept out of the daily cap — see `getTodayUsageTotals`.) The turn
+        // hands over its own full record (`err.turnUsage`: the steps that did
+        // run, the tools, the intent, which provider failed and why); a
+        // failure before the loop falls back to the meter's record — and an
+        // unexpected error is logged even when no model was reached, so no
+        // failure is missing from the log.
+        if (err && err.turnUsage) {
+          await saveUsageRecord(store, auth.uid, err.turnUsage,
+              (msg, d) => logger.warn(msg, d));
+        } else {
+          await logMeteredUsage({
+            store, uid: auth.uid, feature: AiFeature.CHAT, meter: chatMeter,
+            startedAt, offsetMinutes: clientClock.offsetMinutes, error: err,
+            force: !(err instanceof GatewayError),
+            extra: Object.assign({},
+                clientTurnId ? {clientTurnId} : {},
+                err && err.terminalState ?
+                  {terminalState: err.terminalState} : {}),
+          });
+        }
         throw toHttpsError(err);
       }
     },
@@ -1224,7 +1254,7 @@ exports.aiImportWorkoutPlan = onCall(
       const executionId = (data.executionId || "").toString() || undefined;
       const key = importKey(auth.uid, executionId);
 
-      const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      const anthropic = newAnthropic();
       const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic, genai);
       const store = new FirestoreStore(db);
@@ -1344,7 +1374,7 @@ exports.aiImportDietPlan = onCall(
       const executionId = (data.executionId || "").toString() || undefined;
       const key = importKey(auth.uid, executionId);
 
-      const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      const anthropic = newAnthropic();
       const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic, genai);
       const store = new FirestoreStore(db);
@@ -1471,7 +1501,7 @@ exports.aiGenerateDietPlan = onCall(
       // call, and the one with no file to make a caller think twice.
       await enforceDailyQuota(auth.uid, "dietGenerate", offsetFromData(data));
 
-      const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      const anthropic = newAnthropic();
       const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic, genai);
       const store = new FirestoreStore(db);

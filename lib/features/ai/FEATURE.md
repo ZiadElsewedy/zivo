@@ -65,8 +65,8 @@ backend model-catalog key: `'claude-sonnet'` (default) | `'gemini-flash'` — on
 model per provider; the retired `'auto'`/`'gemini-pro'`/`'claude-haiku'` and legacy
 `'claude'`/`'gemini'` are upgraded on read. Persisted at `users/{uid}/settings/ai`
 field `provider`, forwarded on every `send`, and read server-side by the plan
-import/generation callables — this model answers first, with the OTHER provider as
-an automatic fallback on a transient failure, see below),
+import/generation callables — this model and ONLY this model answers; there is no
+cross-provider fallback, see below),
 `ai_failure.dart` (`AiFailure(kind, provider, issue)` — what every AI repository
 method throws in place of a transport error: `unavailable` (the active model's
 provider couldn't answer — with WHICH provider and WHY: out of credit · not
@@ -125,7 +125,7 @@ nothing to send. It reuses the turn id (no duplicate) and the model active *now*
 | File | Role |
 |---|---|
 | `gateway.js` | Ask entrypoint — now a thin **facade** re-exporting `chat/` (`runAiTurn`, `confirmAction`, `cancelAction`, `GatewayError`, `SYSTEM_PROMPT`, `DEFAULT_CONFIG`). The split is invisible to callers |
-| **`chat/`** | The chat subsystem, split by concern (see [`chat/README.md`](../../../functions/ai/chat/README.md)): `turn.js` (the model↔tool loop), `actions.js` (propose→confirm→execute writes), `context.js` (the system blocks handed to the model each turn + prompt-cache discipline), `config.js` (ceilings/pricing/canned messages), `usage.js` (token accounting + cost + daily cap; logs per-turn observability — provider/model, uncached vs cached input, output, approx tool-result tokens, tools, iterations, latency, cost — as `aiUsage` **schema v6**, which adds `fallbackCount`/`failedAttempts`), `messages.js` (history + tool-result shaping), `errors.js` (`GatewayError`) |
+| **`chat/`** | The chat subsystem, split by concern (see [`chat/README.md`](../../../functions/ai/chat/README.md)): `turn.js` (the model↔tool loop), `actions.js` (propose→confirm→execute writes), `context.js` (the system blocks handed to the model each turn + prompt-cache discipline), `config.js` (ceilings/pricing/canned messages), `usage.js` (token accounting + cost + daily cap; logs per-turn observability — provider/model, uncached vs cached input, output, approx tool-result tokens, tools, iterations, latency, cost — as `aiUsage` **schema v7**, which adds `perCall`, `intent`, `promptVersion`, the `context` size breakdown and `failedProvider`/`failedModel`), `messages.js` (history + tool-result shaping), `errors.js` (`GatewayError`) |
 | **`chat/prompt/`** | The **system prompt**, composed in `system_prompt.js` from `sections/` — `persona` · **`focus`** (answer the exact question, pull only relevant context) · **`formatting`** (plain-text structure the client renders) · `numbers` · `training` · `coaching` · `mutations` · `safety`. The load-bearing sections are pinned by `gateway.test.js`; `formatting` assumes the client renders **plain text** (no Markdown) |
 | `tools/read.js` | uid-scoped **read** tools — `get_today`, `get_diet`, `get_workouts`, **`get_last_workout`**, **`get_training_analysis`**, `get_expenses`, `summarize_week`, **`get_readiness`**, **`get_sleep_summary`**, plus **`resolve_food`** (a food → its `foodId` + per-100g nutrition, or `ambiguous`/`notFound`) and **`calculate_meal_nutrition`** (items → computed kcal/macros + total). Every payload states the **date** it resolved; diet payloads carry the user's `targets`, what's `remaining` of them, and the `estimated` provenance of every figure. `get_expenses` surfaces each expense's `id` so edit/delete can target it. **`get_workouts` returns the REAL per-set actuals** from `workoutSessions` (weight/reps/type/outcome per set — warm-ups flagged, skipped/pending dropped), never the lossy flat log; **`get_last_workout`** returns just the SINGLE most recent completed session (with each exercise's top working set precomputed) so "what did I do last workout" doesn't fetch a whole week; **`get_training_analysis` hands the model ZIVO's deterministic workout analysis + typed `findings`** (see `workout_analytics.js`) so it phrases strength/PRs/trends, never computes them — and now also **`planAdherence`** (planned movements being skipped/gone-stale, from `exercise_analytics.js` + `store.getActiveWorkoutPlan`); **`get_exercise_analysis`** resolves ONE lift by name and returns its full session-by-session history, session-to-session deltas, verdict/tone and deterministic insight (the drill-down the model explains, never recomputes); **`get_sleep_summary`** returns last night vs target + a rolling average for sleep-specific questions (`get_readiness` still owns "how am I today", fusing sleep with load/recovery). **Token discipline:** `dropNull` strips absent fields from the workout/expense/week payloads (re-sent every tool iteration), but **never from the diet tools** — there a `null` is a semantic signal (`targets:null` = no objective) the prompt reasons about |
 | `analytics/workout_analytics.js` | the **workout analytics engine** — the Node mirror of `lib/features/workout/domain/analytics/workout_analytics.dart`, pinned to it by shared golden vectors (`test/fixtures/workout_analytics_vectors.json`, run by both suites). Estimated 1RM (Epley), PRs derived from history, per-exercise status (thresholded, min-3-appearance, warm-ups excluded), per-muscle rollup, working-volume trend, and `fact`/`interpretation`-typed findings. `store.listWorkoutSessions` feeds it |
@@ -145,20 +145,20 @@ orchestration never names a vendor. `anthropic_provider.js` and
 `gemini_provider.js` are the two real adapters; `routing/models.js` is the model
 catalog (Claude Sonnet 5 · Gemini Flash — one model per provider, ids and
 per-model prices, the one place pricing lives). `router.js` resolves each request
-to the user's active model, else Claude Sonnet. A TRANSIENT failure (overload,
-rate limit, server error, timeout, network — `isTransientFailure` in
-`providers/classify.js`) is retried once on the same provider after a short
-backoff; any provider-side failure that survives that — or isn't worth a retry
-(**`quota`** — Gemini's 429 RESOURCE_EXHAUSTED, e.g. the free tier's 20
-requests/day — billing, auth, retired model) — is re-run on the OTHER provider
-(`canFallBackFor`). The response then carries `requestedProvider`/
-`requestedModel`/`fallbackOccurred`/`fallbackReason`/`failedAttempts`, the Ask
-timeline shows "<model> unavailable → switched to <other>", and the usage
-record keeps `fallbackCount` + `failedAttempts`. Only when BOTH fail does the
-user see `unavailable` (`details: {reason:'ai_unavailable', provider, model,
-kind}`). A malformed request (`bad_request`) is rethrown as-is and never re-sent
-to the other provider. **Mid-turn fallbacks carry the other provider's tool
-history:** `gemini_provider.js` gives a Claude `tool_use` the documented
+to the user's active model, else Claude Sonnet — **and never to the other
+provider** (owner decision 2026-09-26; `CROSS_PROVIDER_FALLBACK` is off). A
+TRANSIENT failure (overload, rate limit, server error, network —
+`isTransientFailure` in `providers/classify.js`) is retried on the same
+provider (twice; a timeout once); whatever survives, and every other
+provider-side failure (**`quota`** — Gemini's 429 RESOURCE_EXHAUSTED, e.g. the
+free tier's 20 requests/day — billing, auth, retired model), reaches the user
+as that provider's `unavailable` (`details: {reason:'ai_unavailable',
+provider, model, kind}`) with "Switch model". The usage record says which
+provider failed (`failedProvider`/`failedModel`, `perCall` `tries`). A
+malformed request (`bad_request`) is rethrown as-is (and now logged). The
+fallback UI (timeline "switched to", usage-page fallback counts) stays for old
+records and for the day fallback is switched back on. **Were fallback on,
+mid-turn fallbacks would carry the other provider's tool history:** `gemini_provider.js` gives a Claude `tool_use` the documented
 `skip_thought_signature_validator` signature (Gemini 3 400s a call without
 one), and `anthropic_provider.js` turns Gemini `functionCall` parts into
 `tool_use` blocks (dropping Gemini thoughts/empty text). `food_search` always

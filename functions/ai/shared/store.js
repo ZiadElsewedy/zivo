@@ -744,6 +744,18 @@ class FirestoreStore {
           if (d.choice) m.choice = d.choice;
           if (d.preface) m.preface = d.preface;
           if (d.context) m.context = d.context;
+          // The turn's own user message is recognised by this and left out of
+          // the history the model reads (`../chat/messages.js`).
+          if (d.clientTurnId) m.clientTurnId = d.clientTurnId;
+          // Which tools a reply ran / which change a card proposes — names
+          // only — so the next turn can tell which area it continues
+          // (`../chat/intent.js`).
+          if (Array.isArray(d.activity)) {
+            m.activity = d.activity
+                .filter((a) => a && typeof a.tool === "string")
+                .map((a) => ({tool: a.tool}));
+          }
+          if (d.actionKind) m.actionKind = d.actionKind;
           return m;
         })
         .reverse();

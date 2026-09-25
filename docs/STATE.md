@@ -97,6 +97,40 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- 2026-09-26 (`upgrades`, NOT deployed — functions changes need an owner
+  deploy) — **Ask token efficiency (audit Phases 1–3) + no cross-provider
+  fallback.**
+  - **Provider selection is deterministic.** Gemini selected → Gemini only;
+    Claude selected → Claude only. A failure (quota, billing, auth, overload
+    after same-provider retries, timeout) is returned as THAT provider's
+    `AiUnavailableError` — the other provider is never called
+    (`router.js` `CROSS_PROVIDER_FALLBACK = false`; the path is kept, off).
+    One retry owner: SDK clients now `maxRetries: 0`; the router retries a
+    fast transient failure twice and a timeout once, same provider.
+  - **Intent-scoped prompt + tools** (`chat/intent.js`, `chat/scope.js`):
+    deterministic routing (keywords en/ar/Arabizi, bound choice, optional
+    `entryPoint`, continuity of the last reply) → GENERAL · TRAINING · DIET ·
+    MONEY · AMBIGUOUS (= the full prompt + all 26 tools, unchanged). Scoped
+    turns get a `load_tools` escape hatch. Prefix chars: general 17K,
+    money 21K, training 31K, diet 37K vs 56K before. Prompt split along
+    section lines (numbers → core + diet; mutations → core + money + diet;
+    DATES → core); tool descriptions lost only policy their area module
+    already states.
+  - **Context:** the current user message was sent twice every turn — fixed.
+    History is a character budget (8K + newest 4 verbatim, older replies
+    shortened, open cards kept) instead of 10 messages; ledger capped at 8K
+    and filtered to the turn's area; `perTurnTokenCeiling` now bounds one
+    step's context, not the sum of cached re-reads (it cut 4-step turns short).
+  - **Observability (aiUsage v7):** `intent`/`intentReason`/`expandedTo`,
+    `promptVersion`, `context` size breakdown, `perCall` (tokens by
+    bucket, stop reason, latency, tool result sizes, provider `tries`),
+    `failedProvider`/`failedModel`; a failed turn logs its full record;
+    `bad_request` failures are no longer silently unlogged.
+    `functions/scripts/count_prompt_tokens.js` gives real token counts with a
+    key (`--offline` for chars).
+  - **Owner actions:** deploy functions; run the token script with a key;
+    after a few days compare `aiUsage` by `promptVersion`/`intent`.
+
 - 2026-09-25 (`upgrades`) — **Progression vs calendar, made explicit (the
   short-lived rest-day feature is reverted).** The rest-day day type, "Take a
   rest day", the rest cards and all planned-rest logic were removed after

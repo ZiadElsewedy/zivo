@@ -38,7 +38,9 @@ const DEFAULT_LEDGER_CONFIG = {
   ttlMs: 15 * 60 * 1000,
   maxEntries: 6,
   maxEntryChars: 6000,
-  maxTotalChars: 14000,
+  // ~8K: enough for one full diet read plus a search, and it's re-sent
+  // UNCACHED on every step of the turn, so it's the tail worth keeping small.
+  maxTotalChars: 8000,
 };
 
 /**
@@ -127,6 +129,21 @@ class ContextLedger {
       at: e.at,
       dayKey: e.dayKey || null,
     })), cfg);
+  }
+
+  /**
+   * Keeps only the entries whose tool is in `toolNames` — a turn routed to
+   * one area (`scope.js`) carries only that area's lookups, never a diet
+   * read into a question about the user's bench. Returns how many were
+   * dropped (observability).
+   * @param {!Set<string>} toolNames
+   * @return {number}
+   */
+  retainTools(toolNames) {
+    const before = this.entries.length;
+    this.entries = this.entries.filter((e) => toolNames.has(e.tool));
+    this.carriedCount = this.entries.length;
+    return before - this.entries.length;
   }
 
   /**

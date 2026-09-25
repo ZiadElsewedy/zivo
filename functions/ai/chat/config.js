@@ -35,16 +35,30 @@ const DEFAULT_CONFIG = {
   // second failure of that tool ends the turn with `tool_error` instead of
   // letting the model call it again and again.
   maxToolFailuresPerTool: 2,
-  // Max input+output tokens accumulated within a single turn.
+  // The most CONTEXT one step may carry before the next step is forced to
+  // answer: the latest model call's whole input (uncached + cache read +
+  // cache write) plus its output — which is what the next call re-sends. It
+  // is a bound on the conversation's size, not a bill: the cached prefix
+  // counts ONCE (it's in every call's context), never once per call, so a
+  // turn isn't cut short just because it made several calls over a cached
+  // prefix. Cost is bounded by `maxAgentSteps`.
   perTurnTokenCeiling: 50000,
   // Max turns (aiUsage docs) for the same calendar day.
   perDayMaxTurns: 100,
   // Max input+output tokens across the same calendar day.
   perDayTokenCeiling: 500000,
-  // How many recent persisted messages are sent as history each turn. Kept
-  // deliberately small: history is re-sent on every model call in the turn, so
-  // a tighter window directly bounds the quadratic input-token growth.
-  historyWindow: 10,
+  // History is chosen by a CHARACTER budget (`messages.js` selectHistory),
+  // not a message count — history is re-sent uncached on every model call in
+  // the turn, so its size, not its length, is what costs.
+  // How many recent persisted messages are read to choose from.
+  historyFetchLimit: 16,
+  // The most history characters sent, beyond the protected newest messages.
+  historyCharBudget: 8000,
+  // The newest messages always sent word for word (the exchange the user is
+  // continuing), even past the budget.
+  historyVerbatimMessages: 4,
+  // An older reply is shortened to this many characters.
+  historyOlderReplyChars: 600,
   // Longest a single tool result may be (in characters of its JSON) before it
   // is truncated. Large tool payloads (e.g. get_today, summarize_week) are
   // re-sent on every subsequent model call in the turn, so bounding them caps
