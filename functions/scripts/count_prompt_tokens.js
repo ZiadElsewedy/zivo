@@ -97,7 +97,8 @@ async function main() {
   const oneToolBase = count ? await count({tools: [wire(LOAD_TOOLS_TOOL)]}) : 0;
   for (const tool of CATALOG.concat([LOAD_TOOLS_TOOL])) {
     const chars = JSON.stringify(wire(tool)).length;
-    report.tools[tool.name] = count ?
+    // load_tools is the baseline itself — its own cost is filled in below.
+    report.tools[tool.name] = count && tool !== LOAD_TOOLS_TOOL ?
       // Delta over a one-tool baseline, so the fixed tool-use preamble is
       // counted once (in the intents' toolTokens), not per tool.
       {chars, tokens: await count({tools: [wire(LOAD_TOOLS_TOOL),
@@ -105,8 +106,8 @@ async function main() {
       {chars};
   }
   if (count) {
-    report.tools[LOAD_TOOLS_TOOL.name].tokens =
-      oneToolBase - base;
+    // Includes the fixed tool-use preamble a request with any tool carries.
+    report.tools[LOAD_TOOLS_TOOL.name].tokens = oneToolBase - base;
   }
 
   if (asJson) {
