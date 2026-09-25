@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:zivo/features/admin/domain/admin_repository.dart';
 import 'package:zivo/l10n/l10n.dart';
 import 'package:zivo/core/media/data/in_memory_media_preferences_repository.dart';
 import 'package:zivo/core/media/data/in_memory_media_registry.dart';
@@ -74,6 +75,7 @@ Widget wrapWithScope(
   WorkoutSessionRepository? workoutSessions,
   TrainingDayMarkRepository? trainingDayMarks,
   AiRepository? ai,
+  AdminRepository? admin,
   Locale? locale,
   Brightness brightness = Brightness.dark,
 }) {
@@ -92,6 +94,7 @@ Widget wrapWithScope(
     diet: InMemoryDietRepository(),
     ai: ai ?? FakeAiRepository(),
     music: music ?? InertMusicController(),
+    admin: admin,
     child: locale == null
         ? MaterialApp(theme: theme, home: child)
         : MaterialApp(

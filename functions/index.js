@@ -23,7 +23,11 @@
 
 const {initializeApp} = require("firebase-admin/app");
 const {getAuth} = require("firebase-admin/auth");
-const {getFirestore} = require("firebase-admin/firestore");
+const {
+  getFirestore,
+  FieldValue,
+  AggregateField,
+} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {setGlobalOptions} = require("firebase-functions");
@@ -71,9 +75,14 @@ const {transcribeAudio, SpeechError} = require("./ai/speech/gateway");
 const {GeminiSpeechProvider} = require("./ai/speech/providers/gemini_speech_provider");
 const {OpenAiSpeechProvider} = require("./ai/speech/providers/openai_speech_provider");
 const speechRouter = require("./ai/speech/routing/speech_router");
+const {AdminService} = require("./admin/service");
+const {buildAdminHandlers} = require("./admin/handlers");
 
 initializeApp();
 const db = getFirestore();
+const adminService = new AdminService({
+  db, auth: getAuth(), FieldValue, AggregateField,
+});
 
 setGlobalOptions({maxInstances: 10});
 
@@ -663,6 +672,34 @@ exports.resetPasswordWithOtp = onCall(
 // --- deleteAccount ----------------------------------------------------------
 
 /**
+ * Erases an account: every document under its `users/{uid}` subtree, both
+ * OTP records, the auth identity, and its admin summary. Data-first so a
+ * partial failure can never orphan documents beneath a deleted uid.
+ *
+ * The ONE erasure path — the user's own `deleteAccount` and the Admin
+ * Console's `adminDeleteUser` both run exactly this.
+ * @param {string} uid
+ * @return {!Promise<void>}
+ */
+const eraseAccount = async (uid) => {
+  await db.recursiveDelete(db.collection("users").doc(uid));
+  await Promise.all([
+    db.collection(EMAIL_OTP_COLLECTION).doc(uid).delete()
+        .catch(() => undefined),
+    db.collection(PASSWORD_RESET_OTP_COLLECTION).doc(uid).delete()
+        .catch(() => undefined),
+  ]);
+  await getAuth().deleteUser(uid);
+  // Bookkeeping after the fact: the account is already gone, so a failure
+  // here must not report the deletion as failed.
+  try {
+    await adminService.forgetUser(uid);
+  } catch (err) {
+    console.error("eraseAccount: admin cleanup failed", err.message);
+  }
+};
+
+/**
  * Permanently erases the signed-in user: every document under their
  * `users/{uid}` subtree, both OTP records, and finally the auth identity
  * itself. Data-first so a partial failure can never orphan documents beneath a
@@ -682,16 +719,8 @@ exports.deleteAccount = onCall(
       // client-side prompt into an actual gate — this is the app's only
       // irreversible operation, so it must not be reachable by a token alone.
       requireRecentAuth(auth, "delete your account");
-      const uid = auth.uid;
       try {
-        await db.recursiveDelete(db.collection("users").doc(uid));
-        await Promise.all([
-          db.collection(EMAIL_OTP_COLLECTION).doc(uid).delete()
-              .catch(() => undefined),
-          db.collection(PASSWORD_RESET_OTP_COLLECTION).doc(uid).delete()
-              .catch(() => undefined),
-        ]);
-        await getAuth().deleteUser(uid);
+        await eraseAccount(auth.uid);
       } catch (err) {
         console.error("deleteAccount: failed", err.message);
         throw new HttpsError(
@@ -1748,3 +1777,12 @@ exports.weeklyCoachReport = onSchedule(
       logger.info("weeklyCoachReport", {reported, skipped});
     },
 );
+
+// --- Admin Console (ADR-018, docs/ADMIN.md) ----------------------------------
+// Admin-only callables (each re-checks the `admin` claim server-side) and the
+// triggers that derive product events from writes ZIVO already makes.
+Object.assign(exports, buildAdminHandlers({
+  service: adminService,
+  eraseAccount,
+  requireRecentAuth,
+}));

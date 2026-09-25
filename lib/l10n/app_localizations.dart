@@ -10613,6 +10613,852 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Change'**
   String get liveChangeNext;
+
+  /// Admin Console: the console's name beside the ZIVO wordmark
+  ///
+  /// In en, this message translates to:
+  /// **'Admin'**
+  String get adminConsoleTitle;
+
+  /// Admin Console: nav item
+  ///
+  /// In en, this message translates to:
+  /// **'Dashboard'**
+  String get adminNavDashboard;
+
+  /// Admin Console: nav item
+  ///
+  /// In en, this message translates to:
+  /// **'Users'**
+  String get adminNavUsers;
+
+  /// Admin Console: nav item
+  ///
+  /// In en, this message translates to:
+  /// **'Activity'**
+  String get adminNavActivity;
+
+  /// Admin Console: signs the admin out
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get adminSignOut;
+
+  /// Admin Console: reloads the page's data
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get adminRefresh;
+
+  /// Admin Console: retries a failed load
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get adminRetry;
+
+  /// Admin Console: when the dashboard numbers were computed
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {time}'**
+  String adminUpdatedAt(String time);
+
+  /// Admin Console: caption under the big active-users number
+  ///
+  /// In en, this message translates to:
+  /// **'active in the last 7 days'**
+  String get adminActive7dLabel;
+
+  /// Admin Console: engagement bar row: every account
+  ///
+  /// In en, this message translates to:
+  /// **'All accounts'**
+  String get adminReachTotal;
+
+  /// Admin Console: engagement bar row: active in 30 days
+  ///
+  /// In en, this message translates to:
+  /// **'Last 30 days'**
+  String get adminReach30;
+
+  /// Admin Console: engagement bar row: active in 7 days
+  ///
+  /// In en, this message translates to:
+  /// **'Last 7 days'**
+  String get adminReach7;
+
+  /// Admin Console: engagement bar row: active today
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get adminReachToday;
+
+  /// Admin Console: dashboard group heading
+  ///
+  /// In en, this message translates to:
+  /// **'People'**
+  String get adminSectionPeople;
+
+  /// Admin Console: dashboard group heading
+  ///
+  /// In en, this message translates to:
+  /// **'Training'**
+  String get adminSectionTraining;
+
+  /// Admin Console: dashboard group heading
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get adminSectionAi;
+
+  /// Admin Console: KPI label
+  ///
+  /// In en, this message translates to:
+  /// **'Total users'**
+  String get adminKpiTotalUsers;
+
+  /// Admin Console: KPI label
+  ///
+  /// In en, this message translates to:
+  /// **'New today'**
+  String get adminKpiNewToday;
+
+  /// Admin Console: KPI label
+  ///
+  /// In en, this message translates to:
+  /// **'New this week'**
+  String get adminKpiNewWeek;
+
+  /// Admin Console: KPI label: suspended accounts
+  ///
+  /// In en, this message translates to:
+  /// **'Suspended'**
+  String get adminKpiDisabled;
+
+  /// Admin Console: KPI label
+  ///
+  /// In en, this message translates to:
+  /// **'Have a workout plan'**
+  String get adminKpiWithPlan;
+
+  /// Admin Console: share of users with a plan
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% of users'**
+  String adminKpiPlanShare(int percent);
+
+  /// Admin Console: KPI label
+  ///
+  /// In en, this message translates to:
+  /// **'Workouts completed today'**
+  String get adminKpiWorkoutsToday;
+
+  /// Admin Console: KPI label: AI requests today
+  ///
+  /// In en, this message translates to:
+  /// **'Requests today'**
+  String get adminKpiAiToday;
+
+  /// Admin Console: KPI label
+  ///
+  /// In en, this message translates to:
+  /// **'Requests, 30 days'**
+  String get adminKpiAi30;
+
+  /// Admin Console: KPI label: AI tokens
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens, 30 days'**
+  String get adminKpiTokens30;
+
+  /// Admin Console: KPI label
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated cost, 30 days'**
+  String get adminKpiCost30;
+
+  /// Admin Console: KPI label
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens, all time'**
+  String get adminKpiTokensAll;
+
+  /// Admin Console: footnote under AI cost
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated at each model\'s list price when the request ran.'**
+  String get adminCostNote;
+
+  /// Admin Console: chart heading
+  ///
+  /// In en, this message translates to:
+  /// **'Last 14 days'**
+  String get adminChartTitle;
+
+  /// Admin Console: chart legend
+  ///
+  /// In en, this message translates to:
+  /// **'Workouts completed'**
+  String get adminChartWorkouts;
+
+  /// Admin Console: chart legend
+  ///
+  /// In en, this message translates to:
+  /// **'App opens'**
+  String get adminChartOpens;
+
+  /// Admin Console: action that recounts every account
+  ///
+  /// In en, this message translates to:
+  /// **'Rebuild summaries'**
+  String get adminRebuild;
+
+  /// Admin Console: explains the rebuild action
+  ///
+  /// In en, this message translates to:
+  /// **'Recounts every account from its own data. Run it once after setup, or if a number looks wrong.'**
+  String get adminRebuildHint;
+
+  /// Admin Console: rebuild progress
+  ///
+  /// In en, this message translates to:
+  /// **'Rebuilding… {count} accounts so far'**
+  String adminRebuildRunning(int count);
+
+  /// Admin Console: rebuild finished toast
+  ///
+  /// In en, this message translates to:
+  /// **'Rebuilt {count} accounts'**
+  String adminRebuildDone(int count);
+
+  /// Admin Console: page title
+  ///
+  /// In en, this message translates to:
+  /// **'Users'**
+  String get adminUsersTitle;
+
+  /// Admin Console: users search field hint
+  ///
+  /// In en, this message translates to:
+  /// **'Search by name, email or account ID'**
+  String get adminSearchHint;
+
+  /// Admin Console: users segment
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get adminSegmentAll;
+
+  /// Admin Console: users segment: seen in 7 days
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get adminSegmentActive;
+
+  /// Admin Console: users segment: not seen in 30 days
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive'**
+  String get adminSegmentInactive;
+
+  /// Admin Console: users segment: joined in 7 days
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get adminSegmentNew;
+
+  /// Admin Console: opens the filter menu
+  ///
+  /// In en, this message translates to:
+  /// **'Filter'**
+  String get adminFilter;
+
+  /// Admin Console: clears the filter
+  ///
+  /// In en, this message translates to:
+  /// **'No filter'**
+  String get adminFilterNone;
+
+  /// Admin Console: filter option
+  ///
+  /// In en, this message translates to:
+  /// **'Has a workout plan'**
+  String get adminFilterHasPlan;
+
+  /// Admin Console: filter option
+  ///
+  /// In en, this message translates to:
+  /// **'No workout plan'**
+  String get adminFilterNoPlan;
+
+  /// Admin Console: filter option
+  ///
+  /// In en, this message translates to:
+  /// **'Suspended'**
+  String get adminFilterSuspended;
+
+  /// Admin Console: filter option
+  ///
+  /// In en, this message translates to:
+  /// **'Not suspended'**
+  String get adminFilterNotSuspended;
+
+  /// Admin Console: filter option
+  ///
+  /// In en, this message translates to:
+  /// **'Platform: {platform}'**
+  String adminFilterPlatform(String platform);
+
+  /// Admin Console: filter option that asks for a version
+  ///
+  /// In en, this message translates to:
+  /// **'App version…'**
+  String get adminFilterVersion;
+
+  /// Admin Console: active version filter
+  ///
+  /// In en, this message translates to:
+  /// **'Version: {version}'**
+  String adminFilterVersionActive(String version);
+
+  /// Admin Console: version field hint
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 1.0.0+1'**
+  String get adminFilterVersionHint;
+
+  /// Admin Console: applies a filter
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get adminApply;
+
+  /// Admin Console: note while searching
+  ///
+  /// In en, this message translates to:
+  /// **'Searching all users — segment and filter don\'t apply.'**
+  String get adminSearchIgnoresFilters;
+
+  /// Admin Console: table column
+  ///
+  /// In en, this message translates to:
+  /// **'User'**
+  String get adminColUser;
+
+  /// Admin Console: table column
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get adminColStatus;
+
+  /// Admin Console: table column
+  ///
+  /// In en, this message translates to:
+  /// **'Last active'**
+  String get adminColLastActive;
+
+  /// Admin Console: table column
+  ///
+  /// In en, this message translates to:
+  /// **'Joined'**
+  String get adminColJoined;
+
+  /// Admin Console: table column
+  ///
+  /// In en, this message translates to:
+  /// **'Device'**
+  String get adminColDevice;
+
+  /// Admin Console: table column: has workout plan
+  ///
+  /// In en, this message translates to:
+  /// **'Plan'**
+  String get adminColPlan;
+
+  /// Admin Console: table column: completed workouts
+  ///
+  /// In en, this message translates to:
+  /// **'Workouts'**
+  String get adminColWorkouts;
+
+  /// Admin Console: table column: AI requests
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get adminColAi;
+
+  /// Admin Console: table column: last meaningful event
+  ///
+  /// In en, this message translates to:
+  /// **'Last activity'**
+  String get adminColLastActivity;
+
+  /// Admin Console: account status
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get adminStatusActive;
+
+  /// Admin Console: account status
+  ///
+  /// In en, this message translates to:
+  /// **'Suspended'**
+  String get adminStatusSuspended;
+
+  /// Admin Console: boolean yes
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get adminYes;
+
+  /// Admin Console: boolean no
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get adminNo;
+
+  /// Admin Console: no date recorded
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get adminNever;
+
+  /// Admin Console: user without a profile name
+  ///
+  /// In en, this message translates to:
+  /// **'No name yet'**
+  String get adminUnnamed;
+
+  /// Admin Console: loads the next page
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get adminLoadMore;
+
+  /// Admin Console: empty users table
+  ///
+  /// In en, this message translates to:
+  /// **'No users match. Clear the search or filter to see everyone.'**
+  String get adminUsersEmpty;
+
+  /// Admin Console: detail section
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get adminSectionAccount;
+
+  /// Admin Console: detail section
+  ///
+  /// In en, this message translates to:
+  /// **'Workout'**
+  String get adminSectionWorkout;
+
+  /// Admin Console: detail section
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get adminSectionUsage;
+
+  /// Admin Console: detail section
+  ///
+  /// In en, this message translates to:
+  /// **'Recent activity'**
+  String get adminSectionRecent;
+
+  /// Admin Console: detail section
+  ///
+  /// In en, this message translates to:
+  /// **'Manage account'**
+  String get adminSectionManage;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Created'**
+  String get adminFieldCreated;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Last active'**
+  String get adminFieldLastActive;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Last sign-in'**
+  String get adminFieldLastSignIn;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Platform'**
+  String get adminFieldPlatform;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'App version'**
+  String get adminFieldVersion;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get adminFieldStatus;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in method'**
+  String get adminFieldSignInMethod;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Account ID'**
+  String get adminFieldAccountId;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Workout plan'**
+  String get adminFieldHasPlan;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'First plan created'**
+  String get adminFieldPlanCreated;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Plans created'**
+  String get adminFieldPlans;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions started'**
+  String get adminFieldSessions;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get adminFieldCompleted;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Abandoned'**
+  String get adminFieldAbandoned;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Last workout'**
+  String get adminFieldLastWorkout;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'AI requests'**
+  String get adminFieldAiRequests;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens in / out'**
+  String get adminFieldTokens;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated AI cost'**
+  String get adminFieldAiCost;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'App opens'**
+  String get adminFieldAppOpens;
+
+  /// Admin Console: detail field
+  ///
+  /// In en, this message translates to:
+  /// **'Diet imports'**
+  String get adminFieldDietImports;
+
+  /// Admin Console: empty recent activity
+  ///
+  /// In en, this message translates to:
+  /// **'No recorded activity yet. Events are recorded from the day the Admin Console went live.'**
+  String get adminNoEvents;
+
+  /// Admin Console: privacy note on user detail
+  ///
+  /// In en, this message translates to:
+  /// **'Only counts and dates are shown. Conversations, notes, photos and the contents of workouts, meals and expenses stay private.'**
+  String get adminPrivacyNote;
+
+  /// Admin Console: shown instead of actions for an admin account
+  ///
+  /// In en, this message translates to:
+  /// **'This is an admin account. Admin accounts are managed with the set-admin script, not here.'**
+  String get adminIsAdminNote;
+
+  /// Admin Console: action
+  ///
+  /// In en, this message translates to:
+  /// **'Suspend account'**
+  String get adminSuspend;
+
+  /// Admin Console: dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Suspend this account?'**
+  String get adminSuspendTitle;
+
+  /// Admin Console: dialog body
+  ///
+  /// In en, this message translates to:
+  /// **'{name} will be signed out on every device within the hour and can\'t sign in until you re-enable the account. Their data is kept as it is.'**
+  String adminSuspendBody(String name);
+
+  /// Admin Console: dialog confirm
+  ///
+  /// In en, this message translates to:
+  /// **'Suspend'**
+  String get adminSuspendConfirm;
+
+  /// Admin Console: toast
+  ///
+  /// In en, this message translates to:
+  /// **'Account suspended'**
+  String get adminSuspended;
+
+  /// Admin Console: action
+  ///
+  /// In en, this message translates to:
+  /// **'Re-enable account'**
+  String get adminReinstate;
+
+  /// Admin Console: dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Re-enable this account?'**
+  String get adminReinstateTitle;
+
+  /// Admin Console: dialog body
+  ///
+  /// In en, this message translates to:
+  /// **'{name} will be able to sign in again.'**
+  String adminReinstateBody(String name);
+
+  /// Admin Console: dialog confirm
+  ///
+  /// In en, this message translates to:
+  /// **'Re-enable'**
+  String get adminReinstateConfirm;
+
+  /// Admin Console: toast
+  ///
+  /// In en, this message translates to:
+  /// **'Account re-enabled'**
+  String get adminReinstated;
+
+  /// Admin Console: action
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get adminDelete;
+
+  /// Admin Console: dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this account permanently?'**
+  String get adminDeleteTitle;
+
+  /// Admin Console: dialog body
+  ///
+  /// In en, this message translates to:
+  /// **'This erases {name}\'s account and everything in it — workouts, plans, meal logs, expenses, conversations and settings — and removes their sign-in. It can\'t be undone, and they won\'t be notified.'**
+  String adminDeleteBody(String name);
+
+  /// Admin Console: confirmation code prompt
+  ///
+  /// In en, this message translates to:
+  /// **'Type {code} to confirm'**
+  String adminDeleteTypeCode(String code);
+
+  /// Admin Console: password field for reauthentication
+  ///
+  /// In en, this message translates to:
+  /// **'Your admin password'**
+  String get adminDeletePassword;
+
+  /// Admin Console: note for provider accounts
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ll confirm it\'s you before anything is deleted.'**
+  String get adminDeleteReauthNote;
+
+  /// Admin Console: dialog confirm
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently'**
+  String get adminDeleteConfirm;
+
+  /// Admin Console: toast
+  ///
+  /// In en, this message translates to:
+  /// **'Account deleted'**
+  String get adminDeleted;
+
+  /// Admin Console: page title
+  ///
+  /// In en, this message translates to:
+  /// **'Activity'**
+  String get adminActivityTitle;
+
+  /// Admin Console: window pill
+  ///
+  /// In en, this message translates to:
+  /// **'24 hours'**
+  String get adminWindow1;
+
+  /// Admin Console: window pill
+  ///
+  /// In en, this message translates to:
+  /// **'7 days'**
+  String get adminWindow7;
+
+  /// Admin Console: window pill
+  ///
+  /// In en, this message translates to:
+  /// **'30 days'**
+  String get adminWindow30;
+
+  /// Admin Console: feed filter: no event filter
+  ///
+  /// In en, this message translates to:
+  /// **'All events'**
+  String get adminAllEvents;
+
+  /// Admin Console: feed heading
+  ///
+  /// In en, this message translates to:
+  /// **'Latest events'**
+  String get adminFeedTitle;
+
+  /// Admin Console: empty feed
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing recorded in this window yet.'**
+  String get adminActivityEmpty;
+
+  /// Admin Console: feed row without a name
+  ///
+  /// In en, this message translates to:
+  /// **'Unnamed or deleted account'**
+  String get adminUnknownUser;
+
+  /// Admin Console: event label
+  ///
+  /// In en, this message translates to:
+  /// **'Joined'**
+  String get adminEventAccountCreated;
+
+  /// Admin Console: event label
+  ///
+  /// In en, this message translates to:
+  /// **'Opened the app'**
+  String get adminEventAppOpened;
+
+  /// Admin Console: event label
+  ///
+  /// In en, this message translates to:
+  /// **'Created a workout plan'**
+  String get adminEventPlanCreated;
+
+  /// Admin Console: event label
+  ///
+  /// In en, this message translates to:
+  /// **'Started a workout'**
+  String get adminEventWorkoutStarted;
+
+  /// Admin Console: event label
+  ///
+  /// In en, this message translates to:
+  /// **'Completed a workout'**
+  String get adminEventWorkoutCompleted;
+
+  /// Admin Console: event label
+  ///
+  /// In en, this message translates to:
+  /// **'Abandoned a workout'**
+  String get adminEventWorkoutAbandoned;
+
+  /// Admin Console: event label
+  ///
+  /// In en, this message translates to:
+  /// **'Withdrew a workout'**
+  String get adminEventWorkoutVoided;
+
+  /// Admin Console: event label
+  ///
+  /// In en, this message translates to:
+  /// **'Used AI'**
+  String get adminEventAiRequest;
+
+  /// Admin Console: event label
+  ///
+  /// In en, this message translates to:
+  /// **'Imported a diet'**
+  String get adminEventDietImported;
+
+  /// Admin Console: event label
+  ///
+  /// In en, this message translates to:
+  /// **'Wrote a diet plan'**
+  String get adminEventDietCreated;
+
+  /// Admin Console: event label
+  ///
+  /// In en, this message translates to:
+  /// **'Suspended by an admin'**
+  String get adminEventDisabled;
+
+  /// Admin Console: event label
+  ///
+  /// In en, this message translates to:
+  /// **'Re-enabled by an admin'**
+  String get adminEventEnabled;
+
+  /// Admin Console: event label
+  ///
+  /// In en, this message translates to:
+  /// **'Account deleted'**
+  String get adminEventDeleted;
+
+  /// Admin Console: event label for an unknown name
+  ///
+  /// In en, this message translates to:
+  /// **'Other event'**
+  String get adminEventOther;
+
+  /// Admin Console: workout duration on an event
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String adminEventMinutes(int minutes);
+
+  /// Admin Console: AI tokens on an event
+  ///
+  /// In en, this message translates to:
+  /// **'{tokens} tokens'**
+  String adminEventTokens(String tokens);
 }
 
 class _AppLocalizationsDelegate

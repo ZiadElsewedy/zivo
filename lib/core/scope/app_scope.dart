@@ -4,6 +4,7 @@ import '../l10n/locale_controller.dart';
 import '../theme/theme_controller.dart';
 import '../media/media_service.dart';
 import '../../features/ai/data/audio_recorder.dart';
+import '../../features/admin/domain/admin_repository.dart';
 import '../../features/ai/domain/ai_repository.dart';
 import '../../features/auth/data/device_session_guard.dart';
 import '../../features/auth/domain/auth_activity_repository.dart';
@@ -72,6 +73,7 @@ class AppScope extends InheritedWidget {
     this.music,
     this.locale,
     this.theme,
+    this.admin,
     required super.child,
     super.key,
   });
@@ -303,6 +305,17 @@ class AppScope extends InheritedWidget {
   /// one. Read it through [requireTheme] from the theme picker.
   final ThemeController? theme;
 
+  /// The Admin Console's seam (features/admin). Optional: only the admin
+  /// shell reads it, and every call it makes is re-authorized server-side.
+  final AdminRepository? admin;
+
+  /// The admin repository, asserting it was provided. Use from the Admin
+  /// Console — production always wires it.
+  AdminRepository get requireAdmin {
+    assert(admin != null, 'AppScope.admin was not provided to this scope');
+    return admin!;
+  }
+
   /// The theme controller, asserting it was provided. Use from Settings'
   /// theme picker — production always wires it.
   ThemeController get requireTheme {
@@ -410,5 +423,6 @@ class AppScope extends InheritedWidget {
       media != oldWidget.media ||
       music != oldWidget.music ||
       locale != oldWidget.locale ||
-      theme != oldWidget.theme;
+      theme != oldWidget.theme ||
+      admin != oldWidget.admin;
 }

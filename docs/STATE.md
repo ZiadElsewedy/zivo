@@ -97,6 +97,25 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- 2026-09-25 (`upgrades`) — **Admin Console** ([ADR-018](DECISIONS/ADR-018-admin-console.md),
+  [ADMIN.md](ADMIN.md), NOT deployed). An account with the `admin` custom claim
+  lands in `AdminShell` (Dashboard · Users · Activity; sidebar/rail/bottom-bar)
+  instead of the app. Everything goes through 7 admin-only callables that re-check
+  the claim against the Auth record, and the client never reads admin data from
+  Firestore. Product events are derived server-side by 7 triggers from writes the
+  app already makes (session claim = app opened, session status, plans, diet
+  plans, `aiUsage`, account creation) into `adminEvents` + per-account
+  `adminUsers` counters. Metrics are `count()`/`sum()` aggregations, and the users
+  table is indexed and cursor-paginated. Only counts and dates are shown, never
+  content. Suspend/re-enable (revokes refresh tokens); delete reuses the one
+  `eraseAccount` (the user's own `deleteAccount` now calls it too) and requires a
+  fresh `auth_time`, a typed code, and not-self/not-admin. Every admin action is
+  written to `adminAudit`. `session/current` now carries `appVersion`. Tests: 37
+  functions (admin/*), 207 rules, 10 Flutter (test/admin).
+  **Owner actions:** deploy `firestore:rules,firestore:indexes` then
+  `functions`; `node functions/scripts/set-admin.js grant <email>`; sign in as
+  that account → Dashboard → **Rebuild summaries** once.
+
 - 2026-09-25 (`upgrades`) — **Workout redesign: exercise navigation + identity
   completed** (ADR-017, NOT deployed). Live session: next/previous arrows + swipe,
   a workout map (jump to any exercise, add one), per-exercise options — do now / do

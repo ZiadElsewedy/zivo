@@ -132,6 +132,27 @@ abstract interface class AccountLifecycle {
   /// refuses to delete without a fresh one. Returns [AuthCancelled] if the
   /// user backs out of a provider sheet.
   Future<AuthResult> deleteAccount({String? password});
+
+  /// Re-proves the signed-in person — [password] for a password account, the
+  /// provider sheet for Google/Apple — without doing anything else. For a
+  /// server operation that, like [deleteAccount], refuses a token whose
+  /// `auth_time` is not fresh. Returns [AuthCancelled] if the user backs out.
+  Future<AuthResult> reauthenticate({String? password});
+}
+
+/// **Authorization.** What the signed-in identity may do beyond owning its
+/// own data. A role is a server-granted custom claim on the ID token (see
+/// docs/AUTH.md §1 "What about custom claims?"), so this stays portable: it
+/// names no ZIVO concept, only a role string.
+///
+/// The answer picks a SCREEN, never a permission — every privileged
+/// operation re-checks the role on the server.
+abstract interface class RoleAuthorization {
+  /// Whether the signed-in user's current ID token carries [role] (a claim
+  /// set to `true`). False when signed out. Reads the cached token, so it
+  /// costs no network round-trip; a freshly granted role shows up once the
+  /// token refreshes (sign out and back in).
+  Future<bool> hasRole(String role);
 }
 
 /// The full authentication surface: every facet above, as one injectable
@@ -143,4 +164,5 @@ abstract interface class AuthRepository
         SessionAuthentication,
         EmailVerification,
         PasswordManagement,
-        AccountLifecycle {}
+        AccountLifecycle,
+        RoleAuthorization {}

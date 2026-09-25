@@ -238,7 +238,13 @@ service cloud.firestore {
       allow read: if isOwner(userId);
       allow create, update: if isOwner(userId)
         && request.resource.data.keys().hasOnly(
-             ['sessionId', 'deviceId', 'platform', 'createdAt', 'lastSeenAt'])
+             ['sessionId', 'deviceId', 'platform', 'appVersion', 'createdAt',
+              'lastSeenAt'])
+        // The build that launched — read by the Admin Console's app_opened
+        // trigger (ADR-018). Optional so older builds keep claiming.
+        && (!('appVersion' in request.resource.data)
+            || (request.resource.data.appVersion is string
+                && request.resource.data.appVersion.size() <= 32))
         && request.resource.data.sessionId is string
         && request.resource.data.sessionId.size() > 0
         && request.resource.data.deviceId is string
@@ -783,6 +789,23 @@ service cloud.firestore {
     match /users/{userId}/aiUsage/{usageId} {
       allow read: if isOwner(userId);
       allow write: if false;
+    }
+
+    // Admin Console stores (ADR-018): the per-account summary, the product
+    // event log and the admin audit trail. Admin-SDK-only — denied to EVERY
+    // client, admins included. The console reads them through admin-only
+    // callables that re-check the `admin` claim and return a projection, so
+    // no rule here ever has to branch on a role, and a client (however it is
+    // modified) has no path to another user's data. Stated explicitly rather
+    // than left to the catch-all so a future edit sees the decision.
+    match /adminUsers/{uid} {
+      allow read, write: if false;
+    }
+    match /adminEvents/{eventId} {
+      allow read, write: if false;
+    }
+    match /adminAudit/{entryId} {
+      allow read, write: if false;
     }
 
     // Nothing else is exposed to clients. The feature repositories (expenses,

@@ -6360,4 +6360,459 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveChangeNext => 'Change';
+
+  @override
+  String get adminConsoleTitle => 'Admin';
+
+  @override
+  String get adminNavDashboard => 'Dashboard';
+
+  @override
+  String get adminNavUsers => 'Users';
+
+  @override
+  String get adminNavActivity => 'Activity';
+
+  @override
+  String get adminSignOut => 'Sign out';
+
+  @override
+  String get adminRefresh => 'Refresh';
+
+  @override
+  String get adminRetry => 'Try again';
+
+  @override
+  String adminUpdatedAt(String time) {
+    return 'Updated $time';
+  }
+
+  @override
+  String get adminActive7dLabel => 'active in the last 7 days';
+
+  @override
+  String get adminReachTotal => 'All accounts';
+
+  @override
+  String get adminReach30 => 'Last 30 days';
+
+  @override
+  String get adminReach7 => 'Last 7 days';
+
+  @override
+  String get adminReachToday => 'Today';
+
+  @override
+  String get adminSectionPeople => 'People';
+
+  @override
+  String get adminSectionTraining => 'Training';
+
+  @override
+  String get adminSectionAi => 'AI';
+
+  @override
+  String get adminKpiTotalUsers => 'Total users';
+
+  @override
+  String get adminKpiNewToday => 'New today';
+
+  @override
+  String get adminKpiNewWeek => 'New this week';
+
+  @override
+  String get adminKpiDisabled => 'Suspended';
+
+  @override
+  String get adminKpiWithPlan => 'Have a workout plan';
+
+  @override
+  String adminKpiPlanShare(int percent) {
+    return '$percent% of users';
+  }
+
+  @override
+  String get adminKpiWorkoutsToday => 'Workouts completed today';
+
+  @override
+  String get adminKpiAiToday => 'Requests today';
+
+  @override
+  String get adminKpiAi30 => 'Requests, 30 days';
+
+  @override
+  String get adminKpiTokens30 => 'Tokens, 30 days';
+
+  @override
+  String get adminKpiCost30 => 'Estimated cost, 30 days';
+
+  @override
+  String get adminKpiTokensAll => 'Tokens, all time';
+
+  @override
+  String get adminCostNote =>
+      'Estimated at each model\'s list price when the request ran.';
+
+  @override
+  String get adminChartTitle => 'Last 14 days';
+
+  @override
+  String get adminChartWorkouts => 'Workouts completed';
+
+  @override
+  String get adminChartOpens => 'App opens';
+
+  @override
+  String get adminRebuild => 'Rebuild summaries';
+
+  @override
+  String get adminRebuildHint =>
+      'Recounts every account from its own data. Run it once after setup, or if a number looks wrong.';
+
+  @override
+  String adminRebuildRunning(int count) {
+    return 'Rebuilding… $count accounts so far';
+  }
+
+  @override
+  String adminRebuildDone(int count) {
+    return 'Rebuilt $count accounts';
+  }
+
+  @override
+  String get adminUsersTitle => 'Users';
+
+  @override
+  String get adminSearchHint => 'Search by name, email or account ID';
+
+  @override
+  String get adminSegmentAll => 'All';
+
+  @override
+  String get adminSegmentActive => 'Active';
+
+  @override
+  String get adminSegmentInactive => 'Inactive';
+
+  @override
+  String get adminSegmentNew => 'New';
+
+  @override
+  String get adminFilter => 'Filter';
+
+  @override
+  String get adminFilterNone => 'No filter';
+
+  @override
+  String get adminFilterHasPlan => 'Has a workout plan';
+
+  @override
+  String get adminFilterNoPlan => 'No workout plan';
+
+  @override
+  String get adminFilterSuspended => 'Suspended';
+
+  @override
+  String get adminFilterNotSuspended => 'Not suspended';
+
+  @override
+  String adminFilterPlatform(String platform) {
+    return 'Platform: $platform';
+  }
+
+  @override
+  String get adminFilterVersion => 'App version…';
+
+  @override
+  String adminFilterVersionActive(String version) {
+    return 'Version: $version';
+  }
+
+  @override
+  String get adminFilterVersionHint => 'e.g. 1.0.0+1';
+
+  @override
+  String get adminApply => 'Apply';
+
+  @override
+  String get adminSearchIgnoresFilters =>
+      'Searching all users — segment and filter don\'t apply.';
+
+  @override
+  String get adminColUser => 'User';
+
+  @override
+  String get adminColStatus => 'Status';
+
+  @override
+  String get adminColLastActive => 'Last active';
+
+  @override
+  String get adminColJoined => 'Joined';
+
+  @override
+  String get adminColDevice => 'Device';
+
+  @override
+  String get adminColPlan => 'Plan';
+
+  @override
+  String get adminColWorkouts => 'Workouts';
+
+  @override
+  String get adminColAi => 'AI';
+
+  @override
+  String get adminColLastActivity => 'Last activity';
+
+  @override
+  String get adminStatusActive => 'Active';
+
+  @override
+  String get adminStatusSuspended => 'Suspended';
+
+  @override
+  String get adminYes => 'Yes';
+
+  @override
+  String get adminNo => 'No';
+
+  @override
+  String get adminNever => 'Never';
+
+  @override
+  String get adminUnnamed => 'No name yet';
+
+  @override
+  String get adminLoadMore => 'Load more';
+
+  @override
+  String get adminUsersEmpty =>
+      'No users match. Clear the search or filter to see everyone.';
+
+  @override
+  String get adminSectionAccount => 'Account';
+
+  @override
+  String get adminSectionWorkout => 'Workout';
+
+  @override
+  String get adminSectionUsage => 'Usage';
+
+  @override
+  String get adminSectionRecent => 'Recent activity';
+
+  @override
+  String get adminSectionManage => 'Manage account';
+
+  @override
+  String get adminFieldCreated => 'Created';
+
+  @override
+  String get adminFieldLastActive => 'Last active';
+
+  @override
+  String get adminFieldLastSignIn => 'Last sign-in';
+
+  @override
+  String get adminFieldPlatform => 'Platform';
+
+  @override
+  String get adminFieldVersion => 'App version';
+
+  @override
+  String get adminFieldStatus => 'Status';
+
+  @override
+  String get adminFieldSignInMethod => 'Sign-in method';
+
+  @override
+  String get adminFieldAccountId => 'Account ID';
+
+  @override
+  String get adminFieldHasPlan => 'Workout plan';
+
+  @override
+  String get adminFieldPlanCreated => 'First plan created';
+
+  @override
+  String get adminFieldPlans => 'Plans created';
+
+  @override
+  String get adminFieldSessions => 'Sessions started';
+
+  @override
+  String get adminFieldCompleted => 'Completed';
+
+  @override
+  String get adminFieldAbandoned => 'Abandoned';
+
+  @override
+  String get adminFieldLastWorkout => 'Last workout';
+
+  @override
+  String get adminFieldAiRequests => 'AI requests';
+
+  @override
+  String get adminFieldTokens => 'Tokens in / out';
+
+  @override
+  String get adminFieldAiCost => 'Estimated AI cost';
+
+  @override
+  String get adminFieldAppOpens => 'App opens';
+
+  @override
+  String get adminFieldDietImports => 'Diet imports';
+
+  @override
+  String get adminNoEvents =>
+      'No recorded activity yet. Events are recorded from the day the Admin Console went live.';
+
+  @override
+  String get adminPrivacyNote =>
+      'Only counts and dates are shown. Conversations, notes, photos and the contents of workouts, meals and expenses stay private.';
+
+  @override
+  String get adminIsAdminNote =>
+      'This is an admin account. Admin accounts are managed with the set-admin script, not here.';
+
+  @override
+  String get adminSuspend => 'Suspend account';
+
+  @override
+  String get adminSuspendTitle => 'Suspend this account?';
+
+  @override
+  String adminSuspendBody(String name) {
+    return '$name will be signed out on every device within the hour and can\'t sign in until you re-enable the account. Their data is kept as it is.';
+  }
+
+  @override
+  String get adminSuspendConfirm => 'Suspend';
+
+  @override
+  String get adminSuspended => 'Account suspended';
+
+  @override
+  String get adminReinstate => 'Re-enable account';
+
+  @override
+  String get adminReinstateTitle => 'Re-enable this account?';
+
+  @override
+  String adminReinstateBody(String name) {
+    return '$name will be able to sign in again.';
+  }
+
+  @override
+  String get adminReinstateConfirm => 'Re-enable';
+
+  @override
+  String get adminReinstated => 'Account re-enabled';
+
+  @override
+  String get adminDelete => 'Delete account';
+
+  @override
+  String get adminDeleteTitle => 'Delete this account permanently?';
+
+  @override
+  String adminDeleteBody(String name) {
+    return 'This erases $name\'s account and everything in it — workouts, plans, meal logs, expenses, conversations and settings — and removes their sign-in. It can\'t be undone, and they won\'t be notified.';
+  }
+
+  @override
+  String adminDeleteTypeCode(String code) {
+    return 'Type $code to confirm';
+  }
+
+  @override
+  String get adminDeletePassword => 'Your admin password';
+
+  @override
+  String get adminDeleteReauthNote =>
+      'You\'ll confirm it\'s you before anything is deleted.';
+
+  @override
+  String get adminDeleteConfirm => 'Delete permanently';
+
+  @override
+  String get adminDeleted => 'Account deleted';
+
+  @override
+  String get adminActivityTitle => 'Activity';
+
+  @override
+  String get adminWindow1 => '24 hours';
+
+  @override
+  String get adminWindow7 => '7 days';
+
+  @override
+  String get adminWindow30 => '30 days';
+
+  @override
+  String get adminAllEvents => 'All events';
+
+  @override
+  String get adminFeedTitle => 'Latest events';
+
+  @override
+  String get adminActivityEmpty => 'Nothing recorded in this window yet.';
+
+  @override
+  String get adminUnknownUser => 'Unnamed or deleted account';
+
+  @override
+  String get adminEventAccountCreated => 'Joined';
+
+  @override
+  String get adminEventAppOpened => 'Opened the app';
+
+  @override
+  String get adminEventPlanCreated => 'Created a workout plan';
+
+  @override
+  String get adminEventWorkoutStarted => 'Started a workout';
+
+  @override
+  String get adminEventWorkoutCompleted => 'Completed a workout';
+
+  @override
+  String get adminEventWorkoutAbandoned => 'Abandoned a workout';
+
+  @override
+  String get adminEventWorkoutVoided => 'Withdrew a workout';
+
+  @override
+  String get adminEventAiRequest => 'Used AI';
+
+  @override
+  String get adminEventDietImported => 'Imported a diet';
+
+  @override
+  String get adminEventDietCreated => 'Wrote a diet plan';
+
+  @override
+  String get adminEventDisabled => 'Suspended by an admin';
+
+  @override
+  String get adminEventEnabled => 'Re-enabled by an admin';
+
+  @override
+  String get adminEventDeleted => 'Account deleted';
+
+  @override
+  String get adminEventOther => 'Other event';
+
+  @override
+  String adminEventMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String adminEventTokens(String tokens) {
+    return '$tokens tokens';
+  }
 }

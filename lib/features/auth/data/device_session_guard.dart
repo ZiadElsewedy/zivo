@@ -33,11 +33,16 @@ class DeviceSessionGuard {
   DeviceSessionGuard({
     required AuthRepository authRepository,
     required DeviceSessionRepository repository,
+    Future<String?> Function()? readAppVersion,
   }) : _auth = authRepository,
-       _sessions = repository;
+       _sessions = repository,
+       _readAppVersionFn = readAppVersion;
 
   final AuthRepository _auth;
   final DeviceSessionRepository _sessions;
+
+  /// Reports the running build for the session record; null leaves it out.
+  final Future<String?> Function()? _readAppVersionFn;
 
   /// Raised (once) when this device was signed out because the account became
   /// active elsewhere. The login surface watches it to show the reason, then
@@ -75,6 +80,7 @@ class DeviceSessionGuard {
 
   Future<void> _claimAndWatch(String uid) async {
     final deviceId = await _deviceId();
+    final appVersion = await _readAppVersion();
     // The user may have signed out (or switched) while we read the device id.
     if (_claimedUid != uid) return;
     final sessionId = _randomId();
@@ -91,6 +97,7 @@ class DeviceSessionGuard {
               sessionId: sessionId,
               deviceId: deviceId,
               platform: _platform,
+              appVersion: appVersion,
             ),
           )
           .catchError((_) {}),
@@ -127,6 +134,14 @@ class DeviceSessionGuard {
   void dispose() {
     _stop();
     signedOutElsewhere.dispose();
+  }
+
+  Future<String?> _readAppVersion() async {
+    try {
+      return await _readAppVersionFn?.call();
+    } catch (_) {
+      return null; // never let bookkeeping stall a claim
+    }
   }
 
   /// A stable per-install id, generated once and kept in shared preferences.

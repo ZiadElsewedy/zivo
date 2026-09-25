@@ -12,6 +12,7 @@ class ActiveSession {
     required this.sessionId,
     required this.deviceId,
     required this.platform,
+    this.appVersion,
   });
 
   /// Unique per sign-in/activation. This is the field correctness rides on: a
@@ -24,4 +25,8 @@ class ActiveSession {
   /// `ios` / `android` / `web` — for display and debugging, never for the
   /// active-vs-stale decision.
   final String platform;
+
+  /// The build that claimed the session (`1.2.0+14`), when known. Bookkeeping
+  /// only — the Admin Console reads it to see which versions are in use.
+  final String? appVersion;
 }

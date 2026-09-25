@@ -111,6 +111,7 @@ repos, provides `AppScope`, a `MaterialApp` on the chosen skin, `home: AuthGate`
 | **sleep** | Apple Health / Health Connect sleep + manual logging, with provenance on every number — training recovery | [`lib/features/sleep/`](lib/features/sleep/FEATURE.md) | [SLEEP_SYSTEM.md](docs/SLEEP_SYSTEM.md), [ADR-010](docs/DECISIONS/ADR-010-sleep-provenance.md) |
 | **device** | Pedometer step counter (Today's Move ring) | [`lib/features/device/`](lib/features/device/FEATURE.md) | — |
 | **reminders** | Simple customizable **local** notifications — meal/workout/activity reminders the user schedules | [`lib/features/reminders/`](lib/features/reminders/FEATURE.md) | [ADR-013](docs/DECISIONS/ADR-013-local-notifications.md) |
+| **admin** | Admin Console — users, activity, AI usage, suspend/delete; shown instead of the app to an `admin`-claim account. Server-enforced, counts never content | [`lib/features/admin/`](lib/features/admin/FEATURE.md) | [ADR-018](docs/DECISIONS/ADR-018-admin-console.md), [ADMIN.md](docs/ADMIN.md) |
 | **readiness** | The Daily Readiness call (train hard / go light / rest), fused from sleep + training load + recovery + weight — **derived, never stored** | [`lib/features/readiness/`](lib/features/readiness/FEATURE.md) | [ADR-015](docs/DECISIONS/ADR-015-readiness.md) |
 
 **Shared / cross-cutting (`lib/core/`):**
@@ -137,7 +138,8 @@ behind one seam), **`services/`** (the use-cases: `workout_import`, `diet_import
 `diet_generate`, `coach_report`, `sleep_insights`), **`analytics/`** (deterministic
 engines mirrored from Dart, pinned by shared golden vectors), **`speech/`** (voice), and
 **`shared/`** (`store.js` Firestore seam, `dates.js`, etc.). `functions/auth/activity.js`
-(auth event log + OTP mail). Each source file has a co-located `*.test.js` (`node --test`,
+(auth event log + OTP mail). **`functions/admin/`** — the Admin Console's
+admin-only callables and the triggers that derive product events (ADR-018). Each source file has a co-located `*.test.js` (`node --test`,
 offline).
 
 ---

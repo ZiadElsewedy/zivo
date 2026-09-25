@@ -1163,3 +1163,43 @@ describe('exercise identities', () => {
     await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'exerciseAliases'))));
   });
 });
+
+describe('Admin Console stores are Functions-only (ADR-018)', () => {
+  // An admin reads these through admin-only callables, never Firestore —
+  // so even a token carrying the admin claim is denied here.
+  const adminDb = () =>
+    testEnv.authenticatedContext('admin-uid', { admin: true }).firestore();
+
+  for (const path of [`adminUsers/${OWNER}`, 'adminEvents/e1', 'adminAudit/a1']) {
+    it(`${path.split('/')[0]}: no client may read or write, admin included`, async () => {
+      await seed(path, { uid: OWNER });
+      for (const db of [ownerDb(), otherDb(), adminDb()]) {
+        await assertFails(getDoc(doc(db, path)));
+        await assertFails(setDoc(doc(db, path), { uid: OWNER }));
+      }
+    });
+  }
+
+  it('an admin claim grants no access to another user\'s data', async () => {
+    await seed(collPath(OWNER, 'workoutSessions'), valid.workoutSessions);
+    await assertFails(getDoc(doc(adminDb(), collPath(OWNER, 'workoutSessions'))));
+    await assertFails(getDoc(doc(adminDb(), `users/${OWNER}`)));
+  });
+});
+
+describe('session ledger carries the app version', () => {
+  const path = `users/${OWNER}/session/current`;
+
+  it('accepts a short appVersion string', async () => {
+    await assertSucceeds(setDoc(doc(ownerDb(), path), { ...valid.session, appVersion: '1.0.0+1' }));
+  });
+
+  it('still accepts a claim without one (older builds)', async () => {
+    await assertSucceeds(setDoc(doc(ownerDb(), path), valid.session));
+  });
+
+  it('rejects a non-string or over-long appVersion', async () => {
+    await assertFails(setDoc(doc(ownerDb(), path), { ...valid.session, appVersion: 7 }));
+    await assertFails(setDoc(doc(ownerDb(), path), { ...valid.session, appVersion: 'x'.repeat(33) }));
+  });
+});
