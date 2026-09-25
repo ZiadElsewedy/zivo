@@ -144,9 +144,14 @@ class AdminService {
   }
 
   /**
-   * Creates the account's summary from its Auth record if it has none.
+   * Creates the account's summary from its Auth record if it has none, and
+   * records `account_created` (at the Auth creation time) when it does.
    * False when the account no longer exists — a late trigger must never
    * resurrect a deleted user's summary.
+   *
+   * This is where `account_created` comes from: the first sign-in claims
+   * `users/{uid}/session/current`, whose trigger lands here. (A 1st-gen Auth
+   * `onCreate` trigger can't run on the codebase's Node 24 runtime.)
    * @param {string} uid
    * @return {!Promise<boolean>}
    */
@@ -156,11 +161,16 @@ class AdminService {
     const record = await this._authRecord(uid);
     if (!record) return false;
     const profile = await this.db.collection("users").doc(uid).get();
+    const seed = this._seed(uid, record, profile.data() || {});
     try {
-      await ref.create(this._seed(uid, record, profile.data() || {}));
+      await ref.create(seed);
     } catch (err) {
       if (err.code !== 6 && err.code !== "already-exists") throw err;
+      return true; // a concurrent trigger seeded it and records the event
     }
+    // Keyed by uid, so it is recorded once however many triggers race here.
+    await this.recordEvent(uid, {name: AdminEvent.ACCOUNT_CREATED, props: {}},
+        {sourceId: uid, at: seed.createdAt});
     return true;
   }
 

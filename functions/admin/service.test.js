@@ -140,3 +140,65 @@ test("out-of-order events never move activity backwards", () => {
   assert.deepEqual(fields.workoutsCompleted, {inc: 1});
   assert.equal(fields.lastWorkoutAt, earlier);
 });
+
+/**
+ * A fake Firestore holding just the summaries ensureSummary touches.
+ * @param {!Set<string>} existing Summary uids that already exist.
+ * @param {boolean=} raceOnCreate Whether create() loses to another trigger.
+ * @return {!Object}
+ */
+function fakeSummaryDb(existing, raceOnCreate = false) {
+  const created = [];
+  return {
+    created,
+    collection: (name) => ({
+      doc: (uid) => ({
+        get: async () => ({
+          exists: name === "adminUsers" && existing.has(uid),
+          data: () => (name === "users" ? {name: "Sam"} : undefined),
+        }),
+        create: async (doc) => {
+          if (raceOnCreate) {
+            const err = new Error("exists");
+            err.code = 6;
+            throw err;
+          }
+          created.push(doc);
+        },
+      }),
+    }),
+  };
+}
+
+test("seeding a summary records account_created at the Auth time", async () => {
+  const svc = service(fakeAuth({u1: {
+    email: "sam@example.com",
+    metadata: {creationTime: "2026-09-20T08:00:00Z"},
+  }}));
+  svc.db = fakeSummaryDb(new Set());
+  const at = [];
+  svc.recordEvent = async (uid, event, opts) =>
+    at.push([uid, event.name, opts]);
+  assert.equal(await svc.ensureSummary("u1"), true);
+  assert.equal(svc.db.created.length, 1);
+  assert.deepEqual(at, [["u1", "account_created",
+    {sourceId: "u1", at: new Date("2026-09-20T08:00:00Z")}]]);
+});
+
+test("an existing summary, or a lost create race, records nothing", async () => {
+  for (const db of [fakeSummaryDb(new Set(["u1"])),
+    fakeSummaryDb(new Set(), true)]) {
+    const svc = service(fakeAuth({u1: {}}));
+    svc.db = db;
+    assert.equal(await svc.ensureSummary("u1"), true);
+    assert.deepEqual(svc.recorded, []);
+  }
+});
+
+test("a deleted account gets no summary and no event", async () => {
+  const svc = service(fakeAuth({}));
+  svc.db = fakeSummaryDb(new Set());
+  assert.equal(await svc.ensureSummary("gone"), false);
+  assert.deepEqual(svc.db.created, []);
+  assert.deepEqual(svc.recorded, []);
+});

@@ -25,7 +25,7 @@ existing writes ──triggers──► adminEvents/{id} + adminUsers/{uid} (cou
 
 | Event | Derived from |
 |---|---|
-| `account_created` | Auth `user().onCreate` |
+| `account_created` | The account's first trigger (normally the first sign-in's `session/current` claim) seeds `adminUsers/{uid}` and records it, timed at the Auth creation time. No Auth trigger: 1st-gen only, and Gen1 has no Node 24 |
 | `app_opened` | `users/{uid}/session/current` gets a new `sessionId` (one claim per launch). Carries `platform` and `appVersion` |
 | `workout_started` / `workout_completed` / `workout_abandoned` / `workout_voided` | `workoutSessions` status transitions only. Completed carries `durationMinutes` |
 | `workout_plan_created` | `workoutPlans` created. Carries `source` |
@@ -56,7 +56,7 @@ existing writes ──triggers──► adminEvents/{id} + adminUsers/{uid} (cou
 
 1. `firebase deploy --only firestore:rules,firestore:indexes` (new rules, 11
    composite indexes, the `expireAt` TTL).
-2. `firebase deploy --only functions` (7 callables, 7 triggers; the
+2. `firebase deploy --only functions` (7 callables, 6 triggers; the
    `deleteAccount` refactor).
 3. Grant the role: `cd functions && node scripts/set-admin.js grant <email>`
    (Application Default Credentials). Then sign out and back in on that

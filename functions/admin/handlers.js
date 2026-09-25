@@ -1,6 +1,6 @@
 /**
  * ZIVO Admin — the deployed entry points: the admin-only callables and the
- * Firestore/Auth triggers that derive product events. Thin: every decision
+ * Firestore triggers that derive product events. Thin: every decision
  * is in `./events.js` (pure) and `./service.js`.
  *
  * Exported from `functions/index.js` via `buildAdminHandlers(...)`.
@@ -11,11 +11,9 @@ const {
   onDocumentWritten,
   onDocumentCreated,
 } = require("firebase-functions/v2/firestore");
-const functionsV1 = require("firebase-functions/v1");
 const logger = require("firebase-functions/logger");
 const {AdminError} = require("./service");
 const {
-  AdminEvent,
   sessionEvents,
   appOpenEvents,
   aiEvents,
@@ -118,14 +116,6 @@ function buildAdminHandlers({service, eraseAccount, requireRecentAuth}) {
         (req) => service.rebuild(req.data)),
 
     // --- triggers ----------------------------------------------------------
-
-    adminOnAccountCreated: functionsV1.region(REGION).auth.user()
-        .onCreate((user) => quietly("adminOnAccountCreated", () =>
-          service.recordEvent(user.uid,
-              {name: AdminEvent.ACCOUNT_CREATED, props: {}},
-              {sourceId: user.uid,
-                at: new Date(Date.parse(user.metadata.creationTime) ||
-                  Date.now())}))),
 
     adminOnProfileWritten: onDocumentWritten(
         {document: "users/{uid}", region: REGION},

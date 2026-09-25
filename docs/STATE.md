@@ -102,9 +102,10 @@ notifications)**.
   lands in `AdminShell` (Dashboard · Users · Activity; sidebar/rail/bottom-bar)
   instead of the app. Everything goes through 7 admin-only callables that re-check
   the claim against the Auth record, and the client never reads admin data from
-  Firestore. Product events are derived server-side by 7 triggers from writes the
+  Firestore. Product events are derived server-side by 6 Firestore triggers from writes the
   app already makes (session claim = app opened, session status, plans, diet
-  plans, `aiUsage`, account creation) into `adminEvents` + per-account
+  plans, `aiUsage`; `account_created` is recorded when an account's summary is
+  first seeded — no 1st-gen Auth trigger, Gen1 has no Node 24) into `adminEvents` + per-account
   `adminUsers` counters. Metrics are `count()`/`sum()` aggregations, and the users
   table is indexed and cursor-paginated. Only counts and dates are shown, never
   content. Suspend/re-enable (revokes refresh tokens); delete reuses the one
