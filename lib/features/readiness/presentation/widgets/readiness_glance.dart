@@ -6,6 +6,7 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/theme/zivo_palette.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../home/presentation/widgets/common.dart';
@@ -140,76 +141,112 @@ class _ReadinessCard extends StatelessWidget {
     // The top two factors on the card; the rest live on the detail page.
     final shown = readiness.factors.take(2).toList();
 
+    final dark = ZivoTheme.brightness == Brightness.dark;
+    // The call tints its own card: its colour rises from the badge's corner
+    // and edges the border, so "Go light" and "Train hard" are told apart
+    // before a word is read.
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 16, 16),
       decoration: BoxDecoration(
         gradient: TrainColors.cardGradient,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: TrainColors.hairline),
+        border: Border.all(color: verdict.color.withValues(alpha: 0.22)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: verdict.color.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(AppIcons.readiness, size: 21, color: verdict.color),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      verdict.word,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TrainType.ui(
-                        size: 21,
-                        weight: FontWeight.w800,
-                        tracking: -0.02,
-                        color: verdict.color,
-                        height: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      verdict.blurb,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.body.copyWith(
-                        fontSize: 12.5,
-                        height: 1.25,
-                        color: TrainColors.ink2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
-                color: TrainColors.ink3,
-              ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: RadialGradient(
+            center: AlignmentDirectional.topStart.resolve(
+              Directionality.of(context),
+            ),
+            radius: 1.2,
+            colors: [
+              verdict.color.withValues(alpha: dark ? 0.12 : 0.07),
+              verdict.color.withValues(alpha: 0),
             ],
           ),
-          if (shown.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Divider(height: 1, color: TrainColors.hairline),
-            const SizedBox(height: 12),
-            for (var i = 0; i < shown.length; i++) ...[
-              if (i > 0) const SizedBox(height: 9),
-              ReadinessFactorRow(factor: shown[i]),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: verdict.color.withValues(alpha: 0.14),
+                      border: Border.all(
+                        color: verdict.color.withValues(alpha: 0.35),
+                      ),
+                      boxShadow: dark
+                          ? [
+                              BoxShadow(
+                                color: verdict.color.withValues(alpha: 0.3),
+                                blurRadius: 18,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Icon(
+                      AppIcons.readiness,
+                      size: 21,
+                      color: verdict.color,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          verdict.word,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TrainType.ui(
+                            size: 24,
+                            weight: FontWeight.w800,
+                            tracking: -0.02,
+                            color: verdict.color,
+                            height: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          verdict.blurb,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.body.copyWith(
+                            fontSize: 12.5,
+                            height: 1.25,
+                            color: TrainColors.ink2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: TrainColors.ink3,
+                  ),
+                ],
+              ),
+              if (shown.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Divider(height: 1, color: TrainColors.hairline),
+                const SizedBox(height: 13),
+                for (var i = 0; i < shown.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 10),
+                  ReadinessFactorRow(factor: shown[i]),
+                ],
+              ],
             ],
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }
@@ -247,9 +284,12 @@ class ReadinessFactorRow extends StatelessWidget {
             copy.detail,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TrainType.caption(
-              size: 11,
-              tracking: 0.1,
+            // The UI face, not the mono caption: this is a short phrase
+            // ("2 lifts stalled"), and the wide-tracked mono spaced it out
+            // like a code label.
+            style: TrainType.ui(
+              size: 12.5,
+              weight: FontWeight.w600,
               color: TrainColors.ink3,
             ),
           ),

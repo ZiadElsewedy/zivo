@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/util/bidi.dart';
 import '../../../../core/theme/app_icons.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../pages/streak_orbit_page.dart';
@@ -16,6 +15,7 @@ import '../../../diet/domain/diet_summary.dart';
 import '../../../diet/presentation/today_diet.dart';
 import '../../../expenses/domain/expense.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/theme/zivo_palette.dart';
 import '../../../../core/widgets/train_chrome.dart';
 import '../../../workout/domain/live_session.dart';
 import '../../../workout/domain/session_estimate.dart';
@@ -130,10 +130,9 @@ class _TrainedRing extends StatelessWidget {
 
         final String sub;
         if (done != null) {
-          sub = l(context).pulseTrainedFor(
-            done.label.toUpperCase(),
-            done.duration.inMinutes,
-          );
+          sub = l(
+            context,
+          ).pulseTrainedFor(done.label.toUpperCase(), done.duration.inMinutes);
         } else if (midSession != null) {
           sub = l(context).pulseUnderWay(midSession.dayLabel.toUpperCase());
         } else {
@@ -148,11 +147,7 @@ class _TrainedRing extends StatelessWidget {
           subColor: done != null || midSession != null
               ? TrainColors.green.withValues(alpha: 0.7)
               : null,
-          glyph: Icon(
-            AppIcons.workout,
-            size: 24,
-            color: TrainColors.green,
-          ),
+          glyph: Icon(AppIcons.workout, size: 24, color: TrainColors.green),
         );
       },
     );
@@ -335,27 +330,50 @@ class MomentumSection extends StatelessWidget {
                   );
                 },
                 child: Container(
-                  padding: const EdgeInsets.fromLTRB(18, 15, 18, 15),
                   decoration: BoxDecoration(
                     gradient: TrainColors.cardGradient,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: TrainColors.hairline),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _StreakRow(sessions: sessions, clock: now),
-                      if (sessions.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        WeekActivityBars(sessions: sessions, now: now),
-                      ],
-                      if (hasWeight) ...[
-                        const SizedBox(height: 12),
-                        Divider(height: 1, color: TrainColors.hairline),
-                        const SizedBox(height: 10),
-                        const _WeightRow(),
-                      ],
-                    ],
+                  child: DecoratedBox(
+                    // A live streak warms the card from the flame's corner —
+                    // the one place on Today that heat means "keep going".
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      gradient:
+                          trainingStreakDays(sessions, now()) >= 2 &&
+                              ZivoTheme.brightness == Brightness.dark
+                          ? RadialGradient(
+                              center: AlignmentDirectional.topStart.resolve(
+                                Directionality.of(context),
+                              ),
+                              radius: 1.1,
+                              colors: [
+                                TrainColors.ember.withValues(alpha: 0.10),
+                                TrainColors.ember.withValues(alpha: 0),
+                              ],
+                            )
+                          : null,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _StreakRow(sessions: sessions, clock: now),
+                          if (sessions.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            WeekActivityBars(sessions: sessions, now: now),
+                          ],
+                          if (hasWeight) ...[
+                            const SizedBox(height: 14),
+                            Divider(height: 1, color: TrainColors.hairline),
+                            const SizedBox(height: 12),
+                            const _WeightRow(),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -382,73 +400,89 @@ class _StreakRow extends StatelessWidget {
       now,
     ).fold<int>(0, (s, d) => s + d.workouts);
     final hasStreak = streak >= 2;
+    final glow = hasStreak && ZivoTheme.brightness == Brightness.dark;
     return Row(
       children: [
-        // The left slot always renders. It used to appear only once a streak
-        // existed, so a real week with one session showed a blank half-row
-        // and read as something failing to load rather than as a life with
-        // one session in it. Dimmed, and short: the right-hand caption is
-        // already a caption, and two long ones on one line collide.
-        Icon(
-          AppIcons.streak,
-          size: 16,
-          color: hasStreak ? TrainColors.ember : TrainColors.ink4,
+        // The flame is lit only by a live streak; otherwise it is the same
+        // badge, cold — the slot never disappears, so a week with one
+        // session still reads as a week rather than as something missing.
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: hasStreak
+                ? TrainColors.ember.withValues(alpha: 0.14)
+                : TrainColors.liftAt(0.05),
+            border: Border.all(
+              color: hasStreak
+                  ? TrainColors.ember.withValues(alpha: 0.35)
+                  : TrainColors.hairline,
+            ),
+            boxShadow: glow
+                ? [
+                    BoxShadow(
+                      color: TrainColors.ember.withValues(alpha: 0.35),
+                      blurRadius: 16,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Icon(
+            AppIcons.streak,
+            size: 17,
+            color: hasStreak ? TrainColors.emberLift : TrainColors.ink4,
+          ),
         ),
-        const SizedBox(width: 7),
-        // Both halves are Flexible: this is a one-line row with two
-        // independent captions in it, so on a narrow screen (or at a large
-        // text scale) they have to give way rather than run past the edge.
-        Flexible(
-          child: hasStreak
-              ? Text(
+        const SizedBox(width: 11),
+        // Title over its baseline: the session count used to share this
+        // line with the streak and was cut to "8 SESSIONS · …".
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (hasStreak)
+                Text(
                   l(context).pulseStreakDays(streak),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TrainType.ui(
-                    size: 14.5,
-                    weight: FontWeight.w700,
+                    size: 18,
+                    weight: FontWeight.w800,
+                    tracking: -0.02,
                     color: TrainColors.ink,
-                    height: 1,
+                    height: 1.1,
                   ),
                 )
-              : Text(
+              else
+                Text(
                   l(context).pulseNoStreakYet,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TrainType.caption(
-                    size: 9,
+                    size: 10,
                     tracking: 0.1,
-                    color: TrainColors.ink4,
+                    color: TrainColors.ink3,
                   ),
                 ),
-        ),
-        const SizedBox(width: 10),
-        const Spacer(),
-        Flexible(
-          child: Text(
-            weekTotal == 0
-                ? l(context).pulseNoSessionsYet
-                : l(context).pulseSessionsLast7(weekTotal),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
-            style: TrainType.caption(
-              size: 9,
-              tracking: 0.1,
-              color: TrainColors.ink4,
-            ),
+              const SizedBox(height: 4),
+              Text(
+                weekTotal == 0
+                    ? l(context).pulseNoSessionsYet
+                    : l(context).pulseSessionsLast7(weekTotal),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TrainType.caption(
+                  size: 9,
+                  tracking: 0.1,
+                  color: TrainColors.ink4,
+                ),
+              ),
+            ],
           ),
         ),
-        // The affordance that the card opens the Streak Orbit — the same
-        // trailing chevron the diet/sleep/spending glances use to say "this
-        // opens". As the row's last child it lands on the trailing edge (the
-        // Row flips with the paragraph direction), matching those glances.
         const SizedBox(width: 6),
-        Icon(
-          Icons.chevron_right_rounded,
-          size: 16,
-          color: TrainColors.ink4,
-        ),
+        Icon(Icons.chevron_right_rounded, size: 18, color: TrainColors.ink3),
       ],
     );
   }
@@ -477,12 +511,11 @@ class WeekActivityBars extends StatelessWidget {
       (m, d) => math.max(m, d.workouts),
     );
     const weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    // Height must clear the tallest bar (8 + 38 = 46) plus the label gap (6)
-    // and the weekday initial's own line box (~14 at 10sp) — 66 in all. The
-    // old 62 clipped that by 4px, tripping a bottom-overflow stripe on the
-    // day with the tallest bar; 68 leaves a hair of headroom.
+    // Height must clear the tallest bar (60) plus the label gap (8) and the
+    // weekday initial's own line box (~14) — 82 in all; 86 leaves headroom
+    // for the today bar's glow.
     return SizedBox(
-      height: 68,
+      height: 86,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -516,34 +549,63 @@ class _DayBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fraction = count == 0 ? 0.0 : (count / maxCount).clamp(0.35, 1.0);
+    final fraction = count == 0 ? 0.0 : (count / maxCount).clamp(0.4, 1.0);
+    final dark = ZivoTheme.brightness == Brightness.dark;
     // Green for a trained day, ember for today (the "current position"
-    // marker the identity doc reserves it for), hairline for a rest day so
-    // the week still reads as seven days.
-    final hue = count == 0
-        ? TrainColors.liftAt(0.078)
-        : (isToday
-              ? TrainColors.ember
-              : TrainColors.green.withValues(alpha: 0.55));
+    // marker the identity doc reserves it for). A rest day is a small dot,
+    // not a stub bar — the week still reads as seven days, but only the
+    // days you trained stand up.
+    final Widget mark;
+    if (count == 0) {
+      mark = Container(
+        width: 6,
+        height: 6,
+        margin: const EdgeInsets.only(bottom: 2),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isToday
+              ? TrainColors.ember.withValues(alpha: 0.6)
+              : TrainColors.liftAt(0.14),
+        ),
+      );
+    } else {
+      final (top, bottom) = isToday
+          ? (TrainColors.emberLift, TrainColors.ember)
+          : (TrainColors.greenLift, TrainColors.green.withValues(alpha: 0.45));
+      mark = Container(
+        width: 16,
+        height: 60 * fraction,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(6),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [top, bottom],
+          ),
+          boxShadow: dark
+              ? [
+                  BoxShadow(
+                    color: (isToday ? TrainColors.ember : TrainColors.green)
+                        .withValues(alpha: isToday ? 0.45 : 0.18),
+                    blurRadius: isToday ? 14 : 8,
+                  ),
+                ]
+              : null,
+        ),
+      );
+    }
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Container(
-          width: 14,
-          height: 8 + 38 * fraction,
-          decoration: BoxDecoration(
-            color: hue,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        const SizedBox(height: 7),
+        mark,
+        const SizedBox(height: 8),
         Text(
           letter,
           style: TrainType.caption(
             size: 9,
             tracking: 0.1,
             weight: isToday ? FontWeight.w700 : FontWeight.w500,
-            color: isToday ? TrainColors.ink2 : TrainColors.ink4,
+            color: isToday ? TrainColors.emberLift : TrainColors.ink4,
           ),
         ),
       ],
@@ -574,8 +636,8 @@ class _WeightRow extends StatelessWidget {
       0.05,
     );
     for (var i = 0; i < trend.samples.length; i++) {
-      final x = 92.0 * i / (trend.samples.length - 1);
-      final y = 30.0 - 3 - (30.0 - 6) * ((trend.samples[i].$2 - minW) / spanW);
+      final x = 104.0 * i / (trend.samples.length - 1);
+      final y = 34.0 - 4 - (34.0 - 8) * ((trend.samples[i].$2 - minW) / spanW);
       lastPoint = Offset(x, y);
       points.add(lastPoint);
     }
@@ -583,21 +645,27 @@ class _WeightRow extends StatelessWidget {
     return Row(
       children: [
         SizedBox(
-          width: 92,
-          height: 30,
+          width: 104,
+          height: 34,
           child: CustomPaint(
-            painter: _SparklinePainter(points: points, end: lastPoint),
+            painter: _SparklinePainter(
+              points: points,
+              end: lastPoint,
+              color: down ? TrainColors.green : TrainColors.ember,
+              glow: ZivoTheme.brightness == Brightness.dark,
+            ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Text(
           // Same reason as the volume delta above: a leading − or + is a
           // neutral character and drifts to the far side of the figure in an
           // RTL paragraph, turning "−1.2" into "1.2−".
           ltrFor(context, '${down ? '−' : '+'}$kg'),
           style: TrainType.mono(
-            size: 15,
-            tracking: -0.02,
+            size: 18,
+            weight: FontWeight.w500,
+            tracking: -0.03,
             color: down ? TrainColors.green : TrainColors.ember,
           ),
         ),
@@ -619,11 +687,20 @@ class _WeightRow extends StatelessWidget {
 
 double maxDouble(double a, double b) => a > b ? a : b;
 
+/// The weight trend — drawn in the direction's colour, over a fade of the
+/// same colour down to nothing, ending on a lit point: today's weight.
 class _SparklinePainter extends CustomPainter {
-  const _SparklinePainter({required this.points, required this.end});
+  const _SparklinePainter({
+    required this.points,
+    required this.end,
+    required this.color,
+    required this.glow,
+  });
 
   final List<Offset> points;
   final Offset end;
+  final Color color;
+  final bool glow;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -632,19 +709,46 @@ class _SparklinePainter extends CustomPainter {
     for (var i = 1; i < points.length; i++) {
       path.lineTo(points[i].dx, points[i].dy);
     }
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..color = TrainColors.ink3;
-    canvas.drawPath(path, paint);
-    canvas.drawCircle(end, 2.5, Paint()..color = TrainColors.ink);
+    final area = Path.from(path)
+      ..lineTo(points.last.dx, size.height)
+      ..lineTo(points.first.dx, size.height)
+      ..close();
+    canvas.drawPath(
+      area,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [color.withValues(alpha: 0.22), color.withValues(alpha: 0)],
+        ).createShader(Offset.zero & size),
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = color,
+    );
+    if (glow) {
+      canvas.drawCircle(
+        end,
+        6,
+        Paint()
+          ..color = color.withValues(alpha: 0.4)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
+    }
+    canvas.drawCircle(end, 3, Paint()..color = TrainColors.ink);
   }
 
   @override
   bool shouldRepaint(_SparklinePainter old) =>
-      old.points != points || old.end != end;
+      old.points != points ||
+      old.end != end ||
+      old.color != color ||
+      old.glow != glow;
 }
 
 // ---------------------------------------------------------------------------
@@ -780,12 +884,24 @@ class _InsightsInputsState extends State<_InsightsInputs> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(l(context).pulseWorthKnowing),
-        const SizedBox(height: 2),
-        for (final insight in insights)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: _InsightRow(insight: insight),
+        // One grouped surface, not a stack of look-alike boxes: the nudges
+        // are one list, and each row's hue carries its own meaning.
+        Container(
+          decoration: BoxDecoration(
+            gradient: TrainColors.cardGradient,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: TrainColors.hairline),
           ),
+          child: Column(
+            children: [
+              for (var i = 0; i < insights.length; i++) ...[
+                if (i > 0)
+                  Divider(height: 1, indent: 60, color: TrainColors.hairline),
+                _InsightRow(insight: insights[i]),
+              ],
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -798,45 +914,52 @@ class _InsightRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsetsDirectional.fromSTEB(12, 11, 14, 11),
-      decoration: BoxDecoration(
-        color: TrainColors.glass,
-        borderRadius: BorderRadius.circular(AppRadius.chip * 2),
-        border: Border.all(color: TrainColors.hairline),
-      ),
+    final dark = ZivoTheme.brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(14, 14, 16, 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 28,
-            height: 28,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
+              shape: BoxShape.circle,
               color: insight.hue.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: insight.hue.withValues(alpha: 0.3)),
+              boxShadow: dark
+                  ? [
+                      BoxShadow(
+                        color: insight.hue.withValues(alpha: 0.22),
+                        blurRadius: 12,
+                      ),
+                    ]
+                  : null,
             ),
-            child: Icon(insight.icon, size: 15, color: insight.hue),
+            child: Icon(insight.icon, size: 16, color: insight.hue),
           ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   insight.title,
-                  style: AppText.rowTitle.copyWith(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
+                  style: TrainType.ui(
+                    size: 14.5,
+                    weight: FontWeight.w800,
+                    tracking: -0.01,
+                    height: 1.2,
                     color: TrainColors.ink,
                   ),
                 ),
-                const SizedBox(height: 1),
+                const SizedBox(height: 3),
                 Text(
                   insight.body,
                   style: AppText.body.copyWith(
                     fontSize: 12.5,
-                    height: 1.3,
-                    color: TrainColors.ink2,
+                    height: 1.35,
+                    color: TrainColors.ink3,
                   ),
                 ),
               ],

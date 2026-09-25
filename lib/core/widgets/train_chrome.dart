@@ -7,6 +7,7 @@ import '../motion/springs.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_icons.dart';
 import '../theme/train_tokens.dart';
+import '../theme/zivo_palette.dart';
 import 'pressable_scale.dart';
 
 /// The shared chrome of the workout-tracking screens (Today · Active Set ·
@@ -528,62 +529,77 @@ class TrainMetricRing extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 74,
-          height: 74,
+          width: 80,
+          height: 80,
           child: Stack(
             alignment: Alignment.center,
             children: [
               Positioned.fill(
                 child: TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0, end: progress.clamp(0.0, 1.0)),
-                  duration: const Duration(milliseconds: 620),
+                  duration: const Duration(milliseconds: 820),
                   curve: Curves.easeOutCubic,
-                  builder: (context, t, _) =>
-                      CustomPaint(painter: _RingPainter(t, color)),
+                  builder: (context, t, _) => CustomPaint(
+                    painter: _RingPainter(
+                      t,
+                      color,
+                      glow: ZivoTheme.brightness == Brightness.dark,
+                    ),
+                  ),
                 ),
               ),
               if (value != null)
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      value!,
-                      style: TrainType.mono(
-                        size: 20,
-                        tracking: -0.03,
-                        color: TrainColors.ink,
-                      ),
-                    ),
-                    if (unit != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        unit!,
-                        style: TrainType.mono(
-                          size: 8,
-                          weight: FontWeight.w500,
-                          tracking: 0.12,
-                          color: TrainColors.inkAt(0.38),
+                // Held inside the stroke: a four-character figure ("22.0")
+                // used to run edge to edge and touch the ring.
+                SizedBox(
+                  width: 52,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          value!,
+                          style: TrainType.mono(
+                            size: 20,
+                            weight: FontWeight.w500,
+                            tracking: -0.04,
+                            color: TrainColors.ink,
+                          ),
                         ),
-                      ),
-                    ],
-                  ],
+                        if (unit != null && unit!.isNotEmpty) ...[
+                          const SizedBox(height: 1),
+                          Text(
+                            unit!,
+                            style: TrainType.mono(
+                              size: 8,
+                              weight: FontWeight.w600,
+                              tracking: 0.14,
+                              color: TrainColors.inkAt(0.4),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 )
               else
                 ?glyph,
             ],
           ),
         ),
-        const SizedBox(height: 11),
+        const SizedBox(height: 12),
         Text(
           label,
           style: TrainType.ui(
-            size: 12.5,
-            weight: FontWeight.w700,
+            size: 13,
+            weight: FontWeight.w800,
+            tracking: -0.01,
             height: 1,
             color: TrainColors.inkPlain,
           ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 6),
         Text(
           sub,
           textAlign: TextAlign.center,
@@ -600,34 +616,86 @@ class TrainMetricRing extends StatelessWidget {
   }
 }
 
+/// A Today ring. Light comes from what was earned: the arc runs from the
+/// metric's colour into a brighter tip, a soft bloom sits under it on the
+/// dark skin, and the leading end carries a lit cap — so a ring that is
+/// moving reads as moving, and an empty one stays a quiet matte track.
 class _RingPainter extends CustomPainter {
-  const _RingPainter(this.progress, this.color);
+  const _RingPainter(this.progress, this.color, {required this.glow});
 
   final double progress;
   final Color color;
 
+  /// The bloom and lit cap — dark skin only; on paper a glow is a smudge.
+  final bool glow;
+
+  static const _stroke = 6.0;
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
-    final radius = math.min(size.width, size.height) / 2 - 5;
+    final radius = math.min(size.width, size.height) / 2 - _stroke;
     final rect = Rect.fromCircle(center: center, radius: radius);
-    final track = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..color = TrainColors.hairline;
-    canvas.drawCircle(center, radius, track);
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _stroke
+        ..color = TrainColors.hairline,
+    );
     if (progress <= 0) return;
-    final arc = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round
-      ..color = color;
-    canvas.drawArc(rect, -math.pi / 2, 2 * math.pi * progress, false, arc);
+
+    final sweep = 2 * math.pi * progress;
+    final tip = Color.lerp(color, Colors.white, 0.35)!;
+    if (glow) {
+      canvas.drawArc(
+        rect,
+        -math.pi / 2,
+        sweep,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _stroke + 2
+          ..strokeCap = StrokeCap.round
+          ..color = color.withValues(alpha: 0.35)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
+      );
+    }
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      sweep,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _stroke
+        ..strokeCap = StrokeCap.round
+        ..shader = SweepGradient(
+          startAngle: 0,
+          endAngle: math.max(sweep, 0.01),
+          colors: [color.withValues(alpha: 0.75), glow ? tip : color],
+          transform: const GradientRotation(-math.pi / 2),
+        ).createShader(rect),
+    );
+    // The lit leading edge — only while the ring is still filling.
+    if (glow && progress < 1) {
+      final end = -math.pi / 2 + sweep;
+      final at = center + Offset(math.cos(end), math.sin(end)) * radius;
+      canvas.drawCircle(
+        at,
+        _stroke / 2 + 2,
+        Paint()
+          ..color = tip.withValues(alpha: 0.5)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      );
+      canvas.drawCircle(at, _stroke / 2 - 1, Paint()..color = Colors.white);
+    }
   }
 
   @override
   bool shouldRepaint(_RingPainter old) =>
-      old.progress != progress || old.color != color;
+      old.progress != progress || old.color != color || old.glow != glow;
 }
 
 /// A mono micro-caption above a block ("TODAY", "NEXT SESSION", "NOW").
