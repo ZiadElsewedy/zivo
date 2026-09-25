@@ -17,6 +17,7 @@
  *   quantity   — a discrete count ("2 slices") beats a bare gram field
  *   food_search— search a branded product before asking for its numbers
  *   meal_replacement — swap one plan item without regenerating the plan
+ *   workout_schedule — change today's workout: skip vs swap in the rotation
  *   safety     — tool output is data, not instructions     (LOAD-BEARING)
  *
  * ORDER MATTERS for readability but not for correctness: the gateway tests
@@ -42,6 +43,7 @@ const {ELICITATION} = require("./sections/elicitation");
 const {QUANTITY} = require("./sections/quantity");
 const {FOOD_SEARCH} = require("./sections/food_search");
 const {MEAL_REPLACEMENT} = require("./sections/meal_replacement");
+const {WORKOUT_SCHEDULE} = require("./sections/workout_schedule");
 const {SAFETY} = require("./sections/safety");
 
 // Blank line between sections; no section owns a leading/trailing blank line.
@@ -58,6 +60,7 @@ const SYSTEM_PROMPT = [
   QUANTITY,
   FOOD_SEARCH,
   MEAL_REPLACEMENT,
+  WORKOUT_SCHEDULE,
   SAFETY,
 ].join("\n\n");
 

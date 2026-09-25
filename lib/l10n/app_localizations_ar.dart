@@ -770,6 +770,14 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String liveSetLoggedMoment(int number) {
+    return 'سُجّلت المجموعة $number';
+  }
+
+  @override
+  String get liveExerciseDoneMoment => 'اكتمل التمرين';
+
+  @override
   String liveSetsLogged(String count) {
     return '$count مجموعات مسجلة';
   }
@@ -2223,100 +2231,121 @@ class AppLocalizationsAr extends AppLocalizations {
   String get askThinking => 'يفكّر…';
 
   @override
-  String get askUnderstanding => 'يفهم طلبك…';
-
-  @override
-  String get askWorking => 'يعمل…';
-
-  @override
   String get askPreparingChange => 'يجهّز التعديل…';
 
   @override
   String get askStillWorking => 'ما زال يعمل على هذه…';
 
   @override
-  String get askReadingDay => 'يقرأ يومك…';
+  String get askThoughtAnalyzingResults => 'يحلّل ما وجده…';
 
   @override
-  String get askReadingDiet => 'يقرأ نظامك الغذائي اليوم…';
+  String get askThoughtDay => 'يقرأ يومك…';
 
   @override
-  String get askReadingTraining => 'يقرأ تدريبك…';
+  String get askThoughtDayDone => 'قرأ يومك';
 
   @override
-  String get askReadingSpending => 'يقرأ مصروفاتك…';
+  String get askThoughtDiet => 'يقرأ خطة وجباتك…';
 
   @override
-  String get askSummarisingWeek => 'يلخّص أسبوعك…';
+  String get askThoughtDietDone => 'قرأ خطة وجباتك';
 
   @override
-  String get askLookingUpFood => 'يبحث عن هذا الطعام…';
+  String get askThoughtWorkouts => 'يقرأ تمارينك…';
 
   @override
-  String get askCalculating => 'يحسب الأرقام…';
+  String get askThoughtWorkoutsDone => 'قرأ تمارينك';
 
   @override
-  String get askSearchingForProduct => 'يبحث عن هذا المنتج…';
+  String get askThoughtLastWorkout => 'يقرأ آخر تمرين لك…';
 
   @override
-  String get askFindingAlternatives => 'يبحث عن بدائل…';
+  String get askThoughtLastWorkoutDone => 'قرأ آخر تمرين لك';
 
   @override
-  String get askReadingReadiness => 'يراجع جاهزيتك…';
+  String get askThoughtTraining => 'يحلّل تدريبك…';
 
   @override
-  String get askReadingSleep => 'يقرأ بيانات نومك…';
+  String get askThoughtTrainingDone => 'حلّل تدريبك';
 
   @override
-  String get askActivityGrab => 'جلب';
+  String get askThoughtExercise => 'يحلّل هذا التمرين…';
 
   @override
-  String get askActivitySearch => 'بحث';
+  String get askThoughtExerciseDone => 'حلّل هذا التمرين';
 
   @override
-  String get askActivityCalculate => 'حساب';
+  String get askThoughtSpending => 'يقرأ مصروفاتك…';
 
   @override
-  String get askActivityToday => 'تفاصيل اليوم';
+  String get askThoughtSpendingDone => 'قرأ مصروفاتك';
 
   @override
-  String get askActivityDiet => 'تفاصيل النظام الغذائي';
+  String get askThoughtWeek => 'يحلّل أسبوعك…';
 
   @override
-  String get askActivityWorkouts => 'تفاصيل التمارين';
+  String get askThoughtWeekDone => 'حلّل أسبوعك';
 
   @override
-  String get askActivityLastWorkout => 'آخر تمرين';
+  String get askThoughtReadiness => 'يحلّل جاهزيتك…';
 
   @override
-  String get askActivityTrainingAnalysis => 'تحليل التدريب';
+  String get askThoughtReadinessDone => 'حلّل جاهزيتك';
 
   @override
-  String get askActivityExerciseHistory => 'سجل التمرين';
+  String get askThoughtSleep => 'يقرأ بيانات نومك…';
 
   @override
-  String get askActivitySpending => 'المصروفات';
+  String get askThoughtSleepDone => 'قرأ بيانات نومك';
 
   @override
-  String get askActivityWeek => 'ملخص الأسبوع';
+  String get askThoughtFoodDetails => 'يبحث في دليل الأطعمة…';
 
   @override
-  String get askActivityReadiness => 'الجاهزية';
+  String get askThoughtFoodDetailsDone => 'بحث في دليل الأطعمة';
 
   @override
-  String get askActivitySleep => 'ملخص النوم';
+  String get askThoughtNutrition => 'يحسب القيم الغذائية…';
 
   @override
-  String get askActivityFoodDetails => 'تفاصيل الطعام';
+  String get askThoughtNutritionDone => 'حسب القيم الغذائية';
 
   @override
-  String get askActivityMealNutrition => 'القيم الغذائية للوجبة';
+  String get askThoughtProduct => 'يبحث عن هذا المنتج…';
 
   @override
-  String get askActivityFoodProduct => 'منتج غذائي';
+  String get askThoughtProductDone => 'بحث عن هذا المنتج';
 
   @override
-  String get askActivityFoodAlternatives => 'بدائل الطعام';
+  String get askThoughtAlternatives => 'يقترح بدائل…';
+
+  @override
+  String get askThoughtAlternativesDone => 'اقترح بدائل';
+
+  @override
+  String get askThoughtVerbRead => 'قرأ';
+
+  @override
+  String get askThoughtVerbAnalyzed => 'حلّل';
+
+  @override
+  String get askThoughtVerbCalculated => 'حسب';
+
+  @override
+  String get askThoughtVerbSearched => 'بحث';
+
+  @override
+  String get askThoughtVerbSuggested => 'اقترح';
+
+  @override
+  String get askThoughtShowSteps => 'اعرض الخطوات';
+
+  @override
+  String get askThoughtHideSteps => 'أخفِ الخطوات';
+
+  @override
+  String get askChoiceTray => 'اختر إجابة';
 
   @override
   String get askActivityFailed => 'تعذّر الحصول عليه';
@@ -6261,4 +6290,202 @@ class AppLocalizationsAr extends AppLocalizations {
   String aiUsageProviderEmpty(String provider) {
     return 'لا توجد طلبات $provider بعد.';
   }
+
+  @override
+  String get askActionReplaceFood => 'تبديل في الوجبة';
+
+  @override
+  String get askActionWorkoutSwap => 'تبديل التمرين';
+
+  @override
+  String get askActionWorkoutSkip => 'تخطي التمرين';
+
+  @override
+  String askWorkoutToday(String day) {
+    return '$day اليوم';
+  }
+
+  @override
+  String get askRowCategory => 'الفئة';
+
+  @override
+  String get askRowNote => 'ملاحظة';
+
+  @override
+  String get askRowAmount => 'المبلغ';
+
+  @override
+  String get askRowStatus => 'الحالة';
+
+  @override
+  String get askRowMeal => 'الوجبة';
+
+  @override
+  String get askRowInsteadOf => 'بدلاً من';
+
+  @override
+  String get askRowCalories => 'السعرات';
+
+  @override
+  String get askRowNext => 'التالي';
+
+  @override
+  String get askRowThen => 'بعده';
+
+  @override
+  String get askRowSkipped => 'متخطى';
+
+  @override
+  String get askRowTotal => 'الإجمالي';
+
+  @override
+  String askRowWas(String value) {
+    return 'كان $value';
+  }
+
+  @override
+  String askSkippedUntilNextRound(String day) {
+    return '$day، يرجع في الدورة الجاية';
+  }
+
+  @override
+  String askChoiceSkipDetail(String to, String from) {
+    return '$to اليوم، و$from يستنى الدورة الجاية';
+  }
+
+  @override
+  String askChoiceSwapDetail(String to, String from) {
+    return '$to اليوم، و$from بعده';
+  }
+
+  @override
+  String get liveSessionMap => 'خريطة التمرين';
+
+  @override
+  String liveSessionMapProgress(int done, int total) {
+    return 'خلّصت $done من $total تمارين';
+  }
+
+  @override
+  String get liveExerciseNow => 'الآن';
+
+  @override
+  String get liveExerciseDone => 'خلص';
+
+  @override
+  String get liveExerciseSkipped => 'اتخطّى';
+
+  @override
+  String liveExerciseSetsProgress(int done, int total) {
+    return '$done/$total مجموعات';
+  }
+
+  @override
+  String get liveDoNow => 'اعمله دلوقتي';
+
+  @override
+  String get liveDoLater => 'أجّله لبعدين';
+
+  @override
+  String get liveSwapExercise => 'بدّل التمرين';
+
+  @override
+  String get liveSkipExercise => 'تخطَّ التمرين';
+
+  @override
+  String get liveAddSet => 'زوّد مجموعة';
+
+  @override
+  String get liveRemoveSet => 'شيل آخر مجموعة';
+
+  @override
+  String get liveRemoveExercise => 'شيل التمرين';
+
+  @override
+  String get liveAddExercise => 'أضف تمرين';
+
+  @override
+  String get liveNextExercise => 'التمرين اللي بعده';
+
+  @override
+  String get livePreviousExercise => 'التمرين اللي قبله';
+
+  @override
+  String get liveExerciseOptions => 'خيارات التمرين';
+
+  @override
+  String get livePickExercise => 'اختار تمرين';
+
+  @override
+  String livePickExerciseSwapNote(String name) {
+    return 'بدل $name. المجموعات اللي سجّلتها هتفضل عليه.';
+  }
+
+  @override
+  String get livePickExerciseSearch => 'دوّر أو اكتب اسم';
+
+  @override
+  String livePickExerciseAddNamed(String name) {
+    return 'أضف «$name»';
+  }
+
+  @override
+  String get livePickExerciseEmpty => 'اكتب اسم عشان تضيف تمرين جديد.';
+
+  @override
+  String liveExerciseSwapped(String name) {
+    return 'اتبدّل لـ $name';
+  }
+
+  @override
+  String liveExerciseMovedLater(String name) {
+    return '$name اتنقل للآخر';
+  }
+
+  @override
+  String get workoutSameExerciseTitle => 'نفس التمرين؟';
+
+  @override
+  String workoutSameExerciseBody(String merge, String keep) {
+    return '«$merge» و«$keep» شكلهم نفس الحركة. لو كده، تاريخهم هيبقى واحد تحت «$keep».';
+  }
+
+  @override
+  String get workoutSameExerciseMerge => 'نفس التمرين';
+
+  @override
+  String get workoutSameExerciseKeep => 'خلّيهم منفصلين';
+
+  @override
+  String workoutSameExerciseMerged(String merge, String keep) {
+    return '«$merge» بقى تاريخه مع «$keep».';
+  }
+
+  @override
+  String get workoutUndo => 'تراجع';
+
+  @override
+  String get livePickSameMuscle => 'نفس العضلة';
+
+  @override
+  String get livePickAllExercises => 'تمارينك';
+
+  @override
+  String get livePickNewNote => 'تمرين جديد، بتاريخ خاص بيه';
+
+  @override
+  String get livePickNoMatch => 'مفيش تمرين من تمارينك مطابق.';
+
+  @override
+  String liveExerciseAdded(String name) {
+    return 'اتضاف $name';
+  }
+
+  @override
+  String liveExerciseSkippedToast(String name) {
+    return 'اتخطّى $name';
+  }
+
+  @override
+  String get liveChangeNext => 'غيّر';
 }

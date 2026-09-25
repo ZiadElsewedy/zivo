@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-24 · **Active branch:** `feature/ai-gemini-provider`
+**Last updated:** 2026-09-25 · **Active branch:** `feature/ai-gemini-provider`
 (cut from `feature/readiness`); music-reactive session background on `upgrades`;
 Diet Builder wizard on `claude/affectionate-wozniak-wcnkpm`; AI food/diet
 interaction layer — all 5 phases shipped and deployed, on
@@ -97,6 +97,104 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- 2026-09-25 (`upgrades`) — **Workout redesign: exercise navigation + identity
+  completed** (ADR-017, NOT deployed). Live session: next/previous arrows + swipe,
+  a workout map (jump to any exercise, add one), per-exercise options — do now / do
+  later / swap / add or remove a set / skip / remove (only if nothing logged).
+  Identity: the one-time migration + ongoing sync (`ExerciseIdentitySync`, additive,
+  never touches a session), "Same exercise?" merge card with Undo on the Analysis
+  hub (`distinctFrom` rule + test), plan-editor rename-to-a-different-movement gets a
+  new identity, and the Node mirror (coach reads + adherence through aliases).
+  Session polish pass: map timeline, grouped actions sheet, picker (same-muscle first,
+  duplicates collapsed), ‹ › capsule + finger-following swipe with a directional slide,
+  skipped/tap-to-correct/+ set chips, "Change" on the rest card. Also fixed four
+  app-root test harnesses the foundation commit broke (no injected exercise library).
+  **Owner actions:** deploy `firestore.rules` (the `exercises` / `exerciseAliases`
+  collections + `distinctFrom`) and then `functions` for the coach mirror. Until the
+  rules are live the sync's writes are denied and it quietly does nothing — every
+  account keeps reading exactly as before.
+
+- 2026-09-25 (`upgrades`) — **Exercise identity foundation**
+  ([ADR-017](DECISIONS/ADR-017-exercise-identity.md)): canonical exercise vs plan slot
+  vs history; alias layer read-only over history; history shared across days and
+  splits; slot-first goals; new `exercises` / `exerciseAliases` collections with rules +
+  rule tests. (Migration, matcher wiring and the Node mirror landed the same day —
+  see the entry above.) Also on `upgrades`: the live session's
+  set-logged moment (check takes over the rest ring's face) + per-set segment fill.
+
+- **Ask can change today's workout — skip vs swap; premium confirmation
+  card** (2026-09-24, on `upgrades`, NOT deployed).
+  - **Rotation tools** (the Node mirror of `WorkoutPlan.swapDays` / the
+    cursor, `functions/ai/tools/workout_rotation.js`): `get_workout_schedule`
+    (today = the day up next, the rotation, `trainedToday`),
+    `preview_workout_change` (SEARCH: lays out skip and swap as a verified
+    offer, each option bound to the exact change), `change_workout_day`
+    (MUTATION, confirm-gated, `refusedAfterOffer` the preview). SWAP = the two
+    days trade `order`, cursor stays (Pull today, Push next). SKIP = the
+    cursor moves onto the chosen day (Push drops out this round). The write
+    (`store.updateWorkoutRotation`) runs in a transaction over the raw plan
+    doc and refuses if the due day changed since the proposal. Prompt:
+    `chat/prompt/sections/workout_schedule.js` — ask when ambiguous ("I want
+    to do Pull today"), act when explicit.
+  - **"Other options"** is now only on offers that declare `moreOptions`
+    (food alternatives), never on a skip-or-swap question.
+  - **Card** (`widgets/ask/proposal_card.dart`): a slip with a hue spine,
+    kind label, headline (money in Azeret Mono), receipt rows instead of pill
+    chips, ember Confirm (was violet); new kinds `replace_meal_item` and
+    `change_workout_day`; built-in expense categories in the reader's words.
+    The confirm/cancel echo line ("Logged expense · 500.00 EGP · food") now
+    carries `resultOf` and is left out of the thread — the card shows the
+    outcome (older echoes, written before this, still show).
+  - **Chips:** short one-line answers wrap in a row instead of a tall stack;
+    skip/swap chips explain themselves in the reader's language
+    (`AiChoiceOption.metadata` now holds numbers or short strings).
+  - **Owner actions:** deploy functions; try "I want to do Pull today" with
+    Push up next → tap Swap → Confirm → check the Workout tab shows Pull,
+    then Push next.
+- **Ask: human thought states, no-snap streaming, answer chips, context
+  carry-over** (2026-09-24, on `upgrades`, NOT deployed — the functions half
+  needs an owner deploy; the app half works against the old backend, minus
+  lead-ins/ledger/"Other options").
+  - **Thought trail** (`widgets/ask/thought_trail.dart`, replaces
+    `activity_timeline` + `thinking_rail`): tools become human states —
+    Reading · Analyzing · Calculating · Searching · Suggesting · Preparing ·
+    Thinking (`presentation/ai_thought.dart`) — each in a muted mineral tint
+    (new `thought*` tokens, both skins, AA-tested). Live: finished steps on a
+    hairline + a breathing dot and sheen on the current state. Settled: one
+    line of past verbs ("● Read ● Suggested"), tap to unfold. Raw tool ids show
+    in the unfolded list in DEBUG builds only (`kShowAiToolIds`). "Grab" is
+    gone; ZIVO's signature is neutral, not violet.
+  - **Streaming glitch — root causes:** (1) text a model wrote before a tool
+    call streamed but was never saved (reply = last step only), so the saved
+    copy was SHORTER; (2) cards had no `clientTurnId`, so a streamed lead-in
+    vanished when the card landed; (3) the live bubble was swapped for the
+    saved one mid-reveal (snap to full); (4) steps' text was glued with no
+    break; (5) a fallback wiped earlier steps' text; (6) the pacer was
+    per-frame (2× on 120Hz, dumps after long lookups); (7) after a lead-in the
+    screen showed a still paragraph while tools ran. Fixed: `turn.js` saves
+    every step's text ("\n\n"-joined, streamed byte-identically), cards carry
+    `clientTurnId`/`preface`/`activity`; the page types on from the shared
+    prefix at handoff; per-step fallback truncation; time-based pacer
+    (`kRevealFloorCps`/`kRevealCatchUp`); one live item per turn;
+    `AskController.writing` brings the thought line back after 700 ms quiet.
+  - **Ask flow:** the prompt now answers in words first, then `ask_choice`
+    with the question as its prompt; the options render as **answer chips
+    docked above the composer** (`widgets/ask/choice_tray.dart`, replaces
+    `choice_card.dart`) while the question stays in the thread as ZIVO's text.
+    Only the conversation's latest open question gets chips. ZIVO appends its
+    own **"Other options"** (`__more__`, unbound) to verified-offer cards.
+  - **Architecture decision — reuse, don't re-call:** tool results used to die
+    with their turn, so every follow-up ("another option?") re-ran `get_diet`.
+    New `chat/context_ledger.js`: the latest reply/card carries its turn's
+    read/search results (`context`, ≤6 entries/14k chars, 15-min TTL,
+    same user-day; a confirmed write breaks the chain); the next turn gets them
+    as a fenced EARLIER RESULTS block and seeds the validator + a carried
+    choice offer from them. NUMBERS/ACTIVITY/SAFETY prompt sections updated
+    (pinned phrases intact). Measurable: usage `contextCarried` +
+    `contextCarriedTokens`. Tools stay visible to the team via usage `tools`
+    and the debug-only ids.
+  - **Owner actions:** deploy functions; try "I don't want eggs for
+    breakfast" → pick "Other options" and check usage shows one lookup, not two.
 - **Ask limit vs provider failures, Gemini root cause, cross-provider fallback,
   Settings → AI, Plans declutter, chat-delete crash** (2026-09-24, on
   `upgrades`, NOT deployed — functions changes need an owner deploy).

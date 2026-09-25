@@ -161,27 +161,43 @@ class LiveSession {
     return null;
   }
 
-  /// The set immediately before the current pointer, in the same
-  /// exercise-then-set order [currentSet] walks — the most recently
-  /// resolved set, and the target for the guided flow's "Back" control.
-  /// Resolution only ever advances the pointer forward (markSetDone/
-  /// markSetSkipped act on [currentSet] itself), so "immediately before
-  /// current in list order" and "most recently resolved" are the same set
-  /// as long as nothing has jumped around out of order. Null when there's
-  /// nothing before it yet (nothing resolved). Works the same once every
-  /// set is resolved and [currentSet] is null — it still finds the last one.
+  /// The most recently resolved set — the target for the guided flow's
+  /// "Back" control.
+  ///
+  /// Read from [LoggedSet.resolvedAt], not from list order: exercises can be
+  /// reordered mid-workout (jump to one, do one later), so the set just
+  /// before the current pointer in list order is no longer necessarily the
+  /// one resolved last. Ties — and sets resolved before timestamps existed —
+  /// fall back to list order, the later set winning, which is exactly the
+  /// old reading for a session nobody reordered. Null when nothing has been
+  /// resolved yet.
   (String exerciseId, LoggedSet set)? get previousResolvedSet {
-    String? prevExerciseId;
-    LoggedSet? prev;
+    String? bestExerciseId;
+    LoggedSet? best;
     for (final e in exercises) {
       for (final s in e.sets) {
-        if (s.pending) return prev == null ? null : (prevExerciseId!, prev);
-        prevExerciseId = e.id;
-        prev = s;
+        if (s.pending) continue;
+        final at = s.resolvedAt;
+        final bestAt = best?.resolvedAt;
+        final wins =
+            best == null ||
+            (at != null && (bestAt == null || !at.isBefore(bestAt))) ||
+            (at == null && bestAt == null);
+        if (wins) {
+          best = s;
+          bestExerciseId = e.id;
+        }
       }
     }
-    return prev == null ? null : (prevExerciseId!, prev);
+    return best == null ? null : (bestExerciseId!, best);
   }
+
+  /// The exercises that still have a pending set, in session order — the
+  /// ones a workout can still move between.
+  List<SessionExercise> get pendingExercises => [
+    for (final e in exercises)
+      if (e.sets.any((s) => s.pending)) e,
+  ];
 
   Duration get pausedAccum => Duration(milliseconds: pausedAccumMs);
 
@@ -271,7 +287,8 @@ class LiveSession {
   static SessionExercise _exerciseFromPlan(PlannedExercise e) {
     return SessionExercise(
       id: e.id,
-      exerciseId: e.id,
+      exerciseId: e.canonicalId,
+      slotId: e.id,
       name: e.name,
       muscleGroup: e.muscleGroup,
       restSeconds: e.defaultRestSeconds,
@@ -411,10 +428,152 @@ class LiveSession {
         .toList(growable: false),
   );
 
-  /// Renames an exercise (e.g. a machine swap) while keeping its [exerciseId] so
-  /// history and previous-weight stay continuous.
+  /// Renames an exercise while keeping its [exerciseId] — a spelling fix, not
+  /// a different movement. A different movement (another machine, another
+  /// variation) is a [swapExercise], because it has its own history.
   LiveSession renameExercise(String exerciseId, String name) =>
       _mapExercise(exerciseId, (e) => e.copyWith(name: name));
+
+  /// Replaces [exerciseId] with a different exercise — the machine is taken,
+  /// so the incline press becomes a dumbbell press.
+  ///
+  /// A swap is a different canonical exercise with its own history, so what
+  /// was already logged must stay under the exercise it was logged as:
+  ///
+  /// - nothing resolved yet → the exercise is replaced where it stands;
+  /// - some sets resolved → those stay on the original, and the substitute
+  ///   is inserted right after it carrying the sets still to do.
+  ///
+  /// The substitute keeps the slot ([SessionExercise.slotId]) — it filled
+  /// that place in the plan — and the prescription (rep targets, set types,
+  /// rest), but **not** the target loads: another exercise's kilograms mean
+  /// nothing here, and its own history will suggest a weight. Typed drafts go
+  /// with them for the same reason. Set ids derive from [newId].
+  LiveSession swapExercise(
+    String exerciseId, {
+    required String newId,
+    required String canonicalId,
+    required String name,
+    String? muscleGroup,
+  }) {
+    final index = exercises.indexWhere((e) => e.id == exerciseId);
+    if (index < 0) return this;
+    final old = exercises[index];
+    final pending = old.sets.where((s) => s.pending).toList();
+    if (pending.isEmpty) return this;
+    final substitute = SessionExercise(
+      id: newId,
+      exerciseId: canonicalId,
+      slotId: old.slotId,
+      name: name,
+      muscleGroup: muscleGroup,
+      restSeconds: old.restSeconds,
+      sets: [
+        for (var i = 0; i < pending.length; i++)
+          LoggedSet(
+            id: '$newId-s$i',
+            target: pending[i].target,
+            type: pending[i].type,
+          ),
+      ],
+    );
+    final keepsHistory = pending.length < old.sets.length;
+    return copyWith(
+      exercises: [
+        ...exercises.take(index),
+        if (keepsHistory)
+          old.copyWith(
+            sets: old.sets.where((s) => !s.pending).toList(growable: false),
+          ),
+        substitute,
+        ...exercises.skip(index + 1),
+      ],
+    );
+  }
+
+  // ---- Exercise order (moving around the workout) --------------------------
+  //
+  // The current set is derived — the first pending set in order — so moving
+  // between exercises is a change of ORDER, never a stored cursor that could
+  // dangle. Each operation first puts fully-resolved exercises ahead of the
+  // pending ones (keeping each group's own order), so the list always reads
+  // "what's done, then what's left", and the pending block is what moves.
+
+  /// Moves to the next exercise still to do: the current one goes to the
+  /// back of the queue and the one after it becomes current. With [by] = -1
+  /// it is the exact inverse — the last exercise in the queue comes forward —
+  /// so next then previous always lands back where it started.
+  LiveSession rotatePending(int by) {
+    final (done, pending) = _partition();
+    if (pending.length < 2) return this;
+    final n = pending.length;
+    final shift = ((by % n) + n) % n;
+    return copyWith(
+      exercises: [
+        ...done,
+        ...pending.skip(shift),
+        ...pending.take(shift),
+      ],
+    );
+  }
+
+  /// "Do this one now": [exerciseId] becomes current, and everything else
+  /// still to do keeps its order behind it. A no-op for an exercise with
+  /// nothing pending.
+  LiveSession bringForward(String exerciseId) {
+    final (done, pending) = _partition();
+    final target = pending.where((e) => e.id == exerciseId).firstOrNull;
+    if (target == null) return this;
+    return copyWith(
+      exercises: [
+        ...done,
+        target,
+        ...pending.where((e) => e.id != exerciseId),
+      ],
+    );
+  }
+
+  /// "Do it later": [exerciseId] goes to the back of the queue. Nothing
+  /// about its sets changes — it is still owed, just not now.
+  LiveSession moveToEnd(String exerciseId) {
+    final (done, pending) = _partition();
+    final target = pending.where((e) => e.id == exerciseId).firstOrNull;
+    if (target == null) return this;
+    return copyWith(
+      exercises: [
+        ...done,
+        ...pending.where((e) => e.id != exerciseId),
+        target,
+      ],
+    );
+  }
+
+  /// Skips every set of [exerciseId] still pending — "not today". Each is
+  /// resolved as skipped exactly as a single skip is (stamped [now], typed
+  /// drafts kept), so the review can still show them and nothing is counted.
+  LiveSession skipRemainingSets(
+    String exerciseId, {
+    required DateTime now,
+  }) => _mapExercise(
+    exerciseId,
+    (e) => e.copyWith(
+      sets: [
+        for (final s in e.sets)
+          s.pending
+              ? s.copyWith(outcome: SetOutcome.skipped, resolvedAt: now)
+              : s,
+      ],
+    ),
+  );
+
+  (List<SessionExercise>, List<SessionExercise>) _partition() {
+    final done = <SessionExercise>[];
+    final pending = <SessionExercise>[];
+    for (final e in exercises) {
+      (e.sets.any((s) => s.pending) ? pending : done).add(e);
+    }
+    return (done, pending);
+  }
 
   // ---- Session-level transitions -------------------------------------------
 

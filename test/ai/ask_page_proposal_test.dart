@@ -69,7 +69,9 @@ void main() {
     // Card collapsed (buttons gone), and the durable result line appended.
     expect(find.byKey(const Key('proposal-confirm')), findsNothing);
     expect(find.text('Confirmed'), findsOneWidget);
-    expect(find.text('Logged expense · 12.00 EGP · coffee'), findsOneWidget);
+    // The card is the receipt now — the server's echo line stays out of
+    // the thread (it's still in the model's history).
+    expect(find.text('Logged expense · 12.00 EGP · coffee'), findsNothing);
   });
 
   testWidgets('Cancel collapses the card and writes nothing', (tester) async {
@@ -88,7 +90,7 @@ void main() {
 
     expect(find.byKey(const Key('proposal-cancel')), findsNothing);
     expect(find.text('Cancelled'), findsOneWidget);
-    expect(find.text("Okay — I won't add that."), findsOneWidget);
+    expect(find.text("Okay — I won't add that."), findsNothing);
   });
 
   testWidgets('an expense proposal renders the money card', (tester) async {
@@ -114,7 +116,9 @@ void main() {
 
     expect(find.text('New expense'), findsOneWidget);
     expect(find.text('12.00 EGP'), findsOneWidget);
-    expect(find.text('coffee'), findsOneWidget);
+    // Receipt rows, with the category in the reader's words.
+    expect(find.text('Category'), findsOneWidget);
+    expect(find.text('Coffee'), findsOneWidget);
   });
 
   testWidgets('a meal proposal renders the diet card', (tester) async {
@@ -169,10 +173,8 @@ void main() {
 
     expect(find.text('Log food'), findsOneWidget);
     expect(findTextIgnoringBidi('Chicken breast'), findsOneWidget); // headline
-    expect(
-      findTextIgnoringBidi('Chicken breast · 200 g'),
-      findsOneWidget,
-    ); // the chip
+    expect(findTextIgnoringBidi('200 g'), findsOneWidget); // amount row
+    expect(findTextIgnoringBidi('330 kcal'), findsOneWidget); // calories row
     expect(find.byKey(const Key('proposal-confirm')), findsOneWidget);
   });
 
@@ -201,9 +203,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('2 foods'), findsOneWidget); // the headline
-    expect(findTextIgnoringBidi('Egg · 2 piece'), findsOneWidget);
-    expect(findTextIgnoringBidi('Rice · 150 g'), findsOneWidget);
-    expect(find.text('500 kcal'), findsOneWidget); // the total chip
+    // One receipt row per food, then the total.
+    expect(findTextIgnoringBidi('Egg'), findsOneWidget);
+    expect(findTextIgnoringBidi('2 piece'), findsOneWidget);
+    expect(findTextIgnoringBidi('Rice'), findsOneWidget);
+    expect(findTextIgnoringBidi('150 g'), findsOneWidget);
+    expect(findTextIgnoringBidi('500 kcal'), findsOneWidget);
   });
 
   testWidgets('Confirming a log_food proposal appends its result line', (
@@ -234,6 +239,6 @@ void main() {
 
     expect(find.byKey(const Key('proposal-confirm')), findsNothing);
     expect(find.text('Confirmed'), findsOneWidget);
-    expect(find.text('Logged 1 food · 330 kcal'), findsOneWidget);
+    expect(find.text('Logged 1 food · 330 kcal'), findsNothing);
   });
 }

@@ -117,6 +117,10 @@ class _ExerciseSheetState extends State<ExerciseSheet> {
     Navigator.of(context).pop(
       PlannedExercise(
         id: initial?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        // Editing a slot — renaming it included — keeps the exercise it
+        // performs. Dropping this would quietly give the slot a new
+        // identity and cut it off from its own history.
+        exerciseId: initial?.exerciseId,
         name: _name.text.trim(),
         order: initial?.order ?? 0,
         muscleGroup: muscle.isEmpty ? null : muscle,

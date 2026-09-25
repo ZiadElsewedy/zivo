@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
@@ -25,12 +26,12 @@ import '../widgets/ask/error_retry.dart';
 import '../widgets/ask/message_bubble.dart';
 import '../widgets/ask/message_details_sheet.dart';
 import '../../data/repository_body_data_writer.dart';
-import '../widgets/ask/choice_card.dart';
+import '../widgets/ask/choice_tray.dart';
 import '../widgets/ask/input_request_card.dart';
 import '../widgets/ask/proposal_card.dart';
 import '../widgets/ask/sessions_sheet.dart';
-import '../widgets/ask/activity_timeline.dart';
-import '../widgets/ask/thinking_rail.dart';
+import '../widgets/ask/thought_trail.dart';
+import '../../domain/ai_choice_request.dart';
 import '../../../../l10n/l10n.dart';
 import '../../domain/ai_conversation.dart';
 
@@ -96,6 +97,24 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
   /// the half-typed bubble for static text mid-reveal. That mid-type swap was
   /// the "reply pops in twice" glitch.
   final Set<String> _revealActive = {};
+
+  /// Where a revealing bubble starts typing, in characters — set when a
+  /// streamed reply's saved copy takes over mid-write, so it types on from
+  /// what was on screen instead of snapping to its full length.
+  final Map<String, int> _revealFrom = {};
+
+  /// The live reply's words at the moment its saved copy landed, keyed by
+  /// display key — consumed by the saved bubble's first build.
+  final Map<String, String> _handoffText = {};
+
+  /// ZIVO's open question, if the conversation currently ends in one — its
+  /// options sit above the composer as answer chips. Mirrored out of the
+  /// message stream's builder (see [_syncOpenChoice]).
+  AiChoiceRequest? _openChoice;
+
+  /// The answer chips' measured height, so the list keeps its last line
+  /// clear of them as well as of the composer.
+  double _trayHeight = 0;
 
   /// The stable identity of a message ON SCREEN. Both sides of an in-flight
   /// turn share [AiMessage.clientTurnId], so the optimistic user bubble and
@@ -207,6 +226,9 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
       _entrancePlayed.clear();
       _entranceSeededFor = null;
       _revealActive.clear();
+      _revealFrom.clear();
+      _handoffText.clear();
+      _openChoice = null;
     });
     _c.switchTo(conversationId, isUntitled: isUntitled);
   }
@@ -319,9 +341,62 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
     if (_autoFollow) _scrollToBottom(instant: instant);
   }
 
+  /// What ZIVO is doing right now, while the turn works and isn't writing —
+  /// the head of the live thought trail. Null once words are flowing (the
+  /// caret is the live signal then) and once the turn is over.
+  LiveThought? _liveThought() => _c.sending && !_c.writing
+      ? LiveThought(
+          kind: _c.railThought,
+          label: _c.railLabel,
+          slow: _c.turnSlow,
+        )
+      : null;
+
+  /// Mirrors the conversation's open question out of the stream builder,
+  /// after the frame (the builder must not set state while building).
+  void _syncOpenChoice(AiChoiceRequest? open) {
+    if (open?.requestId == _openChoice?.requestId) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && open?.requestId != _openChoice?.requestId) {
+        setState(() => _openChoice = open);
+      }
+    });
+  }
+
+  /// The words a message shows in its bubble: a question's lead-in and
+  /// question, a card's lead-in (the card says the rest), else its text.
+  static String _bubbleText(AiMessage m) {
+    final choice = m.choiceRequest;
+    if (choice != null) return choiceMessageText(choice, m.preface);
+    if (m.pendingAction != null || m.inputRequest != null) {
+      return m.preface ?? '';
+    }
+    return m.content;
+  }
+
+  /// How many leading characters [a] and [b] share — where a saved reply
+  /// stops agreeing with what streamed, so typing resumes from there.
+  static int _sharedPrefix(String a, String b) {
+    final x = a.characters.toList();
+    final y = b.characters.toList();
+    var i = 0;
+    while (i < x.length && i < y.length && x[i] == y[i]) {
+      i++;
+    }
+    return i;
+  }
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    final openChoice = _openChoice;
+    final trayChoice =
+        openChoice != null &&
+            _c.pickedValueFor(openChoice) == null &&
+            !_c.sending &&
+            _c.pendingText == null
+        ? openChoice
+        : null;
     // Keyboard handling is done HERE rather than by the Scaffold: the
     // default resizeToAvoidBottomInset shrinks the body instantly (a hard,
     // jarring jump) while VoiceComposer separately padded itself by the same
@@ -405,8 +480,12 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                     _c.setPersisted(
                                       snapshot.data ?? const <AiMessage>[],
                                     );
+                                    // A confirm/cancel echo is left out: the
+                                    // card it resolves already shows how it
+                                    // ended.
                                     final displayed = <AiMessage>[
-                                      ..._c.lastPersisted,
+                                      for (final m in _c.lastPersisted)
+                                        if (m.resultOf == null) m,
                                     ];
 
                                     // The durable ASSISTANT reply landing gates the
@@ -423,11 +502,30 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                     );
                                     if (_c.liveText.isNotEmpty &&
                                         assistantLanded) {
+                                      // The saved copy types on from the
+                                      // words already on screen.
+                                      final turn = _c.activeTurnId;
+                                      if (turn != null) {
+                                        _handoffText.putIfAbsent(
+                                          'a:$turn',
+                                          () => _c.liveText,
+                                        );
+                                      }
                                       WidgetsBinding.instance
                                           .addPostFrameCallback(
                                             (_) => _c.retireLiveReply(),
                                           );
                                     }
+                                    // The conversation's open question, if it
+                                    // ends in one — answered from the chips.
+                                    final last = _c.lastPersisted.isEmpty
+                                        ? null
+                                        : _c.lastPersisted.last;
+                                    _syncOpenChoice(
+                                      last?.role == AiRole.assistant
+                                          ? last?.choiceRequest
+                                          : null,
+                                    );
 
                                     // The optimistic USER bubble "lands" the moment
                                     // its own turn's durable user message shows up
@@ -473,10 +571,16 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                     // the swap is same widget, same slot, same key:
                                     // element reused, entrance NOT replayed. This is
                                     // what kills the "reply pops in twice" effect.
+                                    // One live item carries the whole turn —
+                                    // the thought trail from the first
+                                    // lookup, then the words as they stream —
+                                    // so nothing hands over between widgets
+                                    // mid-turn and nothing jumps.
                                     final liveActive =
                                         !_c.sendFailed &&
                                         !assistantLanded &&
-                                        _c.liveText.isNotEmpty;
+                                        _c.activeTurnId != null &&
+                                        (_c.sending || _c.liveText.isNotEmpty);
                                     if (liveActive) {
                                       displayed.add(
                                         AiMessage(
@@ -587,13 +691,14 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                       },
                                       child: ListView.builder(
                                         controller: _scroll,
-                                        padding: const EdgeInsets.fromLTRB(
+                                        padding: EdgeInsets.fromLTRB(
                                           AppSpacing.screen,
                                           AppSpacing.base,
                                           AppSpacing.screen,
-                                          // Clear the floating composer that overlays
+                                          // Clear the floating composer (and any
+                                          // answer chips above it) that overlay
                                           // the bottom of the list.
-                                          kComposerFloatClearance,
+                                          kComposerFloatClearance + _trayHeight,
                                         ),
                                         // Lets the framework FIND an item's existing
                                         // element after index shifts (an optimistic
@@ -628,24 +733,9 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                                 onSwitchModel: _openModelPicker,
                                               );
                                             } else {
-                                              // The agent's timeline so far
-                                              // (✓ done · ◌ running), then the
-                                              // rail naming what it's doing
-                                              // right now — "Reading today's
-                                              // diet…", or "Thinking…" while
-                                              // it reads results back.
-                                              trailing = Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  ActivityTimeline(
-                                                    _c.activity,
-                                                  ),
-                                                  ThinkingRail(
-                                                    label: _c.railLabel,
-                                                    slow: _c.turnSlow,
-                                                  ),
-                                                ],
+                                              trailing = ThoughtTrail(
+                                                steps: _c.activity,
+                                                live: _liveThought(),
                                               );
                                             }
                                             // Grouped under the ZIVO label right after
@@ -696,7 +786,6 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                               message.role ==
                                                   AiRole.assistant &&
                                               message.pendingAction == null &&
-                                              message.choiceRequest == null &&
                                               message.inputRequest == null) {
                                             // The decision lives in [_revealActive]
                                             // until the typewriter FINISHES — not
@@ -706,6 +795,21 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                             // short mid-write.
                                             _revealActive.add(displayKey);
                                             _c.consumeExpectReveal();
+                                          }
+                                          final text = _bubbleText(message);
+                                          final handoff = _handoffText.remove(
+                                            displayKey,
+                                          );
+                                          if (handoff != null &&
+                                              message.id != '_live') {
+                                            final from = _sharedPrefix(
+                                              handoff,
+                                              text,
+                                            );
+                                            if (from < text.characters.length) {
+                                              _revealActive.add(displayKey);
+                                              _revealFrom[displayKey] = from;
+                                            }
                                           }
                                           final revealing = _revealActive
                                               .contains(displayKey);
@@ -719,84 +823,85 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                                   displayed[i - 1].role !=
                                                       AiRole.assistant);
                                           final action = message.pendingAction;
-                                          final choice = message.choiceRequest;
                                           final inputReq = message.inputRequest;
-                                          Widget content;
-                                          if (choice != null) {
-                                            content = ChoiceCard(
-                                              request: choice,
-                                              pickedValue: _c.pickedValueFor(
-                                                choice,
-                                              ),
-                                              onSelect: (value, label) =>
-                                                  _c.answerChoice(
-                                                    choice.requestId,
-                                                    value,
-                                                    label,
-                                                  ),
-                                            );
-                                          } else if (inputReq != null) {
-                                            content = InputRequestCard(
-                                              key: ValueKey(
-                                                'input-${inputReq.requestId}',
-                                              ),
-                                              request: inputReq,
-                                              submitted: _c.submittedInputs
-                                                  .containsKey(
-                                                    inputReq.requestId,
-                                                  ),
-                                              onSubmit: (summary, values) => _c
-                                                  .submitInput(
-                                                    inputReq.requestId,
-                                                    summary,
-                                                    values,
-                                                  ),
-                                            );
-                                          } else if (action == null) {
-                                            content = MessageBubble(
-                                              message,
-                                              animate: revealing,
-                                              onRevealDone: revealing
-                                                  ? () {
-                                                      if (mounted) {
-                                                        setState(
-                                                          () => _revealActive
-                                                              .remove(
-                                                                displayKey,
-                                                              ),
+                                          final isLive = message.id == '_live';
+                                          Widget content = MessageBubble(
+                                            message,
+                                            text: text,
+                                            animate: revealing,
+                                            revealFrom:
+                                                _revealFrom[displayKey] ?? 0,
+                                            onRevealDone: revealing
+                                                ? () {
+                                                    if (mounted) {
+                                                      setState(() {
+                                                        _revealActive.remove(
+                                                          displayKey,
                                                         );
-                                                      }
+                                                        _revealFrom.remove(
+                                                          displayKey,
+                                                        );
+                                                      });
                                                     }
-                                                  : null,
-                                              // Only the provisional live bubble
-                                              // carries the writing caret.
-                                              streaming:
-                                                  message.id == '_live' &&
-                                                  _c.revealInFlight,
-                                            );
-                                            // Long-press a settled assistant
-                                            // reply to see that turn's model +
-                                            // token/cost detail. The live bubble
-                                            // has no persisted usage yet, so it
-                                            // is excluded.
-                                            if (message.role ==
-                                                    AiRole.assistant &&
-                                                message.id != '_live') {
-                                              content = GestureDetector(
-                                                behavior:
-                                                    HitTestBehavior.opaque,
-                                                onLongPress: () =>
-                                                    showAskTurnDetails(
+                                                  }
+                                                : null,
+                                            // Only the provisional live bubble
+                                            // carries the writing caret and the
+                                            // live thought.
+                                            streaming:
+                                                isLive && _c.revealInFlight,
+                                            thought: isLive
+                                                ? _liveThought()
+                                                : null,
+                                          );
+                                          // Long-press a settled assistant
+                                          // reply to see that turn's model +
+                                          // token/cost detail. The live bubble
+                                          // has no persisted usage yet, so it
+                                          // is excluded.
+                                          if (message.role ==
+                                                  AiRole.assistant &&
+                                              !isLive &&
+                                              action == null &&
+                                              inputReq == null) {
+                                            content = GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onLongPress: () =>
+                                                  showAskTurnDetails(
+                                                    context,
+                                                    repo: AppScope.of(
                                                       context,
-                                                      repo: AppScope.of(
-                                                        context,
-                                                      ).ai,
-                                                      message: message,
-                                                    ),
-                                                child: content,
-                                              );
-                                            }
-                                          } else {
+                                                    ).ai,
+                                                    message: message,
+                                                  ),
+                                              child: content,
+                                            );
+                                          }
+                                          if (inputReq != null) {
+                                            content = Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                content,
+                                                InputRequestCard(
+                                                  key: ValueKey(
+                                                    'input-${inputReq.requestId}',
+                                                  ),
+                                                  request: inputReq,
+                                                  submitted: _c.submittedInputs
+                                                      .containsKey(
+                                                        inputReq.requestId,
+                                                      ),
+                                                  onSubmit: (summary, values) =>
+                                                      _c.submitInput(
+                                                        inputReq.requestId,
+                                                        summary,
+                                                        values,
+                                                      ),
+                                                ),
+                                              ],
+                                            );
+                                          } else if (action != null) {
                                             final effective =
                                                 action.status !=
                                                     AiActionStatus.pending
@@ -804,17 +909,24 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                                 : (_c.resolved[action
                                                           .actionId] ??
                                                       AiActionStatus.pending);
-                                            content = ProposalCard(
-                                              action: action,
-                                              status: effective,
-                                              onConfirm: () => _c.confirm(
-                                                conversationId,
-                                                action.actionId,
-                                              ),
-                                              onCancel: () => _c.cancel(
-                                                conversationId,
-                                                action.actionId,
-                                              ),
+                                            content = Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                content,
+                                                ProposalCard(
+                                                  action: action,
+                                                  status: effective,
+                                                  onConfirm: () => _c.confirm(
+                                                    conversationId,
+                                                    action.actionId,
+                                                  ),
+                                                  onCancel: () => _c.cancel(
+                                                    conversationId,
+                                                    action.actionId,
+                                                  ),
+                                                ),
+                                              ],
                                             );
                                           }
                                           if (runStart) {
@@ -853,25 +965,61 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                             left: 0,
                             right: 0,
                             bottom: 0,
-                            child: VoiceComposer(
-                              controller: _c.input,
-                              canSend: _c.canSend,
-                              // Bottom spacing is owned by the AnimatedPadding above —
-                              // both the safe area and the keyboard ride that one
-                              // animated value, never twice.
-                              bottomInset: 0,
-                              onSend: _c.send,
-                              isRecording: _c.recording,
-                              transcribing: _c.transcribing,
-                              sending: _c.sending,
-                              onMicToggle: _c.toggleMic,
-                              onCancelRecording: _c.cancelRecording,
-                              onCancelTranscription: _c.cancelTranscription,
-                              // Soft-resolved: hosts without a recorder simply get a
-                              // waveform-less composer; [requireRecorder]'s hard
-                              // assert belongs to the mic flow itself, not every
-                              // rebuild.
-                              recorder: AppScope.of(context).recorder,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _SizeReporter(
+                                  onSize: (size) {
+                                    if (size.height != _trayHeight) {
+                                      setState(() => _trayHeight = size.height);
+                                    }
+                                  },
+                                  child: AnimatedSize(
+                                    // Never zero: a zero-length AnimatedSize
+                                    // re-dirties itself mid-layout.
+                                    duration: reducedMotion(context)
+                                        ? const Duration(milliseconds: 1)
+                                        : const Duration(milliseconds: 260),
+                                    curve: Curves.easeOutCubic,
+                                    alignment: Alignment.bottomCenter,
+                                    child: trayChoice == null
+                                        ? const SizedBox(width: double.infinity)
+                                        : ChoiceTray(
+                                            key: ValueKey(
+                                              'tray-${trayChoice.requestId}',
+                                            ),
+                                            request: trayChoice,
+                                            onSelect: (value, label) =>
+                                                _c.answerChoice(
+                                                  trayChoice.requestId,
+                                                  value,
+                                                  label,
+                                                ),
+                                          ),
+                                  ),
+                                ),
+                                VoiceComposer(
+                                  controller: _c.input,
+                                  canSend: _c.canSend,
+                                  // Bottom spacing is owned by the AnimatedPadding above —
+                                  // both the safe area and the keyboard ride that one
+                                  // animated value, never twice.
+                                  bottomInset: 0,
+                                  onSend: _c.send,
+                                  isRecording: _c.recording,
+                                  transcribing: _c.transcribing,
+                                  sending: _c.sending,
+                                  onMicToggle: _c.toggleMic,
+                                  onCancelRecording: _c.cancelRecording,
+                                  onCancelTranscription: _c.cancelTranscription,
+                                  // Soft-resolved: hosts without a recorder simply get a
+                                  // waveform-less composer; [requireRecorder]'s hard
+                                  // assert belongs to the mic flow itself, not every
+                                  // rebuild.
+                                  recorder: AppScope.of(context).recorder,
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -885,5 +1033,39 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
         ),
       ),
     );
+  }
+}
+
+/// Reports its child's laid-out size after each layout that changed it — how
+/// the page learns the answer chips' height as they grow in and fold away.
+class _SizeReporter extends SingleChildRenderObjectWidget {
+  const _SizeReporter({required this.onSize, required super.child});
+
+  final ValueChanged<Size> onSize;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderSizeReporter(onSize);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderSizeReporter renderObject,
+  ) => renderObject.onSize = onSize;
+}
+
+class _RenderSizeReporter extends RenderProxyBox {
+  _RenderSizeReporter(this.onSize);
+
+  ValueChanged<Size> onSize;
+  Size? _last;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    if (size == _last) return;
+    _last = size;
+    final reported = size;
+    WidgetsBinding.instance.addPostFrameCallback((_) => onSize(reported));
   }
 }

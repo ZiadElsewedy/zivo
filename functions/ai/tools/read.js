@@ -56,6 +56,13 @@ const {calibrateMaintenance, energyFor, ageFrom} = require("../../diet/energy");
 const {coachingFindings} = require("../../diet/rules");
 const {analyzeTraining} = require("../analytics/workout_analytics");
 const {analyzeExercise, analyzePlanAdherence} = require("../analytics/exercise_analytics");
+const {makeResolver, IDENTITY} = require("../analytics/exercise_identity");
+const {
+  rotationFrom,
+  upNextDay,
+  dayAfter,
+  dayName,
+} = require("./workout_rotation");
 const {
   resolveComposite,
   resolveAndCompute,
@@ -480,7 +487,7 @@ const WORKOUTS_TOOL = {
   async execute(store, uid, input, now, offsetMinutes) {
     const range = input.range === "month" ?
       monthRangeMs(now, offsetMinutes) : weekRangeMs(now, offsetMinutes);
-    const sessions = await store.listWorkoutSessions(uid, range);
+    const {sessions} = await loadResolvedSessions(store, uid, range);
     sessions.sort((a, b) =>
       (b.completedAt || b.startedAt) - (a.completedAt || a.startedAt));
     // The "warm-up isn't working volume / top set is the heaviest working set"
@@ -563,7 +570,7 @@ const LAST_WORKOUT_TOOL = {
    */
   async execute(store, uid, input, now, offsetMinutes) {
     const today = dayKeyFor(now, offsetMinutes);
-    const sessions = await store.listWorkoutSessions(uid);
+    const {sessions} = await loadResolvedSessions(store, uid);
     const s = (sessions || [])
         .filter((x) => x.status === "completed")
         .sort((a, b) =>
@@ -637,13 +644,13 @@ const TRAINING_ANALYSIS_TOOL = {
    * @return {!Promise<!Object>}
    */
   async execute(store, uid, input, now) {
-    const sessions = await store.listWorkoutSessions(uid);
+    const {sessions, resolver} = await loadResolvedSessions(store, uid);
     // The active plan is what makes "what's being skipped" answerable; a store
     // without the reader (or with no plan) just yields empty adherence.
     const plan = store.getActiveWorkoutPlan ?
       await store.getActiveWorkoutPlan(uid) : null;
     const analysis = analyzeTraining({sessions, now});
-    const adherence = analyzePlanAdherence({plan, sessions, now});
+    const adherence = analyzePlanAdherence({plan, sessions, now, resolver});
     return {
       ...analysis,
       // ISO the PR dates for the model.
@@ -698,7 +705,7 @@ const EXERCISE_ANALYSIS_TOOL = {
    * @return {!Promise<!Object>}
    */
   async execute(store, uid, input, now) {
-    const sessions = await store.listWorkoutSessions(uid);
+    const {sessions} = await loadResolvedSessions(store, uid);
     const resolved = resolveExerciseId(sessions, input.exercise);
     if (!resolved.exerciseId) {
       return {
@@ -726,6 +733,30 @@ const EXERCISE_ANALYSIS_TOOL = {
 };
 
 /**
+ * The user's sessions read through their exercise identities (ADR-017): each
+ * session's `exerciseId`s folded into the canonical exercise they mean, so one
+ * movement trained on two days — or in two splits — is one history, exactly
+ * as the Analysis screen reads it. In memory only; nothing is written back.
+ *
+ * A store without the alias reader (a test fake), or a failed read, resolves
+ * every id to itself: the pre-identity reading, never an error.
+ * @param {!Object} store
+ * @param {string} uid
+ * @param {{fromMs: number, toMs: number}=} range
+ * @return {!Promise<{sessions: !Array<Object>, resolver: !Object}>}
+ */
+async function loadResolvedSessions(store, uid, range) {
+  const [sessions, aliases] = await Promise.all([
+    store.listWorkoutSessions(uid, range),
+    store.listExerciseAliases ?
+      store.listExerciseAliases(uid).catch(() => []) :
+      Promise.resolve([]),
+  ]);
+  const resolver = aliases.length ? makeResolver(aliases) : IDENTITY;
+  return {sessions: resolver.canonicalize(sessions), resolver};
+}
+
+/**
  * Resolves a free-text exercise name to a logged exerciseId. Prefers an exact
  * (case-insensitive) name, then a whole-word/substring match, and returns the
  * available names as candidates so the model can disambiguate or fall back.
@@ -735,6 +766,10 @@ const EXERCISE_ANALYSIS_TOOL = {
  */
 function resolveExerciseId(sessions, query) {
   const byId = new Map(); // exerciseId -> freshest name
+  // Every name an exercise was ever logged under. Sessions arrive already
+  // canonicalized, so "Hammer Curl" on one day and "Hammer Dumbbell Curl" on
+  // another are one id — and asking about either name finds it.
+  const namesById = new Map();
   const ordered = [...(sessions || [])].sort((a, b) =>
     (a.completedAt || a.startedAt) - (b.completedAt || b.startedAt));
   for (const s of ordered) {
@@ -742,7 +777,11 @@ function resolveExerciseId(sessions, query) {
     for (const e of s.exercises || []) {
       const hasWorking = (e.sets || []).some(
           (set) => set.outcome === "completed" && set.type !== "warmup");
-      if (hasWorking) byId.set(e.exerciseId, e.name || e.exerciseId);
+      if (!hasWorking) continue;
+      const name = e.name || e.exerciseId;
+      byId.set(e.exerciseId, name);
+      if (!namesById.has(e.exerciseId)) namesById.set(e.exerciseId, new Set());
+      namesById.get(e.exerciseId).add(name.toLowerCase());
     }
   }
   const candidates = [...byId.values()];
@@ -752,14 +791,13 @@ function resolveExerciseId(sessions, query) {
   let exact = null;
   let starts = null;
   let contains = null;
-  for (const [id, name] of byId) {
-    const n = name.toLowerCase();
-    if (n === q) {
-      exact = id;
-      break;
+  for (const [id, names] of namesById) {
+    for (const n of names) {
+      if (n === q) exact = exact || id;
+      if (starts == null && n.startsWith(q)) starts = id;
+      if (contains == null && (n.includes(q) || q.includes(n))) contains = id;
     }
-    if (starts == null && n.startsWith(q)) starts = id;
-    if (contains == null && (n.includes(q) || q.includes(n))) contains = id;
+    if (exact) break;
   }
   return {exerciseId: exact || starts || contains, candidates};
 }
@@ -1112,6 +1150,9 @@ const SEARCH_FOOD_ALTERNATIVES_TOOL = {
   name: "search_food_alternatives",
   // SEARCH class: finds and prices options, changes nothing.
   search: true,
+  // Its cards get ZIVO's own "Other options" chip — there are always more
+  // foods to look for (`../chat/choices.js` withMoreOption).
+  moreOptions: true,
   description:
     "Find realistic replacements for ONE item in the user's active plan they " +
     "don't want (\"I don't want molokhia\"). YOU propose the candidates: 3–6 " +
@@ -1390,7 +1431,7 @@ const READINESS_TOOL = {
     };
 
     // Training — the deload signal and how recently they trained.
-    const sessions = await store.listWorkoutSessions(uid);
+    const {sessions} = await loadResolvedSessions(store, uid);
     const analysis = analyzeTraining({sessions, now});
     let lastSessionMs = null;
     for (const s of sessions) {
@@ -1526,8 +1567,160 @@ const SLEEP_SUMMARY_TOOL = {
 // read collections the app no longer writes, so they could only ever return
 // empty — while still costing a schema in every cached prefix and, in
 // `get_today`'s case, four awaited reads per call.
+const WORKOUT_SCHEDULE_TOOL = {
+  name: "get_workout_schedule",
+  description:
+    "The user's training ROTATION (their active split) — which workout is " +
+    "scheduled today, what comes after it, and every day in the cycle with " +
+    "its dayId and exercises. A split is a rotating cycle (Push → Pull → " +
+    "Legs → …), not a weekday calendar: `today` is the day up next in the " +
+    "rotation. `trainedToday` says whether a session was already completed " +
+    "today. Use it for \"what's my workout today\", and ALWAYS before " +
+    "change_workout_day — its dayIds are the only valid ones.",
+  inputSchema: {type: "object", properties: {}},
+  /**
+   * @param {!Object} store
+   * @param {string} uid
+   * @param {!Object} input
+   * @param {Date} now
+   * @param {number=} offsetMinutes
+   * @return {!Promise<!Object>}
+   */
+  async execute(store, uid, input, now, offsetMinutes) {
+    const plan = store.getActiveWorkoutPlan ?
+      await store.getActiveWorkoutPlan(uid) : null;
+    if (!plan || !Array.isArray(plan.days) || plan.days.length === 0) {
+      return {outcome: "noPlan",
+        note: "The user has no workout split set up."};
+    }
+    const cycle = rotationFrom(plan.days, plan.cycleCursor);
+    const describe = (d) => ({
+      dayId: d.id,
+      name: dayName(d),
+      slot: d.slot || null,
+      exercises: (d.exercises || []).slice()
+          .sort((a, b) => (a.order || 0) - (b.order || 0))
+          .map((e) => e.name).filter(Boolean),
+    });
+    let trainedToday = null;
+    if (store.listWorkoutSessions) {
+      const sessions = await store.listWorkoutSessions(
+          uid, dayRangeMs(now, offsetMinutes));
+      const done = sessions.find((x) => x.status === "completed");
+      trainedToday = done ? {dayId: done.dayId, name: done.dayLabel} : null;
+    }
+    return {
+      outcome: "found",
+      date: dayKeyFor(now, offsetMinutes),
+      split: plan.name,
+      today: describe(cycle[0]),
+      next: cycle.length > 1 ? describe(cycle[1]) : null,
+      rotation: cycle.map(describe),
+      trainedToday,
+    };
+  },
+};
+
+const PREVIEW_WORKOUT_CHANGE_TOOL = {
+  name: "preview_workout_change",
+  // SEARCH class: lays out the two ways to train another day today, changes
+  // nothing. Its result is a verified OFFER (`choiceOffer`) — ask_choice after
+  // it becomes the skip-or-swap question, and a tap proposes that exact change.
+  search: true,
+  description:
+    "When the user wants to train a DIFFERENT day than the one scheduled " +
+    "today but hasn't said whether to skip or swap (\"I want to do Pull " +
+    "today\"): lays out both — 'swap' (they trade places: the other day " +
+    "today, the scheduled one next) and 'skip' (the scheduled day drops out " +
+    "of this round). Changes nothing. Then ask with ask_choice using values " +
+    "'skip' and 'swap'; ZIVO attaches the exact change to each option. Don't " +
+    "use it when the user already said skip or swap — call " +
+    "change_workout_day. `dayId` from get_workout_schedule.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      dayId: {
+        type: "string",
+        description: "the day they want to train today, from get_workout_schedule",
+      },
+    },
+    required: ["dayId"],
+  },
+  /**
+   * @param {!Object} store
+   * @param {string} uid
+   * @param {!Object} input
+   * @return {!Promise<!Object>}
+   */
+  async execute(store, uid, input) {
+    const plan = store.getActiveWorkoutPlan ?
+      await store.getActiveWorkoutPlan(uid) : null;
+    if (!plan || !Array.isArray(plan.days) || plan.days.length < 2) {
+      return {outcome: "noRotation",
+        note: "No split with more than one day — nothing to rearrange."};
+    }
+    const due = upNextDay(plan.days, plan.cycleCursor);
+    const target = plan.days.find((d) => d.id === input.dayId);
+    if (!target) {
+      return {outcome: "invalidInput",
+        note: "Unknown dayId — use one from get_workout_schedule."};
+    }
+    if (target.id === due.id) {
+      return {outcome: "alreadyToday", today: dayName(due)};
+    }
+    const afterTarget = dayAfter(plan.days, target.id);
+    return {
+      outcome: "found",
+      today: dayName(due),
+      requested: dayName(target),
+      // Both ways, spelled out — the two options the user chooses between.
+      alternatives: [
+        {mode: "skip", effect: `${dayName(target)} today; ${dayName(due)} ` +
+          "is dropped from this round" +
+          (afterTarget ? `; then ${dayName(afterTarget)}` : "")},
+        {mode: "swap", effect: `${dayName(target)} today; ${dayName(due)} ` +
+          "comes next — nothing is missed"},
+      ],
+    };
+  },
+  /**
+   * The verified skip / swap options, each bound to the exact
+   * change_workout_day call choosing it means.
+   * @param {!Object} result
+   * @param {!Object} input
+   * @return {?Array<!Object>}
+   */
+  choiceOffer(result, input) {
+    if (!result || result.outcome !== "found") return null;
+    const from = result.today;
+    const to = result.requested;
+    return [
+      {
+        value: "skip",
+        label: `Skip ${from}`,
+        aliases: ["skip", `skip ${from}`],
+        subtitle: `${to} today, ${from} waits till next round`,
+        metadata: {mode: "skip", from, to},
+        binding: {tool: "change_workout_day",
+          input: {mode: "skip", dayId: input.dayId}},
+      },
+      {
+        value: "swap",
+        label: `Swap ${from} and ${to}`,
+        aliases: ["swap", `swap ${from} with ${to}`],
+        subtitle: `${to} today, ${from} next`,
+        metadata: {mode: "swap", from, to},
+        binding: {tool: "change_workout_day",
+          input: {mode: "swap", dayId: input.dayId}},
+      },
+    ];
+  },
+};
+
 const tools = [
   TODAY_TOOL,
+  WORKOUT_SCHEDULE_TOOL,
+  PREVIEW_WORKOUT_CHANGE_TOOL,
   EXPENSES_TOOL,
   WORKOUTS_TOOL,
   LAST_WORKOUT_TOOL,

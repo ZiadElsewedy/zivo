@@ -97,6 +97,13 @@ class ZivoPalette {
     required this.sleepStageUnknown,
     required this.macroCarbs,
     required this.macroFat,
+    required this.thoughtRead,
+    required this.thoughtAnalyze,
+    required this.thoughtCalculate,
+    required this.thoughtSearch,
+    required this.thoughtSuggest,
+    required this.thoughtPrepare,
+    required this.thoughtThink,
     required this.alphaGamma,
     required this.actionGlowAlpha,
   });
@@ -229,6 +236,20 @@ class ZivoPalette {
   // ---- Diet macros ----
   final Color macroCarbs;
   final Color macroFat;
+
+  // ---- Ask's thought states ----
+  // The kinds of work the coach does while it answers — reading, analysing,
+  // calculating, searching, suggesting, preparing, thinking. One mineral
+  // family at an even, low chroma, so each state reads as a *tone* of the
+  // same quiet line rather than as seven competing hues; none of them claims
+  // the semantic four (ADR-006). Used only by Ask's thought trail.
+  final Color thoughtRead;
+  final Color thoughtAnalyze;
+  final Color thoughtCalculate;
+  final Color thoughtSearch;
+  final Color thoughtSuggest;
+  final Color thoughtPrepare;
+  final Color thoughtThink;
 
   /// **How an arbitrary ink/lift opacity translates onto this skin.**
   ///
@@ -404,6 +425,15 @@ class ZivoPalette {
     sleepStageUnknown: Color(0xFF5C6478),
     macroCarbs: Color(0xFF6BE3AE),
     macroFat: Color(0xFFA9EDCE),
+    // Mist, heather, brass, seaglass, rosewater, apricot, pearl — each ~70%
+    // lightness at ~25% saturation, so the family sits level on near-black.
+    thoughtRead: Color(0xFF9DB5D6),
+    thoughtAnalyze: Color(0xFFB3A8DA),
+    thoughtCalculate: Color(0xFFD2B67E),
+    thoughtSearch: Color(0xFF86C3B8),
+    thoughtSuggest: Color(0xFFDDA3B0),
+    thoughtPrepare: Color(0xFFDDAB86),
+    thoughtThink: Color(0xFFCFCCC2),
     alphaGamma: 1.0,
     actionGlowAlpha: 0.32,
   );
@@ -619,6 +649,16 @@ class ZivoPalette {
 
     macroCarbs: Color(0xFF3FB77F),
     macroFat: Color(0xFF77CFA4),
+
+    // The same seven walked down to ~4.5:1 on paper without leaving their
+    // families — still muted, never the saturated hue a CTA would wear.
+    thoughtRead: Color(0xFF3E5D86),
+    thoughtAnalyze: Color(0xFF5E4FA0),
+    thoughtCalculate: Color(0xFF7F6220),
+    thoughtSearch: Color(0xFF22695E),
+    thoughtSuggest: Color(0xFF9A4058),
+    thoughtPrepare: Color(0xFF92511F),
+    thoughtThink: Color(0xFF5B5D57),
 
     alphaGamma: 1.55,
     actionGlowAlpha: 0.20,

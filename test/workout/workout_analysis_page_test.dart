@@ -2,6 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zivo/features/workout/data/in_memory_exercise_library_repository.dart';
+import 'package:zivo/features/workout/domain/identity/canonical_exercise.dart';
+import 'package:zivo/features/workout/domain/identity/equipment.dart';
+import 'package:zivo/features/workout/domain/identity/exercise_library_repository.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
@@ -72,8 +76,12 @@ class _FixedWorkoutPlanRepository implements WorkoutPlanRepository {
   Future<void> deleteSplit(String id) => deletePlan(id);
 }
 
-Widget _wrap(InMemoryWorkoutSessionRepository sessions) {
+Widget _wrap(
+  InMemoryWorkoutSessionRepository sessions, {
+  ExerciseLibraryRepository? library,
+}) {
   return AppScope(
+    exerciseLibrary: library,
     auth: FakeAuthRepository(),
     profiles: FakeProfileRepository(),
     expenses: InMemoryExpenseRepository(),
@@ -145,6 +153,43 @@ LiveSession _bench({
   );
 }
 
+/// A completed curl session under [exerciseId].
+LiveSession _curl({
+  required String id,
+  required String exerciseId,
+  required String name,
+  required int daysAgo,
+}) {
+  final at = DateTime.now().subtract(Duration(days: daysAgo));
+  return LiveSession(
+    id: id,
+    planId: 'p1',
+    dayId: 'day-a',
+    dayLabel: 'Arms',
+    startedAt: at.subtract(const Duration(minutes: 40)),
+    completedAt: at,
+    status: SessionStatus.completed,
+    exercises: [
+      SessionExercise(
+        id: exerciseId,
+        exerciseId: exerciseId,
+        name: name,
+        muscleGroup: 'Arms',
+        restSeconds: 90,
+        sets: [
+          LoggedSet(
+            id: '$id-s0',
+            target: const RepTarget.range(8, 12),
+            actualReps: 10,
+            actualWeightKg: 14,
+            outcome: SetOutcome.completed,
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
 /// A completed Back Squat session — a second movement in a different muscle
 /// category (Legs), so the browser has two groups to filter between.
 LiveSession _squat({
@@ -184,6 +229,76 @@ LiveSession _squat({
 }
 
 void main() {
+  testWidgets('"Same exercise?" merges two exercises into one history, and '
+      'Undo takes it back', (tester) async {
+    _useTallViewport(tester);
+    final sessions = InMemoryWorkoutSessionRepository();
+    // One curl logged under each name, as two slots on two days would.
+    await sessions.saveSession(
+      _curl(id: 'c1', exerciseId: 'x-hammer', name: 'Hammer Curl', daysAgo: 6),
+    );
+    await sessions.saveSession(
+      _curl(id: 'c2', exerciseId: 'x-hammer-db', name: 'Hammer Dumbbell Curl', daysAgo: 2),
+    );
+    final library = InMemoryExerciseLibraryRepository(
+      exercises: [
+        CanonicalExercise(id: 'x-hammer', name: 'Hammer Curl', createdAt: DateTime(2025)),
+        CanonicalExercise(
+          id: 'x-hammer-db',
+          name: 'Hammer Dumbbell Curl',
+          equipment: Equipment.dumbbell,
+          createdAt: DateTime(2026),
+        ),
+      ],
+    );
+    addTearDown(library.dispose);
+
+    await tester.pumpWidget(_wrap(sessions, library: library));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Same exercise?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('same-exercise-merge')));
+    await tester.pumpAndSettle();
+
+    expect(library.current.resolver.canonicalIdOf('x-hammer'), 'x-hammer-db');
+    expect(find.text('Same exercise?'), findsNothing);
+    expect(find.byKey(const Key('same-exercise-undo')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('same-exercise-undo')));
+    await tester.pumpAndSettle();
+    expect(library.current.aliases, isEmpty);
+    expect(find.text('Same exercise?'), findsOneWidget);
+  });
+
+  testWidgets('"Keep separate" is not asked again', (tester) async {
+    _useTallViewport(tester);
+    final sessions = InMemoryWorkoutSessionRepository();
+    await sessions.saveSession(
+      _curl(id: 'c1', exerciseId: 'x-hammer', name: 'Hammer Curl', daysAgo: 6),
+    );
+    await sessions.saveSession(
+      _curl(id: 'c2', exerciseId: 'x-hammer-db', name: 'Hammer Dumbbell Curl', daysAgo: 2),
+    );
+    final library = InMemoryExerciseLibraryRepository(
+      exercises: [
+        CanonicalExercise(id: 'x-hammer', name: 'Hammer Curl', createdAt: DateTime(2025)),
+        CanonicalExercise(
+          id: 'x-hammer-db',
+          name: 'Hammer Dumbbell Curl',
+          equipment: Equipment.dumbbell,
+          createdAt: DateTime(2026),
+        ),
+      ],
+    );
+    addTearDown(library.dispose);
+    await tester.pumpWidget(_wrap(sessions, library: library));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('same-exercise-keep')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('same-exercise-card')), findsNothing);
+    expect(library.current.exercises['x-hammer']!.distinctFrom, {'x-hammer-db'});
+  });
+
   testWidgets('no completed sessions → the empty hint, no fake verdict',
       (tester) async {
     _useTallViewport(tester);

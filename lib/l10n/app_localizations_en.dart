@@ -770,6 +770,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String liveSetLoggedMoment(int number) {
+    return 'SET $number LOGGED';
+  }
+
+  @override
+  String get liveExerciseDoneMoment => 'EXERCISE DONE';
+
+  @override
   String liveSetsLogged(String count) {
     return '$count SETS LOGGED';
   }
@@ -2197,100 +2205,121 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askThinking => 'Thinking…';
 
   @override
-  String get askUnderstanding => 'Understanding…';
-
-  @override
-  String get askWorking => 'Working…';
-
-  @override
   String get askPreparingChange => 'Preparing your change…';
 
   @override
   String get askStillWorking => 'Still working on this one…';
 
   @override
-  String get askReadingDay => 'Reading your day…';
+  String get askThoughtAnalyzingResults => 'Analyzing what I found…';
 
   @override
-  String get askReadingDiet => 'Reading today\'s diet…';
+  String get askThoughtDay => 'Reading your day…';
 
   @override
-  String get askReadingTraining => 'Reading your training…';
+  String get askThoughtDayDone => 'Read your day';
 
   @override
-  String get askReadingSpending => 'Reading your spending…';
+  String get askThoughtDiet => 'Reading your meal plan…';
 
   @override
-  String get askSummarisingWeek => 'Summarising your week…';
+  String get askThoughtDietDone => 'Read your meal plan';
 
   @override
-  String get askLookingUpFood => 'Looking that food up…';
+  String get askThoughtWorkouts => 'Reading your workouts…';
 
   @override
-  String get askCalculating => 'Working out the numbers…';
+  String get askThoughtWorkoutsDone => 'Read your workouts';
 
   @override
-  String get askSearchingForProduct => 'Searching for that product…';
+  String get askThoughtLastWorkout => 'Reading your last workout…';
 
   @override
-  String get askFindingAlternatives => 'Finding alternatives…';
+  String get askThoughtLastWorkoutDone => 'Read your last workout';
 
   @override
-  String get askReadingReadiness => 'Checking your readiness…';
+  String get askThoughtTraining => 'Analyzing your training…';
 
   @override
-  String get askReadingSleep => 'Reading your sleep…';
+  String get askThoughtTrainingDone => 'Analyzed your training';
 
   @override
-  String get askActivityGrab => 'Grab';
+  String get askThoughtExercise => 'Analyzing this lift…';
 
   @override
-  String get askActivitySearch => 'Search';
+  String get askThoughtExerciseDone => 'Analyzed this lift';
 
   @override
-  String get askActivityCalculate => 'Calculate';
+  String get askThoughtSpending => 'Reading your spending…';
 
   @override
-  String get askActivityToday => 'Today\'s details';
+  String get askThoughtSpendingDone => 'Read your spending';
 
   @override
-  String get askActivityDiet => 'Diet details';
+  String get askThoughtWeek => 'Analyzing your week…';
 
   @override
-  String get askActivityWorkouts => 'Workout details';
+  String get askThoughtWeekDone => 'Analyzed your week';
 
   @override
-  String get askActivityLastWorkout => 'Last workout';
+  String get askThoughtReadiness => 'Analyzing your readiness…';
 
   @override
-  String get askActivityTrainingAnalysis => 'Training analysis';
+  String get askThoughtReadinessDone => 'Analyzed your readiness';
 
   @override
-  String get askActivityExerciseHistory => 'Exercise history';
+  String get askThoughtSleep => 'Reading your sleep…';
 
   @override
-  String get askActivitySpending => 'Spending';
+  String get askThoughtSleepDone => 'Read your sleep';
 
   @override
-  String get askActivityWeek => 'Weekly summary';
+  String get askThoughtFoodDetails => 'Searching the food catalog…';
 
   @override
-  String get askActivityReadiness => 'Readiness';
+  String get askThoughtFoodDetailsDone => 'Searched the food catalog';
 
   @override
-  String get askActivitySleep => 'Sleep summary';
+  String get askThoughtNutrition => 'Calculating the nutrition…';
 
   @override
-  String get askActivityFoodDetails => 'Food details';
+  String get askThoughtNutritionDone => 'Calculated the nutrition';
 
   @override
-  String get askActivityMealNutrition => 'Meal nutrition';
+  String get askThoughtProduct => 'Searching for that product…';
 
   @override
-  String get askActivityFoodProduct => 'Food product';
+  String get askThoughtProductDone => 'Searched for that product';
 
   @override
-  String get askActivityFoodAlternatives => 'Food alternatives';
+  String get askThoughtAlternatives => 'Suggesting alternatives…';
+
+  @override
+  String get askThoughtAlternativesDone => 'Suggested alternatives';
+
+  @override
+  String get askThoughtVerbRead => 'Read';
+
+  @override
+  String get askThoughtVerbAnalyzed => 'Analyzed';
+
+  @override
+  String get askThoughtVerbCalculated => 'Calculated';
+
+  @override
+  String get askThoughtVerbSearched => 'Searched';
+
+  @override
+  String get askThoughtVerbSuggested => 'Suggested';
+
+  @override
+  String get askThoughtShowSteps => 'Show steps';
+
+  @override
+  String get askThoughtHideSteps => 'Hide steps';
+
+  @override
+  String get askChoiceTray => 'Choose an answer';
 
   @override
   String get askActivityFailed => 'Couldn\'t get this';
@@ -6145,4 +6174,202 @@ class AppLocalizationsEn extends AppLocalizations {
   String aiUsageProviderEmpty(String provider) {
     return 'No $provider requests yet.';
   }
+
+  @override
+  String get askActionReplaceFood => 'Meal swap';
+
+  @override
+  String get askActionWorkoutSwap => 'Workout swap';
+
+  @override
+  String get askActionWorkoutSkip => 'Skip workout';
+
+  @override
+  String askWorkoutToday(String day) {
+    return '$day today';
+  }
+
+  @override
+  String get askRowCategory => 'Category';
+
+  @override
+  String get askRowNote => 'Note';
+
+  @override
+  String get askRowAmount => 'Amount';
+
+  @override
+  String get askRowStatus => 'Status';
+
+  @override
+  String get askRowMeal => 'Meal';
+
+  @override
+  String get askRowInsteadOf => 'Instead of';
+
+  @override
+  String get askRowCalories => 'Calories';
+
+  @override
+  String get askRowNext => 'Next';
+
+  @override
+  String get askRowThen => 'Then';
+
+  @override
+  String get askRowSkipped => 'Skipped';
+
+  @override
+  String get askRowTotal => 'Total';
+
+  @override
+  String askRowWas(String value) {
+    return 'was $value';
+  }
+
+  @override
+  String askSkippedUntilNextRound(String day) {
+    return '$day, back next round';
+  }
+
+  @override
+  String askChoiceSkipDetail(String to, String from) {
+    return '$to today, $from waits till next round';
+  }
+
+  @override
+  String askChoiceSwapDetail(String to, String from) {
+    return '$to today, $from next';
+  }
+
+  @override
+  String get liveSessionMap => 'Workout map';
+
+  @override
+  String liveSessionMapProgress(int done, int total) {
+    return '$done of $total exercises done';
+  }
+
+  @override
+  String get liveExerciseNow => 'NOW';
+
+  @override
+  String get liveExerciseDone => 'DONE';
+
+  @override
+  String get liveExerciseSkipped => 'SKIPPED';
+
+  @override
+  String liveExerciseSetsProgress(int done, int total) {
+    return '$done/$total sets';
+  }
+
+  @override
+  String get liveDoNow => 'Do this now';
+
+  @override
+  String get liveDoLater => 'Do it later';
+
+  @override
+  String get liveSwapExercise => 'Swap exercise';
+
+  @override
+  String get liveSkipExercise => 'Skip exercise';
+
+  @override
+  String get liveAddSet => 'Add a set';
+
+  @override
+  String get liveRemoveSet => 'Remove last set';
+
+  @override
+  String get liveRemoveExercise => 'Remove exercise';
+
+  @override
+  String get liveAddExercise => 'Add exercise';
+
+  @override
+  String get liveNextExercise => 'Next exercise';
+
+  @override
+  String get livePreviousExercise => 'Previous exercise';
+
+  @override
+  String get liveExerciseOptions => 'Exercise options';
+
+  @override
+  String get livePickExercise => 'Choose an exercise';
+
+  @override
+  String livePickExerciseSwapNote(String name) {
+    return 'Replacing $name. Sets you\'ve already logged stay with it.';
+  }
+
+  @override
+  String get livePickExerciseSearch => 'Search or type a name';
+
+  @override
+  String livePickExerciseAddNamed(String name) {
+    return 'Add “$name”';
+  }
+
+  @override
+  String get livePickExerciseEmpty => 'Type a name to add a new exercise.';
+
+  @override
+  String liveExerciseSwapped(String name) {
+    return 'Swapped to $name';
+  }
+
+  @override
+  String liveExerciseMovedLater(String name) {
+    return '$name moved to the end';
+  }
+
+  @override
+  String get workoutSameExerciseTitle => 'Same exercise?';
+
+  @override
+  String workoutSameExerciseBody(String merge, String keep) {
+    return '“$merge” and “$keep” look like the same movement. If they are, their history becomes one, under “$keep”.';
+  }
+
+  @override
+  String get workoutSameExerciseMerge => 'Same exercise';
+
+  @override
+  String get workoutSameExerciseKeep => 'Keep separate';
+
+  @override
+  String workoutSameExerciseMerged(String merge, String keep) {
+    return '“$merge” now shares history with “$keep”.';
+  }
+
+  @override
+  String get workoutUndo => 'Undo';
+
+  @override
+  String get livePickSameMuscle => 'Same muscle group';
+
+  @override
+  String get livePickAllExercises => 'Your exercises';
+
+  @override
+  String get livePickNewNote => 'New exercise, with its own history';
+
+  @override
+  String get livePickNoMatch => 'None of your exercises match.';
+
+  @override
+  String liveExerciseAdded(String name) {
+    return 'Added $name';
+  }
+
+  @override
+  String liveExerciseSkippedToast(String name) {
+    return 'Skipped $name';
+  }
+
+  @override
+  String get liveChangeNext => 'Change';
 }

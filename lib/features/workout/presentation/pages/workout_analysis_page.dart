@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
@@ -10,12 +12,16 @@ import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../domain/analytics/plan_adherence.dart';
+import '../../domain/identity/exercise_identity_resolver.dart';
+import '../../domain/identity/exercise_library_repository.dart';
+import '../../domain/identity/exercise_merge.dart';
 import '../../domain/analytics/workout_analytics.dart';
 import '../../domain/live_session.dart';
 import '../../domain/training_volume.dart';
 import '../../domain/workout_plan.dart';
 import '../../../../core/widgets/zivo_field.dart';
 import '../widgets/progress_status_style.dart';
+import '../widgets/same_exercise_card.dart';
 import '../widgets/staggered_reveal.dart';
 import '../widgets/trend_chart.dart';
 import '../workout_labels.dart';
@@ -49,18 +55,86 @@ class _WorkoutAnalysisPageState extends State<WorkoutAnalysisPage> {
   final _searchController = TextEditingController();
   String _query = '';
 
+  /// The merge just made from the "Same exercise?" card, while its undo is
+  /// still offered. Page-lifetime only: leaving the page ends the offer, and
+  /// the alias itself stays removable (ADR-017) either way.
+  MergeSuggestion? _justMerged;
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
+  // ---- "Same exercise?" -----------------------------------------------------
+
+  void _merge(MergeSuggestion s) {
+    final library = AppScope.of(context).exerciseLibrary;
+    if (library == null) return;
+    setState(() => _justMerged = s);
+    unawaited(
+      library
+          .saveAliases([mergeAlias(s, now: DateTime.now())])
+          .catchError((Object _) {}),
+    );
+  }
+
+  void _keepSeparate(MergeSuggestion s) {
+    final library = AppScope.of(context).exerciseLibrary;
+    if (library == null) return;
+    unawaited(library.saveExercises(markDistinct(s)).catchError((Object _) {}));
+  }
+
+  void _undoMerge() {
+    final merged = _justMerged;
+    final library = AppScope.of(context).exerciseLibrary;
+    if (merged == null || library == null) return;
+    setState(() => _justMerged = null);
+    unawaited(library.removeAlias(merged.merge.id).catchError((Object _) {}));
+  }
+
+  /// Every canonical exercise the user actually has — in any split, or in
+  /// their history — so the card never asks about one they don't use.
+  Set<String> _inUse(
+    List<WorkoutPlan> splits,
+    List<LiveSession> resolvedSessions,
+    ExerciseIdentityResolver resolver,
+  ) => {
+    for (final split in splits)
+      for (final day in split.days)
+        for (final slot in day.exercises)
+          resolver.canonicalIdOf(slot.canonicalId),
+    for (final s in resolvedSessions)
+      for (final e in s.exercises) e.exerciseId,
+  };
+
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
+    final libraryRepo = scope.exerciseLibrary;
     return TrainScreen(
       tint: TrainColors.hubTint,
-      child: StreamBuilder<WorkoutPlan?>(
+      // The library is watched, not read once: a merge (or an alias the
+      // identity sync writes while this is open) re-reads every figure below
+      // through the new identities straight away.
+      child: StreamBuilder<ExerciseLibrary>(
+        stream: libraryRepo?.watch(),
+        initialData: libraryRepo?.current ?? ExerciseLibrary.empty,
+        builder: (context, librarySnap) => _buildWith(
+          context,
+          scope,
+          librarySnap.data ?? ExerciseLibrary.empty,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWith(
+    BuildContext context,
+    AppScope scope,
+    ExerciseLibrary library,
+  ) {
+    return StreamBuilder<WorkoutPlan?>(
         stream: scope.workoutPlans.watchActivePlan(),
         initialData: scope.workoutPlans.activePlan,
         builder: (context, planSnap) {
@@ -73,14 +147,31 @@ class _WorkoutAnalysisPageState extends State<WorkoutAnalysisPage> {
                   snap.connectionState == ConnectionState.waiting) {
                 return const _LoadingState();
               }
-              final sessions = snap.data ?? const <LiveSession>[];
+              // Read through the identity model, so one exercise done on two
+              // days (or in two splits) is one progression line, not two.
+              final resolver = library.resolver;
+              final sessions = resolver.canonicalize(
+                snap.data ?? const <LiveSession>[],
+              );
               final now = DateTime.now();
               final analysis = analyzeTraining(sessions: sessions, now: now);
               final adherence = analyzePlanAdherence(
                 plan: planSnap.data,
                 sessions: sessions,
                 now: now,
+                resolver: resolver,
               );
+
+              final sameExercise = library.loaded
+                  ? suggestExerciseMerges(
+                      library,
+                      inUse: _inUse(
+                        scope.workoutPlans.splits,
+                        sessions,
+                        resolver,
+                      ),
+                    ).firstOrNull
+                  : null;
 
               var step = 60;
               Duration delay() => Duration(milliseconds: (step += 20));
@@ -103,6 +194,16 @@ class _WorkoutAnalysisPageState extends State<WorkoutAnalysisPage> {
                     delay: const Duration(milliseconds: 40),
                     child: _OverallCard(analysis: analysis),
                   ),
+                  if (sameExercise != null || _justMerged != null) ...[
+                    const SizedBox(height: 16),
+                    SameExerciseCard(
+                      suggestion: sameExercise,
+                      justMerged: _justMerged,
+                      onMerge: () => _merge(sameExercise!),
+                      onKeepSeparate: () => _keepSeparate(sameExercise!),
+                      onUndo: _undoMerge,
+                    ),
+                  ],
                   if (analysis.isEmpty) ...[
                     const SizedBox(height: 16),
                     const _EmptyHint(),
@@ -200,7 +301,6 @@ class _WorkoutAnalysisPageState extends State<WorkoutAnalysisPage> {
             },
           );
         },
-      ),
     );
   }
 }

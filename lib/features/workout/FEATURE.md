@@ -29,7 +29,7 @@ The session used to be one 4,236-line file. It is now:
 |---|---|
 | `presentation/controllers/live_session_controller.dart` | **Everything the session *does*.** A plain `ChangeNotifier`: the rest / warm-up / elapsed clocks, the `SharedPreferences` countdown that survives an app kill, the debounced draft autosave, the history subscription, set resolution + undo, pause/resume, and `finish`/`leave`/`discard`. It never navigates and never holds a `BuildContext` — the page pops, and reduced-motion + the `TickerProvider` are passed in. |
 | `presentation/pages/live_session_page.dart` | `build` and the four phase layouts (running · warm-up · resting · completed). |
-| `presentation/widgets/live_session/` | The 9 files the ~30 private widget classes became — `session_header`, `goal_block`, `set_chips`, `rest_ring`, `set_input`, `session_review`, `up_next_card`, `session_effects`, plus `live_session_format.dart` (how ZIVO writes a weight, a rest, an elapsed time). |
+| `presentation/widgets/live_session/` | The 9 files the ~30 private widget classes became — `session_header`, `goal_block`, `set_chips`, `rest_ring`, `set_input`, `session_review`, `up_next_card`, `session_effects`, `set_logged_moment` (the check that confirms a logged set — played by the rest ring's own face, which opens on the check with its countdown hidden and then hands over to the digits as one motion; skipped sets and the workout's final set don't get one), plus `live_session_format.dart` (how ZIVO writes a weight, a rest, an elapsed time). |
 | `presentation/widgets/session_ambience.dart` | The session's **music-reactive colour source**. Off the main thread, once per track, it turns the live Spotify cover into: the legacy deep `of()` tint + legible `vividOf()` foreground (unchanged — feed `rest_ring`/`up_next_card`/strips), AND a **wide, multi-hue `SessionField`** (`fieldOf`/`energyOf`) — 1–5 tone-mapped hues from across the cover (via the pure, unit-tested `buildSessionField`) plus a derived `energy`/`warmth`/`loudness` (no audio features exist; it's all from the artwork's colourfulness/spread/contrast). Published down the tree via one `InheritedWidget`; null with no live artwork (so everything below stays neutral and static). |
 | `presentation/widgets/session_aurora_field.dart` | The **"Aurora Well"** reactive background painted behind the whole session. A `CustomPainter` mesh of screen-blended album-light blobs drifting at the edges around a guaranteed-dark readable core (a content-anchored "well" + edge scrims), reacting to the song's `energy` (faster/wider/brighter for a high-energy cover) and morphing colours along the shortest hue-arc on a track change. One 120s time-accumulator + one 1.4s morph controller — created ONLY when a live `SessionField` exists and motion is on, so a no-music session (and every test) stays a static ground with no ticker. The phase tint (`_screenTint`) now composites as a translucent overlay on top of it (transparent outer stop → the field shows at the periphery). The second sanctioned cover-adaptive moment after the full-screen music player. |
 
@@ -138,8 +138,39 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   only on a device that has never linked to Spotify; a *linked* device that dropped mid-
   workout keeps a slim reconnect row, because the alternative was abandoning the session
   to go find Settings. See [`music/FEATURE.md`](../music/FEATURE.md).
-- **Exercise-identity invariant** and the `splitId` alias are intentional; analysis/history
-  are deliberately scoped to the **active** split.
+- **Exercise identity ([ADR-017](../../../docs/DECISIONS/ADR-017-exercise-identity.md)).**
+  `domain/identity/`: a `CanonicalExercise` is the movement; a `PlannedExercise` is a
+  slot pointing at it via `exerciseId` (null ⇒ `canonicalId == id`, the pre-ADR
+  behaviour); sessions store `exerciseId` (canonical) + `slotId`. Legacy ids fold in
+  through `ExerciseAlias`es, applied **on read** by `ExerciseIdentityResolver.canonicalize`
+  (`AppScope.exerciseResolver`) — never written back. History is shared across days
+  **and splits**; "last time"/goals are **slot-first** (`lastPerformanceFor(slotId:)`).
+  Pass sessions through the resolver before any per-exercise analysis. `matchExercise`
+  only suggests identity from a name (equipment gate + variation words).
+  **Migration/sync:** `identity_reconcile.dart` (pure, deterministic, idempotent) run by
+  `ExerciseIdentitySync` at app root — never writes a session, waits for
+  `ExerciseLibrary.loaded`. **Merges the pass can't prove** are asked on the Analysis hub
+  (`widgets/same_exercise_card.dart`, `identity/exercise_merge.dart`). A plan-editor rename
+  to a different movement (`isDifferentMovement`) gets a new identity (`identityAfterEdit`).
+  The `splitId` alias is still intentional.
+- **Moving around a live workout is a change of ORDER, never a cursor.** The current set
+  stays derived (first pending set). Next/previous rotate the exercises still owed
+  (`LiveSession.rotatePending`, exact inverses), the workout map's jump is `bringForward`,
+  "do it later" is `moveToEnd`; each first puts finished exercises ahead of the rest. Every
+  structural command (swap, add/remove set or exercise, skip exercise) goes through
+  `LiveSessionController._restructure`, which keeps the typed draft on its set, re-prefills,
+  and completes the session if nothing is left. Back (`previousResolvedSet`) reads
+  `resolvedAt`, not list order, because order can change. Nothing resolved is ever removed:
+  "remove" only takes an exercise/set with nothing logged. UI:
+  `widgets/live_session/exercise_navigation_sheets.dart` (map timeline with progress
+  rings · grouped actions · picker with same-muscle section and confident-name dedupe),
+  the ‹ › capsule + ⋯ on `ExerciseHeader`, the finger-following swipe
+  (`exercise_swipe.dart`), and the map opened from the "EXERCISE n / N" caption
+  (`TrainSegmentCaptions.onLeftTap`) or the rest card's "Change". A change of exercise
+  slides horizontally the way the user went (`LiveSessionController.lastMove` →
+  `_phaseTransition`, read per frame because the switcher caches transitions). Set chips:
+  a distinct **skipped** state, tap a resolved chip to correct it, trailing **+** adds a
+  set. **Phosphor icons already match text direction** — never `Transform.flip` them.
 - The splits-migration tie-break resolves to **oldest-by-`createdAt`** on purpose (matches
   `deleteSplit()` re-pointing).
 - Home's Training card and the Workout page read the **same** `watchActivePlan()` →
@@ -154,6 +185,11 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   stores an `order`, so it keeps pointing at the same position. `slot` stays with
   its day (identity, not position — the editor's reorder doesn't reassign it
   either).
+- **Ask changes the rotation by the same two rules.** The coach's
+  `change_workout_day` (functions/ai) mirrors `swapDays` (mode `swap`) and the
+  cursor move (mode `skip`) in `functions/ai/tools/workout_rotation.js`,
+  writing the raw plan doc in a transaction. Change a rotation rule here and
+  change it there.
 - **Never do calendar maths with `Duration`.** `Duration(days: 1)` is 24
   absolute hours; a calendar day on a DST transition is 23 or 25. Both old
   streak engines walked the calendar that way and zeroed themselves twice a

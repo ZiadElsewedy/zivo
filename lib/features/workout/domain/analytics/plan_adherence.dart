@@ -6,15 +6,19 @@
 /// keep passing over — the ones that never get trained, and the ones that have
 /// gone quiet. Pure over `(plan, sessions, now)`; no clock, no repository.
 ///
-/// The join key is [PlannedExercise.id] == [SessionExercise.exerciseId]: a
-/// session started from a planned day carries the planned exercise's id
-/// forward as the canonical movement id (see `LiveSession.start`), so a planned
-/// movement and its logged appearances line up even after a machine swap. A
+/// The join key is the canonical exercise: [PlannedExercise.canonicalId] ==
+/// [SessionExercise.exerciseId] (see `LiveSession.start`). So an exercise
+/// that sits in two slots — Pec Deck on Push and on Chest & Back — is one
+/// movement here, trained whenever either slot was. Callers pass sessions
+/// already read through `ExerciseIdentityResolver.canonicalize`, and the same
+/// resolver so a slot pointing at a merged-away id still lines up. A
 /// session "trained" an exercise only when it logged a working set for it —
 /// showing up to warm up and leaving is not adherence.
 library;
 
+import '../identity/exercise_identity_resolver.dart';
 import '../live_session.dart';
+import '../planned_exercise.dart';
 import '../session_status.dart';
 import '../workout_plan.dart';
 import 'workout_analytics.dart';
@@ -86,7 +90,10 @@ PlanAdherence analyzePlanAdherence({
   required WorkoutPlan? plan,
   required List<LiveSession> sessions,
   required DateTime now,
+  ExerciseIdentityResolver? resolver,
 }) {
+  final identity = resolver ?? ExerciseIdentityResolver.identity;
+  String keyOf(PlannedExercise ex) => identity.canonicalIdOf(ex.canonicalId);
   if (plan == null || plan.days.isEmpty) {
     return const PlanAdherence(neglected: [], plannedExerciseCount: 0);
   }
@@ -98,7 +105,7 @@ PlanAdherence analyzePlanAdherence({
     // No training yet — nothing is being skipped, the plan just hasn't begun.
     return PlanAdherence(
       neglected: const [],
-      plannedExerciseCount: _plannedIds(plan).length,
+      plannedExerciseCount: _plannedIds(plan, keyOf).length,
     );
   }
 
@@ -125,11 +132,12 @@ PlanAdherence analyzePlanAdherence({
   final out = <NeglectedExercise>[];
   for (final day in plan.days) {
     for (final ex in day.exercises) {
-      if (!planned.add(ex.id)) continue; // already handled on an earlier day
-      final count = appearances[ex.id] ?? 0;
+      final key = keyOf(ex);
+      if (!planned.add(key)) continue; // already handled on an earlier day
+      final count = appearances[key] ?? 0;
       if (count == 0) {
         out.add(NeglectedExercise(
-          exerciseId: ex.id,
+          exerciseId: key,
           name: ex.name,
           muscleGroup: ex.muscleGroup,
           dayLabel: day.label,
@@ -139,11 +147,11 @@ PlanAdherence analyzePlanAdherence({
         ));
         continue;
       }
-      final last = lastTrained[ex.id]!;
+      final last = lastTrained[key]!;
       final days = _daysBetween(last, now);
       if (days >= kStalePlannedExerciseDays) {
         out.add(NeglectedExercise(
-          exerciseId: ex.id,
+          exerciseId: key,
           name: ex.name,
           muscleGroup: ex.muscleGroup,
           dayLabel: day.label,
@@ -166,11 +174,14 @@ PlanAdherence analyzePlanAdherence({
   return PlanAdherence(neglected: out, plannedExerciseCount: planned.length);
 }
 
-Set<String> _plannedIds(WorkoutPlan plan) {
+Set<String> _plannedIds(
+  WorkoutPlan plan,
+  String Function(PlannedExercise) keyOf,
+) {
   final ids = <String>{};
   for (final day in plan.days) {
     for (final ex in day.exercises) {
-      ids.add(ex.id);
+      ids.add(keyOf(ex));
     }
   }
   return ids;

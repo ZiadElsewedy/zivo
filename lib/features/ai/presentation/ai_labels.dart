@@ -76,16 +76,15 @@ String aiModelIdText(BuildContext context, String modelId) {
 /// What a usage record's `feature` was for — the words beside each request on
 /// the usage page. An unknown feature (a newer backend) reads as a generic
 /// "AI request" rather than a raw id.
-String aiFeatureText(BuildContext context, String feature) =>
-    switch (feature) {
-      'chat' => l(context).aiFeatureChat,
-      'workout_import' => l(context).aiFeatureWorkoutImport,
-      'diet_import' => l(context).aiFeatureDietImport,
-      'diet_generate' => l(context).aiFeatureDietGenerate,
-      'food_search' => l(context).aiFeatureFoodSearch,
-      'transcribe' => l(context).aiFeatureTranscribe,
-      _ => l(context).aiFeatureOther,
-    };
+String aiFeatureText(BuildContext context, String feature) => switch (feature) {
+  'chat' => l(context).aiFeatureChat,
+  'workout_import' => l(context).aiFeatureWorkoutImport,
+  'diet_import' => l(context).aiFeatureDietImport,
+  'diet_generate' => l(context).aiFeatureDietGenerate,
+  'food_search' => l(context).aiFeatureFoodSearch,
+  'transcribe' => l(context).aiFeatureTranscribe,
+  _ => l(context).aiFeatureOther,
+};
 
 /// The provider's display name in a failure, or "The AI model" when the
 /// server didn't say which.
@@ -162,44 +161,3 @@ String aiFailureMessage(
   AiFailureKind.unavailable =>
     '${aiFailureTitle(context, f)}. ${aiFailureBody(context, f)}',
 };
-
-/// A tool name → the chip on Ask's activity timeline ("Grab · Diet details").
-///
-/// The gateway sends only the tool's identifier; the words are chosen here so
-/// they stay localizable and never leak `get_diet` onto the screen. An
-/// unknown tool (one added server-side after this build) returns null and the
-/// timeline simply leaves it out — the rail below still says "Working…".
-String? aiActivityLabel(BuildContext context, String tool) {
-  final s = l(context);
-  final (String, String)? parts = switch (tool) {
-    'get_today' => (s.askActivityGrab, s.askActivityToday),
-    'get_diet' => (s.askActivityGrab, s.askActivityDiet),
-    'get_workouts' => (s.askActivityGrab, s.askActivityWorkouts),
-    'get_last_workout' => (s.askActivityGrab, s.askActivityLastWorkout),
-    'get_training_analysis' => (
-      s.askActivityGrab,
-      s.askActivityTrainingAnalysis,
-    ),
-    'get_exercise_analysis' => (
-      s.askActivityGrab,
-      s.askActivityExerciseHistory,
-    ),
-    'get_expenses' => (s.askActivityGrab, s.askActivitySpending),
-    'summarize_week' => (s.askActivityGrab, s.askActivityWeek),
-    'get_readiness' => (s.askActivityGrab, s.askActivityReadiness),
-    'get_sleep_summary' => (s.askActivityGrab, s.askActivitySleep),
-    'resolve_food' => (s.askActivitySearch, s.askActivityFoodDetails),
-    'calculate_meal_nutrition' => (
-      s.askActivityCalculate,
-      s.askActivityMealNutrition,
-    ),
-    'search_food_product' => (s.askActivitySearch, s.askActivityFoodProduct),
-    'search_food_alternatives' || 'suggest_meal_replacement' => (
-      s.askActivitySearch,
-      s.askActivityFoodAlternatives,
-    ),
-    _ => null,
-  };
-  if (parts == null) return null;
-  return '${parts.$1} · ${parts.$2}';
-}

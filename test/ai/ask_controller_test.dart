@@ -19,6 +19,7 @@ import 'package:zivo/features/ai/domain/ai_model_selection.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
 import 'package:zivo/features/ai/domain/stt_outcome.dart';
+import 'package:zivo/features/ai/presentation/ai_thought.dart';
 import 'package:zivo/features/ai/presentation/controllers/ask_controller.dart';
 import 'package:zivo/features/diet/domain/diet_import_input.dart';
 import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
@@ -268,8 +269,11 @@ void main() {
     c.input.text = 'is that the Gemini model?';
     await c.send();
     expect(c.sendFailed, isTrue);
-    expect(c.sendFailure.provider, 'anthropic',
-        reason: 'the card can name the provider that failed');
+    expect(
+      c.sendFailure.provider,
+      'anthropic',
+      reason: 'the card can name the provider that failed',
+    );
     expect(c.sendFailure.issue, AiProviderIssue.outOfCredit);
 
     // The persisted user message landed → the page retires the bubble.
@@ -353,8 +357,8 @@ void main() {
       addTearDown(c.dispose);
       await c.load();
 
-    c.input.text = 'hello';
-    await c.send();
+      c.input.text = 'hello';
+      await c.send();
 
       expect(c.sendFailed, isTrue);
       expect(c.sending, isFalse);
@@ -506,13 +510,17 @@ void main() {
       await c.send();
 
       expect(labels, [
-        'Working…',
-        "Reading today's diet…",
+        'Thinking…',
+        'Reading your meal plan…',
         // Step closed → the phase speaks again, rather than a finished step
         // claiming work that has stopped.
-        'Working…',
-        'Looking that food up…',
+        'Thinking…',
+        'Searching the food catalog…',
       ]);
+      // Every line is a human state, never an identifier.
+      for (final label in labels) {
+        expect(label, isNot(contains('_')));
+      }
     },
   );
 
@@ -535,8 +543,9 @@ void main() {
       c.input.text = 'hi';
       await c.send();
 
-      expect(labels.last, 'Working…');
+      expect(labels.last, 'Thinking…');
       expect(labels.last, isNot(contains('get_body_composition')));
+      expect(c.railThought, AiThoughtKind.thinking);
     },
   );
 
@@ -607,7 +616,34 @@ void main() {
     expect(liveAfterFallback, isEmpty);
   });
 
-  test('between tool rounds the rail says Thinking…', () async {
+  test('a fallback drops only what the failed model wrote in THIS step — an '
+      'earlier step\'s lead-in stays on screen', () async {
+    late final AskController c;
+    String? targetAfterFallback;
+    final ai = _FakeAi(
+      events: const [
+        AiDeltaEvent('Let me check your plan.'),
+        AiStepEvent('get_diet', AiStepStatus.running),
+        AiStepEvent('get_diet', AiStepStatus.ok),
+        AiPhaseEvent(AiPhase.thinking),
+        AiDeltaEvent('\n\nHalf an ans'),
+        AiFallbackEvent('gemini-flash', 'claude-sonnet'),
+      ],
+      afterEachEvent: () {
+        if (c.activity.any((s) => s.isFallback)) {
+          targetAfterFallback ??= c.liveTargetText;
+        }
+      },
+    );
+    c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+    c.input.text = 'breakfast?';
+    await c.send();
+    expect(targetAfterFallback, 'Let me check your plan.');
+  });
+
+  test('between tool rounds the rail says Analyzing what I found…', () async {
     final labels = <String>[];
     late final AskController c;
     final ai = _FakeAi(
@@ -625,7 +661,8 @@ void main() {
     c.input.text = "what's my lunch?";
     await c.send();
 
-    expect(labels.last, 'Thinking…');
+    expect(labels.last, 'Analyzing what I found…');
+    expect(labels.first, 'Reading your meal plan…');
   });
 
   test('a new turn starts with an empty timeline', () async {
@@ -873,8 +910,7 @@ class _FakeAi implements AiRepository {
   Future<WorkoutImportOutcome> importWorkoutPlan(
     WorkoutImportInput input, {
     ImportCancellation? cancellation,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<DietImportOutcome> importDietPlan(

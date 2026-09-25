@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/train_tokens.dart';
 import '../../../../../core/widgets/pressable_scale.dart';
 import '../../../../../core/widgets/train_chrome.dart';
@@ -26,8 +27,12 @@ class UpNextCard extends StatelessWidget {
     /// Overridden by the rest screen, which calls this card something else.
     /// Null means "UP NEXT", resolved at build time because it's localized.
     this.label,
+    this.onChange,
     super.key,
   });
+
+  /// "Change" — pick something else to do next. Null hides it.
+  final VoidCallback? onChange;
 
   final SessionExercise? exercise;
   final LoggedSet? set;
@@ -74,6 +79,34 @@ class UpNextCard extends StatelessWidget {
     final workingIndex = workingSetIndexOf(exercise, set);
     final reps = repTargetText(context, set.target);
     final weight = set.targetWeightKg;
+    final card = _card(context, label, exercise, set, workingIndex, reps, weight);
+    final onChange = this.onChange;
+    if (onChange == null) return card;
+    // The whole card is the target, and it says so with a quiet "Change ›"
+    // under the numbers — discoverable, never louder than what's next.
+    return Semantics(
+      button: true,
+      child: PressableScale(
+        scale: 0.985,
+        child: GestureDetector(
+          key: const Key('up-next-change'),
+          behavior: HitTestBehavior.opaque,
+          onTap: onChange,
+          child: card,
+        ),
+      ),
+    );
+  }
+
+  Widget _card(
+    BuildContext context,
+    String label,
+    SessionExercise exercise,
+    LoggedSet set,
+    int workingIndex,
+    String reps,
+    double? weight,
+  ) {
     return TrainCard(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       gradient: TrainColors.cardGradient,
@@ -88,9 +121,7 @@ class UpNextCard extends StatelessWidget {
                 TrainCaption(label),
                 const SizedBox(height: 9),
                 Text(
-                  exercise.muscleGroup == null
-                      ? exercise.name
-                      : '${exercise.name} · ${exercise.muscleGroup}',
+                  exercise.name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TrainType.ui(
@@ -100,6 +131,32 @@ class UpNextCard extends StatelessWidget {
                     color: TrainColors.inkPlain,
                   ),
                 ),
+                if (onChange != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        l(context).liveChangeNext,
+                        style: TrainType.ui(
+                          size: 12.5,
+                          weight: FontWeight.w700,
+                          color: TrainColors.ink3,
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Icon(AppIcons.chevron, size: 12, color: TrainColors.ink3),
+                    ],
+                  ),
+                ] else if (exercise.muscleGroup != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    exercise.muscleGroup!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TrainType.ui(size: 12.5, color: TrainColors.ink3),
+                  ),
+                ],
               ],
             ),
           ),

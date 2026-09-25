@@ -273,6 +273,18 @@ abstract final class TrainColors {
   /// Fat — the palest step on the ramp.
   static Color get macroFat => _p.macroFat;
 
+  // ---- Ask's thought states ----
+  // One muted mineral family, a tone per kind of work the coach does while it
+  // answers (see `ZivoPalette`). Ask's thought trail only.
+
+  static Color get thoughtRead => _p.thoughtRead;
+  static Color get thoughtAnalyze => _p.thoughtAnalyze;
+  static Color get thoughtCalculate => _p.thoughtCalculate;
+  static Color get thoughtSearch => _p.thoughtSearch;
+  static Color get thoughtSuggest => _p.thoughtSuggest;
+  static Color get thoughtPrepare => _p.thoughtPrepare;
+  static Color get thoughtThink => _p.thoughtThink;
+
   /// The colored bloom under a primary pill — the only shadow the handoff
   /// allows. [alpha] defaults to the active skin's strength, because a glow
   /// that reads as light on near-black reads as a smudge on paper.

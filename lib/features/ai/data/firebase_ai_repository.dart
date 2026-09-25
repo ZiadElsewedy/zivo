@@ -535,14 +535,16 @@ class FirebaseAiRepository implements AiRepository {
       return parse((await callable.call(payload)).data);
     }
     final completer = Completer<T>();
-    callable.call(payload).then(
-      (r) {
-        if (!completer.isCompleted) completer.complete(parse(r.data));
-      },
-      onError: (Object e, StackTrace s) {
-        if (!completer.isCompleted) completer.completeError(e, s);
-      },
-    );
+    callable
+        .call(payload)
+        .then(
+          (r) {
+            if (!completer.isCompleted) completer.complete(parse(r.data));
+          },
+          onError: (Object e, StackTrace s) {
+            if (!completer.isCompleted) completer.completeError(e, s);
+          },
+        );
     final cancelSub = cancellation.whenCancelled.asStream().listen((_) {
       // Abort the backend run by id. Best-effort — the client stops regardless.
       unawaited(
@@ -624,15 +626,15 @@ class FirebaseAiRepository implements AiRepository {
             options: HttpsCallableOptions(timeout: kAiPlanCallTimeout),
           )
           .call({
-        'preferences': preferences.toPayload(),
-        ...clientClockFields(),
-        if (targets != null)
-          'targets': {
-            'calories': targets.calories,
-            'proteinG': targets.proteinG,
-            'goal': targets.goal.name,
-          },
-      });
+            'preferences': preferences.toPayload(),
+            ...clientClockFields(),
+            if (targets != null)
+              'targets': {
+                'calories': targets.calories,
+                'proteinG': targets.proteinG,
+                'goal': targets.goal.name,
+              },
+          });
       return _dietImportOutcomeFromJson(result.data);
     };
   }
@@ -882,7 +884,8 @@ class FirebaseAiRepository implements AiRepository {
     final acc = <String, _UsageAcc>{};
     for (final doc in snapshot.docs) {
       final data = doc.data();
-      final provider = (data['provider'] as String?) ??
+      final provider =
+          (data['provider'] as String?) ??
           _providerFromModel(data['model'] as String?);
       final a = acc.putIfAbsent(provider, _UsageAcc.new);
       a.tokensIn += _asInt(data['tokensIn']);
@@ -890,18 +893,19 @@ class FirebaseAiRepository implements AiRepository {
       a.costUsd += _asDouble(data['costUsd']);
       a.turns += 1;
     }
-    final list = acc.entries
-        .map(
-          (e) => AiProviderUsage(
-            provider: e.key,
-            tokensIn: e.value.tokensIn,
-            tokensOut: e.value.tokensOut,
-            turns: e.value.turns,
-            costUsd: e.value.costUsd,
-          ),
-        )
-        .toList()
-      ..sort((a, b) => b.tokensTotal.compareTo(a.tokensTotal));
+    final list =
+        acc.entries
+            .map(
+              (e) => AiProviderUsage(
+                provider: e.key,
+                tokensIn: e.value.tokensIn,
+                tokensOut: e.value.tokensOut,
+                turns: e.value.turns,
+                costUsd: e.value.costUsd,
+              ),
+            )
+            .toList()
+          ..sort((a, b) => b.tokensTotal.compareTo(a.tokensTotal));
     return list;
   }
 
@@ -926,10 +930,9 @@ class FirebaseAiRepository implements AiRepository {
     if (uid == null || clientTurnId.isEmpty) return null;
     // One equality filter on a single field — served by Firestore's automatic
     // single-field index, no composite index needed.
-    final snap = await _aiUsageCollection(uid)
-        .where('clientTurnId', isEqualTo: clientTurnId)
-        .limit(1)
-        .get();
+    final snap = await _aiUsageCollection(
+      uid,
+    ).where('clientTurnId', isEqualTo: clientTurnId).limit(1).get();
     if (snap.docs.isEmpty) return null;
     final d = snap.docs.first.data();
 
@@ -951,7 +954,8 @@ class FirebaseAiRepository implements AiRepository {
     }
 
     return AiTurnUsage(
-      provider: (d['provider'] as String?) ??
+      provider:
+          (d['provider'] as String?) ??
           _providerFromModel(d['model'] as String?),
       model: (d['model'] as String?) ?? '',
       tokensIn: tokensIn,
@@ -1056,6 +1060,11 @@ class FirebaseAiRepository implements AiRepository {
       inputRequest: _inputRequestFrom(data),
       clientTurnId: data['clientTurnId'] as String?,
       activity: _activityFrom(data['activity']),
+      preface: switch (data['preface']) {
+        final String p when p.trim().isNotEmpty => p,
+        _ => null,
+      },
+      resultOf: data['resultOf'] as String?,
     );
   }
 
@@ -1070,7 +1079,10 @@ class FirebaseAiRepository implements AiRepository {
             entry['kind'] == 'fallback' &&
             entry['from'] is String &&
             entry['to'] is String)
-          AiActivityStep.fallback(entry['from'] as String, entry['to'] as String)
+          AiActivityStep.fallback(
+            entry['from'] as String,
+            entry['to'] as String,
+          )
         else if (entry is Map && entry['tool'] is String)
           AiActivityStep(
             entry['tool'] as String,
@@ -1139,8 +1151,8 @@ class FirebaseAiRepository implements AiRepository {
           metadata: {
             if (rawMeta is Map)
               for (final e in rawMeta.entries)
-                if (e.key is String && e.value is num)
-                  e.key as String: e.value as num,
+                if (e.key is String && (e.value is num || e.value is String))
+                  e.key as String: e.value as Object,
           },
         ),
       );

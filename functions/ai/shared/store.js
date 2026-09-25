@@ -10,6 +10,7 @@
 
 const {Timestamp, FieldValue} = require("firebase-admin/firestore");
 const {dailyCapUsageFor} = require("../chat/usage");
+const {applyRotationChange} = require("../tools/workout_rotation");
 
 /**
  * `Timestamp` field `value` converted to a `Date`, or null.
@@ -158,6 +159,27 @@ class FirestoreStore {
   }
 
   /**
+   * The user's exercise-identity aliases (ADR-017) —
+   * `users/{uid}/exerciseAliases/{legacyId}` → `canonicalId`. Read-side only:
+   * the coach folds history through them (`../analytics/exercise_identity.js`)
+   * the same way the app does, and never writes one. A doc without a usable
+   * target is skipped, matching `FirestoreExerciseLibraryRepository`.
+   * @param {string} uid
+   * @return {!Promise<!Array<{legacyId: string, canonicalId: string}>>}
+   */
+  async listExerciseAliases(uid) {
+    const snap = await this._user(uid).collection("exerciseAliases").get();
+    const out = [];
+    for (const doc of snap.docs) {
+      const canonicalId = doc.data().canonicalId;
+      if (typeof canonicalId === "string" && canonicalId.length > 0) {
+        out.push({legacyId: doc.id, canonicalId});
+      }
+    }
+    return out;
+  }
+
+  /**
    * The active `workoutPlans` doc for `uid`, resolved EXACTLY the way the app's
    * `FirestoreWorkoutPlanRepository._resolveActive` does — so the coach's
    * plan-adherence read and the Analysis screen agree on which split is active:
@@ -182,6 +204,8 @@ class FirestoreStore {
         id: doc.id,
         name: d.name || "",
         status: d.status || "active",
+        // The `order` of the day that's up next — the rotation's "today".
+        cycleCursor: typeof d.cycleCursor === "number" ? d.cycleCursor : 0,
         days: (d.days || []).map((day) => ({
           id: day.id || "",
           slot: day.slot || "",
@@ -189,6 +213,9 @@ class FirestoreStore {
           order: typeof day.order === "number" ? day.order : 0,
           exercises: (day.exercises || []).map((e) => ({
             id: e.id || "",
+            // The canonical exercise this slot performs (ADR-017); null while
+            // the slot is still its own exercise.
+            exerciseId: e.exerciseId || null,
             name: e.name || "",
             muscleGroup: e.muscleGroup || null,
             order: typeof e.order === "number" ? e.order : 0,
@@ -217,6 +244,33 @@ class FirestoreStore {
     }
     const active = plans.find((p) => p.status === "active");
     return active || plans[0];
+  }
+
+  /**
+   * Applies a confirmed rotation change (`change_workout_day`: a swap, or a
+   * skip onto another day) to the split `planId`, in a transaction over the
+   * RAW doc — so every exercise and set on every day is written back exactly
+   * as it was, and a plan edited since the proposal is refused rather than
+   * overwritten (`../tools/workout_rotation.js` `applyRotationChange`).
+   * @param {string} uid
+   * @param {string} planId
+   * @param {{mode: string, dueDayId: string, targetDayId: string}} change
+   * @return {!Promise<void>}
+   */
+  async updateWorkoutRotation(uid, planId, change) {
+    const ref = this._user(uid).collection("workoutPlans").doc(planId);
+    await this.db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error("That split doesn't exist any more.");
+      const d = snap.data();
+      const next = applyRotationChange(
+          {days: d.days || [], cycleCursor: d.cycleCursor}, change);
+      tx.update(ref, {
+        days: next.days,
+        cycleCursor: next.cycleCursor,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   /**
@@ -574,6 +628,20 @@ class FirestoreStore {
     // resolved (button tap or otherwise) — not just an optimistic client flag.
     // A user message that answers a question card carries the structured
     // pick `{requestId, value}` — the answer itself, not its label.
+    // What the coach said before a card (`../chat/actions.js` turnFields) —
+    // the lead-in the app shows above the proposal / beside the options.
+    if (typeof message.preface === "string" && message.preface) {
+      data.preface = message.preface.slice(0, 4000);
+    }
+    // The turn's context ledger (`../chat/context_ledger.js`): the lookups
+    // it already ran, so the NEXT turn can reuse them. Server-written only
+    // (the messages rule is read-only to the client), read back by
+    // getRecentMessages.
+    if (message.context && Array.isArray(message.context.entries)) {
+      data.context = message.context;
+    }
+    // A confirm/cancel echo names the proposal it resolves (`actions.js`).
+    if (message.resultOf) data.resultOf = String(message.resultOf);
     if (message.choice && message.choice.requestId) {
       data.choice = {
         requestId: String(message.choice.requestId),
@@ -674,6 +742,8 @@ class FirestoreStore {
             if (d.selectedValue) m.selectedValue = d.selectedValue;
           }
           if (d.choice) m.choice = d.choice;
+          if (d.preface) m.preface = d.preface;
+          if (d.context) m.context = d.context;
           return m;
         })
         .reverse();

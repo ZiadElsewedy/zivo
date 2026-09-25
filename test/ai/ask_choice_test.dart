@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'dart:ui' show Tristate;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/firebase/uid_source.dart';
 import 'package:zivo/core/scope/app_scope.dart';
@@ -11,7 +10,7 @@ import 'package:zivo/features/ai/domain/ai_choice_request.dart';
 import 'package:zivo/features/ai/domain/ai_failure.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
 import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
-import 'package:zivo/features/ai/presentation/widgets/ask/choice_card.dart';
+import 'package:zivo/features/ai/presentation/widgets/ask/choice_tray.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
@@ -146,71 +145,69 @@ void main() {
     });
   });
 
-  group('ChoiceCard', () {
+  group('ChoiceTray', () {
     const request = AiChoiceRequest(
       requestId: 'req-1',
-      prompt: 'I found 3 verified swaps. Which one would you like?',
-      options: _eggSwaps,
+      prompt: 'Which one would you prefer?',
+      options: [
+        ..._eggSwaps,
+        AiChoiceOption(value: kMoreOptionsValue, label: 'Other options'),
+      ],
     );
 
     Widget host(Widget child) => MaterialApp(
-      home: Scaffold(body: SingleChildScrollView(child: child)),
+      home: Scaffold(
+        body: Align(alignment: Alignment.bottomCenter, child: child),
+      ),
     );
 
-    testWidgets('renders real tappable rows with the verified figures — not '
+    testWidgets('renders real tappable chips with the verified figures — not '
         'Markdown or numbered text', (tester) async {
       final taps = <(String, String)>[];
       await tester.pumpWidget(
         host(
-          ChoiceCard(
+          ChoiceTray(
             request: request,
-            pickedValue: null,
             onSelect: (v, label) => taps.add((v, label)),
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
-      for (final o in _eggSwaps) {
+      for (final o in request.options) {
         expect(find.byKey(ValueKey('choice-option-${o.value}')), findsOne);
       }
-      expect(
-        find.descendant(
-          of: find.byType(ChoiceCard),
-          matching: find.byType(InkWell),
-        ),
-        findsNWidgets(3),
-      );
       expect(find.text('90 g · 239 kcal · 12.8 g protein'), findsOneWidget);
       expect(find.text('130 g · 243 kcal · 20.8 g protein'), findsOneWidget);
       expect(find.textContaining('- Feta'), findsNothing);
       expect(find.textContaining('1.'), findsNothing);
+      // The question stays in the conversation; the tray is only answers.
+      expect(find.text('Which one would you prefer?'), findsNothing);
 
       await tester.tap(find.byKey(const ValueKey('choice-option-usda:175160')));
-      expect(taps, [('usda:175160', 'Tuna salad')]);
+      await tester.tap(
+        find.byKey(const ValueKey('choice-option-$kMoreOptionsValue')),
+      );
+      expect(taps, [
+        ('usda:175160', 'Tuna salad'),
+        (kMoreOptionsValue, 'Other options'),
+      ]);
     });
 
-    testWidgets('an answered card marks its pick and takes no more taps', (
-      tester,
-    ) async {
-      var taps = 0;
-      await tester.pumpWidget(
-        host(
-          ChoiceCard(
-            request: request,
-            pickedValue: 'usda:171501',
-            onSelect: (_, _) => taps++,
-          ),
+    test('the question reads as ZIVO speaking: lead-in, then the question', () {
+      expect(choiceMessageText(request, null), 'Which one would you prefer?');
+      expect(
+        choiceMessageText(request, 'Your breakfast has 3 eggs.'),
+        'Your breakfast has 3 eggs.\n\nWhich one would you prefer?',
+      );
+      expect(
+        choiceMessageText(
+          request,
+          'I found two swaps. Which one would you prefer?',
         ),
+        'I found two swaps. Which one would you prefer?',
+        reason: 'a lead-in that already asks is not asked twice',
       );
-      await tester.tap(find.byKey(const ValueKey('choice-option-usda:173420')));
-      await tester.tap(find.byKey(const ValueKey('choice-option-usda:171501')));
-      expect(taps, 0);
-
-      final picked = tester.getSemantics(
-        find.byKey(const ValueKey('choice-option-usda:171501')),
-      );
-      expect(picked.flagsCollection.isSelected, Tristate.isTrue);
-      expect(picked.label, contains('Turkey breast'));
     });
   });
 
@@ -234,7 +231,12 @@ void main() {
       await tester.pumpWidget(_host(ai));
       await tester.pumpAndSettle();
 
-      expect(find.byType(ChoiceCard), findsOneWidget);
+      // The question is ZIVO's words in the thread; the answers are chips.
+      expect(
+        find.text('I found 3 verified swaps. Which one would you like?'),
+        findsOneWidget,
+      );
+      expect(find.byType(ChoiceTray), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('choice-option-usda:175160')));
       await tester.pumpAndSettle();
 
@@ -248,11 +250,8 @@ void main() {
           .choiceRequest!;
       expect(card.selectedValue, 'usda:175160');
 
-      // A second tap on the settled card sends nothing.
-      final sentBefore = thread.length;
-      await tester.tap(find.byKey(const ValueKey('choice-option-usda:173420')));
-      await tester.pumpAndSettle();
-      expect((await ai.watchMessages(cid).first).length, sentBefore);
+      // Answered: the chips are gone, so nothing can be sent twice.
+      expect(find.byType(ChoiceTray), findsNothing);
     });
 
     testWidgets('different questions in one thread answer through the same '
@@ -280,11 +279,17 @@ void main() {
       );
       await tester.pumpWidget(_host(ai));
       await tester.pumpAndSettle();
-      expect(find.byType(ChoiceCard), findsNWidgets(2));
-
-      await _tapOption(tester, 'plan-cut');
-      expect(ai.lastChoice!.requestId, plan);
-      expect(ai.lastChoice!.value, 'plan-cut');
+      // Both questions read in the thread; only the one the conversation
+      // ends on is answered from the chips (an earlier one is answered by
+      // typing — the model sees its numbered options in history).
+      expect(find.text('Which plan do you want?'), findsOneWidget);
+      expect(find.text('Which version?'), findsOneWidget);
+      expect(find.byType(ChoiceTray), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('choice-option-plan-cut')),
+        findsNothing,
+      );
+      expect(plan, isNot(style));
 
       await _tapOption(tester, 'higher-protein');
       expect(ai.lastChoice!.requestId, style);
@@ -320,18 +325,14 @@ void main() {
       await ai.send(conversationId: cid, text: "I don't want egg");
       await tester.pumpWidget(_host(ai));
       await tester.pumpAndSettle();
-      expect(find.byType(ChoiceCard), findsNothing);
+      expect(find.byType(ChoiceTray), findsNothing);
     });
   });
 }
 
-/// Taps an option row after centring it — the thread's glass header floats
-/// over the top of the list, so a row scrolled flush to the top is covered.
+/// Taps an answer chip — they sit above the composer, always in reach.
 Future<void> _tapOption(WidgetTester tester, String value) async {
-  final row = find.byKey(ValueKey('choice-option-$value'));
-  await Scrollable.ensureVisible(tester.element(row), alignment: 0.5);
-  await tester.pumpAndSettle();
-  await tester.tap(row);
+  await tester.tap(find.byKey(ValueKey('choice-option-$value')));
   await tester.pumpAndSettle();
 }
 

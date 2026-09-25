@@ -463,18 +463,27 @@ function describeChange(c, current) {
  * Joins the active plan against completed history to flag what's being skipped.
  * Mirrors the Dart `analyzePlanAdherence`. Returns an empty result when there's
  * no plan, no planned movement, or no completed history to judge against.
- * @param {{plan: ?Object, sessions: !Array<Object>, now: !Date}} args
+ * @param {{plan: ?Object, sessions: !Array<Object>, now: !Date,
+ *          resolver: (Object|undefined)}} args
  * @return {!Object}
  */
-function analyzePlanAdherence({plan, sessions, now}) {
+function analyzePlanAdherence({plan, sessions, now, resolver}) {
   if (!plan || !(plan.days || []).length) {
     return {neglected: [], plannedExerciseCount: 0};
   }
 
+  // The join key is the canonical exercise (ADR-017), exactly as in Dart: a
+  // slot's `exerciseId` when it has one, else its own id, read through the
+  // same alias resolver the sessions were — so one exercise in two slots is
+  // one movement here, trained whenever either slot was.
+  const keyOf = (ex) => {
+    const id = ex.exerciseId || ex.id;
+    return resolver ? resolver.canonicalIdOf(id) : id;
+  };
   const completed = (sessions || []).filter((s) => s.status === "completed");
   const plannedIds = new Set();
   for (const day of plan.days) {
-    for (const ex of day.exercises || []) plannedIds.add(ex.id);
+    for (const ex of day.exercises || []) plannedIds.add(keyOf(ex));
   }
   if (completed.length === 0) {
     return {neglected: [], plannedExerciseCount: plannedIds.size};
@@ -501,12 +510,13 @@ function analyzePlanAdherence({plan, sessions, now}) {
   const out = [];
   for (const day of plan.days) {
     for (const ex of day.exercises || []) {
-      if (planned.has(ex.id)) continue;
-      planned.add(ex.id);
-      const count = appearances.get(ex.id) || 0;
+      const key = keyOf(ex);
+      if (planned.has(key)) continue;
+      planned.add(key);
+      const count = appearances.get(key) || 0;
       if (count === 0) {
         out.push({
-          exerciseId: ex.id,
+          exerciseId: key,
           name: ex.name || ex.id,
           muscleGroup: ex.muscleGroup || null,
           dayLabel: day.label || "",
@@ -516,10 +526,10 @@ function analyzePlanAdherence({plan, sessions, now}) {
         });
         continue;
       }
-      const days = daysBetween(lastTrained.get(ex.id), now);
+      const days = daysBetween(lastTrained.get(key), now);
       if (days >= STALE_PLANNED_EXERCISE_DAYS) {
         out.push({
-          exerciseId: ex.id,
+          exerciseId: key,
           name: ex.name || ex.id,
           muscleGroup: ex.muscleGroup || null,
           dayLabel: day.label || "",

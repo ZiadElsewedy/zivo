@@ -47,11 +47,11 @@ class CompletedPhase extends StatelessWidget {
     final reviewedExercises = session.exercises
         .where((e) => e.sets.any((s) => !s.pending))
         .toList();
-    // PRs THIS session set, versus the split's prior history (excludes the
-    // current session, per the controller). Derived, never stored — and the
+    // PRs THIS session set, versus each exercise's prior history across
+    // every split (excludes the current session, per the controller). Derived, never stored — and the
     // engine only counts a strict beat, so it can't celebrate a non-PR.
     final newPrs = detectNewPrs(
-      session: session,
+      session: controller.resolvedSession,
       priorSessions: controller.pastSessions,
     );
     final unit = controller.weightUnit;

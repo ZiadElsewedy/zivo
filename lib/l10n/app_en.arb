@@ -1118,6 +1118,20 @@
       }
     }
   },
+  "liveSetLoggedMoment": "SET {number} LOGGED",
+  "@liveSetLoggedMoment": {
+    "description": "Caption under the checkmark that confirms a set was just logged.",
+    "placeholders": {
+      "number": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "liveExerciseDoneMoment": "EXERCISE DONE",
+  "@liveExerciseDoneMoment": {
+    "description": "Caption under the checkmark when the set just logged finished its exercise."
+  },
   "liveSetsLogged": "{count} SETS LOGGED",
   "@liveSetsLogged": {
     "description": "How many sets are done so far. Count is zero-padded by the caller.",
@@ -3100,14 +3114,6 @@
   "@askThinking": {
       "description": "The assistant is composing a reply. Keep the ellipsis."
   },
-  "askUnderstanding": "Understanding…",
-  "@askUnderstanding": {
-      "description": "The assistant is interpreting the question. Keep the ellipsis."
-  },
-  "askWorking": "Working…",
-  "@askWorking": {
-      "description": "Generic progress line while the assistant runs a step. Keep the ellipsis."
-  },
   "askPreparingChange": "Preparing your change…",
   "@askPreparingChange": {
       "description": "The assistant is drafting a change for the user to confirm. Keep the ellipsis."
@@ -3116,117 +3122,153 @@
   "@askStillWorking": {
       "description": "Shown when a turn is taking unusually long. Keep the ellipsis."
   },
-  "askReadingDay": "Reading your day…",
-  "@askReadingDay": {
-      "description": "Progress line: the assistant is reading today's summary. Keep the ellipsis."
+  "askThoughtAnalyzingResults": "Analyzing what I found…",
+  "@askThoughtAnalyzingResults": {
+      "description": "Progress line: ZIVO is reading back the results of its lookups. Keep the ellipsis."
   },
-  "askReadingDiet": "Reading today's diet…",
-  "@askReadingDiet": {
-      "description": "Progress line: the assistant is reading the diet log. Keep the ellipsis."
+  "askThoughtDay": "Reading your day…",
+  "@askThoughtDay": {
+      "description": "Live thought line in Ask while ZIVO works on today's summary. Present tense, keep the ellipsis."
   },
-  "askReadingTraining": "Reading your training…",
-  "@askReadingTraining": {
-      "description": "Progress line: the assistant is reading workout history. Keep the ellipsis."
+  "askThoughtDayDone": "Read your day",
+  "@askThoughtDayDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (today's summary). Past tense, no ellipsis."
   },
-  "askReadingSpending": "Reading your spending…",
-  "@askReadingSpending": {
-      "description": "Progress line: the assistant is reading the expense log. Keep the ellipsis."
+  "askThoughtDiet": "Reading your meal plan…",
+  "@askThoughtDiet": {
+      "description": "Live thought line in Ask while ZIVO works on the diet / meal plan. Present tense, keep the ellipsis."
   },
-  "askSummarisingWeek": "Summarising your week…",
-  "@askSummarisingWeek": {
-      "description": "Progress line: the assistant is building a weekly summary. Keep the ellipsis."
+  "askThoughtDietDone": "Read your meal plan",
+  "@askThoughtDietDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (the diet / meal plan). Past tense, no ellipsis."
   },
-  "askLookingUpFood": "Looking that food up…",
-  "@askLookingUpFood": {
-      "description": "Progress line: the assistant is resolving a food item. Keep the ellipsis."
+  "askThoughtWorkouts": "Reading your workouts…",
+  "@askThoughtWorkouts": {
+      "description": "Live thought line in Ask while ZIVO works on logged workouts. Present tense, keep the ellipsis."
   },
-  "askCalculating": "Working out the numbers…",
-  "@askCalculating": {
-      "description": "Progress line: the assistant is computing nutrition figures. Keep the ellipsis."
+  "askThoughtWorkoutsDone": "Read your workouts",
+  "@askThoughtWorkoutsDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (logged workouts). Past tense, no ellipsis."
   },
-  "askSearchingForProduct": "Searching for that product…",
-  "@askSearchingForProduct": {
-      "description": "Progress line: the assistant is searching the web for a branded/packaged food not in ZIVO's catalog. Keep the ellipsis."
+  "askThoughtLastWorkout": "Reading your last workout…",
+  "@askThoughtLastWorkout": {
+      "description": "Live thought line in Ask while ZIVO works on the most recent workout. Present tense, keep the ellipsis."
   },
-  "askFindingAlternatives": "Finding alternatives…",
-  "@askFindingAlternatives": {
-      "description": "Progress line: the assistant is ranking meal-replacement alternatives for a plan item. Keep the ellipsis."
+  "askThoughtLastWorkoutDone": "Read your last workout",
+  "@askThoughtLastWorkoutDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (the most recent workout). Past tense, no ellipsis."
   },
-  "askReadingReadiness": "Checking your readiness…",
-  "@askReadingReadiness": {
-      "description": "Progress line: the assistant is reading the daily readiness call. Keep the ellipsis."
+  "askThoughtTraining": "Analyzing your training…",
+  "@askThoughtTraining": {
+      "description": "Live thought line in Ask while ZIVO works on the training analysis. Present tense, keep the ellipsis."
   },
-  "askReadingSleep": "Reading your sleep…",
-  "@askReadingSleep": {
-      "description": "Progress line: the assistant is reading sleep data. Keep the ellipsis."
+  "askThoughtTrainingDone": "Analyzed your training",
+  "@askThoughtTrainingDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (the training analysis). Past tense, no ellipsis."
   },
-  "askActivityGrab": "Grab",
-  "@askActivityGrab": {
-      "description": "Verb on an activity-timeline chip in Ask for a step that READS the user's data, shown as 'Grab · Diet details'. One short word."
+  "askThoughtExercise": "Analyzing this lift…",
+  "@askThoughtExercise": {
+      "description": "Live thought line in Ask while ZIVO works on one exercise's history. Present tense, keep the ellipsis."
   },
-  "askActivitySearch": "Search",
-  "@askActivitySearch": {
-      "description": "Verb on an activity-timeline chip in Ask for a step that looks something up, shown as 'Search · Food alternatives'. One short word."
+  "askThoughtExerciseDone": "Analyzed this lift",
+  "@askThoughtExerciseDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (one exercise's history). Past tense, no ellipsis."
   },
-  "askActivityCalculate": "Calculate",
-  "@askActivityCalculate": {
-      "description": "Verb on an activity-timeline chip in Ask for a step that computes figures, shown as 'Calculate · Meal nutrition'. One short word."
+  "askThoughtSpending": "Reading your spending…",
+  "@askThoughtSpending": {
+      "description": "Live thought line in Ask while ZIVO works on expenses. Present tense, keep the ellipsis."
   },
-  "askActivityToday": "Today's details",
-  "@askActivityToday": {
-      "description": "Object on an Ask activity chip: today's summary was read."
+  "askThoughtSpendingDone": "Read your spending",
+  "@askThoughtSpendingDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (expenses). Past tense, no ellipsis."
   },
-  "askActivityDiet": "Diet details",
-  "@askActivityDiet": {
-      "description": "Object on an Ask activity chip: the diet was read."
+  "askThoughtWeek": "Analyzing your week…",
+  "@askThoughtWeek": {
+      "description": "Live thought line in Ask while ZIVO works on the weekly summary. Present tense, keep the ellipsis."
   },
-  "askActivityWorkouts": "Workout details",
-  "@askActivityWorkouts": {
-      "description": "Object on an Ask activity chip: workout history was read."
+  "askThoughtWeekDone": "Analyzed your week",
+  "@askThoughtWeekDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (the weekly summary). Past tense, no ellipsis."
   },
-  "askActivityLastWorkout": "Last workout",
-  "@askActivityLastWorkout": {
-      "description": "Object on an Ask activity chip: the most recent workout was read."
+  "askThoughtReadiness": "Analyzing your readiness…",
+  "@askThoughtReadiness": {
+      "description": "Live thought line in Ask while ZIVO works on the daily readiness call. Present tense, keep the ellipsis."
   },
-  "askActivityTrainingAnalysis": "Training analysis",
-  "@askActivityTrainingAnalysis": {
-      "description": "Object on an Ask activity chip: the training analysis was read."
+  "askThoughtReadinessDone": "Analyzed your readiness",
+  "@askThoughtReadinessDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (the daily readiness call). Past tense, no ellipsis."
   },
-  "askActivityExerciseHistory": "Exercise history",
-  "@askActivityExerciseHistory": {
-      "description": "Object on an Ask activity chip: one exercise's history was read."
+  "askThoughtSleep": "Reading your sleep…",
+  "@askThoughtSleep": {
+      "description": "Live thought line in Ask while ZIVO works on sleep data. Present tense, keep the ellipsis."
   },
-  "askActivitySpending": "Spending",
-  "@askActivitySpending": {
-      "description": "Object on an Ask activity chip: expenses were read."
+  "askThoughtSleepDone": "Read your sleep",
+  "@askThoughtSleepDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (sleep data). Past tense, no ellipsis."
   },
-  "askActivityWeek": "Weekly summary",
-  "@askActivityWeek": {
-      "description": "Object on an Ask activity chip: the weekly summary was built."
+  "askThoughtFoodDetails": "Searching the food catalog…",
+  "@askThoughtFoodDetails": {
+      "description": "Live thought line in Ask while ZIVO works on a food lookup in the catalog. Present tense, keep the ellipsis."
   },
-  "askActivityReadiness": "Readiness",
-  "@askActivityReadiness": {
-      "description": "Object on an Ask activity chip: the daily readiness call was read."
+  "askThoughtFoodDetailsDone": "Searched the food catalog",
+  "@askThoughtFoodDetailsDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (a food lookup in the catalog). Past tense, no ellipsis."
   },
-  "askActivitySleep": "Sleep summary",
-  "@askActivitySleep": {
-      "description": "Object on an Ask activity chip: sleep data was read."
+  "askThoughtNutrition": "Calculating the nutrition…",
+  "@askThoughtNutrition": {
+      "description": "Live thought line in Ask while ZIVO works on the meal nutrition calculation. Present tense, keep the ellipsis."
   },
-  "askActivityFoodDetails": "Food details",
-  "@askActivityFoodDetails": {
-      "description": "Object on an Ask activity chip: a food was looked up in the catalog."
+  "askThoughtNutritionDone": "Calculated the nutrition",
+  "@askThoughtNutritionDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (the meal nutrition calculation). Past tense, no ellipsis."
   },
-  "askActivityMealNutrition": "Meal nutrition",
-  "@askActivityMealNutrition": {
-      "description": "Object on an Ask activity chip: a meal's calories/macros were computed."
+  "askThoughtProduct": "Searching for that product…",
+  "@askThoughtProduct": {
+      "description": "Live thought line in Ask while ZIVO works on a branded product search. Present tense, keep the ellipsis."
   },
-  "askActivityFoodProduct": "Food product",
-  "@askActivityFoodProduct": {
-      "description": "Object on an Ask activity chip: a branded food product was searched for."
+  "askThoughtProductDone": "Searched for that product",
+  "@askThoughtProductDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (a branded product search). Past tense, no ellipsis."
   },
-  "askActivityFoodAlternatives": "Food alternatives",
-  "@askActivityFoodAlternatives": {
-      "description": "Object on an Ask activity chip: replacements for a meal item were found."
+  "askThoughtAlternatives": "Suggesting alternatives…",
+  "@askThoughtAlternatives": {
+      "description": "Live thought line in Ask while ZIVO works on finding food alternatives. Present tense, keep the ellipsis."
+  },
+  "askThoughtAlternativesDone": "Suggested alternatives",
+  "@askThoughtAlternativesDone": {
+      "description": "The same step once finished, in the expanded list of what ZIVO did (finding food alternatives). Past tense, no ellipsis."
+  },
+  "askThoughtVerbRead": "Read",
+  "@askThoughtVerbRead": {
+      "description": "One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. \"Read · Analyzed\"). A single word."
+  },
+  "askThoughtVerbAnalyzed": "Analyzed",
+  "@askThoughtVerbAnalyzed": {
+      "description": "One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. \"Read · Analyzed\"). A single word."
+  },
+  "askThoughtVerbCalculated": "Calculated",
+  "@askThoughtVerbCalculated": {
+      "description": "One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. \"Read · Analyzed\"). A single word."
+  },
+  "askThoughtVerbSearched": "Searched",
+  "@askThoughtVerbSearched": {
+      "description": "One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. \"Read · Analyzed\"). A single word."
+  },
+  "askThoughtVerbSuggested": "Suggested",
+  "@askThoughtVerbSuggested": {
+      "description": "One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. \"Read · Analyzed\"). A single word."
+  },
+  "askThoughtShowSteps": "Show steps",
+  "@askThoughtShowSteps": {
+      "description": "Screen-reader hint on the collapsed summary of what ZIVO did — tapping expands the list."
+  },
+  "askThoughtHideSteps": "Hide steps",
+  "@askThoughtHideSteps": {
+      "description": "Screen-reader hint on the expanded list of what ZIVO did — tapping collapses it."
+  },
+  "askChoiceTray": "Choose an answer",
+  "@askChoiceTray": {
+      "description": "Screen-reader label for the answer chips shown above the Ask composer when ZIVO asks a question."
   },
   "askActivityFailed": "Couldn't get this",
   "@askActivityFailed": {
@@ -8298,5 +8340,186 @@
   "aiUsageTokensSection": "Tokens",
   "@aiUsageTokensSection": {"description": "Usage page section header."},
   "aiUsageProviderEmpty": "No {provider} requests yet.",
-  "@aiUsageProviderEmpty": {"description": "Usage page empty state for one provider.", "placeholders": {"provider": {"type": "String"}}}
+  "@aiUsageProviderEmpty": {"description": "Usage page empty state for one provider.", "placeholders": {"provider": {"type": "String"}}},
+  "askActionReplaceFood": "Meal swap",
+  "@askActionReplaceFood": {
+      "description": "Kind label on a confirmation card that swaps one food in the diet plan for another."
+  },
+  "askActionWorkoutSwap": "Workout swap",
+  "@askActionWorkoutSwap": {
+      "description": "Kind label on a confirmation card that swaps today's workout with another day in the rotation."
+  },
+  "askActionWorkoutSkip": "Skip workout",
+  "@askActionWorkoutSkip": {
+      "description": "Kind label on a confirmation card that skips today's scheduled workout."
+  },
+  "askWorkoutToday": "{day} today",
+  "@askWorkoutToday": {
+      "description": "Headline of a workout-change card: the workout the user will do today. {day} is a workout day name like \"Pull\".",
+      "placeholders": {
+          "day": {
+              "type": "String"
+          }
+      }
+  },
+  "askRowCategory": "Category",
+  "@askRowCategory": {
+      "description": "Row label on a confirmation card."
+  },
+  "askRowNote": "Note",
+  "@askRowNote": {
+      "description": "Row label on a confirmation card."
+  },
+  "askRowAmount": "Amount",
+  "@askRowAmount": {
+      "description": "Row label on a confirmation card."
+  },
+  "askRowStatus": "Status",
+  "@askRowStatus": {
+      "description": "Row label on a confirmation card."
+  },
+  "askRowMeal": "Meal",
+  "@askRowMeal": {
+      "description": "Row label on a confirmation card."
+  },
+  "askRowInsteadOf": "Instead of",
+  "@askRowInsteadOf": {
+      "description": "Row label on a confirmation card: what is being replaced."
+  },
+  "askRowCalories": "Calories",
+  "@askRowCalories": {
+      "description": "Row label on a confirmation card."
+  },
+  "askRowNext": "Next",
+  "@askRowNext": {
+      "description": "Row label on a workout-swap card: the workout that comes after today's."
+  },
+  "askRowThen": "Then",
+  "@askRowThen": {
+      "description": "Row label on a workout-skip card: the workout that follows in the rotation."
+  },
+  "askRowSkipped": "Skipped",
+  "@askRowSkipped": {
+      "description": "Row label on a workout-skip card: the scheduled workout being skipped."
+  },
+  "askRowTotal": "Total",
+  "@askRowTotal": {
+      "description": "Row label on a confirmation card."
+  },
+  "askRowWas": "was {value}",
+  "@askRowWas": {
+      "description": "A previous value shown after a new one on a confirmation card, e.g. \"238 kcal, was 234 kcal\".",
+      "placeholders": {
+          "value": {
+              "type": "String"
+          }
+      }
+  },
+  "askSkippedUntilNextRound": "{day}, back next round",
+  "@askSkippedUntilNextRound": {
+      "description": "Value of the \"Skipped\" row: the skipped workout returns in the next pass of the rotation.",
+      "placeholders": {
+          "day": {
+              "type": "String"
+          }
+      }
+  },
+  "askChoiceSkipDetail": "{to} today, {from} waits till next round",
+  "@askChoiceSkipDetail": {
+      "description": "Second line of the \"skip\" answer chip when changing today's workout. {to}/{from} are workout day names.",
+      "placeholders": {
+          "to": {
+              "type": "String"
+          },
+          "from": {
+              "type": "String"
+          }
+      }
+  },
+  "askChoiceSwapDetail": "{to} today, {from} next",
+  "@askChoiceSwapDetail": {
+      "description": "Second line of the \"swap\" answer chip when changing today's workout. {to}/{from} are workout day names.",
+      "placeholders": {
+          "to": {
+              "type": "String"
+          },
+          "from": {
+              "type": "String"
+          }
+      }
+  },
+  "liveSessionMap": "Workout map",
+  "@liveSessionMap": {"description": "Title of the sheet listing every exercise in the live workout, and the header button that opens it."},
+  "liveSessionMapProgress": "{done} of {total} exercises done",
+  "@liveSessionMapProgress": {"description": "Subtitle of the workout map.", "placeholders": {"done": {"type": "int"}, "total": {"type": "int"}}},
+  "liveExerciseNow": "NOW",
+  "@liveExerciseNow": {"description": "Status pill on the workout map for the exercise being done now."},
+  "liveExerciseDone": "DONE",
+  "@liveExerciseDone": {"description": "Status pill on the workout map for an exercise with every set resolved."},
+  "liveExerciseSkipped": "SKIPPED",
+  "@liveExerciseSkipped": {"description": "Status pill on the workout map for an exercise whose sets were all skipped."},
+  "liveExerciseSetsProgress": "{done}/{total} sets",
+  "@liveExerciseSetsProgress": {"description": "How many of an exercise's sets are resolved, on the workout map.", "placeholders": {"done": {"type": "int"}, "total": {"type": "int"}}},
+  "liveDoNow": "Do this now",
+  "@liveDoNow": {"description": "Makes an exercise the current one."},
+  "liveDoLater": "Do it later",
+  "@liveDoLater": {"description": "Moves an exercise to the end of the workout; it is still owed."},
+  "liveSwapExercise": "Swap exercise",
+  "@liveSwapExercise": {"description": "Replaces an exercise with a different one (e.g. the machine is taken)."},
+  "liveSkipExercise": "Skip exercise",
+  "@liveSkipExercise": {"description": "Skips every set of an exercise that hasn't been done."},
+  "liveAddSet": "Add a set",
+  "@liveAddSet": {"description": "Adds one more set to an exercise."},
+  "liveRemoveSet": "Remove last set",
+  "@liveRemoveSet": {"description": "Removes the last not-yet-done set of an exercise."},
+  "liveRemoveExercise": "Remove exercise",
+  "@liveRemoveExercise": {"description": "Removes an exercise nothing was logged on."},
+  "liveAddExercise": "Add exercise",
+  "@liveAddExercise": {"description": "Adds an exercise the plan didn't have to the live workout."},
+  "liveNextExercise": "Next exercise",
+  "@liveNextExercise": {"description": "Accessibility label: move to the next exercise."},
+  "livePreviousExercise": "Previous exercise",
+  "@livePreviousExercise": {"description": "Accessibility label: move to the previous exercise."},
+  "liveExerciseOptions": "Exercise options",
+  "@liveExerciseOptions": {"description": "Accessibility label for the button that opens an exercise's actions."},
+  "livePickExercise": "Choose an exercise",
+  "@livePickExercise": {"description": "Title of the exercise picker when adding an exercise."},
+  "livePickExerciseSwapNote": "Replacing {name}. Sets you've already logged stay with it.",
+  "@livePickExerciseSwapNote": {"description": "Note under the swap picker's title: logged sets keep their original exercise.", "placeholders": {"name": {"type": "String"}}},
+  "livePickExerciseSearch": "Search or type a name",
+  "@livePickExerciseSearch": {"description": "Hint in the exercise picker's search field."},
+  "livePickExerciseAddNamed": "Add “{name}”",
+  "@livePickExerciseAddNamed": {"description": "Picker row that adds a new exercise with the typed name.", "placeholders": {"name": {"type": "String"}}},
+  "livePickExerciseEmpty": "Type a name to add a new exercise.",
+  "@livePickExerciseEmpty": {"description": "Shown in the picker when the user has no exercises to choose from."},
+  "liveExerciseSwapped": "Swapped to {name}",
+  "@liveExerciseSwapped": {"description": "Toast after swapping an exercise.", "placeholders": {"name": {"type": "String"}}},
+  "liveExerciseMovedLater": "{name} moved to the end",
+  "@liveExerciseMovedLater": {"description": "Toast after moving an exercise to later.", "placeholders": {"name": {"type": "String"}}},
+  "workoutSameExerciseTitle": "Same exercise?",
+  "@workoutSameExerciseTitle": {"description": "Card on the Analysis hub asking whether two similarly named exercises are one movement."},
+  "workoutSameExerciseBody": "“{merge}” and “{keep}” look like the same movement. If they are, their history becomes one, under “{keep}”.",
+  "@workoutSameExerciseBody": {"description": "Body of the same-exercise card.", "placeholders": {"merge": {"type": "String"}, "keep": {"type": "String"}}},
+  "workoutSameExerciseMerge": "Same exercise",
+  "@workoutSameExerciseMerge": {"description": "Confirms two exercises are one movement and merges their history."},
+  "workoutSameExerciseKeep": "Keep separate",
+  "@workoutSameExerciseKeep": {"description": "Says two exercises are different; the pair is not suggested again."},
+  "workoutSameExerciseMerged": "“{merge}” now shares history with “{keep}”.",
+  "@workoutSameExerciseMerged": {"description": "Shown after merging two exercises.", "placeholders": {"merge": {"type": "String"}, "keep": {"type": "String"}}},
+  "workoutUndo": "Undo",
+  "@workoutUndo": {"description": "Reverses the action just taken."},
+  "livePickSameMuscle": "Same muscle group",
+  "@livePickSameMuscle": {"description": "Picker section: exercises for the same muscle as the one being swapped."},
+  "livePickAllExercises": "Your exercises",
+  "@livePickAllExercises": {"description": "Picker section: every exercise the user has."},
+  "livePickNewNote": "New exercise, with its own history",
+  "@livePickNewNote": {"description": "Under the picker's add-by-name row: this creates a new exercise."},
+  "livePickNoMatch": "None of your exercises match.",
+  "@livePickNoMatch": {"description": "Picker: the search found nothing among the user's exercises."},
+  "liveExerciseAdded": "Added {name}",
+  "@liveExerciseAdded": {"description": "Toast after adding an exercise to the workout.", "placeholders": {"name": {"type": "String"}}},
+  "liveExerciseSkippedToast": "Skipped {name}",
+  "@liveExerciseSkippedToast": {"description": "Toast after skipping an exercise's remaining sets.", "placeholders": {"name": {"type": "String"}}},
+  "liveChangeNext": "Change",
+  "@liveChangeNext": {"description": "On the rest screen's up-next card: opens the workout map to pick something else."}
 }

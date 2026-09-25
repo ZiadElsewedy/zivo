@@ -23,6 +23,7 @@
 
 const {dayKeyFor, resolveDietDay} = require("../shared/dates");
 const {normalizeItem, resolveAndCompute} = require("../../nutrition/resolve");
+const {upNextDay, dayAfter, dayName} = require("./workout_rotation");
 
 const EXPENSE_CATEGORIES = ["food", "coffee", "transport", "groceries", "other"];
 const DEFAULT_CURRENCY = "EGP";
@@ -910,6 +911,114 @@ const CREATE_CUSTOM_FOOD = {
   },
 };
 
+const CHANGE_WORKOUT_DAY = {
+  name: "change_workout_day",
+  mutating: true,
+  // Laid out both ways this turn → the user hasn't picked skip or swap yet.
+  refusedAfterOffer: "preview_workout_change",
+  kind: "change_workout_day",
+  description:
+    "Propose changing which workout the user does today, in their rotation " +
+    "— does not save until confirmed. Two modes, and they are different " +
+    "things: 'swap' trades today's scheduled day with `dayId` (the user does " +
+    "that one today and the scheduled one comes straight after — nothing " +
+    "is missed); 'skip' drops today's scheduled day from this round and " +
+    "makes `dayId` today's workout (the rotation continues from after it — " +
+    "the skipped day waits until its turn next round). 'skip' without " +
+    "`dayId` just moves on to the next day in the rotation. ONLY when the " +
+    "user has made clear which one they want; when they only said what " +
+    "they'd like to train, ask with ask_choice first (see WORKOUT " +
+    "SCHEDULE). `dayId` must come from get_workout_schedule.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      mode: {type: "string", enum: ["swap", "skip"]},
+      dayId: {
+        type: "string",
+        description: "the day to train today, from get_workout_schedule",
+      },
+    },
+    required: ["mode"],
+  },
+  /**
+   * @param {!Object} input
+   * @return {{mode: string, dayId: ?string}}
+   */
+  validate(input) {
+    const mode = input.mode === "swap" || input.mode === "skip" ?
+      input.mode : null;
+    if (!mode) {
+      throw new ValidationError("mode must be 'swap' or 'skip'.");
+    }
+    const dayId = input.dayId == null || input.dayId === "" ?
+      null : requireText(input.dayId, "day id", 200);
+    if (mode === "swap" && !dayId) {
+      throw new ValidationError(
+          "A swap needs the dayId of the workout to do today instead.");
+    }
+    return {mode, dayId};
+  },
+  /**
+   * Proves the change against the user's REAL rotation: what's due now, and
+   * that the day they want exists and isn't already today's.
+   * @param {!Object} args
+   * @return {!Promise<!Object>}
+   */
+  async verify({store, uid, validated}) {
+    const plan = await store.getActiveWorkoutPlan(uid);
+    if (!plan || !Array.isArray(plan.days) || plan.days.length < 2) {
+      throw new ValidationError(
+          "The user has no split with more than one day, so there's no " +
+          "rotation to change. Say so.");
+    }
+    const due = upNextDay(plan.days, plan.cycleCursor);
+    const target = validated.dayId ?
+      plan.days.find((d) => d.id === validated.dayId) :
+      dayAfter(plan.days, due.id);
+    if (!target) {
+      const ids = plan.days.map((d) => `${dayName(d)} (id ${d.id})`)
+          .join("; ");
+      throw new ValidationError(
+          `No day with id "${validated.dayId}" in the split. Call ` +
+          `get_workout_schedule and use an exact dayId. Days: ${ids}.`);
+    }
+    if (target.id === due.id) {
+      throw new ValidationError(
+          `${dayName(due)} is already today's workout — nothing to change. ` +
+          "Tell the user.");
+    }
+    const upAfter = validated.mode === "swap" ? due : dayAfter(plan.days,
+        target.id);
+    return {
+      planId: plan.id,
+      dueDayId: due.id,
+      dueName: dayName(due),
+      targetDayId: target.id,
+      targetName: dayName(target),
+      thenName: upAfter ? dayName(upAfter) : null,
+    };
+  },
+  fields(v) {
+    return {
+      mode: v.mode,
+      from: v.dueName,
+      to: v.targetName,
+      then: v.thenName,
+    };
+  },
+  summarize(v) {
+    return v.mode === "swap" ?
+      `Swap ${v.dueName} with ${v.targetName} — ${v.targetName} today, ` +
+        `${v.dueName} next` :
+      `Skip ${v.dueName} — ${v.targetName} today`;
+  },
+  result(v) {
+    return v.mode === "swap" ?
+      `Swapped — ${v.targetName} is today's workout, ${v.dueName} is next` :
+      `Skipped ${v.dueName} — ${v.targetName} is today's workout`;
+  },
+};
+
 const mutatingTools = [
   CREATE_EXPENSE,
   EDIT_EXPENSE,
@@ -918,6 +1027,7 @@ const mutatingTools = [
   LOG_FOOD,
   CREATE_CUSTOM_FOOD,
   REPLACE_MEAL_ITEM,
+  CHANGE_WORKOUT_DAY,
 ];
 const mutatingToolsByName = new Map(mutatingTools.map((t) => [t.name, t]));
 

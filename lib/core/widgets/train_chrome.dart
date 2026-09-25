@@ -3,7 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../motion/springs.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_icons.dart';
 import '../theme/train_tokens.dart';
 import 'pressable_scale.dart';
 
@@ -304,6 +306,7 @@ class TrainSegmentBar extends StatelessWidget {
     required this.total,
     required this.completed,
     required this.current,
+    this.currentFraction,
     super.key,
   });
 
@@ -316,6 +319,11 @@ class TrainSegmentBar extends StatelessWidget {
   /// exercise finished).
   final int? current;
 
+  /// How far through itself the [current] segment is, 0..1. When given, that
+  /// segment draws as a dim ember track that fills as sets are logged; when
+  /// null it is solid ember, as before.
+  final double? currentFraction;
+
   @override
   Widget build(BuildContext context) {
     if (total <= 0) return const SizedBox(height: 3);
@@ -324,22 +332,61 @@ class TrainSegmentBar extends StatelessWidget {
         for (var i = 0; i < total; i++) ...[
           if (i > 0) const SizedBox(width: 3),
           Expanded(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 320),
-              curve: Curves.easeOut,
-              height: 3,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(3),
-                color: i < completed
-                    ? TrainColors.green
-                    : i == current
-                    ? TrainColors.ember.withValues(alpha: 0.85)
-                    : TrainColors.liftAt(0.1),
-              ),
-            ),
+            child: i == current && currentFraction != null
+                ? _FillingSegment(fraction: currentFraction!)
+                : AnimatedContainer(
+                    duration: const Duration(milliseconds: 320),
+                    curve: Curves.easeOut,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(3),
+                      color: i < completed
+                          ? TrainColors.green
+                          : i == current
+                          ? TrainColors.ember.withValues(alpha: 0.85)
+                          : TrainColors.liftAt(0.1),
+                    ),
+                  ),
           ),
         ],
       ],
+    );
+  }
+}
+
+/// The in-progress segment of [TrainSegmentBar]: a dim ember track with a
+/// solid ember fill that sweeps forward by one set's worth each time a set
+/// is logged. Fills from the reading edge, so it runs right-to-left in RTL.
+class _FillingSegment extends StatelessWidget {
+  const _FillingSegment({required this.fraction});
+
+  final double fraction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 3,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(3),
+        color: TrainColors.ember.withValues(alpha: 0.22),
+      ),
+      alignment: AlignmentDirectional.centerStart,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: fraction.clamp(0.0, 1.0)),
+        duration: reducedMotion(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
+        builder: (context, value, _) => FractionallySizedBox(
+          widthFactor: value,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(3),
+              color: TrainColors.ember.withValues(alpha: 0.85),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -351,6 +398,9 @@ class TrainSegmentCaptions extends StatelessWidget {
     required this.left,
     required this.right,
     Color? rightColor,
+    this.onLeftTap,
+    this.leftSemanticLabel,
+    this.leftKey,
     super.key,
   // `this._x`, which the lint asks for here, is not a thing Dart will
   // accept: a named parameter cannot be private. The field is private
@@ -362,6 +412,13 @@ class TrainSegmentCaptions extends StatelessWidget {
   final String left;
   final String right;
   final Color? _rightColor;
+
+  /// Makes the left caption a control (the live session opens its workout
+  /// map from "EXERCISE 4 / 10" — the caption already IS where you are in
+  /// the workout). It gains a small caret so it reads as one.
+  final VoidCallback? onLeftTap;
+  final String? leftSemanticLabel;
+  final Key? leftKey;
 
   /// Defaults to the active skin's `ink4` — resolved on read
   /// rather than as a parameter default, which is what lets this
@@ -377,14 +434,7 @@ class TrainSegmentCaptions extends StatelessWidget {
         // length, one-handed, by someone who is out of breath — "EXERCISE 4 /
         // 10" and the running set tally are the two things you check without
         // picking the phone up, and at 9pt mono they were decoration.
-        Text(
-          left,
-          style: TrainType.caption(
-            size: 10.5,
-            tracking: 0.14,
-            color: TrainColors.inkAt(0.48),
-          ),
-        ),
+        _left(),
         Text(
           right,
           key: const Key('session-tally'),
@@ -395,6 +445,45 @@ class TrainSegmentCaptions extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _left() {
+    final style = TrainType.caption(
+      size: 10.5,
+      tracking: 0.14,
+      color: TrainColors.inkAt(0.48),
+    );
+    final onTap = onLeftTap;
+    if (onTap == null) return Text(left, style: style);
+    return Semantics(
+      button: true,
+      label: leftSemanticLabel,
+      child: GestureDetector(
+        key: leftKey,
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        // A taller hit area than the caption's own line — it is read at a
+        // glance and tapped without looking closely.
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(left, style: style),
+              const SizedBox(width: 5),
+              Icon(
+                AppIcons.chevronDown,
+                size: 11,
+                color: TrainColors.inkAt(0.48),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

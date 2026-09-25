@@ -20,6 +20,8 @@ class AiMessage {
     this.inputRequest,
     this.clientTurnId,
     this.activity = const [],
+    this.preface,
+    this.resultOf,
   });
 
   final String id;
@@ -51,6 +53,19 @@ class AiMessage {
   /// gateway recorded it).
   final List<AiActivityStep> activity;
 
+  /// What ZIVO said before a card in the same turn ("Your breakfast has 3
+  /// eggs, about 234 kcal — I found two swaps that land close to that.").
+  /// It streamed to the screen while the turn ran, so it persists with the
+  /// card rather than vanishing when the card lands. Null on plain replies
+  /// (their [content] already holds everything said) and on older cards.
+  final String? preface;
+
+  /// Set on the line the server writes when a proposal is confirmed or
+  /// cancelled — the id of the action it resolves. The card already shows
+  /// that outcome, so the thread leaves the line out; the model still reads
+  /// it in history.
+  final String? resultOf;
+
   AiMessage copyWith({
     AiPendingAction? pendingAction,
     AiChoiceRequest? choiceRequest,
@@ -65,5 +80,7 @@ class AiMessage {
     inputRequest: inputRequest ?? this.inputRequest,
     clientTurnId: clientTurnId,
     activity: activity,
+    preface: preface,
+    resultOf: resultOf,
   );
 }

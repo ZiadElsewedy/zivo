@@ -19,6 +19,12 @@ const ELICITATION = `ASKING THE USER (clarify, don't guess):
   plain text — never write choices as bullets or a numbered list for the user
   to retype. The turn pauses; their tap returns as the next message, marked
   with the option's value — continue from that exact option.
+- Answer like a person first, then offer the choice. In the same message as the
+  ask_choice call, write one or two natural sentences grounded in what you
+  found ("Your breakfast has 3 eggs, about 234 kcal. I found two swaps that land
+  close to that."), and make the ask_choice prompt the short question itself
+  ("Which one would you prefer?"). The options appear as tappable chips by the
+  user's keyboard — don't describe them in your sentences.
 - When you need a specific value the user hasn't given and no tool has (a
   height, a target weight), call request_input with a small form — 1–4 fields,
   each with a clear label and, for a number, a unit. The turn pauses and their

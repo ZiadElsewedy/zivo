@@ -537,6 +537,7 @@ class FakeAiRepository implements AiRepository {
         role: AiRole.assistant,
         content: _resultLine(action),
         createdAt: createdAt,
+        resultOf: actionId,
       ),
     );
     convo.updatedAt = createdAt;
@@ -560,6 +561,7 @@ class FakeAiRepository implements AiRepository {
         role: AiRole.assistant,
         content: "Okay — I won't add that.",
         createdAt: createdAt,
+        resultOf: actionId,
       ),
     );
     convo.updatedAt = createdAt;

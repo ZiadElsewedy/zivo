@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../../../../core/motion/springs.dart';
+import '../../../../../../core/theme/app_icons.dart';
 import '../../../../../../core/theme/app_spacing.dart';
 import '../../../../../../core/theme/train_tokens.dart';
 import '../../../../../../core/widgets/train_chrome.dart';
@@ -287,18 +288,63 @@ class KeyboardDoneBar extends StatelessWidget {
 /// name is the hero; the muscle line is a mono caption under it, not a chip,
 /// so nothing competes with the goal card below.
 class ExerciseHeader extends StatelessWidget {
-  const ExerciseHeader(this.exercise, {super.key});
+  const ExerciseHeader(
+    this.exercise, {
+    this.onPrevious,
+    this.onNext,
+    this.onOptions,
+    super.key,
+  });
 
   final SessionExercise exercise;
 
+  /// Move to the previous / next exercise still to do. Null (one exercise
+  /// left) hides the arrows — there is nowhere to go.
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+
+  /// Opens this exercise's options (swap, later, sets, skip).
+  final VoidCallback? onOptions;
+
   @override
   Widget build(BuildContext context) {
+    final strings = l(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TrainCaption(
-          l(context).liveNow,
-          color: TrainColors.ember.withValues(alpha: 0.8),
+        // The caption row doubles as the exercise's own toolbar: previous /
+        // next in one capsule, options beside it. Both sit in the same quiet
+        // glass as the rest of the session chrome and at caption height, so
+        // the default flow — read the name, log the set — never sees them,
+        // and they are exactly where a thumb looks for "something else".
+        SizedBox(
+          height: 30,
+          child: Row(
+            children: [
+              Expanded(
+                child: TrainCaption(
+                  strings.liveNow,
+                  color: TrainColors.ember.withValues(alpha: 0.8),
+                ),
+              ),
+              if (onPrevious != null && onNext != null)
+                _NavCapsule(
+                  onPrevious: onPrevious!,
+                  onNext: onNext!,
+                  previousLabel: strings.livePreviousExercise,
+                  nextLabel: strings.liveNextExercise,
+                ),
+              if (onOptions != null) ...[
+                const SizedBox(width: 8),
+                _GlassIconButton(
+                  key: const Key('exercise-options'),
+                  icon: AppIcons.more,
+                  label: strings.liveExerciseOptions,
+                  onTap: onOptions!,
+                ),
+              ],
+            ],
+          ),
         ),
         const SizedBox(height: 11),
         // Capped at two lines. Real movement names run long ("Seated
@@ -329,6 +375,122 @@ class ExerciseHeader extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Previous · next as one segmented capsule — two directions of the same
+/// control, so they read as a pair instead of two stray arrows.
+class _NavCapsule extends StatelessWidget {
+  const _NavCapsule({
+    required this.onPrevious,
+    required this.onNext,
+    required this.previousLabel,
+    required this.nextLabel,
+  });
+
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+  final String previousLabel;
+  final String nextLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 30,
+      decoration: BoxDecoration(
+        color: TrainColors.glass,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: TrainColors.hairline),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _CapsuleHalf(
+            key: const Key('exercise-previous'),
+            icon: AppIcons.previous,
+            label: previousLabel,
+            onTap: onPrevious,
+          ),
+          Container(width: 1, height: 14, color: TrainColors.hairline),
+          _CapsuleHalf(
+            key: const Key('exercise-next'),
+            icon: AppIcons.next,
+            label: nextLabel,
+            onTap: onNext,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CapsuleHalf extends StatelessWidget {
+  const _CapsuleHalf({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    super.key,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: InkResponse(
+        onTap: onTap,
+        radius: 22,
+        child: SizedBox(
+          width: 40,
+          height: 30,
+          // Phosphor glyphs match text direction, so in Arabic "previous"
+          // (on the right) already points right — no manual flip.
+          child: Icon(icon, size: 14, color: TrainColors.ink2),
+        ),
+      ),
+    );
+  }
+}
+
+/// A 30pt glass circle — the options button, drawn in the same material as
+/// the capsule beside it.
+class _GlassIconButton extends StatelessWidget {
+  const _GlassIconButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    super.key,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: Material(
+        color: TrainColors.glass,
+        shape: CircleBorder(side: BorderSide(color: TrainColors.hairline)),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(
+            width: 30,
+            height: 30,
+            child: Icon(icon, size: 16, color: TrainColors.ink2),
+          ),
+        ),
+      ),
     );
   }
 }

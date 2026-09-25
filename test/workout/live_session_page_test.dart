@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/core/theme/zivo_palette.dart';
@@ -28,6 +29,8 @@ import 'package:zivo/features/workout/domain/workout_session_repository.dart';
 import 'package:zivo/features/workout/domain/workout_set.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/presentation/pages/live_session_page.dart';
+import 'package:zivo/features/workout/presentation/widgets/live_session/phases/phase_scaffold.dart';
+import 'package:zivo/features/workout/presentation/widgets/live_session/session_review.dart';
 import 'package:zivo/features/music/data/fake_music_controller.dart';
 import 'package:zivo/features/music/domain/music_controller.dart';
 
@@ -164,6 +167,38 @@ WorkoutPlan _plan() => WorkoutPlan(
     WorkoutDay(id: 'b', slot: 'B', label: 'Pull', order: 1, exercises: []),
   ],
 );
+
+/// [_plan] with a second exercise after Bench, so finishing Bench's last set
+/// closes an exercise without ending the workout.
+WorkoutPlan _twoExercisePlan() {
+  final base = _plan();
+  final push = base.days.first;
+  return base.copyWith(
+    days: [
+      push.copyWith(
+        exercises: [
+          ...push.exercises,
+          const PlannedExercise(
+            id: 'ex2',
+            name: 'Dips',
+            order: 1,
+            muscleGroup: 'Chest',
+            defaultRestSeconds: 60,
+            sets: [
+              PlannedSet(
+                order: 0,
+                repTarget: RepTarget.fixed(8),
+                restSeconds: 60,
+                type: SetType.working,
+              ),
+            ],
+          ),
+        ],
+      ),
+      ...base.days.skip(1),
+    ],
+  );
+}
 
 /// A completed session from "last time", trained on the same canonical
 /// exercise id ('ex1') so `lastPerformanceFor` picks it up.
@@ -370,6 +405,142 @@ int restWholeSeconds(WidgetTester tester) {
 }
 
 void main() {
+  group('moving between exercises', () {
+    Future<InMemoryWorkoutSessionRepository> pumpTwo(WidgetTester tester) async {
+      final plans = _RecordingWorkoutPlanRepository();
+      final plan = _twoExercisePlan();
+      await plans.savePlan(plan);
+      final sessions = InMemoryWorkoutSessionRepository();
+      await tester.pumpWidget(
+        _wrap(
+          workouts: _RecordingWorkoutRepository(),
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+      return sessions;
+    }
+
+    String heading(WidgetTester tester) => tester
+        .widget<Text>(
+          find.descendant(
+            of: find.byType(ExerciseHeader),
+            matching: find.byWidgetPredicate(
+              (w) => w is Text && w.style?.fontSize == 34,
+            ),
+          ),
+        )
+        .data!;
+
+    testWidgets('the arrows move to the next exercise and back', (
+      tester,
+    ) async {
+      await pumpTwo(tester);
+      expect(heading(tester), 'Bench');
+      await _tap(tester, find.byKey(const Key('exercise-next')));
+      expect(heading(tester), 'Dips');
+      await _tap(tester, find.byKey(const Key('exercise-previous')));
+      expect(heading(tester), 'Bench');
+    });
+
+    testWidgets('a horizontal swipe across the exercise moves too', (
+      tester,
+    ) async {
+      await pumpTwo(tester);
+      await tester.fling(
+        find.byKey(const Key('exercise-swipe')),
+        const Offset(-300, 0),
+        1000,
+      );
+      await _settle(tester);
+      expect(heading(tester), 'Dips');
+    });
+
+    testWidgets('the workout map jumps straight to an exercise', (
+      tester,
+    ) async {
+      await pumpTwo(tester);
+      await _tap(tester, find.byKey(const Key('session-map-chip')));
+      expect(find.text('Workout map'), findsOneWidget);
+      await _tap(tester, find.byKey(const Key('map-row-ex2')));
+      expect(heading(tester), 'Dips');
+    });
+
+    testWidgets('swap from the options sheet puts a typed exercise in its '
+        'place', (tester) async {
+      await pumpTwo(tester);
+      await _tap(tester, find.byKey(const Key('exercise-options')));
+      await _tap(tester, find.byKey(const Key('exercise-action-swap')));
+      await tester.enterText(
+        find.byKey(const Key('exercise-picker-search')),
+        'Chest Press Machine',
+      );
+      await tester.pump();
+      await _tap(tester, find.byKey(const Key('exercise-picker-add-named')));
+      expect(heading(tester), 'Chest Press Machine');
+    });
+
+    testWidgets('a skipped set reads as skipped, not as a set still to do', (
+      tester,
+    ) async {
+      await pumpTwo(tester);
+      await _tap(tester, find.byKey(const Key('skip-set')));
+      if (find.text('Skip rest').evaluate().isNotEmpty) {
+        await _tap(tester, find.text('Skip rest'));
+      }
+      expect(find.byKey(const Key('set-chip-1-skipped')), findsOneWidget);
+      expect(find.byKey(const Key('set-chip-2-current')), findsOneWidget);
+    });
+
+    testWidgets('the + chip adds a set to the exercise', (tester) async {
+      await pumpTwo(tester);
+      expect(find.byKey(const Key('set-chip-3-upcoming')), findsNothing);
+      await _tap(tester, find.byKey(const Key('add-set-chip')));
+      expect(find.byKey(const Key('set-chip-3-upcoming')), findsOneWidget);
+    });
+
+    testWidgets('tapping a logged set opens it for correction', (tester) async {
+      await pumpTwo(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
+      if (find.text('Skip rest').evaluate().isNotEmpty) {
+        await _tap(tester, find.text('Skip rest'));
+      }
+      await _tap(tester, find.byKey(const Key('set-chip-1-done')));
+      expect(find.byType(SetReviewSheet), findsOneWidget);
+    });
+
+    testWidgets('during rest, "Change" on the up-next card opens the map', (
+      tester,
+    ) async {
+      await pumpTwo(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
+      expect(find.text('Skip rest'), findsOneWidget);
+      await _tap(tester, find.byKey(const Key('up-next-change')));
+      expect(find.text('Workout map'), findsOneWidget);
+    });
+
+    testWidgets('a single exercise left offers no arrows', (tester) async {
+      final plans = _RecordingWorkoutPlanRepository();
+      final plan = _plan();
+      await plans.savePlan(plan);
+      await tester.pumpWidget(
+        _wrap(
+          workouts: _RecordingWorkoutRepository(),
+          workoutPlans: plans,
+          workoutSessions: InMemoryWorkoutSessionRepository(),
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+      expect(find.byKey(const Key('exercise-next')), findsNothing);
+      expect(find.byKey(const Key('exercise-options')), findsOneWidget);
+    });
+  });
+
   testWidgets(
     'happy path: start → previous performance + delta → done → rest (±15s) → '
     'skip → complete → finish persists + advances',
@@ -1324,16 +1495,16 @@ void main() {
   );
 
   testWidgets(
-    'cross-split isolation (§3.2/Phase 5): previous performance never leaks from a '
-    'different split, even one sharing this exerciseId (the shape a Duplicate produces)',
+    'history follows the exercise across splits (ADR-017): another split that '
+    'performs the same exercise supplies "last time" (the shape a Duplicate produces)',
     (tester) async {
       final workouts = _RecordingWorkoutRepository();
       final plans = _RecordingWorkoutPlanRepository();
       final sessions = InMemoryWorkoutSessionRepository();
-      // A completed session belonging to a DIFFERENT split ('p2'), but
-      // trained on the SAME exerciseId ('ex1') as this test's plan's Bench
-      // — exactly what split management's Duplicate produces. An extreme
-      // weight (999kg) so any leak is unmistakable.
+      // A completed session belonging to a DIFFERENT split ('p2'), trained
+      // on the SAME exercise ('ex1') as this test's plan's Bench — exactly
+      // what split management's Duplicate produces. Until ADR-017 this was
+      // deliberately hidden; switching splits now keeps your progression.
       await sessions.saveSession(
         LiveSession(
           id: 'other-split-prev',
@@ -1355,7 +1526,7 @@ void main() {
                   target: RepTarget.fixed(5),
                   outcome: SetOutcome.completed,
                   actualReps: 5,
-                  actualWeightKg: 999,
+                  actualWeightKg: 47.5,
                 ),
               ],
             ),
@@ -1375,10 +1546,9 @@ void main() {
       );
       await _start(tester);
 
-      // "First time" for THIS split's Bench — split p2's 999kg must never
-      // surface here, even though the exerciseId matches.
-      expect(find.text('First time'), findsOneWidget); // LAST TIME stat
-      expect(find.textContaining('999'), findsNothing);
+      // Split p2's Bench IS this Bench: its 47.5kg is last time.
+      expect(find.text('First time'), findsNothing);
+      expect(find.text('5 × 47.5 kg'), findsOneWidget); // LAST TIME stat
     },
   );
 
@@ -2156,7 +2326,7 @@ void main() {
 
       // Not yet on the first set — the per-exercise view hasn't shown at all.
       expect(find.byKey(const Key('set-chip-1-current')), findsNothing);
-      expect(find.text('Bench'), findsNothing);
+      expect(find.byType(ExerciseHeader), findsNothing);
     },
   );
 
@@ -2384,4 +2554,134 @@ void main() {
       expect(find.textContaining('Same ·'), findsNothing);
     },
   );
+
+  group('set-logged moment', () {
+    Future<void> pumpPlan(WidgetTester tester, WorkoutPlan plan) async {
+      await tester.pumpWidget(
+        _wrap(
+          workouts: _RecordingWorkoutRepository(),
+          workoutPlans: _RecordingWorkoutPlanRepository(),
+          workoutSessions: InMemoryWorkoutSessionRepository(),
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+    }
+
+    testWidgets('a logged set is confirmed, then the moment clears', (
+      tester,
+    ) async {
+      await pumpPlan(tester, _plan());
+      await tester.enterText(find.byType(TextField).at(1), '40');
+      await tester.pump();
+
+      await tester.ensureVisible(find.byKey(const Key('log-set')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('log-set')));
+      await tester.pump();
+
+      // The rest ring opens on the check, with its countdown not yet shown —
+      // no timer flashing up underneath the confirmation.
+      expect(find.text('SET 1 LOGGED'), findsOneWidget);
+      expect(find.text('40kg × 5'), findsOneWidget);
+      expect(find.text('Skip rest'), findsOneWidget);
+      double timerOpacity() => tester
+          .widget<Opacity>(
+            find
+                .ancestor(
+                  of: find.byKey(const Key('rest-time-label')),
+                  matching: find.byType(Opacity),
+                )
+                .first,
+          )
+          .opacity;
+      expect(timerOpacity(), 0);
+
+      // …then hands the face over to the countdown.
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 150));
+      }
+      expect(find.text('SET 1 LOGGED'), findsNothing);
+      expect(timerOpacity(), 1);
+    });
+
+    testWidgets('a rest that follows a skipped set does not replay the check', (
+      tester,
+    ) async {
+      await pumpPlan(tester, _twoExercisePlan());
+      await _tap(tester, find.byKey(const Key('log-set')));
+      await _tap(tester, find.text('Skip rest'));
+      await tester.pump(const Duration(seconds: 1));
+      await _tap(tester, find.byKey(const Key('skip-set')));
+
+      expect(find.text('Skip rest'), findsOneWidget);
+      expect(find.text('SET 1 LOGGED'), findsNothing);
+    });
+
+    testWidgets('the landing haptic arrives with the check, after the tap', (
+      tester,
+    ) async {
+      final haptics = <Object?>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'HapticFeedback.vibrate') {
+            haptics.add(call.arguments);
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      await pumpPlan(tester, _plan());
+
+      await tester.ensureVisible(find.byKey(const Key('log-set')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('log-set')));
+      await tester.pump();
+      final atTap = haptics.length;
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(haptics.skip(atTap), ['HapticFeedbackType.mediumImpact']);
+    });
+
+    testWidgets('the set that finishes an exercise gets the bigger moment', (
+      tester,
+    ) async {
+      await pumpPlan(tester, _twoExercisePlan());
+
+      await _tap(tester, find.byKey(const Key('log-set')));
+      await _tap(tester, find.text('Skip rest'));
+      await tester.pump(const Duration(seconds: 1));
+      await _tap(tester, find.byKey(const Key('log-set')));
+
+      expect(find.text('EXERCISE DONE'), findsOneWidget);
+      expect(find.text('2 sets'), findsOneWidget);
+    });
+
+    testWidgets('the final set of the workout leaves it to the summary', (
+      tester,
+    ) async {
+      await pumpPlan(tester, _plan());
+
+      await _tap(tester, find.byKey(const Key('log-set')));
+      await _tap(tester, find.text('Skip rest'));
+      await tester.pump(const Duration(seconds: 1));
+      await _tap(tester, find.byKey(const Key('log-set')));
+
+      expect(find.text('Finish'), findsOneWidget);
+      expect(find.text('SET 2 LOGGED'), findsNothing);
+      expect(find.text('EXERCISE DONE'), findsNothing);
+    });
+
+    testWidgets('a skipped set is not celebrated', (tester) async {
+      await pumpPlan(tester, _plan());
+      await _tap(tester, find.byKey(const Key('skip-set')));
+      expect(find.text('SET 1 LOGGED'), findsNothing);
+    });
+  });
 }

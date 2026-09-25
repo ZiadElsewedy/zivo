@@ -24,7 +24,8 @@
   switch to it via `HomeShell`'s `onOpenAsk`.
 - `presentation/ask_constants.dart` — the turn timings and the composer's float clearance,
   shared by the page and its widgets.
-- Widgets: `presentation/widgets/ask/` (`message_bubble`, `proposal_card`, `thinking_rail`,
+- Widgets: `presentation/widgets/ask/` (`message_bubble`, `proposal_card`, `thought_trail`,
+  `choice_tray`,
   `sessions_sheet`, `ask_empty_state`, `error_retry`, `ask_effects`), plus the older
   `chat_header.dart`, `voice_composer.dart` (mic → transcript), `quick_log_sheet.dart`.
 
@@ -46,8 +47,11 @@ tree. The `ask_page_*_test.dart` suite still covers what the screen renders.
 (server-authoritative phase events driving the activity rail), `ai_pending_action.dart`
 (a proposed write awaiting confirm), `ai_choice_request.dart` (an assistant question with
 tappable options — `AiChoiceOption{value (stable id), label, subtitle?, metadata}` +
-server-recorded `selectedValue`; rendered by `widgets/ask/choice_card.dart` as native
-violet option rows, answered via `AskController.answerChoice`, which sends an
+server-recorded `selectedValue`; the question renders in the thread as ZIVO's text
+(`choiceMessageText` — the card's `preface` lead-in, then the prompt) and its options as
+answer chips docked above the composer (`widgets/ask/choice_tray.dart`, only for the
+conversation's latest open question; `__more__` = ZIVO's own "Other options"),
+answered via `AskController.answerChoice`, which sends an
 `AiChoiceSelection{requestId, value}` through `AiRepository.send(choice:)` — the server
 resolves the pick from the stored card, never from the label; contract in
 `functions/ai/chat/choices.js`), `ai_input_request.dart` (an assistant form
@@ -179,18 +183,30 @@ Both surfaces report **real backend state**, never a timer.
 
 - **Ask.** `gateway.js` emits `{type:'phase'}` for the loop's coarse boundaries and
   `{type:'step', tool, status}` as each **read** tool starts and finishes. Only the tool
-  *name* crosses the wire — never its input or result — and `AskController._stepLabel`
-  maps it to human copy ("Reading today's diet…"). A running step outranks the phase; an
-  unknown tool falls back to "Working…" so a newer server can't leak a raw identifier onto
-  an older client. **Activity timeline:** the controller also keeps every step in order
-  (`AskController.activity`, `AiActivityStep`), drawn by `widgets/ask/activity_timeline.dart`
-  as chips — "✓ Grab · Diet details", "◌ Search · Food alternatives" (`aiActivityLabel` in
-  `ai_labels.dart`; unknown tools are omitted) — above the rail, which says "Thinking…"
-  on the `thinking` phase the gateway emits between tool rounds. The reply message carries
-  the same list (`AiMessage.activity`, from the doc's `activity`), so `MessageBubble` draws
-  the timeline above the reply live and on reload. Never the model's reasoning, never a
-  tool's input/result. The loop behind it is bounded — see `functions/ai/chat/README.md`. Mutating tools emit no step: they propose rather than execute, which
-  `preparing_change` and the confirmation card already describe.
+  *name* crosses the wire — never its input or result. `presentation/ai_thought.dart`
+  turns it into a human **thought state** (`AiThoughtKind`: reading · analyzing ·
+  calculating · searching · suggesting · preparing · thinking), with present
+  ("Reading your meal plan…") and past ("Read your meal plan") words and a muted tint
+  per kind (`TrainColors.thought*`); an unknown tool reads as "Thinking…", never its id.
+  `AskController.railLabel`/`railThought` pick the live one (a running step outranks the
+  phase; `thinking` between rounds reads "Analyzing what I found…"), and
+  `AskController.writing` hides it while text is actually arriving (it returns after
+  `kWritingIdle` of quiet — the model composing a lookup after a lead-in).
+  `widgets/ask/thought_trail.dart` draws it: while working, finished steps on a hairline
+  plus the live line (breathing dot + sheen); once settled, one line of past verbs that
+  unfolds on tap. Raw tool ids show in the unfolded list in debug builds only
+  (`kShowAiToolIds`). The reply message carries the same list (`AiMessage.activity`), so
+  the trail is there on reload. **One live item per turn** (keyed like its saved copy):
+  the trail appears when the turn starts and the text streams beneath it, so nothing
+  hands over between widgets mid-turn.
+- **Streaming contract.** The gateway saves everything the model wrote — text before a
+  tool call included — joined by a blank line, and streams exactly those characters
+  (each step starts a paragraph; leading/trailing whitespace is held back). Cards carry
+  that lead-in as `preface` plus the turn's `clientTurnId`. The controller paces deltas
+  in characters per second (`kRevealFloorCps`, backlog drained over `kRevealCatchUp`); a
+  fallback truncates only the current step's text; when the saved copy lands, the page
+  types on from the prefix it shares with what was on screen (`_handoffText` →
+  `MessageBubble.revealFrom`) — never a snap, never a shrink.
 - **PDF/photo import.** `aiImportWorkoutPlan` / `aiImportDietPlan` are single buffered
   extractions — one opaque model call (`toolChoice: "any"` forces a tool call, so the turn
   emits **no assistant text** to stream either way). There is no live sub-progress to

@@ -54,7 +54,8 @@ class AiChoiceSelection {
 /// [metadata] holds the server-verified figures behind an option (a priced
 /// food swap's `grams` / `kcal` / `proteinG` …). When they're there, the card
 /// renders them in the reader's language instead of the server's English
-/// [subtitle] — they are never figures the model wrote.
+/// [subtitle] — they are never figures the model wrote. Values are numbers or
+/// short ids/names (a workout skip/swap's `mode`, `from`, `to`).
 class AiChoiceOption {
   const AiChoiceOption({
     required this.value,
@@ -66,5 +67,5 @@ class AiChoiceOption {
   final String value;
   final String label;
   final String? subtitle;
-  final Map<String, num> metadata;
+  final Map<String, Object> metadata;
 }

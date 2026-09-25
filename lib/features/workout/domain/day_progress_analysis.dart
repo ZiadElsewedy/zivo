@@ -132,7 +132,8 @@ DayProgressAnalysis analyzeDayProgress({
   final results = <ExerciseProgress>[];
 
   for (final ex in plannedExercises) {
-    final exerciseId = ex.id;
+    // The exercise this slot performs — what its sessions logged.
+    final exerciseId = ex.canonicalId;
     // Newest-first sessions that actually trained this exercise (>=1 done set).
     final appearances = daySessions
         .where((s) => s.exercises.any((e) => e.exerciseId == exerciseId && e.sets.any((set) => set.done)))

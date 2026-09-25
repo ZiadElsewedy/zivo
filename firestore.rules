@@ -373,6 +373,48 @@ service cloud.firestore {
       allow delete: if canWrite(userId);
     }
 
+    // Exercise identities (ADR-017): what an exercise IS, independent of any
+    // split or day. A plan slot points here through its `exerciseId`, and the
+    // same canonical exercise shares one progression history everywhere it
+    // is performed. Equipment is an enum mirrored from `equipment.dart`.
+    match /users/{userId}/exercises/{exerciseId} {
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.schemaVersion == 1
+        && (!('equipment' in request.resource.data)
+            || request.resource.data.equipment == null
+            || request.resource.data.equipment in
+                 ['barbell', 'dumbbell', 'machine', 'cable', 'smith',
+                  'kettlebell', 'band', 'bodyweight'])
+        // Exercises the user said are NOT this one ("Keep separate" on the
+        // same-exercise card), so the pair isn't suggested again.
+        && (!('distinctFrom' in request.resource.data)
+            || (request.resource.data.distinctFrom is list
+                && request.resource.data.distinctFrom.size() <= 200));
+      allow delete: if canWrite(userId);
+    }
+
+    // Legacy-id aliases: `{legacyId}` (an old slot id that older sessions
+    // were logged under) now means `canonicalId`. A separate collection so
+    // the identity above never carries its own migration history. Applied
+    // when history is READ, never written into a session — deleting one is
+    // how a merge is undone, and it cannot touch a logged set.
+    match /users/{userId}/exerciseAliases/{legacyId} {
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
+        && request.resource.data.canonicalId is string
+        && request.resource.data.canonicalId.size() > 0
+        && request.resource.data.canonicalId != legacyId
+        && request.resource.data.source in ['migration', 'merge']
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.schemaVersion == 1;
+      allow delete: if canWrite(userId);
+    }
+
     // Training day marks: one document per calendar day, keyed `yyyy-MM-dd`
     // (the same shape sleep nights use), carrying why a day had no training
     // and/or whether a streak restore was spent on it.

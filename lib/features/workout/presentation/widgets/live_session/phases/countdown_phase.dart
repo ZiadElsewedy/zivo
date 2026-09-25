@@ -7,6 +7,7 @@ import '../../../../domain/logged_set.dart';
 import '../../../../domain/session_exercise.dart';
 import '../../../../domain/weight_unit.dart';
 import '../rest_ring.dart';
+import '../set_logged_moment.dart';
 import '../session_header.dart';
 import '../up_next_card.dart';
 import 'phase_scaffold.dart';
@@ -43,6 +44,8 @@ class CountdownPhase extends StatelessWidget {
     this.accent2,
     this.runningIcon,
     this.runningGlyph,
+    this.onChangeNext,
+    this.confirming,
     super.key,
   });
 
@@ -85,10 +88,17 @@ class CountdownPhase extends StatelessWidget {
   final void Function(int seconds) onAdjust;
   final VoidCallback onSkip;
 
+  /// Opens the workout map from the up-next card — the rest is exactly when
+  /// you find the next machine taken. Null (nothing else left) hides it.
+  final VoidCallback? onChangeNext;
+
   /// The eyebrow's running-state mark. Warm-up shows a streak icon, rest a
   /// pause glyph; both swap to a play glyph while held.
   final IconData? runningIcon;
   final Widget? runningGlyph;
+
+  /// The set whose logging started this rest — the ring opens on its check.
+  final SetLoggedEvent? confirming;
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +133,7 @@ class CountdownPhase extends StatelessWidget {
             accent2: accent2,
             onTap: onTogglePause,
             isPaused: isPaused,
+            confirming: confirming,
           ),
         ),
         const SizedBox(height: 26),
@@ -131,6 +142,7 @@ class CountdownPhase extends StatelessWidget {
           exercise: exercise,
           set: set,
           unit: unit,
+          onChange: onChangeNext,
         ),
         // A hard minimum gap, not just the Spacer below it: on a short screen
         // the Spacer collapses to zero and the card would otherwise weld to

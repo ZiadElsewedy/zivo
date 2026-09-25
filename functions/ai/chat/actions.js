@@ -33,11 +33,13 @@ const {GatewayError, assertDocumentId} = require("./errors");
  * @param {!Object} args.validated The tool's normalized, JSON-safe payload.
  * @param {function(): !Date} args.clock
  * @param {number} args.ttlMs Pending-action lifetime.
+ * @param {(!Object)=} args.turn What the turn that proposed it carries onto
+ *   the card's message — see `turnFields`.
  * @return {!Promise<{actionId: string, summary: string, fields: !Object,
  *   kind: string}>}
  */
 async function persistProposal({
-  store, uid, conversationId, tool, validated, clock, ttlMs,
+  store, uid, conversationId, tool, validated, clock, ttlMs, turn,
 }) {
   const actionId = randomUUID();
   const createdAt = clock();
@@ -56,7 +58,7 @@ async function persistProposal({
     createdAt,
     expiresAt,
   });
-  await store.appendMessage(uid, conversationId, {
+  await store.appendMessage(uid, conversationId, Object.assign({
     role: "assistant",
     kind: "action_proposal",
     content: summary,
@@ -68,7 +70,7 @@ async function persistProposal({
     // the TTL passes, without waiting for a confirm attempt to flip the status.
     expiresAt,
     createdAt,
-  });
+  }, turnFields(turn)));
   return {actionId, summary, fields, kind: tool.kind};
 }
 
@@ -90,18 +92,19 @@ async function persistProposal({
  *   option value → the verified `{tool, input}` choosing it means
  *   (`choices.js`). Stored on the message, never rendered.
  * @param {function(): !Date} args.clock
+ * @param {(!Object)=} args.turn See `turnFields`.
  * @return {!Promise<{requestId: string, prompt: string, fields: !Object,
  *   kind: string}>}
  */
 async function persistElicitation({
-  store, uid, conversationId, tool, validated, bindings, clock,
+  store, uid, conversationId, tool, validated, bindings, clock, turn,
 }) {
   const requestId = randomUUID();
   const createdAt = clock();
   const prompt = tool.summarize(validated);
   const fields = tool.fields(validated);
 
-  await store.appendMessage(uid, conversationId, {
+  await store.appendMessage(uid, conversationId, Object.assign({
     role: "assistant",
     kind: tool.messageKind,
     content: prompt,
@@ -110,8 +113,37 @@ async function persistElicitation({
     bindings: bindings || null,
     status: "pending",
     createdAt,
-  });
+  }, turnFields(turn)));
   return {requestId, prompt, fields, kind: tool.messageKind};
+}
+
+/**
+ * The turn-level fields a CARD message carries, exactly like a text reply
+ * does — so a card is one of its turn's messages rather than an orphan:
+ *
+ *   clientTurnId  pairs it with the turn (the app's live reply hands over to
+ *                 it in place, and a retry replays it instead of asking twice)
+ *   preface       what the coach SAID before calling the tool ("Based on your
+ *                 plan, here are two swaps…") — it streamed to the screen, so
+ *                 it must persist, or it vanishes the moment the card lands
+ *   activity      the lookups behind it (the thought trail above it)
+ *   context       the turn's context ledger (`context_ledger.js`)
+ *
+ * @param {(!Object)=} turn
+ * @return {!Object}
+ */
+function turnFields(turn) {
+  const out = {};
+  if (!turn) return out;
+  if (turn.clientTurnId) out.clientTurnId = turn.clientTurnId;
+  if (typeof turn.preface === "string" && turn.preface.trim()) {
+    out.preface = turn.preface.trim();
+  }
+  if (Array.isArray(turn.activity) && turn.activity.length) {
+    out.activity = turn.activity;
+  }
+  if (turn.context) out.context = turn.context;
+  return out;
 }
 
 /**
@@ -258,6 +290,21 @@ async function applyProposedAction(store, uid, action) {
       items[v.itemIndex] = v.newItem;
       return store.savePlanDays(uid, plan.id, plan.days);
     }
+    case "change_workout_day":
+      // Re-proven against the doc inside the write's own transaction: if the
+      // day that was due has changed (a workout finished, the split edited)
+      // the change is refused, never applied to a rotation it wasn't meant
+      // for.
+      try {
+        return await store.updateWorkoutRotation(uid, v.planId, {
+          mode: v.mode, dueDayId: v.dueDayId, targetDayId: v.targetDayId,
+        });
+      } catch (err) {
+        throw new GatewayError(
+            "failed-precondition",
+            `${err.message || "Your split changed."} Ask me again and I'll ` +
+            "use your current rotation.");
+      }
     default:
       throw new GatewayError(
           "failed-precondition", `Unknown action kind: ${action.kind}.`);
@@ -320,10 +367,14 @@ async function confirmAction({store, uid, conversationId, actionId, now}) {
   await store.markPendingAction(uid, conversationId, actionId, "applied");
   await store.markProposalMessage(uid, conversationId, actionId, "applied");
   const resultText = resultLineFor(action);
+  // Tagged with the action it resolves: the card itself now shows the
+  // outcome, so the app can leave this line out of the thread while the
+  // model still reads it in history.
   await store.appendMessage(uid, conversationId, {
     role: "assistant",
     content: resultText,
     createdAt: clock(),
+    resultOf: actionId,
   });
   return {status: "applied", assistantText: resultText, actionId};
 }
@@ -363,6 +414,7 @@ async function cancelAction({store, uid, conversationId, actionId, now}) {
     role: "assistant",
     content: text,
     createdAt: clock(),
+    resultOf: actionId,
   });
   return {status: "cancelled", assistantText: text, actionId};
 }

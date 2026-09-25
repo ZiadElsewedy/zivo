@@ -29,9 +29,13 @@ const MEAL_REPLACEMENT = `MEAL REPLACEMENT ("I don't want molokhia", "مش عا�
   ask_choice — label in the user's language (e.g. "فاصوليا خضراء"), value =
   the alternative's foodId. ZIVO fills in each option's portion and figures
   itself and drops any option that wasn't found, so offer only found ones.
-  Put your one-line intro in the ask_choice prompt ("I found 3 swaps close to
-  the original calories. Which one would you like?"). NEVER write the options
-  out as a list or bullets in your reply — the card is how they're shown.
+  Say what you found in one or two natural sentences ("Your breakfast has 3
+  eggs, about 234 kcal — I found two swaps that land close to that.") and make
+  the ask_choice prompt the question ("Which one would you prefer?"). NEVER
+  write the options out as a list or bullets — the chips are how they're
+  shown. ZIVO adds an "Other options" chip itself; when the user taps it,
+  search again with DIFFERENT candidates (the item is already in EARLIER
+  RESULTS — don't re-read the diet for it) and ask again.
   Do NOT pick one for them and do NOT call replace_meal_item in this turn.
 - Step 3, MUTATE — only once the user has chosen. A TAPPED option is handled
   by ZIVO directly (it proposes the exact swap it priced); you only see it if
@@ -40,7 +44,8 @@ const MEAL_REPLACEMENT = `MEAL REPLACEMENT ("I don't want molokhia", "مش عا�
   molokhia with zucchini" is explicit — price that one food with
   search_food_alternatives, then propose): the earlier options are in the
   conversation with their numbers and values; map the choice to its foodId,
-  re-read get_diet for the item's current mealId/index/name, then call
+  take the item's mealId/index/name from EARLIER RESULTS (or get_diet when
+  they aren't there — ZIVO re-checks them against the live plan), then call
   replace_meal_item with that foodId, quantity = the portion's grams, unit "g".
   You never supply calories or macros — ZIVO computes them. Like every
   mutation it only PROPOSES; nothing changes until the user confirms the card.

@@ -10,6 +10,9 @@ import '../../../../domain/weight_unit.dart';
 import '../../../workout_labels.dart';
 import '../../../controllers/live_session_controller.dart';
 import '../../staggered_reveal.dart';
+import '../../../../domain/logged_set.dart';
+import '../../../../domain/session_exercise.dart';
+import '../exercise_swipe.dart';
 import '../goal_block.dart';
 import '../live_session_format.dart';
 import '../set_chips.dart';
@@ -27,9 +30,18 @@ class RunningPhase extends StatelessWidget {
     required this.controller,
     required this.onDone,
     required this.onSkip,
+    this.onOptions,
+    this.onEditSet,
     this.accent,
     super.key,
   });
+
+  /// Opens the current exercise's options (swap, later, sets, skip).
+  final VoidCallback? onOptions;
+
+  /// Opens a resolved set for correction (the review sheet).
+  final void Function(SessionExercise exercise, LoggedSet set, int position)?
+  onEditSet;
 
   final LiveSessionController controller;
 
@@ -68,18 +80,43 @@ class RunningPhase extends StatelessWidget {
     final weightStep = weightStepFor(unit, exercise.muscleGroup);
     final hasAnchors = carriedWeight != null || goal.weightKg != null;
 
+    final canMove = controller.canChangeExercise;
+
     return RunningScaffold(
       top: [
-        StaggeredReveal(index: 0, child: ExerciseHeader(exercise)),
-        const SizedBox(height: 22),
-        StaggeredReveal(
-          index: 1,
-          child: SetChipRow(
-            exercise: exercise,
-            currentSetId: set.id,
-            liveReps: liveReps,
-            liveWeight: liveWeight,
-            unit: unit,
+        // The heading and the set chips move together under a swipe — they
+        // are "this exercise"; the steppers below take drags of their own.
+        ExerciseSwipe(
+          onNext: canMove ? controller.nextExercise : null,
+          onPrevious: canMove ? controller.previousExercise : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              StaggeredReveal(
+                index: 0,
+                child: ExerciseHeader(
+                  exercise,
+                  onPrevious: canMove ? controller.previousExercise : null,
+                  onNext: canMove ? controller.nextExercise : null,
+                  onOptions: onOptions,
+                ),
+              ),
+              const SizedBox(height: 22),
+              StaggeredReveal(
+                index: 1,
+                child: SetChipRow(
+                  exercise: exercise,
+                  currentSetId: set.id,
+                  liveReps: liveReps,
+                  liveWeight: liveWeight,
+                  unit: unit,
+                  onEditSet: onEditSet == null
+                      ? null
+                      : (s, position) => onEditSet!(exercise, s, position),
+                  onAddSet: () => controller.addSet(exercise.id),
+                ),
+              ),
+            ],
           ),
         ),
       ],

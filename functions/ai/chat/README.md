@@ -23,6 +23,7 @@ the split is invisible to `index.js` and the other importers.
 | **What decides how much a turn may do** | [`config.js`](config.js) (`DEFAULT_CONFIG`) enforced in [`turn.js`](turn.js) |
 | **The user-facing "can't answer" copy** | [`outcome.js`](outcome.js) (activity-aware) + [`config.js`](config.js) |
 | **How a turn ends** (terminal states, tool retry rules) | [`outcome.js`](outcome.js) |
+| **What a follow-up reuses** (carried tool results) | [`context_ledger.js`](context_ledger.js) |
 
 ## The files
 
@@ -85,8 +86,32 @@ provider failure (after the router's own retry + fallback) → thrown, tagged pr
 - **Live events:** `{type:'step', tool, status}` per read tool, `phase: 'thinking'`
   before each model call that reads results back, and `done` carries
   `terminalState`. The reply message persists `activity: [{tool, status}]`, which
-  the app draws as the "Grab · Diet details" timeline above the reply. Names only —
-  never a tool's input or result, never the model's reasoning.
+  the app draws as its thought trail ("Read your meal plan") above the reply. Names
+  only — never a tool's input or result, never the model's reasoning.
+- **Everything written is saved.** Text a step writes before calling a tool
+  (`narration`) is part of the reply: plain replies join it with the final text
+  ("\n\n"), cards keep it as `preface`. Deltas are shaped so the stream is
+  byte-identical to what's saved (each step opens a paragraph; whitespace at a
+  step's edges is dropped). Cards carry the turn's `clientTurnId`, `activity` and
+  ledger like a reply does (`actions.js` `turnFields`).
+- **Context ledger (`context_ledger.js`).** The latest reply/card carries the
+  turn's successful READ/SEARCH results (`context: {v, entries:[{tool, input,
+  result, at, dayKey}]}` — ≤6 entries, ≤14k chars, oldest dropped first). The
+  next turn rebuilds it from history (15-min TTL, same user-day; a confirm
+  result line or an applied proposal breaks the chain), prepends it to the user
+  message as a fenced `[EARLIER RESULTS …]` block, seeds the validator's diet
+  state and a *carried* choice offer from it (never the prose safety net, never
+  `refusedAfterOffer`), and records new results on top. Why: tool results used to
+  die with their turn, so every follow-up re-ran the same reads. Usage logs
+  `contextCarried` / `contextCarriedTokens`.
+- **Skip vs swap (workout rotation).** `preview_workout_change` is a SEARCH
+  whose `choiceOffer` binds 'skip' and 'swap' to the exact
+  `change_workout_day` call; the tap proposes it with no model call. An
+  explicit request skips the preview and proposes directly.
+- **"Other options".** A card bound to a verified offer from a `moreOptions`
+  tool (food alternatives only) gets ZIVO's own unbound
+  `__more__` option (`choices.js` `withMoreOption`, en/ar label); tapping it
+  reaches the model as "find different ones", with the plan already in the ledger.
 - **Usage** records `terminalState` (and `failedTool` on `tool_error`).
 - **Tool classes.** READ (`get_*`) and SEARCH (`search: true` — `resolve_food`,
   `search_food_product`, `search_food_alternatives`) change nothing and run

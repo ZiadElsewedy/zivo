@@ -23,7 +23,9 @@ class ZivoIdentity extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(AppIcons.ask, size: 13, color: TrainColors.violetGlyph),
+          // Neutral, not violet: the signature repeats above every reply,
+          // and a hue there would tint the whole conversation.
+          Icon(AppIcons.ask, size: 13, color: TrainColors.ink2),
           const SizedBox(width: 7),
           Text(
             'ZIVO',
@@ -31,7 +33,7 @@ class ZivoIdentity extends StatelessWidget {
               size: 9,
               tracking: 0.2,
               weight: FontWeight.w600,
-              color: TrainColors.violetGlyph.withValues(alpha: 0.85),
+              color: TrainColors.ink3,
             ),
           ),
         ],
@@ -226,11 +228,7 @@ class _HeroGlyphState extends State<_HeroGlyph>
             color: TrainColors.violetGlyph.withValues(alpha: 0.28),
           ),
         ),
-        child: Icon(
-          AppIcons.ask,
-          size: 25,
-          color: TrainColors.violetGlyph,
-        ),
+        child: Icon(AppIcons.ask, size: 25, color: TrainColors.violetGlyph),
       ),
     );
   }

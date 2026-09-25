@@ -1442,6 +1442,18 @@ abstract class AppLocalizations {
   /// **'SET LOGGED · {detail}'**
   String liveSetLoggedDetail(String detail);
 
+  /// Caption under the checkmark that confirms a set was just logged.
+  ///
+  /// In en, this message translates to:
+  /// **'SET {number} LOGGED'**
+  String liveSetLoggedMoment(int number);
+
+  /// Caption under the checkmark when the set just logged finished its exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'EXERCISE DONE'**
+  String get liveExerciseDoneMoment;
+
   /// How many sets are done so far. Count is zero-padded by the caller.
   ///
   /// In en, this message translates to:
@@ -3848,18 +3860,6 @@ abstract class AppLocalizations {
   /// **'Thinking…'**
   String get askThinking;
 
-  /// The assistant is interpreting the question. Keep the ellipsis.
-  ///
-  /// In en, this message translates to:
-  /// **'Understanding…'**
-  String get askUnderstanding;
-
-  /// Generic progress line while the assistant runs a step. Keep the ellipsis.
-  ///
-  /// In en, this message translates to:
-  /// **'Working…'**
-  String get askWorking;
-
   /// The assistant is drafting a change for the user to confirm. Keep the ellipsis.
   ///
   /// In en, this message translates to:
@@ -3872,173 +3872,227 @@ abstract class AppLocalizations {
   /// **'Still working on this one…'**
   String get askStillWorking;
 
-  /// Progress line: the assistant is reading today's summary. Keep the ellipsis.
+  /// Progress line: ZIVO is reading back the results of its lookups. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing what I found…'**
+  String get askThoughtAnalyzingResults;
+
+  /// Live thought line in Ask while ZIVO works on today's summary. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
   /// **'Reading your day…'**
-  String get askReadingDay;
+  String get askThoughtDay;
 
-  /// Progress line: the assistant is reading the diet log. Keep the ellipsis.
+  /// The same step once finished, in the expanded list of what ZIVO did (today's summary). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Reading today\'s diet…'**
-  String get askReadingDiet;
+  /// **'Read your day'**
+  String get askThoughtDayDone;
 
-  /// Progress line: the assistant is reading workout history. Keep the ellipsis.
+  /// Live thought line in Ask while ZIVO works on the diet / meal plan. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Reading your training…'**
-  String get askReadingTraining;
+  /// **'Reading your meal plan…'**
+  String get askThoughtDiet;
 
-  /// Progress line: the assistant is reading the expense log. Keep the ellipsis.
+  /// The same step once finished, in the expanded list of what ZIVO did (the diet / meal plan). Past tense, no ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Read your meal plan'**
+  String get askThoughtDietDone;
+
+  /// Live thought line in Ask while ZIVO works on logged workouts. Present tense, keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your workouts…'**
+  String get askThoughtWorkouts;
+
+  /// The same step once finished, in the expanded list of what ZIVO did (logged workouts). Past tense, no ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Read your workouts'**
+  String get askThoughtWorkoutsDone;
+
+  /// Live thought line in Ask while ZIVO works on the most recent workout. Present tense, keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your last workout…'**
+  String get askThoughtLastWorkout;
+
+  /// The same step once finished, in the expanded list of what ZIVO did (the most recent workout). Past tense, no ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Read your last workout'**
+  String get askThoughtLastWorkoutDone;
+
+  /// Live thought line in Ask while ZIVO works on the training analysis. Present tense, keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing your training…'**
+  String get askThoughtTraining;
+
+  /// The same step once finished, in the expanded list of what ZIVO did (the training analysis). Past tense, no ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzed your training'**
+  String get askThoughtTrainingDone;
+
+  /// Live thought line in Ask while ZIVO works on one exercise's history. Present tense, keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing this lift…'**
+  String get askThoughtExercise;
+
+  /// The same step once finished, in the expanded list of what ZIVO did (one exercise's history). Past tense, no ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzed this lift'**
+  String get askThoughtExerciseDone;
+
+  /// Live thought line in Ask while ZIVO works on expenses. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
   /// **'Reading your spending…'**
-  String get askReadingSpending;
+  String get askThoughtSpending;
 
-  /// Progress line: the assistant is building a weekly summary. Keep the ellipsis.
+  /// The same step once finished, in the expanded list of what ZIVO did (expenses). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Summarising your week…'**
-  String get askSummarisingWeek;
+  /// **'Read your spending'**
+  String get askThoughtSpendingDone;
 
-  /// Progress line: the assistant is resolving a food item. Keep the ellipsis.
+  /// Live thought line in Ask while ZIVO works on the weekly summary. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Looking that food up…'**
-  String get askLookingUpFood;
+  /// **'Analyzing your week…'**
+  String get askThoughtWeek;
 
-  /// Progress line: the assistant is computing nutrition figures. Keep the ellipsis.
+  /// The same step once finished, in the expanded list of what ZIVO did (the weekly summary). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Working out the numbers…'**
-  String get askCalculating;
+  /// **'Analyzed your week'**
+  String get askThoughtWeekDone;
 
-  /// Progress line: the assistant is searching the web for a branded/packaged food not in ZIVO's catalog. Keep the ellipsis.
+  /// Live thought line in Ask while ZIVO works on the daily readiness call. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Searching for that product…'**
-  String get askSearchingForProduct;
+  /// **'Analyzing your readiness…'**
+  String get askThoughtReadiness;
 
-  /// Progress line: the assistant is ranking meal-replacement alternatives for a plan item. Keep the ellipsis.
+  /// The same step once finished, in the expanded list of what ZIVO did (the daily readiness call). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Finding alternatives…'**
-  String get askFindingAlternatives;
+  /// **'Analyzed your readiness'**
+  String get askThoughtReadinessDone;
 
-  /// Progress line: the assistant is reading the daily readiness call. Keep the ellipsis.
-  ///
-  /// In en, this message translates to:
-  /// **'Checking your readiness…'**
-  String get askReadingReadiness;
-
-  /// Progress line: the assistant is reading sleep data. Keep the ellipsis.
+  /// Live thought line in Ask while ZIVO works on sleep data. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
   /// **'Reading your sleep…'**
-  String get askReadingSleep;
+  String get askThoughtSleep;
 
-  /// Verb on an activity-timeline chip in Ask for a step that READS the user's data, shown as 'Grab · Diet details'. One short word.
+  /// The same step once finished, in the expanded list of what ZIVO did (sleep data). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Grab'**
-  String get askActivityGrab;
+  /// **'Read your sleep'**
+  String get askThoughtSleepDone;
 
-  /// Verb on an activity-timeline chip in Ask for a step that looks something up, shown as 'Search · Food alternatives'. One short word.
+  /// Live thought line in Ask while ZIVO works on a food lookup in the catalog. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Search'**
-  String get askActivitySearch;
+  /// **'Searching the food catalog…'**
+  String get askThoughtFoodDetails;
 
-  /// Verb on an activity-timeline chip in Ask for a step that computes figures, shown as 'Calculate · Meal nutrition'. One short word.
+  /// The same step once finished, in the expanded list of what ZIVO did (a food lookup in the catalog). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Calculate'**
-  String get askActivityCalculate;
+  /// **'Searched the food catalog'**
+  String get askThoughtFoodDetailsDone;
 
-  /// Object on an Ask activity chip: today's summary was read.
+  /// Live thought line in Ask while ZIVO works on the meal nutrition calculation. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Today\'s details'**
-  String get askActivityToday;
+  /// **'Calculating the nutrition…'**
+  String get askThoughtNutrition;
 
-  /// Object on an Ask activity chip: the diet was read.
+  /// The same step once finished, in the expanded list of what ZIVO did (the meal nutrition calculation). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Diet details'**
-  String get askActivityDiet;
+  /// **'Calculated the nutrition'**
+  String get askThoughtNutritionDone;
 
-  /// Object on an Ask activity chip: workout history was read.
+  /// Live thought line in Ask while ZIVO works on a branded product search. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Workout details'**
-  String get askActivityWorkouts;
+  /// **'Searching for that product…'**
+  String get askThoughtProduct;
 
-  /// Object on an Ask activity chip: the most recent workout was read.
+  /// The same step once finished, in the expanded list of what ZIVO did (a branded product search). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Last workout'**
-  String get askActivityLastWorkout;
+  /// **'Searched for that product'**
+  String get askThoughtProductDone;
 
-  /// Object on an Ask activity chip: the training analysis was read.
+  /// Live thought line in Ask while ZIVO works on finding food alternatives. Present tense, keep the ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Training analysis'**
-  String get askActivityTrainingAnalysis;
+  /// **'Suggesting alternatives…'**
+  String get askThoughtAlternatives;
 
-  /// Object on an Ask activity chip: one exercise's history was read.
+  /// The same step once finished, in the expanded list of what ZIVO did (finding food alternatives). Past tense, no ellipsis.
   ///
   /// In en, this message translates to:
-  /// **'Exercise history'**
-  String get askActivityExerciseHistory;
+  /// **'Suggested alternatives'**
+  String get askThoughtAlternativesDone;
 
-  /// Object on an Ask activity chip: expenses were read.
+  /// One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. "Read · Analyzed"). A single word.
   ///
   /// In en, this message translates to:
-  /// **'Spending'**
-  String get askActivitySpending;
+  /// **'Read'**
+  String get askThoughtVerbRead;
 
-  /// Object on an Ask activity chip: the weekly summary was built.
+  /// One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. "Read · Analyzed"). A single word.
   ///
   /// In en, this message translates to:
-  /// **'Weekly summary'**
-  String get askActivityWeek;
+  /// **'Analyzed'**
+  String get askThoughtVerbAnalyzed;
 
-  /// Object on an Ask activity chip: the daily readiness call was read.
+  /// One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. "Read · Analyzed"). A single word.
   ///
   /// In en, this message translates to:
-  /// **'Readiness'**
-  String get askActivityReadiness;
+  /// **'Calculated'**
+  String get askThoughtVerbCalculated;
 
-  /// Object on an Ask activity chip: sleep data was read.
+  /// One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. "Read · Analyzed"). A single word.
   ///
   /// In en, this message translates to:
-  /// **'Sleep summary'**
-  String get askActivitySleep;
+  /// **'Searched'**
+  String get askThoughtVerbSearched;
 
-  /// Object on an Ask activity chip: a food was looked up in the catalog.
+  /// One past-tense verb in the collapsed summary of what ZIVO did for a reply (e.g. "Read · Analyzed"). A single word.
   ///
   /// In en, this message translates to:
-  /// **'Food details'**
-  String get askActivityFoodDetails;
+  /// **'Suggested'**
+  String get askThoughtVerbSuggested;
 
-  /// Object on an Ask activity chip: a meal's calories/macros were computed.
+  /// Screen-reader hint on the collapsed summary of what ZIVO did — tapping expands the list.
   ///
   /// In en, this message translates to:
-  /// **'Meal nutrition'**
-  String get askActivityMealNutrition;
+  /// **'Show steps'**
+  String get askThoughtShowSteps;
 
-  /// Object on an Ask activity chip: a branded food product was searched for.
+  /// Screen-reader hint on the expanded list of what ZIVO did — tapping collapses it.
   ///
   /// In en, this message translates to:
-  /// **'Food product'**
-  String get askActivityFoodProduct;
+  /// **'Hide steps'**
+  String get askThoughtHideSteps;
 
-  /// Object on an Ask activity chip: replacements for a meal item were found.
+  /// Screen-reader label for the answer chips shown above the Ask composer when ZIVO asks a question.
   ///
   /// In en, this message translates to:
-  /// **'Food alternatives'**
-  String get askActivityFoodAlternatives;
+  /// **'Choose an answer'**
+  String get askChoiceTray;
 
   /// Screen-reader / trailing note on an Ask activity chip whose step failed.
   ///
@@ -10247,6 +10301,342 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No {provider} requests yet.'**
   String aiUsageProviderEmpty(String provider);
+
+  /// Kind label on a confirmation card that swaps one food in the diet plan for another.
+  ///
+  /// In en, this message translates to:
+  /// **'Meal swap'**
+  String get askActionReplaceFood;
+
+  /// Kind label on a confirmation card that swaps today's workout with another day in the rotation.
+  ///
+  /// In en, this message translates to:
+  /// **'Workout swap'**
+  String get askActionWorkoutSwap;
+
+  /// Kind label on a confirmation card that skips today's scheduled workout.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip workout'**
+  String get askActionWorkoutSkip;
+
+  /// Headline of a workout-change card: the workout the user will do today. {day} is a workout day name like "Pull".
+  ///
+  /// In en, this message translates to:
+  /// **'{day} today'**
+  String askWorkoutToday(String day);
+
+  /// Row label on a confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get askRowCategory;
+
+  /// Row label on a confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get askRowNote;
+
+  /// Row label on a confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get askRowAmount;
+
+  /// Row label on a confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get askRowStatus;
+
+  /// Row label on a confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Meal'**
+  String get askRowMeal;
+
+  /// Row label on a confirmation card: what is being replaced.
+  ///
+  /// In en, this message translates to:
+  /// **'Instead of'**
+  String get askRowInsteadOf;
+
+  /// Row label on a confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Calories'**
+  String get askRowCalories;
+
+  /// Row label on a workout-swap card: the workout that comes after today's.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get askRowNext;
+
+  /// Row label on a workout-skip card: the workout that follows in the rotation.
+  ///
+  /// In en, this message translates to:
+  /// **'Then'**
+  String get askRowThen;
+
+  /// Row label on a workout-skip card: the scheduled workout being skipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped'**
+  String get askRowSkipped;
+
+  /// Row label on a confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get askRowTotal;
+
+  /// A previous value shown after a new one on a confirmation card, e.g. "238 kcal, was 234 kcal".
+  ///
+  /// In en, this message translates to:
+  /// **'was {value}'**
+  String askRowWas(String value);
+
+  /// Value of the "Skipped" row: the skipped workout returns in the next pass of the rotation.
+  ///
+  /// In en, this message translates to:
+  /// **'{day}, back next round'**
+  String askSkippedUntilNextRound(String day);
+
+  /// Second line of the "skip" answer chip when changing today's workout. {to}/{from} are workout day names.
+  ///
+  /// In en, this message translates to:
+  /// **'{to} today, {from} waits till next round'**
+  String askChoiceSkipDetail(String to, String from);
+
+  /// Second line of the "swap" answer chip when changing today's workout. {to}/{from} are workout day names.
+  ///
+  /// In en, this message translates to:
+  /// **'{to} today, {from} next'**
+  String askChoiceSwapDetail(String to, String from);
+
+  /// Title of the sheet listing every exercise in the live workout, and the header button that opens it.
+  ///
+  /// In en, this message translates to:
+  /// **'Workout map'**
+  String get liveSessionMap;
+
+  /// Subtitle of the workout map.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total} exercises done'**
+  String liveSessionMapProgress(int done, int total);
+
+  /// Status pill on the workout map for the exercise being done now.
+  ///
+  /// In en, this message translates to:
+  /// **'NOW'**
+  String get liveExerciseNow;
+
+  /// Status pill on the workout map for an exercise with every set resolved.
+  ///
+  /// In en, this message translates to:
+  /// **'DONE'**
+  String get liveExerciseDone;
+
+  /// Status pill on the workout map for an exercise whose sets were all skipped.
+  ///
+  /// In en, this message translates to:
+  /// **'SKIPPED'**
+  String get liveExerciseSkipped;
+
+  /// How many of an exercise's sets are resolved, on the workout map.
+  ///
+  /// In en, this message translates to:
+  /// **'{done}/{total} sets'**
+  String liveExerciseSetsProgress(int done, int total);
+
+  /// Makes an exercise the current one.
+  ///
+  /// In en, this message translates to:
+  /// **'Do this now'**
+  String get liveDoNow;
+
+  /// Moves an exercise to the end of the workout; it is still owed.
+  ///
+  /// In en, this message translates to:
+  /// **'Do it later'**
+  String get liveDoLater;
+
+  /// Replaces an exercise with a different one (e.g. the machine is taken).
+  ///
+  /// In en, this message translates to:
+  /// **'Swap exercise'**
+  String get liveSwapExercise;
+
+  /// Skips every set of an exercise that hasn't been done.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip exercise'**
+  String get liveSkipExercise;
+
+  /// Adds one more set to an exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a set'**
+  String get liveAddSet;
+
+  /// Removes the last not-yet-done set of an exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove last set'**
+  String get liveRemoveSet;
+
+  /// Removes an exercise nothing was logged on.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove exercise'**
+  String get liveRemoveExercise;
+
+  /// Adds an exercise the plan didn't have to the live workout.
+  ///
+  /// In en, this message translates to:
+  /// **'Add exercise'**
+  String get liveAddExercise;
+
+  /// Accessibility label: move to the next exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Next exercise'**
+  String get liveNextExercise;
+
+  /// Accessibility label: move to the previous exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous exercise'**
+  String get livePreviousExercise;
+
+  /// Accessibility label for the button that opens an exercise's actions.
+  ///
+  /// In en, this message translates to:
+  /// **'Exercise options'**
+  String get liveExerciseOptions;
+
+  /// Title of the exercise picker when adding an exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an exercise'**
+  String get livePickExercise;
+
+  /// Note under the swap picker's title: logged sets keep their original exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Replacing {name}. Sets you\'ve already logged stay with it.'**
+  String livePickExerciseSwapNote(String name);
+
+  /// Hint in the exercise picker's search field.
+  ///
+  /// In en, this message translates to:
+  /// **'Search or type a name'**
+  String get livePickExerciseSearch;
+
+  /// Picker row that adds a new exercise with the typed name.
+  ///
+  /// In en, this message translates to:
+  /// **'Add “{name}”'**
+  String livePickExerciseAddNamed(String name);
+
+  /// Shown in the picker when the user has no exercises to choose from.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a name to add a new exercise.'**
+  String get livePickExerciseEmpty;
+
+  /// Toast after swapping an exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Swapped to {name}'**
+  String liveExerciseSwapped(String name);
+
+  /// Toast after moving an exercise to later.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} moved to the end'**
+  String liveExerciseMovedLater(String name);
+
+  /// Card on the Analysis hub asking whether two similarly named exercises are one movement.
+  ///
+  /// In en, this message translates to:
+  /// **'Same exercise?'**
+  String get workoutSameExerciseTitle;
+
+  /// Body of the same-exercise card.
+  ///
+  /// In en, this message translates to:
+  /// **'“{merge}” and “{keep}” look like the same movement. If they are, their history becomes one, under “{keep}”.'**
+  String workoutSameExerciseBody(String merge, String keep);
+
+  /// Confirms two exercises are one movement and merges their history.
+  ///
+  /// In en, this message translates to:
+  /// **'Same exercise'**
+  String get workoutSameExerciseMerge;
+
+  /// Says two exercises are different; the pair is not suggested again.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep separate'**
+  String get workoutSameExerciseKeep;
+
+  /// Shown after merging two exercises.
+  ///
+  /// In en, this message translates to:
+  /// **'“{merge}” now shares history with “{keep}”.'**
+  String workoutSameExerciseMerged(String merge, String keep);
+
+  /// Reverses the action just taken.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get workoutUndo;
+
+  /// Picker section: exercises for the same muscle as the one being swapped.
+  ///
+  /// In en, this message translates to:
+  /// **'Same muscle group'**
+  String get livePickSameMuscle;
+
+  /// Picker section: every exercise the user has.
+  ///
+  /// In en, this message translates to:
+  /// **'Your exercises'**
+  String get livePickAllExercises;
+
+  /// Under the picker's add-by-name row: this creates a new exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'New exercise, with its own history'**
+  String get livePickNewNote;
+
+  /// Picker: the search found nothing among the user's exercises.
+  ///
+  /// In en, this message translates to:
+  /// **'None of your exercises match.'**
+  String get livePickNoMatch;
+
+  /// Toast after adding an exercise to the workout.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {name}'**
+  String liveExerciseAdded(String name);
+
+  /// Toast after skipping an exercise's remaining sets.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped {name}'**
+  String liveExerciseSkippedToast(String name);
+
+  /// On the rest screen's up-next card: opens the workout map to pick something else.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get liveChangeNext;
 }
 
 class _AppLocalizationsDelegate
