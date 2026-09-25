@@ -181,6 +181,25 @@ Object aiFailureFrom(Object error) {
   });
 }
 
+/// The provider-named failure a streamed `aiChat` turn announces in its last
+/// chunk (`{type: 'error', reason: 'ai_unavailable', provider, kind}`), or
+/// null for any other chunk. The iOS plugin's stream path drops the callable
+/// error's code and details — every streamed error arrives as `unknown` — so
+/// the server says why as data, which does arrive intact, and this is what
+/// the stream's error is replaced with.
+AiFailure? aiFailureFromStreamChunk(Object? chunk) {
+  if (chunk is! Map ||
+      chunk['type'] != 'error' ||
+      chunk['reason'] != 'ai_unavailable') {
+    return null;
+  }
+  return AiFailure(
+    AiFailureKind.unavailable,
+    provider: chunk['provider'] as String?,
+    issue: aiProviderIssueFrom(chunk['kind']),
+  );
+}
+
 /// Runs [call], rethrowing a transport failure as its [AiFailure].
 Future<T> _asAiFailure<T>(Future<T> Function() call) async {
   try {
@@ -409,11 +428,21 @@ class FirebaseAiRepository implements AiRepository {
             'choice': ?_choicePayload(choice),
             ...clientClockFields(),
           });
-      await for (final response in stream) {
-        if (response is Chunk) {
-          final event = aiTurnEventFromChunk(response.partialData);
-          if (event != null) onEvent(event);
+      // The failure the server announced before the stream errored — the
+      // real cause, which the stream's own error has lost on iOS.
+      AiFailure? announced;
+      try {
+        await for (final response in stream) {
+          if (response is Chunk) {
+            final data = response.partialData;
+            announced = aiFailureFromStreamChunk(data) ?? announced;
+            final event = aiTurnEventFromChunk(data);
+            if (event != null) onEvent(event);
+          }
         }
+      } catch (_) {
+        if (announced != null) throw announced;
+        rethrow;
       }
     };
   }

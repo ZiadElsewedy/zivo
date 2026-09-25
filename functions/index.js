@@ -1089,7 +1089,22 @@ exports.aiChat = onCall(
                   {terminalState: err.terminalState} : {}),
           });
         }
-        throw toHttpsError(err);
+        const httpsError = toHttpsError(err);
+        // A streamed turn also says WHY as a last chunk: the iOS plugin's
+        // stream path drops a callable error's code and details (every
+        // streamed error reaches Dart as "unknown"), so the app would show
+        // a generic failure instead of "Gemini is unavailable — busy" with
+        // Switch model. Data chunks do arrive intact; the client turns this
+        // one into the provider-named failure (`aiFailureFromStreamChunk`).
+        const details = httpsError.details;
+        if (streaming && details && details.reason === "ai_unavailable") {
+          try {
+            await response.sendChunk(Object.assign({type: "error"}, details));
+          } catch (_) {
+            // The stream is already gone — the thrown error still stands.
+          }
+        }
+        throw httpsError;
       }
     },
 );
