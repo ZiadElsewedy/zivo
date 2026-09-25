@@ -1163,123 +1163,30 @@ test("search_food_alternatives: avoided foods are not offered", async () => {
   assert.ok(result.alternatives.every((a) => !/turkey/i.test(a.name)));
 });
 
-// ---- Rest days: planned vs actual (analytics/training_days.js) -----------
-
-/**
- * A completed session on `day` (local noon) training plan day `dayId`.
- * @param {string} day "yyyy-MM-dd"
- * @param {string} dayId
- * @return {!Object}
- */
-function trainedOn(day, dayId) {
-  const at = new Date(`${day}T12:00:00`);
-  return {
-    id: `${day}-${dayId}`, planId: "p", dayId, dayLabel: dayId,
-    status: "completed", startedAt: at, completedAt: at,
-    exercises: [{id: "e", exerciseId: "e", name: "Bench", sets: [
-      {id: "s", actualReps: 8, actualWeightKg: 60, type: "working",
-        outcome: "completed"},
-    ]}],
-  };
-}
-
-const RESTFUL_PLAN = {
-  id: "p", name: "Upper/Lower", cycleCursor: 1,
-  createdAt: new Date("2026-08-01T08:00:00"),
-  days: [
-    {id: "up", label: "Upper", order: 0, type: "workout", exercises: []},
-    {id: "lo", label: "Lower", order: 1, type: "workout", exercises: []},
-    {id: "r", label: "Rest", order: 2, type: "rest", exercises: []},
-  ],
-};
-
-test("get_training_analysis separates planned rest, chosen rest and missed " +
-    "workouts", async () => {
-  const store = {
-    // Upper 08-14, Lower 08-15 → 08-16 planned rest → Upper due 08-17 (today).
-    listWorkoutSessions: async () => [
-      trainedOn("2026-08-10", "up"),
-      trainedOn("2026-08-14", "up"),
-      trainedOn("2026-08-15", "lo"),
-    ],
-    getActiveWorkoutPlan: async () => ({...RESTFUL_PLAN, cycleCursor: 0,
-      createdAt: new Date("2026-08-10T08:00:00")}),
-    // The user chose rest on 08-11 (Lower was due); 08-12, 08-13 were missed.
-    listTrainingDayMarks: async () => [
-      {day: "2026-08-11", reason: "rest", restored: false},
-      {day: "2026-08-12", reason: "travel", restored: false},
-    ],
-  };
-  const result = await toolsByName.get("get_training_analysis")
-      .execute(store, UID, {}, NOW);
-  const t = result.trainingDays;
-  assert.ok(t, "trainingDays present with a plan");
-  assert.equal(t.planSchedulesRest, true);
-  assert.equal(t.completedWorkouts, 3);
-  assert.equal(t.userSelectedRestDays, 1);
-  assert.equal(t.missedWorkouts, 2, "a travel REASON is context, not rest");
-  assert.equal(t.plannedRestDays, 1);
-  assert.equal(t.extraWorkouts, 0);
-  assert.equal(t.plannedTrainingDaysPerWeek, 4.67);
-  assert.equal(t.today, "pending");
-  assert.deepEqual(t.skippedDays, [{day: "Lower", times: 3}]);
-});
-
-test("get_training_analysis never calls a pure rotation's rest missed",
+test("get_training_analysis reports calendar adherence apart from progression",
     async () => {
-      const store = {
-        listWorkoutSessions: async () => [trainedOn("2026-08-14", "up")],
-        getActiveWorkoutPlan: async () => ({
-          ...RESTFUL_PLAN,
-          days: RESTFUL_PLAN.days.filter((d) => d.type !== "rest"),
-        }),
-        listTrainingDayMarks: async () => [],
+      const day = (d, dayId) => {
+        const at = new Date(`${d}T12:00:00`);
+        return {id: d, planId: "p", dayId, dayLabel: dayId,
+          status: "completed", startedAt: at, completedAt: at,
+          exercises: [{id: "e", exerciseId: "e", name: "Bench", sets: [
+            {id: "s", actualReps: 8, actualWeightKg: 60, type: "working",
+              outcome: "completed"}]}]};
       };
-      const t = (await toolsByName.get("get_training_analysis")
-          .execute(store, UID, {}, NOW)).trainingDays;
-      assert.equal(t.planSchedulesRest, false);
-      assert.equal("missedWorkouts" in t, false);
-      assert.equal("plannedWorkouts" in t, false);
-      assert.ok(t.unscheduledDays > 0);
-    });
-
-test("get_workout_schedule marks rest slots and today's planned rest",
-    async () => {
       const store = {
-        // Lower trained yesterday, and a rest slot follows Lower.
-        listWorkoutSessions: async () => [trainedOn("2026-08-16", "lo")],
-        getActiveWorkoutPlan: async () => ({...RESTFUL_PLAN, cycleCursor: 2}),
-        listTrainingDayMarks: async () => [],
+        // Push on the 14th, nothing on the 15th, Pull on the 16th; today the
+        // 17th is still open.
+        listWorkoutSessions: async () => [
+          day("2026-08-14", "push"), day("2026-08-16", "pull"),
+        ],
       };
-      const result = await toolsByName.get("get_workout_schedule")
+      const result = await toolsByName.get("get_training_analysis")
           .execute(store, UID, {}, NOW);
-      assert.equal(result.today.dayId, "up", "the cursor's rest slot is " +
-        "passed over: today names the next WORKOUT");
-      assert.equal(result.todayPlanned, "rest");
-      assert.equal(result.todayStatus, "plannedRest");
-      assert.deepEqual(result.rotation.map((d) => d.rest === true),
-          [false, false, true]);
-    });
-
-test("get_workout_schedule reports a rest the user chose today", async () => {
-  const store = {
-    listWorkoutSessions: async () => [trainedOn("2026-08-15", "up")],
-    getActiveWorkoutPlan: async () => RESTFUL_PLAN,
-    listTrainingDayMarks: async () => [
-      {day: "2026-08-17", reason: "rest", restored: false},
-    ],
-  };
-  const result = await toolsByName.get("get_workout_schedule")
-      .execute(store, UID, {}, NOW);
-  assert.equal(result.todayPlanned, "workout");
-  assert.equal(result.todayStatus, "userRest");
-  assert.equal(result.today.dayId, "lo", "the plan is unchanged");
-});
-
-test("preview_workout_change refuses a rest day as the day to train",
-    async () => {
-      const store = {getActiveWorkoutPlan: async () => RESTFUL_PLAN};
-      const result = await toolsByName.get("preview_workout_change")
-          .execute(store, UID, {dayId: "r"}, NOW);
-      assert.equal(result.outcome, "invalidInput");
+      const c = result.trainingCalendar;
+      assert.deepEqual(c.inactiveDates, ["2026-08-15"]);
+      assert.equal(c.activeDays, 2);
+      assert.equal(c.trainingSessions, 2);
+      assert.equal(c.trainedToday, false);
+      assert.equal(JSON.stringify(result).includes("rest"), false,
+          "no rest-day vocabulary reaches the coach");
     });

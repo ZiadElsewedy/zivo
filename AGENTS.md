@@ -96,7 +96,7 @@ repos, provides `AppScope`, a `MaterialApp` on the chosen skin, `home: AuthGate`
 
 | Feature | What it is | Folder + map | Deep doc / ADR |
 |---|---|---|---|
-| **workout** | Splits, live guided sessions, progression analysis, body-weight, PDF import — **the core** | [`lib/features/workout/`](lib/features/workout/FEATURE.md) | [WORKOUT_SYSTEM.md](docs/WORKOUT_SYSTEM.md), [ADR-019](docs/DECISIONS/ADR-019-rest-days.md) |
+| **workout** | Splits, live guided sessions, progression analysis, body-weight, PDF import — **the core** | [`lib/features/workout/`](lib/features/workout/FEATURE.md) | [WORKOUT_SYSTEM.md](docs/WORKOUT_SYSTEM.md) |
 | **ai** | "Ask": streaming chat + tool-mediated read/confirm-write over your data + voice — **the coach** | [`lib/features/ai/`](lib/features/ai/FEATURE.md) | [ADR-001](docs/DECISIONS/ADR-001-ai-assistant.md), [ADR-003](docs/DECISIONS/ADR-003-ai-mutations-v2.md) |
 | **diet** | Meal plans, daily ledger, PDF import, AI kcal — training fuel | [`lib/features/diet/`](lib/features/diet/FEATURE.md) | — |
 | **music** | Training-anchored Spotify now-playing + color-adaptive Now Playing screen | [`lib/features/music/`](lib/features/music/FEATURE.md) | — |

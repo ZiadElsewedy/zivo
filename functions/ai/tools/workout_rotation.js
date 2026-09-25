@@ -17,10 +17,6 @@
  *         after the due one). When that day is trained, the rotation carries
  *         on from after it — the app's `advanceToAfterDay`.
  *
- * A day may be a scheduled REST slot (`type: "rest"`). Rest is a place in
- * the calendar, not a workout: it is never "up next", never swapped, and
- * never a day to train instead (the app's `WorkoutPlan.nextDay`/`swapDays`).
- *
  * Operates on the RAW plan doc's `days` (every exercise and set kept intact)
  * and keeps `order` contiguous and 0-based, like the app's
  * `normalizeWorkoutPlanOrder`. Pure, so it runs under `node --test`.
@@ -37,18 +33,8 @@ function sortedDays(days) {
 }
 
 /**
- * Whether a raw plan day is a scheduled rest slot.
- * @param {!Object} day
- * @return {boolean}
- */
-function isRestDay(day) {
-  return Boolean(day) && day.type === "rest";
-}
-
-/**
- * The WORKOUT that's up next — `WorkoutPlan.nextDay`: the day whose `order`
- * is the cursor (else the first day — a stale cursor never reads as
- * "nothing"), or the first workout after it when that slot is rest.
+ * The day that's up next — `WorkoutPlan.nextDay`: the day whose `order` is
+ * the cursor, else the first day (a stale cursor never reads as "nothing").
  * @param {!Array<!Object>} days
  * @param {number} cycleCursor
  * @return {?Object}
@@ -56,13 +42,7 @@ function isRestDay(day) {
 function upNextDay(days, cycleCursor) {
   const sorted = sortedDays(days);
   if (!sorted.length) return null;
-  let start = sorted.findIndex((d) => d.order === cycleCursor);
-  if (start < 0) start = 0;
-  for (let i = 0; i < sorted.length; i++) {
-    const day = sorted[(start + i) % sorted.length];
-    if (!isRestDay(day)) return day;
-  }
-  return null;
+  return sorted.find((d) => d.order === cycleCursor) || sorted[0];
 }
 
 /**
@@ -91,7 +71,7 @@ function rotationFrom(days, cycleCursor) {
 function swapDayOrders(days, aId, bId) {
   const a = days.find((d) => d.id === aId);
   const b = days.find((d) => d.id === bId);
-  if (!a || !b || aId === bId || isRestDay(a) || isRestDay(b)) return days;
+  if (!a || !b || aId === bId) return days;
   const swapped = days.map((d) => {
     if (d.id === aId) return Object.assign({}, d, {order: b.order});
     if (d.id === bId) return Object.assign({}, d, {order: a.order});
@@ -112,15 +92,13 @@ function cursorOnto(days, dayId) {
 }
 
 /**
- * The WORKOUT that comes after `dayId` in the rotation (wrapping; rest slots
- * are passed over).
+ * The day that comes after `dayId` in the rotation (wrapping).
  * @param {!Array<!Object>} days
  * @param {string} dayId
  * @return {?Object}
  */
 function dayAfter(days, dayId) {
-  const sorted = sortedDays(days)
-      .filter((d) => !isRestDay(d) || d.id === dayId);
+  const sorted = sortedDays(days);
   const i = sorted.findIndex((d) => d.id === dayId);
   if (i < 0 || sorted.length < 2) return null;
   return sorted[(i + 1) % sorted.length];
@@ -160,9 +138,6 @@ function applyRotationChange(plan, change) {
   if (!days.some((d) => d.id === change.targetDayId)) {
     throw new Error("That workout day isn't in your split any more.");
   }
-  if (isRestDay(days.find((d) => d.id === change.targetDayId))) {
-    throw new Error("That's a rest day in your split, not a workout.");
-  }
   if (change.mode === "swap") {
     // The cursor stays at the same POSITION, which now holds the target.
     return {days: swapDayOrders(days, due.id, change.targetDayId),
@@ -172,7 +147,6 @@ function applyRotationChange(plan, change) {
 }
 
 module.exports = {
-  isRestDay,
   sortedDays,
   upNextDay,
   rotationFrom,

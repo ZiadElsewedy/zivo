@@ -26,7 +26,7 @@ DateTime nextMotivationChange(DateTime now) => DateTime(
 const _en = [
   'Light weight. Heavy intent.',
   'Nobody is coming. Go get it.',
-  'Earn the rest day.',
+  'Finish what you started.',
   'Discipline outlasts motivation.',
   'Show up on the off days too.',
   "The bar doesn't care how you feel.",
@@ -53,7 +53,7 @@ const _en = [
 const _ar = [
   'وزن خفيف، ونية ثقيلة.',
   'لن يأتي أحد. انهض وخذها بنفسك.',
-  'استحق يوم راحتك.',
+  'أنهِ ما بدأته.',
   'الانضباط يبقى حين يرحل الحماس.',
   'احضر حتى في الأيام الصعبة.',
   'البار لا يهتم بمزاجك.',

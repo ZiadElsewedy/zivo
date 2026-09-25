@@ -16,7 +16,6 @@ class DayDraft {
     required this.slot,
     required this.label,
     this.notes,
-    this.type = TrainingDayType.workout,
     List<PlannedExercise>? exercises,
   }) : exercises = exercises ?? <PlannedExercise>[];
 
@@ -24,10 +23,7 @@ class DayDraft {
   final String slot;
   final String label;
   final String? notes;
-  final TrainingDayType type;
   final List<PlannedExercise> exercises;
-
-  bool get isRest => type == TrainingDayType.rest;
 }
 
 /// The split editor's document: the days being edited, and the rules for
@@ -72,7 +68,6 @@ class PlanEditController extends ChangeNotifier {
             slot: d.slot,
             label: d.label,
             notes: d.notes,
-            type: d.type,
             exercises: List.of(d.exercises),
           ),
         ),
@@ -104,9 +99,7 @@ class PlanEditController extends ChangeNotifier {
   bool get isEditing => _initialPlan != null;
 
   void _recompute() {
-    // A cycle of nothing but rest days has nothing to train — not a split.
-    final next =
-        name.text.trim().isNotEmpty && _days.any((d) => !d.isRest);
+    final next = name.text.trim().isNotEmpty && _days.isNotEmpty;
     if (next != _canSave) {
       _canSave = next;
       notifyListeners();
@@ -217,12 +210,9 @@ class PlanEditController extends ChangeNotifier {
           label: draft.label,
           notes: draft.notes,
           order: i,
-          type: draft.type,
           exercises: [
-            // A rest day never carries exercises.
-            if (!draft.isRest)
-              for (var j = 0; j < draft.exercises.length; j++)
-                draft.exercises[j].copyWith(order: j),
+            for (var j = 0; j < draft.exercises.length; j++)
+              draft.exercises[j].copyWith(order: j),
           ],
         ),
       );

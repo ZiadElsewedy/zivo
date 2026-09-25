@@ -159,29 +159,6 @@ class FirestoreStore {
   }
 
   /**
-   * The user's per-calendar-day training marks —
-   * `users/{uid}/trainingDayMarks/{yyyy-MM-dd}`: a reason for a day without
-   * training (`rest` = the user CHOSE to rest) and/or a spent streak restore.
-   * Read-only for the coach.
-   * @param {string} uid
-   * @return {!Promise<!Array<{day: string, reason: ?string,
-   *   restored: boolean}>>}
-   */
-  async listTrainingDayMarks(uid) {
-    const snap = await this._user(uid).collection("trainingDayMarks").get();
-    return snap.docs
-        .filter((doc) => /^\d{4}-\d{2}-\d{2}$/.test(doc.id))
-        .map((doc) => {
-          const d = doc.data();
-          return {
-            day: doc.id,
-            reason: typeof d.reason === "string" ? d.reason : null,
-            restored: d.restored === true,
-          };
-        });
-  }
-
-  /**
    * The user's exercise-identity aliases (ADR-017) —
    * `users/{uid}/exerciseAliases/{legacyId}` → `canonicalId`. Read-side only:
    * the coach folds history through them (`../analytics/exercise_identity.js`)
@@ -229,15 +206,11 @@ class FirestoreStore {
         status: d.status || "active",
         // The `order` of the day that's up next — the rotation's "today".
         cycleCursor: typeof d.cycleCursor === "number" ? d.cycleCursor : 0,
-        // When the split began — before it, nothing was planned by it.
-        createdAt: toDate(d.createdAt),
         days: (d.days || []).map((day) => ({
           id: day.id || "",
           slot: day.slot || "",
           label: day.label || "",
           order: typeof day.order === "number" ? day.order : 0,
-          // A scheduled rest slot (`TrainingDayType.rest`); absent = workout.
-          type: day.type === "rest" ? "rest" : "workout",
           exercises: (day.exercises || []).map((e) => ({
             id: e.id || "",
             // The canonical exercise this slot performs (ADR-017); null while

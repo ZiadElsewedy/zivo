@@ -31,8 +31,7 @@ WorkoutPlan workoutPlanFromImport(
     final importedDay = result.days[i];
     final dayId = '$id-d$i';
     final exercises = <PlannedExercise>[];
-    // A rest day carries no exercises, whatever the extraction left on it.
-    for (var j = 0; !importedDay.isRest && j < importedDay.exercises.length; j++) {
+    for (var j = 0; j < importedDay.exercises.length; j++) {
       exercises.add(_plannedExerciseFrom(importedDay.exercises[j], id: '$dayId-e$j', order: j));
     }
     days.add(
@@ -41,7 +40,6 @@ WorkoutPlan workoutPlanFromImport(
         slot: importedDay.slot.isEmpty ? _slotForIndex(i) : importedDay.slot,
         label: importedDay.label,
         order: i,
-        type: importedDay.isRest ? TrainingDayType.rest : TrainingDayType.workout,
         exercises: exercises,
       ),
     );

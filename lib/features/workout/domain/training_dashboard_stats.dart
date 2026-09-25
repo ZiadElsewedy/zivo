@@ -109,7 +109,6 @@ TrainingDashboardStats computeTrainingDashboardStats({
     minutes: kDefaultMaxSessionDurationMinutes,
   ),
   List<TrainingDayMark> marks = const [],
-  Set<DateTime> plannedRestDays = const {},
   int recentLimit = 8,
 }) {
   final completed = sessions.where((s) => s.status == SessionStatus.completed).toList()
@@ -130,7 +129,6 @@ TrainingDashboardStats computeTrainingDashboardStats({
     sessions: sessions,
     now: now,
     marks: marks,
-    plannedRestDays: plannedRestDays,
   );
 
   final usable = completed

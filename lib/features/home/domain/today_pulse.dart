@@ -104,12 +104,10 @@ int trainingStreakDays(
   List<LiveSession> sessions,
   DateTime now, {
   List<TrainingDayMark> marks = const [],
-  Set<DateTime> plannedRestDays = const {},
 }) => computeTrainingStreak(
   sessions: sessions,
   now: now,
   marks: marks,
-  plannedRestDays: plannedRestDays,
 ).currentDays;
 
 /// Whether any workout COMPLETED today (the Train ring's filled state).
@@ -182,19 +180,13 @@ List<PulseInsight> buildInsights({
   required WeightTrend? weight,
   required DateTime now,
   List<TrainingDayMark> marks = const [],
-  Set<DateTime> plannedRestDays = const {},
   int max = 3,
 }) {
   final result = <PulseInsight>[];
 
   // -- Training ------------------------------------------------------------
   final activity = weekActivity(sessions, now);
-  final streak = trainingStreakDays(
-    sessions,
-    now,
-    marks: marks,
-    plannedRestDays: plannedRestDays,
-  );
+  final streak = trainingStreakDays(sessions, now, marks: marks);
   final lastDone = activity.lastWhere(
     (d) => d.workouts > 0,
     orElse: () => activity.last,

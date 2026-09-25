@@ -18,7 +18,6 @@ import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/theme/zivo_palette.dart';
 import '../../../../core/widgets/train_chrome.dart';
 import '../../../workout/domain/live_session.dart';
-import '../../../workout/domain/training_days.dart';
 import '../../../workout/domain/training_day_mark.dart';
 import '../../../workout/domain/session_estimate.dart';
 import '../../../workout/domain/session_status.dart';
@@ -377,20 +376,14 @@ class _StreakRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = clock();
-    // The same inputs every other streak surface passes — restores and the
-    // plan's own rest days — so Today can't show a different number.
-    final scope = AppScope.of(context);
-    final marks = scope.trainingDayMarks?.current ?? const <TrainingDayMark>[];
+    // Restores count here exactly as on every other streak surface (the
+    // Orbit, the hub tile, the streak page) — without them this row showed a
+    // smaller number than the page it opens.
     final streak = trainingStreakDays(
       sessions,
       now,
-      marks: marks,
-      plannedRestDays: plannedRestDaysFor(
-        plan: scope.workoutPlans.activePlan,
-        sessions: sessions,
-        marks: marks,
-        now: now,
-      ),
+      marks: AppScope.of(context).trainingDayMarks?.current ??
+          const <TrainingDayMark>[],
     );
     final weekTotal = weekActivity(
       sessions,
@@ -820,16 +813,9 @@ class _InsightsInputsState extends State<_InsightsInputs> {
             .map((e) => (e.loggedAt, e.weightKg))
             .toList() ??
         const <(DateTime, double)>[];
-    final marks = scope.trainingDayMarks?.current ?? const <TrainingDayMark>[];
     final insights = buildInsights(
       strings: l(context),
-      marks: marks,
-      plannedRestDays: plannedRestDaysFor(
-        plan: scope.workoutPlans.activePlan,
-        sessions: widget.sessions,
-        marks: marks,
-        now: widget.now(),
-      ),
+      marks: scope.trainingDayMarks?.current ?? const <TrainingDayMark>[],
       sessions: widget.sessions,
       expenses: widget.expenses,
       kcalLeft: kcalLeft,

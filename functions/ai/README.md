@@ -61,7 +61,8 @@ ai/
 │  │                 shared golden vectors in <repo>/test/fixtures/. The model reads
 │  │                 their output; it never recomputes it.
 │  ├─ workout_analytics.js · exercise_analytics.js
-│  └─ readiness.js · plan_fitting.js
+│  ├─ readiness.js · plan_fitting.js
+│  └─ training_calendar.js   calendar adherence (trained / inactive days) from sessions
 │
 ├─ speech/           the voice subsystem, self-contained (gateway + providers + routing)
 │

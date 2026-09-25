@@ -3,11 +3,9 @@ import '../../../../../core/theme/train_tokens.dart';
 import '../../../../capture/presentation/widgets/capture_widgets.dart';
 import 'plan_edit_chrome.dart';
 import '../../controllers/plan_edit_controller.dart';
-import '../../../domain/workout_day.dart';
 import '../../../../../l10n/l10n.dart';
 
-/// A sheet to add one day: a workout or a rest day, a slot letter, a label,
-/// and optional notes. A rest day's label defaults to "Rest".
+/// A sheet to add one day: a slot letter, a label, and optional notes.
 class DaySheet extends StatefulWidget {
   const DaySheet({required this.suggestedSlot, super.key});
 
@@ -23,22 +21,15 @@ class _DaySheetState extends State<DaySheet> {
   );
   final TextEditingController _label = TextEditingController();
   final TextEditingController _notes = TextEditingController();
-  TrainingDayType _type = TrainingDayType.workout;
-
-  bool get _isRest => _type == TrainingDayType.rest;
-
-  /// A rest day needs no name — it falls back to "Rest".
-  bool get _canAdd => _isRest || _label.text.trim().isNotEmpty;
+  bool _canAdd = false;
 
   @override
   void initState() {
     super.initState();
-    _label.addListener(() => setState(() {}));
-  }
-
-  void _setType(TrainingDayType type) {
-    if (type == _type) return;
-    setState(() => _type = type);
+    _label.addListener(() {
+      final canAdd = _label.text.trim().isNotEmpty;
+      if (canAdd != _canAdd) setState(() => _canAdd = canAdd);
+    });
   }
 
   @override
@@ -55,14 +46,12 @@ class _DaySheetState extends State<DaySheet> {
         ? widget.suggestedSlot
         : _slot.text.trim();
     final notes = _notes.text.trim();
-    final label = _label.text.trim();
     Navigator.of(context).pop(
       DayDraft(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
         slot: slot,
-        label: label.isEmpty ? l(context).restDayLabel : label,
+        label: _label.text.trim(),
         notes: notes.isEmpty ? null : notes,
-        type: _type,
       ),
     );
   }
@@ -72,24 +61,6 @@ class _DaySheetState extends State<DaySheet> {
     return SheetShell(
       title: l(context).planAddDay,
       children: [
-        Row(
-          children: [
-            SelectChip(
-              key: const Key('day-type-workout'),
-              label: l(context).planDayTypeWorkout,
-              selected: !_isRest,
-              onTap: () => _setType(TrainingDayType.workout),
-            ),
-            const SizedBox(width: 8),
-            SelectChip(
-              key: const Key('day-type-rest'),
-              label: l(context).planDayTypeRest,
-              selected: _isRest,
-              onTap: () => _setType(TrainingDayType.rest),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -107,9 +78,7 @@ class _DaySheetState extends State<DaySheet> {
                 fieldKey: const Key('day-label-field'),
                 label: l(context).planDayLabel,
                 controller: _label,
-                hint: _isRest
-                    ? l(context).restDayLabel
-                    : l(context).planDayLabelHint,
+                hint: l(context).planDayLabelHint,
                 autofocus: true,
                 onSubmitted: (_) => _submit(),
               ),

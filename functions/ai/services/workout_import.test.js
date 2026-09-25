@@ -525,24 +525,3 @@ test("extractWorkoutPlan: an aborted signal is reported as cancelled even if the
       }),
       (err) => err instanceof GatewayError && err.code === "cancelled");
 });
-
-test("extractWorkoutPlan: a scheduled rest day is kept in place as a rest day, never an empty workout", async () => {
-  const callModel = scriptedModel(toolResponse({planName: "UL", days: [
-    {...VALID_DAY, rest: false},
-    {slot: "B", label: "Rest", rest: true, exercises: [VALID_DAY.exercises[0]]},
-    {...VALID_DAY, slot: "C", label: "Pull", rest: false},
-  ]}));
-  const result = await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
-  assert.equal(result.ok, true);
-  assert.deepEqual(result.days.map((d) => d.rest), [false, true, false]);
-  assert.deepEqual(result.days[1].exercises, [], "a rest day carries no exercises");
-  assert.equal(result.days[1].label, "Rest");
-});
-
-test("extractWorkoutPlan: a plan of only rest days is an honest rejection", async () => {
-  const callModel = scriptedModel(toolResponse({planName: "Nope", days: [
-    {slot: "A", label: "Rest", rest: true, exercises: []},
-  ]}));
-  const result = await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
-  assert.equal(result.ok, false);
-});

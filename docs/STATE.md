@@ -97,24 +97,24 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
-- 2026-09-25 (`upgrades`) — **Rest days as a first-class day type**
-  ([ADR-019](DECISIONS/ADR-019-rest-days.md), NOT deployed). `WorkoutDay.type`
-  (`workout`/`rest`); imports keep a document's rest days as rest
-  (`workout_import.js` schema gains `rest`), the split editor can add one, and
-  a rest slot is never started, swapped or offered in Change. Planned vs actual
-  per day is derived in `training_days.dart` (completed · missed · userRest ·
-  plannedRest · extraWorkout · unscheduled · pending); **missed only on plans
-  that schedule rest**. Today/Workout show a `RestDayCard` on rest, and
-  "Take a rest day" / "Resume today's workout" write/withdraw a
-  `trainingDayMarks` `reason: rest` — the plan is never edited. Planned rest
-  bridges the streak on every surface (Today's Momentum row now also counts
-  restores, which it silently ignored). Coach: `get_training_analysis.trainingDays`
-  (28-day planned-vs-actual) + rest-aware `get_workout_schedule`, Node mirror
-  pinned by `test/fixtures/training_days_vectors.json`. No rules change.
-  **Owner action:** deploy `functions` (import schema + tools).
-  Pre-existing failures seen while verifying, unrelated to this change and
-  failing identically on the base: `light_mode_smoke_test` "the Hub reads on
-  paper", and 3 functions tests (chat cap ×2, choice-card persistence).
+- 2026-09-25 (`upgrades`) — **Progression vs calendar, made explicit (the
+  short-lived rest-day feature is reverted).** The rest-day day type, "Take a
+  rest day", the rest cards and all planned-rest logic were removed after
+  review; saved plans and session history are untouched (the feature was never
+  deployed, and it wrote no new fields to existing data). The model is:
+  TRAIN → session → rotation advances; DON'T TRAIN → no session → rotation
+  waits. Kept from that work: Today's Momentum streak row and its streak
+  insight now count restores like every other streak surface (they silently
+  ignored them). New: the coach's `get_training_analysis` carries a
+  `trainingCalendar` block (`functions/ai/analytics/training_calendar.js`) —
+  active vs inactive calendar days derived from sessions only, with no rest
+  vocabulary — and the prompt keeps progression and calendar apart. The
+  "Earn the rest day." motivation line is replaced. Tests:
+  `test/workout/training_progression_test.dart` (real controller end to end).
+  **Owner action:** deploy `functions`.
+  Pre-existing failures, failing identically on the base: Flutter
+  `light_mode_smoke_test` "the Hub reads on paper"; functions: chat cap ×2 and
+  choice-card persistence.
 
 - 2026-09-25 (`upgrades`) — **Moments reach every device of the account without a
   manual "Back up now"; Drive gets a readable layout; the gallery is by month.**
