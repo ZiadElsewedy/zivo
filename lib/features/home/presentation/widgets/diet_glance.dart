@@ -109,8 +109,8 @@ class DietGlanceRow extends StatelessWidget {
   }
 }
 
-/// One segment per planned meal, lit as it's eaten — the day's eating read
-/// as a sequence rather than a fraction. A finished day glows. Past eight
+/// One segment per planned meal, filled as it's eaten — the day's eating
+/// read as a sequence rather than a fraction. Only a finished day blooms. Past eight
 /// meals the segments would be slivers, so it becomes one continuous bar.
 class _MealSegments extends StatelessWidget {
   const _MealSegments({
@@ -132,17 +132,14 @@ class _MealSegments extends StatelessWidget {
         height: 6,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(3),
-          gradient: lit
-              ? LinearGradient(
-                  colors: [TrainColors.green, TrainColors.greenLift],
-                )
-              : null,
-          color: lit ? null : TrainColors.liftAt(0.08),
+          color: lit ? TrainColors.green : TrainColors.liftAt(0.08),
+          // The day's plan fully eaten is a completed goal — the one state
+          // that earns a bloom.
           boxShadow: lit && glow
               ? [
                   BoxShadow(
-                    color: TrainColors.green.withValues(alpha: 0.35),
-                    blurRadius: 8,
+                    color: TrainColors.green.withValues(alpha: 0.25),
+                    blurRadius: 6,
                   ),
                 ]
               : null,

@@ -245,6 +245,8 @@ class _VolumeRing extends StatelessWidget {
             : (trend.thisWeekKg / trend.lastWeekKg).clamp(0.0, 1.0);
         return TrainMetricRing(
           progress: progress,
+          // Full only means "beat last week" when there WAS a last week.
+          earned: trend.lastWeekKg > 0 && progress >= 1,
           color: TrainColors.green,
           label: l(context).pulseVolume,
           sub: change == null
@@ -335,44 +337,23 @@ class MomentumSection extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: TrainColors.hairline),
                   ),
-                  child: DecoratedBox(
-                    // A live streak warms the card from the flame's corner —
-                    // the one place on Today that heat means "keep going".
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient:
-                          trainingStreakDays(sessions, now()) >= 2 &&
-                              ZivoTheme.brightness == Brightness.dark
-                          ? RadialGradient(
-                              center: AlignmentDirectional.topStart.resolve(
-                                Directionality.of(context),
-                              ),
-                              radius: 1.1,
-                              colors: [
-                                TrainColors.ember.withValues(alpha: 0.10),
-                                TrainColors.ember.withValues(alpha: 0),
-                              ],
-                            )
-                          : null,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _StreakRow(sessions: sessions, clock: now),
-                          if (sessions.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            WeekActivityBars(sessions: sessions, now: now),
-                          ],
-                          if (hasWeight) ...[
-                            const SizedBox(height: 14),
-                            Divider(height: 1, color: TrainColors.hairline),
-                            const SizedBox(height: 12),
-                            const _WeightRow(),
-                          ],
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _StreakRow(sessions: sessions, clock: now),
+                        if (sessions.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          WeekActivityBars(sessions: sessions, now: now),
                         ],
-                      ),
+                        if (hasWeight) ...[
+                          const SizedBox(height: 14),
+                          Divider(height: 1, color: TrainColors.hairline),
+                          const SizedBox(height: 12),
+                          const _WeightRow(),
+                        ],
+                      ],
                     ),
                   ),
                 ),
@@ -400,38 +381,24 @@ class _StreakRow extends StatelessWidget {
       now,
     ).fold<int>(0, (s, d) => s + d.workouts);
     final hasStreak = streak >= 2;
-    final glow = hasStreak && ZivoTheme.brightness == Brightness.dark;
     return Row(
       children: [
-        // The flame is lit only by a live streak; otherwise it is the same
-        // badge, cold — the slot never disappears, so a week with one
-        // session still reads as a week rather than as something missing.
+        // The streak's state is the flame's colour: ember while one is live,
+        // cold ink when not. The tile stays put either way, so a week with
+        // one session still reads as a week rather than as a gap.
         Container(
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
             color: hasStreak
                 ? TrainColors.ember.withValues(alpha: 0.14)
                 : TrainColors.liftAt(0.05),
-            border: Border.all(
-              color: hasStreak
-                  ? TrainColors.ember.withValues(alpha: 0.35)
-                  : TrainColors.hairline,
-            ),
-            boxShadow: glow
-                ? [
-                    BoxShadow(
-                      color: TrainColors.ember.withValues(alpha: 0.35),
-                      blurRadius: 16,
-                    ),
-                  ]
-                : null,
+            borderRadius: BorderRadius.circular(11),
           ),
           child: Icon(
             AppIcons.streak,
             size: 17,
-            color: hasStreak ? TrainColors.emberLift : TrainColors.ink4,
+            color: hasStreak ? TrainColors.ember : TrainColors.ink4,
           ),
         ),
         const SizedBox(width: 11),
@@ -569,25 +536,21 @@ class _DayBar extends StatelessWidget {
         ),
       );
     } else {
-      final (top, bottom) = isToday
-          ? (TrainColors.emberLift, TrainColors.ember)
-          : (TrainColors.greenLift, TrainColors.green.withValues(alpha: 0.45));
+      // Today's bar is the one earned highlight on the card: ember, with a
+      // faint bloom on the dark skin. Past days are plain green.
       mark = Container(
         width: 16,
         height: 60 * fraction,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [top, bottom],
-          ),
-          boxShadow: dark
+          color: isToday
+              ? TrainColors.ember
+              : TrainColors.green.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(5),
+          boxShadow: isToday && dark
               ? [
                   BoxShadow(
-                    color: (isToday ? TrainColors.ember : TrainColors.green)
-                        .withValues(alpha: isToday ? 0.45 : 0.18),
-                    blurRadius: isToday ? 14 : 8,
+                    color: TrainColors.ember.withValues(alpha: 0.3),
+                    blurRadius: 10,
                   ),
                 ]
               : null,
@@ -605,7 +568,7 @@ class _DayBar extends StatelessWidget {
             size: 9,
             tracking: 0.1,
             weight: isToday ? FontWeight.w700 : FontWeight.w500,
-            color: isToday ? TrainColors.emberLift : TrainColors.ink4,
+            color: isToday ? TrainColors.ink2 : TrainColors.ink4,
           ),
         ),
       ],
@@ -652,7 +615,6 @@ class _WeightRow extends StatelessWidget {
               points: points,
               end: lastPoint,
               color: down ? TrainColors.green : TrainColors.ember,
-              glow: ZivoTheme.brightness == Brightness.dark,
             ),
           ),
         ),
@@ -687,20 +649,18 @@ class _WeightRow extends StatelessWidget {
 
 double maxDouble(double a, double b) => a > b ? a : b;
 
-/// The weight trend — drawn in the direction's colour, over a fade of the
-/// same colour down to nothing, ending on a lit point: today's weight.
+/// The weight trend — a plain line in the direction's colour, ending on a
+/// dot for today's weight.
 class _SparklinePainter extends CustomPainter {
   const _SparklinePainter({
     required this.points,
     required this.end,
     required this.color,
-    required this.glow,
   });
 
   final List<Offset> points;
   final Offset end;
   final Color color;
-  final bool glow;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -709,19 +669,6 @@ class _SparklinePainter extends CustomPainter {
     for (var i = 1; i < points.length; i++) {
       path.lineTo(points[i].dx, points[i].dy);
     }
-    final area = Path.from(path)
-      ..lineTo(points.last.dx, size.height)
-      ..lineTo(points.first.dx, size.height)
-      ..close();
-    canvas.drawPath(
-      area,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [color.withValues(alpha: 0.22), color.withValues(alpha: 0)],
-        ).createShader(Offset.zero & size),
-    );
     canvas.drawPath(
       path,
       Paint()
@@ -731,24 +678,12 @@ class _SparklinePainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round
         ..color = color,
     );
-    if (glow) {
-      canvas.drawCircle(
-        end,
-        6,
-        Paint()
-          ..color = color.withValues(alpha: 0.4)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      );
-    }
     canvas.drawCircle(end, 3, Paint()..color = TrainColors.ink);
   }
 
   @override
   bool shouldRepaint(_SparklinePainter old) =>
-      old.points != points ||
-      old.end != end ||
-      old.color != color ||
-      old.glow != glow;
+      old.points != points || old.end != end || old.color != color;
 }
 
 // ---------------------------------------------------------------------------
@@ -914,7 +849,6 @@ class _InsightRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = ZivoTheme.brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(14, 14, 16, 14),
       child: Row(
@@ -924,17 +858,8 @@ class _InsightRow extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
               color: insight.hue.withValues(alpha: 0.14),
-              border: Border.all(color: insight.hue.withValues(alpha: 0.3)),
-              boxShadow: dark
-                  ? [
-                      BoxShadow(
-                        color: insight.hue.withValues(alpha: 0.22),
-                        blurRadius: 12,
-                      ),
-                    ]
-                  : null,
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(insight.icon, size: 16, color: insight.hue),
           ),
