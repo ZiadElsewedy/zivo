@@ -2576,13 +2576,46 @@ void main() {
       await tester.enterText(find.byType(TextField).at(1), '40');
       await tester.pump();
 
-      await _tap(tester, find.byKey(const Key('log-set')));
+      await tester.ensureVisible(find.byKey(const Key('log-set')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('log-set')));
+      await tester.pump();
+
+      // The rest ring opens on the check, with its countdown not yet shown —
+      // no timer flashing up underneath the confirmation.
       expect(find.text('SET 1 LOGGED'), findsOneWidget);
       expect(find.text('40kg × 5'), findsOneWidget);
-      // It plays over rest rather than holding the phase back.
       expect(find.text('Skip rest'), findsOneWidget);
+      double timerOpacity() => tester
+          .widget<Opacity>(
+            find
+                .ancestor(
+                  of: find.byKey(const Key('rest-time-label')),
+                  matching: find.byType(Opacity),
+                )
+                .first,
+          )
+          .opacity;
+      expect(timerOpacity(), 0);
 
-      await tester.pump(const Duration(milliseconds: 600));
+      // …then hands the face over to the countdown.
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 150));
+      }
+      expect(find.text('SET 1 LOGGED'), findsNothing);
+      expect(timerOpacity(), 1);
+    });
+
+    testWidgets('a rest that follows a skipped set does not replay the check', (
+      tester,
+    ) async {
+      await pumpPlan(tester, _twoExercisePlan());
+      await _tap(tester, find.byKey(const Key('log-set')));
+      await _tap(tester, find.text('Skip rest'));
+      await tester.pump(const Duration(seconds: 1));
+      await _tap(tester, find.byKey(const Key('skip-set')));
+
+      expect(find.text('Skip rest'), findsOneWidget);
       expect(find.text('SET 1 LOGGED'), findsNothing);
     });
 

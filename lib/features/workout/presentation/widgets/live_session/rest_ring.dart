@@ -6,6 +6,7 @@ import '../../../../../core/motion/springs.dart';
 import '../../../../../core/theme/train_tokens.dart';
 import '../../../../../l10n/l10n.dart';
 import 'live_session_format.dart';
+import 'set_logged_moment.dart';
 
 /// The premium rest countdown — a ring sweeping down continuously (not
 /// stepped) over the rest window, with the remaining time centered inside
@@ -27,6 +28,7 @@ class RestRing extends StatefulWidget {
     Color? hue,
     this.onTap,
     this.isPaused = false,
+    this.confirming,
     super.key,
     // `this._x`, which the lint asks for here, is not a thing Dart will
     // accept: a named parameter cannot be private. The field is private
@@ -74,6 +76,10 @@ class RestRing extends StatefulWidget {
   /// eyebrow pill above the ring (and the header badge). Screen readers get
   /// it here because the ring is itself the toggle.
   final bool isPaused;
+
+  /// The set just logged, when this rest follows one: the face opens on its
+  /// checkmark and hands over to the countdown (see [SetLoggedFace]).
+  final SetLoggedEvent? confirming;
 
   @override
   State<RestRing> createState() => _RestRingState();
@@ -205,24 +211,35 @@ class _RestRingState extends State<RestRing> with TickerProviderStateMixin {
               ),
             ),
           ),
-          // The numeral owns the ring's exact centre. It used to share a
-          // Column with the caption below it, which centred the PAIR — so the
-          // digits sat half a caption plus its gap ABOVE the circle's middle.
-          // The caption hangs from its own offset now and can't move it.
-          RestTimeLabel(time: time),
           Positioned.fill(
-            child: Align(
-              alignment: const Alignment(0, 0.44),
-              child: Text(
-                l(
-                  context,
-                ).liveRestPlanned(ltrFor(context, formatRest(widget.total))),
-                style: TrainType.mono(
-                  size: 9,
-                  weight: FontWeight.w500,
-                  tracking: 0.24,
-                  color: TrainColors.inkAt(0.3),
-                ),
+            child: SetLoggedFace(
+              event: widget.confirming,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // The numeral owns the ring's exact centre. It used to share
+                  // a Column with the caption below it, which centred the
+                  // PAIR — so the digits sat half a caption plus its gap ABOVE
+                  // the circle's middle. The caption hangs from its own offset
+                  // now and can't move it.
+                  RestTimeLabel(time: time),
+                  Positioned.fill(
+                    child: Align(
+                      alignment: const Alignment(0, 0.44),
+                      child: Text(
+                        l(context).liveRestPlanned(
+                          ltrFor(context, formatRest(widget.total)),
+                        ),
+                        style: TrainType.mono(
+                          size: 9,
+                          weight: FontWeight.w500,
+                          tracking: 0.24,
+                          color: TrainColors.inkAt(0.3),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

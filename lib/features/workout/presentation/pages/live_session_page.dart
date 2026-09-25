@@ -162,8 +162,8 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     if (moment != null) setState(() => _loggedMoment = moment);
   }
 
-  /// The confirmation currently (or most recently) playing — see
-  /// [SetLoggedMoment]. Presentation only: it is derived from the session
+  /// The confirmation currently (or most recently) played — the rest ring
+  /// that follows the set opens on it (see [SetLoggedFace]). Presentation only: it is derived from the session
   /// the instant after the controller resolves the set, and nothing reads
   /// it back.
   SetLoggedEvent? _loggedMoment;
@@ -443,14 +443,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  ),
-                                  // The set-logged confirmation — above the phase
-                                  // because the running phase is already fading
-                                  // out when it plays (see [SetLoggedMoment]).
-                                  Positioned.fill(
-                                    child: SetLoggedMoment(
-                                      event: _loggedMoment,
                                     ),
                                   ),
                                   // Paused, the whole phase is inert — so the dimmed
@@ -743,6 +735,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         onTogglePause: _c.togglePause,
         onAdjust: _c.adjustRest,
         onSkip: _c.endRest,
+        confirming: _loggedMoment,
       );
     }
     return RunningPhase(

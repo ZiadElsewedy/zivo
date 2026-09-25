@@ -7,6 +7,7 @@ import '../../../../domain/logged_set.dart';
 import '../../../../domain/session_exercise.dart';
 import '../../../../domain/weight_unit.dart';
 import '../rest_ring.dart';
+import '../set_logged_moment.dart';
 import '../session_header.dart';
 import '../up_next_card.dart';
 import 'phase_scaffold.dart';
@@ -44,6 +45,7 @@ class CountdownPhase extends StatelessWidget {
     this.runningIcon,
     this.runningGlyph,
     this.onChangeNext,
+    this.confirming,
     super.key,
   });
 
@@ -95,6 +97,9 @@ class CountdownPhase extends StatelessWidget {
   final IconData? runningIcon;
   final Widget? runningGlyph;
 
+  /// The set whose logging started this rest — the ring opens on its check.
+  final SetLoggedEvent? confirming;
+
   @override
   Widget build(BuildContext context) {
     return PhaseScroll(
@@ -128,6 +133,7 @@ class CountdownPhase extends StatelessWidget {
             accent2: accent2,
             onTap: onTogglePause,
             isPaused: isPaused,
+            confirming: confirming,
           ),
         ),
         const SizedBox(height: 26),
