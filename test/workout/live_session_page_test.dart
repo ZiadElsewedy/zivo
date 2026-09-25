@@ -1357,16 +1357,16 @@ void main() {
   );
 
   testWidgets(
-    'cross-split isolation (§3.2/Phase 5): previous performance never leaks from a '
-    'different split, even one sharing this exerciseId (the shape a Duplicate produces)',
+    'history follows the exercise across splits (ADR-017): another split that '
+    'performs the same exercise supplies "last time" (the shape a Duplicate produces)',
     (tester) async {
       final workouts = _RecordingWorkoutRepository();
       final plans = _RecordingWorkoutPlanRepository();
       final sessions = InMemoryWorkoutSessionRepository();
-      // A completed session belonging to a DIFFERENT split ('p2'), but
-      // trained on the SAME exerciseId ('ex1') as this test's plan's Bench
-      // — exactly what split management's Duplicate produces. An extreme
-      // weight (999kg) so any leak is unmistakable.
+      // A completed session belonging to a DIFFERENT split ('p2'), trained
+      // on the SAME exercise ('ex1') as this test's plan's Bench — exactly
+      // what split management's Duplicate produces. Until ADR-017 this was
+      // deliberately hidden; switching splits now keeps your progression.
       await sessions.saveSession(
         LiveSession(
           id: 'other-split-prev',
@@ -1388,7 +1388,7 @@ void main() {
                   target: RepTarget.fixed(5),
                   outcome: SetOutcome.completed,
                   actualReps: 5,
-                  actualWeightKg: 999,
+                  actualWeightKg: 47.5,
                 ),
               ],
             ),
@@ -1408,10 +1408,9 @@ void main() {
       );
       await _start(tester);
 
-      // "First time" for THIS split's Bench — split p2's 999kg must never
-      // surface here, even though the exerciseId matches.
-      expect(find.text('First time'), findsOneWidget); // LAST TIME stat
-      expect(find.textContaining('999'), findsNothing);
+      // Split p2's Bench IS this Bench: its 47.5kg is last time.
+      expect(find.text('First time'), findsNothing);
+      expect(find.text('5 × 47.5 kg'), findsOneWidget); // LAST TIME stat
     },
   );
 

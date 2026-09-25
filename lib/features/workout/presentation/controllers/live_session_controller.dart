@@ -21,6 +21,8 @@ import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_repository.dart';
 import '../../domain/workout_repository.dart';
 import '../../domain/workout_session_repository.dart';
+import '../../domain/identity/exercise_identity_resolver.dart';
+import '../../domain/identity/exercise_library_repository.dart';
 
 /// Whole seconds remaining until [d] elapses, rounded up so a countdown never
 /// flashes "0" a moment before it's actually over; clamped at 0 for an
@@ -66,7 +68,10 @@ class LiveSessionController extends ChangeNotifier {
     required TickerProvider vsync,
     required this.now,
     LiveSession? resume,
+    ExerciseLibraryRepository? exerciseLibrary,
   }) : _plan = plan,
+       // ignore: prefer_initializing_formals
+       _library = exerciseLibrary,
        // An initializing formal would have to be `this._sessions`, and a
        // named parameter cannot start with an underscore — so these stay
        // plain assignments.
@@ -94,6 +99,7 @@ class LiveSessionController extends ChangeNotifier {
 
   final WorkoutPlan _plan;
   final WorkoutSessionRepository _sessions;
+  final ExerciseLibraryRepository? _library;
   final TickerProvider _vsync;
   final bool _resumed;
 
@@ -158,6 +164,14 @@ class LiveSessionController extends ChangeNotifier {
   Timer? _elapsedTimer;
 
   StreamSubscription<List<LiveSession>>? _pastSessionsSub;
+  StreamSubscription<ExerciseLibrary>? _librarySub;
+
+  /// Every other session as logged — kept raw so an alias landing later can
+  /// re-resolve it (see [_resolvePastSessions]).
+  List<LiveSession> _rawPastSessions = const [];
+
+  ExerciseIdentityResolver get _resolver =>
+      _library?.current.resolver ?? ExerciseIdentityResolver.identity;
   List<LiveSession> _pastSessions = const [];
 
   /// Whether the current set's actuals reflect real user input (or an
@@ -179,6 +193,10 @@ class LiveSessionController extends ChangeNotifier {
 
   LiveSession get session => _session;
   List<LiveSession> get pastSessions => _pastSessions;
+
+  /// [session] read through the identity model, for comparing it against
+  /// [pastSessions] (PR detection). A reading only — never saved.
+  LiveSession get resolvedSession => _resolver.canonicalize([_session]).single;
   int? get restTotalSeconds => _restTotalSeconds;
   int? get warmupTotalSeconds => _warmupTotalSeconds;
 
@@ -216,8 +234,14 @@ class LiveSessionController extends ChangeNotifier {
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
-  ExerciseHistory? historyFor(SessionExercise exercise) =>
-      lastPerformanceFor(exercise.exerciseId, _pastSessions);
+  /// What [exercise] looked like last time — from the same plan slot when
+  /// it has been trained there, else from the same exercise anywhere else
+  /// (another day, another split). See [lastPerformanceFor].
+  ExerciseHistory? historyFor(SessionExercise exercise) => lastPerformanceFor(
+    _resolver.canonicalIdOf(exercise.exerciseId),
+    _pastSessions,
+    slotId: exercise.effectiveSlotId,
+  );
 
   /// The matching set from the last time this exercise was trained —
   /// index-aligned against that history's *working* sets only.
@@ -322,19 +346,33 @@ class LiveSessionController extends ChangeNotifier {
 
     _pastSessionsSub = _sessions.watchAll().listen((sessions) {
       if (_disposed) return;
-      // §3.2 invariant 4: a split's history is its own — scoped to THIS
-      // session's split (splitId == planId), never another split's, even when
-      // they happen to share an exerciseId. Without the planId filter,
-      // "previous performance" could silently show another split's numbers.
-      _pastSessions = sessions
-          .where((s) => s.id != _session.id && s.planId == _session.planId)
+      // History follows the EXERCISE, not the split (ADR-017): the same
+      // canonical exercise shares one history across days and splits, so
+      // switching splits doesn't reset progression. What keeps two
+      // different movements apart is their identity, which is why sessions
+      // are resolved through the alias layer here rather than filtered by
+      // planId as they were.
+      _rawPastSessions = sessions
+          .where((s) => s.id != _session.id)
           .toList(growable: false);
-      notifyListeners();
+      _resolvePastSessions();
       if (!_prefillRefreshedFromHistory) {
         _prefillRefreshedFromHistory = true;
         _prefillInputs();
       }
     });
+    _librarySub = _library
+        ?.watch()
+        .skip(1)
+        .listen(
+          (_) {
+            if (_disposed) return;
+            _resolvePastSessions();
+          },
+          // An unreadable library (offline, or rules not yet deployed) just
+          // means no aliases: history reads exactly as it did before them.
+          onError: (Object _) {},
+        );
     unawaited(_sessions.saveSession(_session));
   }
 
@@ -343,6 +381,13 @@ class LiveSessionController extends ChangeNotifier {
   /// from their wall-clock sources of truth instead. Both no-op on their own
   /// while the session is explicitly paused, so backgrounding while paused
   /// can't sneak the clock back to life.
+  /// Re-reads the raw history through the current aliases. In memory only:
+  /// the resolved copies are never saved back.
+  void _resolvePastSessions() {
+    _pastSessions = _resolver.canonicalize(_rawPastSessions);
+    notifyListeners();
+  }
+
   void onAppResumed() {
     // The fold runs FIRST, while `_restEndsAt` still holds the rest that was
     // running when the app went away — `_resyncRestOnResume` clears an expired
@@ -401,6 +446,7 @@ class LiveSessionController extends ChangeNotifier {
     _elapsedTimer?.cancel();
     _draftDebounce?.cancel();
     unawaited(_pastSessionsSub?.cancel());
+    unawaited(_librarySub?.cancel());
     reps.dispose();
     weight.dispose();
     super.dispose();

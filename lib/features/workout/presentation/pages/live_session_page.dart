@@ -103,6 +103,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       day: widget.day,
       plan: widget.plan,
       sessions: AppScope.of(context).workoutSessions,
+      exerciseLibrary: AppScope.of(context).exerciseLibrary,
       vsync: this,
       now: widget.now,
       resume: widget.resume,

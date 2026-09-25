@@ -51,6 +51,8 @@ const valid = {
   mediaTombstones: { driveFileId: 'f1', driveAccountKey: 'acc-1', deletedAt: ts(), schemaVersion: 1 },
   sleepSettings: { schemaVersion: 1, targets: { bedtimeMinutes: 1380, wakeMinutes: 420, durationMinutes: 480 } },
   trainingDayMarks: { dayKey: '2026-01-01', restored: true, reason: 'travel', createdAt: ts(), schemaVersion: 1 },
+  exercises: { name: 'Incline Dumbbell Press', equipment: 'dumbbell', muscleGroup: 'Chest', createdAt: ts(), schemaVersion: 1 },
+  exerciseAliases: { canonicalId: 'ex-incline-db', source: 'merge', createdAt: ts(), schemaVersion: 1 },
   session: { sessionId: 's1', deviceId: 'd1', platform: 'ios', createdAt: ts(), lastSeenAt: ts() },
 };
 
@@ -73,6 +75,8 @@ const invalid = {
   mediaTombstones: { driveFileId: 123, schemaVersion: 1 }, // driveFileId not a string
   sleepSettings: { schemaVersion: 1, targets: 'nope' }, // targets not a map
   trainingDayMarks: { dayKey: '2026-01-01', restored: 'yes', createdAt: ts(), schemaVersion: 1 }, // restored not bool
+  exercises: { name: 'Incline Press', equipment: 'rowing', createdAt: ts(), schemaVersion: 1 }, // equipment not in enum
+  exerciseAliases: { canonicalId: 'ex1', source: 'guess', createdAt: ts(), schemaVersion: 1 }, // source not in enum
   session: { sessionId: 123, deviceId: 'd1', platform: 'ios', createdAt: ts(), lastSeenAt: ts() }, // sessionId not a string
 };
 
@@ -1110,5 +1114,36 @@ describe('quotas are Functions-only (owner may read, no client may write)', () =
   it('a different signed-in user cannot read it', async () => {
     await seed(bucket, { dayKey: '2026-09-02', used: 3 });
     await assertFails(getDoc(doc(otherDb(), bucket)));
+  });
+});
+
+describe('exercise identities', () => {
+  it('an alias cannot point at itself', async () => {
+    await assertFails(
+      setDoc(doc(ownerDb(), collPath(OWNER, 'exerciseAliases')), {
+        canonicalId: 'doc1', source: 'merge', createdAt: ts(), schemaVersion: 1,
+      }),
+    );
+  });
+
+  it('equipment may be unknown', async () => {
+    await assertSucceeds(
+      setDoc(doc(ownerDb(), collPath(OWNER, 'exercises')), {
+        name: 'Pullover', equipment: null, createdAt: ts(), schemaVersion: 1,
+      }),
+    );
+  });
+
+  it('an exercise needs a name', async () => {
+    await assertFails(
+      setDoc(doc(ownerDb(), collPath(OWNER, 'exercises')), {
+        name: '', createdAt: ts(), schemaVersion: 1,
+      }),
+    );
+  });
+
+  it('removing an alias (undoing a merge) is allowed', async () => {
+    await seed(collPath(OWNER, 'exerciseAliases'), { ...valid.exerciseAliases });
+    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'exerciseAliases'))));
   });
 });

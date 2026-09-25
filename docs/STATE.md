@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-24 · **Active branch:** `feature/ai-gemini-provider`
+**Last updated:** 2026-09-25 · **Active branch:** `feature/ai-gemini-provider`
 (cut from `feature/readiness`); music-reactive session background on `upgrades`;
 Diet Builder wizard on `claude/affectionate-wozniak-wcnkpm`; AI food/diet
 interaction layer — all 5 phases shipped and deployed, on
@@ -96,6 +96,14 @@ notifications)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- 2026-09-25 (`upgrades`) — **Exercise identity foundation**
+  ([ADR-017](DECISIONS/ADR-017-exercise-identity.md)): canonical exercise vs plan slot
+  vs history; alias layer read-only over history; history shared across days and
+  splits; slot-first goals; new `exercises` / `exerciseAliases` collections with rules +
+  rule tests. **No account changes behaviour yet** — migration, matcher wiring and the
+  Node mirror are the next increments. Also on `upgrades`: the live session's
+  set-logged moment (check takes over the rest ring's face) + per-set segment fill.
 
 - **Ask can change today's workout — skip vs swap; premium confirmation
   card** (2026-09-24, on `upgrades`, NOT deployed).

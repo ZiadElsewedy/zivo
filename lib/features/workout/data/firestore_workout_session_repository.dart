@@ -105,6 +105,10 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
   Map<String, dynamic> _exerciseToMap(SessionExercise exercise) => {
     'id': exercise.id,
     'exerciseId': exercise.exerciseId,
+    // Absent on records written before slots were stored; readers fall back
+    // to `effectiveSlotId`. Written only when known so an ad-hoc exercise
+    // doesn't carry an explicit null that means nothing.
+    if (exercise.slotId != null) 'slotId': exercise.slotId,
     'name': exercise.name,
     'muscleGroup': exercise.muscleGroup,
     'restSeconds': exercise.restSeconds,
@@ -162,6 +166,7 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
     return SessionExercise(
       id: map['id'] as String? ?? '',
       exerciseId: map['exerciseId'] as String? ?? '',
+      slotId: map['slotId'] as String?,
       name: map['name'] as String? ?? '',
       muscleGroup: map['muscleGroup'] as String?,
       restSeconds: (map['restSeconds'] as num?)?.toInt() ?? 0,

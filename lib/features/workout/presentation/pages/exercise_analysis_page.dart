@@ -11,6 +11,7 @@ import '../../domain/live_session.dart';
 import '../../domain/planned_exercise.dart';
 import '../../domain/training_volume.dart';
 import '../../domain/workout_plan.dart';
+import '../../domain/identity/exercise_identity_resolver.dart';
 import '../widgets/progress_status_style.dart';
 import '../widgets/staggered_reveal.dart';
 import '../widgets/trend_chart.dart';
@@ -51,12 +52,18 @@ class ExerciseAnalysisPage extends StatelessWidget {
             stream: scope.workoutSessions.watchAll(),
             initialData: scope.workoutSessions.current,
             builder: (context, snap) {
-              final sessions = snap.data ?? const <LiveSession>[];
+              // Read through the identity model: this exercise's history is
+              // every slot, day and split it was performed in.
+              final resolver = scope.exerciseResolver;
+              final canonicalId = resolver.canonicalIdOf(exerciseId);
+              final sessions = resolver.canonicalize(
+                snap.data ?? const <LiveSession>[],
+              );
               final analysis = analyzeExercise(
-                exerciseId: exerciseId,
+                exerciseId: canonicalId,
                 sessions: sessions,
                 now: DateTime.now(),
-                planned: _plannedFor(planSnap.data, exerciseId),
+                planned: _plannedFor(planSnap.data, canonicalId, resolver),
               );
 
               return ListView(
@@ -127,11 +134,17 @@ class ExerciseAnalysisPage extends StatelessWidget {
     );
   }
 
-  static PlannedExercise? _plannedFor(WorkoutPlan? plan, String exerciseId) {
+  /// The active plan's first slot performing [canonicalId] — its
+  /// prescription seeds the "do next" target when there's no history yet.
+  static PlannedExercise? _plannedFor(
+    WorkoutPlan? plan,
+    String canonicalId,
+    ExerciseIdentityResolver resolver,
+  ) {
     if (plan == null) return null;
     for (final day in plan.days) {
       for (final ex in day.exercises) {
-        if (ex.id == exerciseId) return ex;
+        if (resolver.canonicalIdOf(ex.canonicalId) == canonicalId) return ex;
       }
     }
     return null;

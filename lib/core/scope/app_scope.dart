@@ -32,6 +32,8 @@ import '../../features/workout/domain/workout_repository.dart';
 import '../../features/workout/domain/workout_session_repository.dart';
 import '../../features/workout/domain/workout_settings.dart';
 import '../../features/workout/domain/workout_settings_repository.dart';
+import '../../features/workout/domain/identity/exercise_identity_resolver.dart';
+import '../../features/workout/domain/identity/exercise_library_repository.dart';
 
 /// Provides shared repositories to the widget tree. A deliberately tiny
 /// seam for now; it will be replaced by a proper DI container (get_it) when
@@ -52,6 +54,7 @@ class AppScope extends InheritedWidget {
     required this.workoutPlans,
     required this.workoutSessions,
     this.workoutSettings,
+    this.exerciseLibrary,
     this.trainingDayMarks,
     this.sessionMaintenance,
     this.bodyWeight,
@@ -123,6 +126,17 @@ class AppScope extends InheritedWidget {
   /// never reach a duration keep constructing a scope without it. Read it
   /// through [requireWorkoutSettings], or fall back to the defaults.
   final WorkoutSettingsRepository? workoutSettings;
+
+  /// Exercise identities — canonical exercises and the legacy-id aliases
+  /// that fold older records into them. Optional like [workoutSettings]; a
+  /// scope without one resolves every id to itself (see [exerciseResolver]).
+  final ExerciseLibraryRepository? exerciseLibrary;
+
+  /// How history is read through the identity model. Pass sessions through
+  /// `exerciseResolver.canonicalize` before any per-exercise analysis, so the
+  /// same exercise shares one history across slots, days and splits.
+  ExerciseIdentityResolver get exerciseResolver =>
+      exerciseLibrary?.current.resolver ?? ExerciseIdentityResolver.identity;
 
   /// Per-calendar-day training marks: missed-day reasons and spent streak
   /// restores. Optional, same rationale.
@@ -379,6 +393,7 @@ class AppScope extends InheritedWidget {
       workoutPlans != oldWidget.workoutPlans ||
       workoutSessions != oldWidget.workoutSessions ||
       workoutSettings != oldWidget.workoutSettings ||
+      exerciseLibrary != oldWidget.exerciseLibrary ||
       trainingDayMarks != oldWidget.trainingDayMarks ||
       sessionMaintenance != oldWidget.sessionMaintenance ||
       bodyWeight != oldWidget.bodyWeight ||

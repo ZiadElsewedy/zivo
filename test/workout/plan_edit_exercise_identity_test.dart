@@ -93,6 +93,7 @@ WorkoutPlan _planWithBench() => WorkoutPlan(
       exercises: [
         PlannedExercise(
           id: 'e1',
+          exerciseId: 'bench',
           name: 'Bench Press',
           order: 0,
           defaultRestSeconds: 120,
@@ -159,6 +160,10 @@ void main() {
       // Renamed, but the SAME id — an edit-in-place, not a new movement.
       expect(exercise.name, 'Incline Bench Press');
       expect(exercise.id, 'e1');
+      // ...and it still performs the same canonical exercise (ADR-017): the
+      // sheet rebuilds the slot, and dropping this would silently cut the
+      // slot off from its history.
+      expect(exercise.exerciseId, 'bench');
     },
   );
 

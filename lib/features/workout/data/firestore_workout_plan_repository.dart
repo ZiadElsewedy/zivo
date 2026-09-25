@@ -348,6 +348,10 @@ class FirestoreWorkoutPlanRepository implements WorkoutPlanRepository {
 
   Map<String, dynamic> _exerciseToMap(PlannedExercise exercise) => {
     'id': exercise.id,
+    // The canonical exercise this slot performs. Omitted while the slot is
+    // still its own exercise, so plans written before identities existed
+    // round-trip byte-identical and older app versions keep reading them.
+    if (exercise.exerciseId != null) 'exerciseId': exercise.exerciseId,
     'name': exercise.name,
     'order': exercise.order,
     'muscleGroup': exercise.muscleGroup,
@@ -402,6 +406,7 @@ class FirestoreWorkoutPlanRepository implements WorkoutPlanRepository {
     final rawSets = (map['sets'] as List<dynamic>?) ?? const [];
     return PlannedExercise(
       id: map['id'] as String? ?? '',
+      exerciseId: map['exerciseId'] as String?,
       name: map['name'] as String? ?? '',
       order: (map['order'] as num?)?.toInt() ?? 0,
       muscleGroup: map['muscleGroup'] as String?,

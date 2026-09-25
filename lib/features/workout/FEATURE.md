@@ -138,8 +138,16 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   only on a device that has never linked to Spotify; a *linked* device that dropped mid-
   workout keeps a slim reconnect row, because the alternative was abandoning the session
   to go find Settings. See [`music/FEATURE.md`](../music/FEATURE.md).
-- **Exercise-identity invariant** and the `splitId` alias are intentional; analysis/history
-  are deliberately scoped to the **active** split.
+- **Exercise identity ([ADR-017](../../../docs/DECISIONS/ADR-017-exercise-identity.md)).**
+  `domain/identity/`: a `CanonicalExercise` is the movement; a `PlannedExercise` is a
+  slot pointing at it via `exerciseId` (null ⇒ `canonicalId == id`, the pre-ADR
+  behaviour); sessions store `exerciseId` (canonical) + `slotId`. Legacy ids fold in
+  through `ExerciseAlias`es, applied **on read** by `ExerciseIdentityResolver.canonicalize`
+  (`AppScope.exerciseResolver`) — never written back. History is shared across days
+  **and splits**; "last time"/goals are **slot-first** (`lastPerformanceFor(slotId:)`).
+  Pass sessions through the resolver before any per-exercise analysis. `matchExercise`
+  only suggests identity from a name (equipment gate + variation words).
+  The `splitId` alias is still intentional.
 - The splits-migration tie-break resolves to **oldest-by-`createdAt`** on purpose (matches
   `deleteSplit()` re-pointing).
 - Home's Training card and the Workout page read the **same** `watchActivePlan()` →

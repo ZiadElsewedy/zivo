@@ -103,10 +103,13 @@ import '../features/workout/domain/session_maintenance.dart';
 import '../features/workout/domain/training_day_mark_repository.dart';
 import '../features/workout/domain/workout_session_repository.dart';
 import '../features/workout/domain/workout_settings_repository.dart';
+import '../features/workout/domain/identity/exercise_library_repository.dart';
 import '../features/workout/data/firestore_training_day_mark_repository.dart';
 import '../features/workout/data/firestore_workout_settings_repository.dart';
+import '../features/workout/data/firestore_exercise_library_repository.dart';
 import '../features/workout/data/in_memory_training_day_mark_repository.dart';
 import '../features/workout/data/in_memory_workout_settings_repository.dart';
+import '../features/workout/data/in_memory_exercise_library_repository.dart';
 
 /// Firestore persistence for a feature is opt-out via `--dart-define
 /// USE_FIRESTORE=false` (e.g. for offline/dev runs); it defaults to on.
@@ -144,6 +147,7 @@ class ZivoApp extends StatefulWidget {
     this.workoutPlans,
     this.workoutSessions,
     this.workoutSettings,
+    this.exerciseLibrary,
     this.trainingDayMarks,
     this.bodyWeight,
     this.diet,
@@ -171,6 +175,7 @@ class ZivoApp extends StatefulWidget {
   final WorkoutPlanRepository? workoutPlans;
   final WorkoutSessionRepository? workoutSessions;
   final WorkoutSettingsRepository? workoutSettings;
+  final ExerciseLibraryRepository? exerciseLibrary;
   final TrainingDayMarkRepository? trainingDayMarks;
   final BodyWeightRepository? bodyWeight;
   final DietRepository? diet;
@@ -258,6 +263,8 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       widget.workoutSessions ?? _defaultWorkoutSessions();
   late final WorkoutSettingsRepository _workoutSettings =
       widget.workoutSettings ?? _defaultWorkoutSettings();
+  late final ExerciseLibraryRepository _exerciseLibrary =
+      widget.exerciseLibrary ?? _defaultExerciseLibrary();
   late final TrainingDayMarkRepository _trainingDayMarks =
       widget.trainingDayMarks ?? _defaultTrainingDayMarks();
 
@@ -598,6 +605,10 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  ExerciseLibraryRepository _defaultExerciseLibrary() => _useFirestore
+      ? FirestoreExerciseLibraryRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryExerciseLibraryRepository();
+
   WorkoutSettingsRepository _defaultWorkoutSettings() => _useFirestore
       ? FirestoreWorkoutSettingsRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryWorkoutSettingsRepository();
@@ -711,6 +722,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       workoutPlans: _workoutPlans,
       workoutSessions: _workoutSessions,
       workoutSettings: _workoutSettings,
+      exerciseLibrary: _exerciseLibrary,
       trainingDayMarks: _trainingDayMarks,
       sessionMaintenance: _sessionMaintenance,
       bodyWeight: _bodyWeight,

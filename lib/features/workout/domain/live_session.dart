@@ -271,7 +271,8 @@ class LiveSession {
   static SessionExercise _exerciseFromPlan(PlannedExercise e) {
     return SessionExercise(
       id: e.id,
-      exerciseId: e.id,
+      exerciseId: e.canonicalId,
+      slotId: e.id,
       name: e.name,
       muscleGroup: e.muscleGroup,
       restSeconds: e.defaultRestSeconds,

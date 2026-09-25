@@ -73,13 +73,19 @@ class _WorkoutAnalysisPageState extends State<WorkoutAnalysisPage> {
                   snap.connectionState == ConnectionState.waiting) {
                 return const _LoadingState();
               }
-              final sessions = snap.data ?? const <LiveSession>[];
+              // Read through the identity model, so one exercise done on two
+              // days (or in two splits) is one progression line, not two.
+              final resolver = scope.exerciseResolver;
+              final sessions = resolver.canonicalize(
+                snap.data ?? const <LiveSession>[],
+              );
               final now = DateTime.now();
               final analysis = analyzeTraining(sessions: sessions, now: now);
               final adherence = analyzePlanAdherence(
                 plan: planSnap.data,
                 sessions: sessions,
                 now: now,
+                resolver: resolver,
               );
 
               var step = 60;

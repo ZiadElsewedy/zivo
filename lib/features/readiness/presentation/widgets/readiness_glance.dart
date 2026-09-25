@@ -63,7 +63,11 @@ class ReadinessSection extends StatelessWidget {
                   builder: (context, weightSnap) {
                     return _build(
                       context,
-                      sessions: sessionsSnap.data ?? const <LiveSession>[],
+                      // Stall/deload signals are per exercise, so they read
+                      // history through the identity model like Analysis.
+                      sessions: scope.exerciseResolver.canonicalize(
+                        sessionsSnap.data ?? const <LiveSession>[],
+                      ),
                       nights: nightsSnap.data ?? const <SleepNight>[],
                       targets: targetsSnap.data,
                       weightEntries:
