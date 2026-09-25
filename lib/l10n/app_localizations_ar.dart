@@ -393,18 +393,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get actionBack => 'رجوع';
 
   @override
-  String get todayQuickLogVoice => 'تسجيل سريع بالصوت';
-
-  @override
-  String get todayDaytime => 'نهار';
-
-  @override
-  String get todayEvening => 'مساء';
-
-  @override
-  String get todayNight => 'ليل';
-
-  @override
   String get todayNextSession => 'التمرين القادم';
 
   @override

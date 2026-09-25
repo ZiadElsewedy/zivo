@@ -27,7 +27,7 @@
 - Widgets: `presentation/widgets/ask/` (`message_bubble`, `proposal_card`, `thought_trail`,
   `choice_tray`,
   `sessions_sheet`, `ask_empty_state`, `error_retry`, `ask_effects`), plus the older
-  `chat_header.dart`, `voice_composer.dart` (mic → transcript), `quick_log_sheet.dart`.
+  `chat_header.dart`, `voice_composer.dart` (mic → transcript), `quick_log_sheet.dart` (currently unreferenced — its only entry point, the mic on Today's header, was removed 2026-09-25).
 
 Turn rules are unit-tested directly in `test/ai/ask_controller_test.dart` — no widget
 tree. The `ask_page_*_test.dart` suite still covers what the screen renders.

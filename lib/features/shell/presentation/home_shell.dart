@@ -8,7 +8,6 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/util/money.dart';
 import '../../../core/scope/app_scope.dart';
 import '../../ai/presentation/pages/ask_page.dart';
-import '../../ai/presentation/widgets/quick_log_sheet.dart';
 import '../../profile/presentation/pages/profile_page.dart';
 import '../../capture/presentation/quick_capture_sheet.dart';
 import '../../expenses/domain/expense.dart';
@@ -120,13 +119,6 @@ class _HomeShellState extends State<HomeShell> {
     super.dispose();
   }
 
-  Future<void> _openQuickLog() async {
-    final text = await showQuickLogSheet(context);
-    if (text == null || !mounted) return;
-    _askDraft.value = text;
-    setState(() => _index = 2);
-  }
-
   Future<void> _openCapture() async {
     final choice = await showQuickCaptureSheet(context);
     if (choice == null || !mounted) return;
@@ -177,12 +169,11 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     // Built per-frame (not a static const list) so Today can be handed a
-    // live callback to switch tabs itself — needed for the pull-to-ask
-    // gesture, since HomeShell is the only thing that owns `_index`.
+    // live callback to switch tabs itself — the readiness card's "ask about
+    // it" needs one, since HomeShell is the only thing that owns `_index`.
     final tabs = [
       TodayPage(
         onOpenAsk: () => setState(() => _index = 2),
-        onQuickLog: _openQuickLog,
       ),
       const HubPage(),
       AskPage(incomingDraft: _askDraft),

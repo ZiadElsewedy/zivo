@@ -391,18 +391,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get actionBack => 'Back';
 
   @override
-  String get todayQuickLogVoice => 'Quick log by voice';
-
-  @override
-  String get todayDaytime => 'Daytime';
-
-  @override
-  String get todayEvening => 'Evening';
-
-  @override
-  String get todayNight => 'Night';
-
-  @override
   String get todayNextSession => 'NEXT SESSION';
 
   @override

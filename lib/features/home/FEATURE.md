@@ -6,7 +6,11 @@
 ## Start here
 
 - `presentation/pages/today_page.dart` — the Today page. Built per-frame so it can receive
-  an `onOpenAsk` callback from the shell (switches to the Ask tab).
+  an `onOpenAsk` callback from the shell (switches to the Ask tab; the readiness card uses
+  it). Pull-down is **refresh** (forces a Health sleep read past its throttle, then
+  remounts the sections so every stream resubscribes) — it used to open Ask, removed
+  2026-09-25 at the owner's request. The header's hourly fire line lives in
+  `presentation/motivation_lines.dart`.
 - `presentation/header_builder.dart` — the greeting/header.
 - Glance widgets (`presentation/widgets/`): `today_pulse_card.dart`, `diet_glance.dart`,
   `spending_glance.dart`, `hue.dart` (per-area color), `common.dart`.

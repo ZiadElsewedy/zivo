@@ -537,22 +537,6 @@
   "@actionBack": {
     "description": "The shared back chip's label."
   },
-  "todayQuickLogVoice": "Quick log by voice",
-  "@todayQuickLogVoice": {
-    "description": "Accessibility label for Today's mic button."
-  },
-  "todayDaytime": "Daytime",
-  "@todayDaytime": {
-    "description": "Accessibility label for Today's time-of-day glyph."
-  },
-  "todayEvening": "Evening",
-  "@todayEvening": {
-    "description": "Accessibility label for Today's time-of-day glyph."
-  },
-  "todayNight": "Night",
-  "@todayNight": {
-    "description": "Accessibility label for Today's time-of-day glyph."
-  },
   "todayNextSession": "NEXT SESSION",
   "@todayNextSession": {
     "description": "Caption above the next training session on Today. All-caps mono."

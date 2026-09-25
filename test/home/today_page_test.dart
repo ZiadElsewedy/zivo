@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/firebase/uid_source.dart';
@@ -154,6 +155,36 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
   }
+
+  testWidgets('pulling down refreshes the page instead of opening Ask', (
+    tester,
+  ) async {
+    var openedAsk = false;
+    await tester.pumpWidget(
+      _wrap(
+        child: TodayPage(onOpenAsk: () => openedAsk = true),
+        diet: InMemoryDietRepository(),
+      ),
+    );
+    await _settle(tester);
+
+    final gesture = await tester.startGesture(const Offset(400, 80));
+    for (var i = 0; i < 20; i++) {
+      await gesture.moveBy(const Offset(0, 30));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await gesture.up();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(CupertinoActivityIndicator), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 1));
+    await _settle(tester);
+    expect(openedAsk, isFalse);
+    expect(find.byType(CupertinoActivityIndicator), findsNothing);
+    // The page is still whole after the sections remount.
+    expect(find.textContaining('Ziad'), findsOneWidget);
+  });
 
   testWidgets('header shows the profile name and a real date', (tester) async {
     await tallView(tester);
@@ -331,7 +362,10 @@ void main() {
       await _settle(tester);
 
       // Swap is the default — the sheet says what it will do with the due day.
-      expect(find.text('Full Arm takes the slot you pick — the cycle stays whole.'), findsOneWidget);
+      expect(
+        find.text('Full Arm takes the slot you pick — the cycle stays whole.'),
+        findsOneWidget,
+      );
 
       await tester.tap(find.text('Legs').last);
       await _settle(tester);
@@ -559,8 +593,9 @@ void main() {
     expect(find.textContaining('of plan'), findsNothing);
   });
 
-  testWidgets('Diet glance says "over target" rather than a clamped zero',
-      (tester) async {
+  testWidgets('Diet glance says "over target" rather than a clamped zero', (
+    tester,
+  ) async {
     await tallView(tester);
     final diet = InMemoryDietRepository();
     addTearDown(diet.dispose);
@@ -776,8 +811,6 @@ class _TestDietRepository extends DietRepositoryStub {
     _targets = null;
     _targetsController.add(null);
   }
-
-
 
   NutritionTargets? _targets;
   final StreamController<NutritionTargets?> _targetsController =

@@ -794,30 +794,6 @@ abstract class AppLocalizations {
   /// **'Back'**
   String get actionBack;
 
-  /// Accessibility label for Today's mic button.
-  ///
-  /// In en, this message translates to:
-  /// **'Quick log by voice'**
-  String get todayQuickLogVoice;
-
-  /// Accessibility label for Today's time-of-day glyph.
-  ///
-  /// In en, this message translates to:
-  /// **'Daytime'**
-  String get todayDaytime;
-
-  /// Accessibility label for Today's time-of-day glyph.
-  ///
-  /// In en, this message translates to:
-  /// **'Evening'**
-  String get todayEvening;
-
-  /// Accessibility label for Today's time-of-day glyph.
-  ///
-  /// In en, this message translates to:
-  /// **'Night'**
-  String get todayNight;
-
   /// Caption above the next training session on Today. All-caps mono.
   ///
   /// In en, this message translates to:
