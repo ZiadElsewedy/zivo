@@ -8,6 +8,7 @@ import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_typography.dart';
 import '../domain/media_resolution.dart';
 import '../media_service.dart';
+import 'storage_sync_page.dart';
 import '../../theme/train_tokens.dart';
 
 /// Displays a stored media reference honestly. Resolves the [ref] through
@@ -27,6 +28,10 @@ import '../../theme/train_tokens.dart';
 ///   (typically captured on another device). Rendered as a calm "lives
 ///   elsewhere" tile with NO tappable retry — a retry cannot succeed until
 ///   another device uploads it, so pretending otherwise would be a lie.
+/// - **notConnected** — backed up, but Drive isn't connected on this device.
+///   A static "connect Drive to view" tile that opens Storage & Sync; every
+///   such tile re-resolves by itself once [MediaService.backupConnected]
+///   flips on.
 ///
 /// Optional [onRetry] gives surfaces that want an explicit escape hatch
 /// (e.g. the full-screen viewer, where the user is looking straight at the
@@ -88,11 +93,30 @@ class _MediaImageState extends State<MediaImage>
   void initState() {
     super.initState();
     _resolved = widget.service.resolveWithStatus(widget.ref);
+    widget.service.backupConnected.addListener(_onConnectionChanged);
+  }
+
+  /// A tile parked on "connect Drive" has nothing in flight to wake it, so
+  /// connecting (from any screen) must re-resolve it. Cheap for every other
+  /// tile: a local photo answers from the service's memo.
+  void _onConnectionChanged() {
+    if (mounted && widget.service.backupConnected.value) _reresolve();
+  }
+
+  Future<void> _openStorage() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const StorageSyncPage()));
+    if (mounted) _reresolve();
   }
 
   @override
   void didUpdateWidget(MediaImage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.service != widget.service) {
+      oldWidget.service.backupConnected.removeListener(_onConnectionChanged);
+      widget.service.backupConnected.addListener(_onConnectionChanged);
+    }
     if (oldWidget.ref != widget.ref || oldWidget.service != widget.service) {
       _reresolve();
     }
@@ -100,6 +124,7 @@ class _MediaImageState extends State<MediaImage>
 
   @override
   void dispose() {
+    widget.service.backupConnected.removeListener(_onConnectionChanged);
     _selfRetry?.cancel();
     _pulse.dispose();
     super.dispose();
@@ -161,6 +186,15 @@ class _MediaImageState extends State<MediaImage>
                 return _LivesElsewhere(
                   message: l(context).mediaOnAnotherBackupAccount,
                   onRetry: widget.onRetry,
+                );
+              case MediaAvailability.notConnected:
+                // Nothing will arrive until Drive is connected here — no
+                // pulse, no self-retry; the tile itself is the way there.
+                _selfRetry?.cancel();
+                _pulse.stop();
+                return _LivesElsewhere(
+                  message: l(context).mediaConnectDriveToView,
+                  onRetry: _openStorage,
                 );
               case MediaAvailability.nowhere:
                 _pulse.stop();

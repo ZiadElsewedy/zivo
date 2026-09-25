@@ -34,3 +34,11 @@ container-path changes) → `MediaRegistry` (metadata at `users/{uid}/media`) �
 - **Never store a raw `image_picker` cache path or an absolute path** — that was the old
   bug; everything goes through `MediaService` and relative refs.
 - Backup connection is per-account and reset on account switch (see [`app.dart`](../../app/app.dart)).
+- **Cross-device = account-keyed, never device-keyed.** Moments and media records live
+  under `users/{uid}`, and Drive files under `ZIVO/{uid}/Moments/`, so every device
+  signed into the account sees every photo. The bytes reach another device only once
+  the capturing device has uploaded them: at capture when it can, otherwise on the next
+  sign-in / app resume / Drive connect (`MediaService.uploadPendingInBackground`).
+  The viewing device needs Drive connected once; until then its tiles read
+  "Connect Drive to view" (`MediaAvailability.notConnected`).
+- The grid is sectioned by calendar month of `takenAt` (`_MonthSections`).

@@ -463,6 +463,10 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       if (uid != null) _syncSleep();
       if (uid != null) _sweepStaleSessions();
       if (uid != null) _syncExerciseIdentities();
+      // Photos captured while this device couldn't reach Drive (offline, not
+      // yet connected) go up now, so the account's other devices can open
+      // them. Silent and gated on the account's auto-upload setting.
+      if (uid != null) unawaited(_media.uploadPendingInBackground());
       // Accrue a step history from now on (see [_startStepSnapshots]). Signed
       // out, the writer stops — its writes would be denied anyway.
       if (uid != null) {
@@ -552,6 +556,10 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       // again the next morning.
       if (_auth.currentUser != null) _sweepStaleSessions();
       if (_auth.currentUser != null) _syncExerciseIdentities();
+      // A photo taken offline uploads once the app is back with a network.
+      if (_auth.currentUser != null) {
+        unawaited(_media.uploadPendingInBackground());
+      }
     }
   }
 

@@ -12,8 +12,21 @@ import 'drive_connection_store.dart';
 /// authorization) and the Drive v3 REST API. The only file that touches Google
 /// authorization scopes or the `googleapis` Drive surface.
 ///
-/// It requests just the `drive.file` scope and uploads into a per-account
-/// subfolder `ROOT/{accountFolder}` under an app-owned "ZIVO" folder. The OAuth
+/// It requests just the `drive.file` scope and files every upload under one
+/// app-owned tree:
+///
+/// ```text
+/// ZIVO/
+///   {zivoUid}/        one per ZIVO account, so accounts sharing a Drive never mix
+///     Moments/
+///     Profile/
+/// ```
+///
+/// The account folder is keyed by the ZIVO uid, never by device: every device
+/// signed into the same ZIVO account uploads into (and reads from) the same
+/// folder. That sharing leans on `drive.file` authorizing per Cloud project
+/// rather than per OAuth client, so the iOS and Android clients of
+/// `zivo-63f15` can read each other's uploads (see the NOTE below). The OAuth
 /// bearer token is injected into each Drive request via [_BearerClient].
 ///
 /// The Google SDK is engaged only from user-initiated calls ([connect],
@@ -21,8 +34,9 @@ import 'drive_connection_store.dart';
 /// check [hasLiveSession] first, so day-to-day use never shows a sign-in sheet.
 ///
 /// NOTE: needs the Google side configured in Cloud project `zivo-63f15` (Drive
-/// API on, `drive.file` on the consent screen); the live flows need on-device
-/// verification.
+/// API on, `drive.file` on the consent screen, and the iOS and Android OAuth
+/// clients in that same project); the live flows — including a photo uploaded
+/// from one platform opening on the other — need on-device verification.
 class GoogleDriveBackupClient implements MediaBackupProvider {
   GoogleDriveBackupClient({
     GoogleSignIn? signIn,
@@ -41,6 +55,12 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
 
   bool _initTried = false;
   GoogleSignInAccount? _liveAccount;
+
+  /// Folder ids already found/created this session, keyed by Google account
+  /// and folder path — without it every upload re-lists up to three folders.
+  /// Cleared on disconnect; a folder the user deleted meanwhile just fails
+  /// that one upload, which the next pass retries against a fresh lookup.
+  final Map<String, String> _folderIds = {};
 
   @override
   bool get hasLiveSession => _liveAccount != null;
@@ -135,6 +155,7 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
   @override
   Future<void> disconnect() async {
     _liveAccount = null;
+    _folderIds.clear();
     await _store.clear();
     try {
       await _signIn.disconnect();
@@ -156,6 +177,7 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
     required String fileName,
     required String mimeType,
     required String accountFolder,
+    String? subfolder,
     String? replaceRemoteId,
     String? replaceInAccountKey,
   }) async {
@@ -194,7 +216,11 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
         }
       }
 
-      final folderId = await _ensureAccountFolder(api, accountFolder);
+      final folderId = await _ensureFolderPath(api, live, <String>[
+        rootFolderName,
+        accountFolder,
+        if (subfolder != null && subfolder.isNotEmpty) subfolder,
+      ]);
       final created = await api.files.create(
         drive.File(name: fileName, parents: folderId == null ? null : <String>[folderId]),
         uploadMedia: drive.Media(
@@ -205,6 +231,9 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
       );
       return created.id;
     } catch (_) {
+      // A cached folder id may be what failed (the user deleted the folder);
+      // drop the cache so the next attempt looks it up again.
+      _folderIds.clear();
       return null;
     } finally {
       client.close();
@@ -277,12 +306,24 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
     }
   }
 
-  /// Finds/creates `rootFolderName` then its `accountFolder` child, returning
-  /// the child's id so each ZIVO account's photos live in their own folder.
-  Future<String?> _ensureAccountFolder(drive.DriveApi api, String accountFolder) async {
-    final rootId = await _ensureFolder(api, rootFolderName, null);
-    if (rootId == null) return null;
-    return _ensureFolder(api, accountFolder, rootId);
+  /// Finds/creates each folder of [path] under the previous one (the first
+  /// at the Drive root) and returns the innermost id, memoized per account.
+  Future<String?> _ensureFolderPath(
+      drive.DriveApi api, String? accountKey, List<String> path) async {
+    String? parentId;
+    for (var i = 0; i < path.length; i++) {
+      final key = '$accountKey|${path.sublist(0, i + 1).join('/')}';
+      final cached = _folderIds[key];
+      if (cached != null) {
+        parentId = cached;
+        continue;
+      }
+      final id = await _ensureFolder(api, path[i], parentId);
+      if (id == null) return null;
+      _folderIds[key] = id;
+      parentId = id;
+    }
+    return parentId;
   }
 
   Future<String?> _ensureFolder(drive.DriveApi api, String name, String? parentId) async {

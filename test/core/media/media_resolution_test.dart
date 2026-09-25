@@ -80,6 +80,7 @@ class _FakeDrive implements MediaBackupProvider {
     required String fileName,
     required String mimeType,
     required String accountFolder,
+    String? subfolder,
     String? replaceRemoteId,
     String? replaceInAccountKey,
   }) async {
@@ -210,9 +211,11 @@ void main() {
       expect(r.hasBytes, isFalse);
     });
 
-    test('fetchable-but-sessionless reads as cloudOnly (on its way), not an error', () async {
-      // Connected ONCE (owner persists) but no live/restorable session —
-      // e.g. revoked token, offline. Fetch must not even attempt.
+    test('a backed-up photo on a device with no Drive connection reads as '
+        'notConnected — a user action, not "on its way"', () async {
+      // The second phone that never connected Drive: the record says the bytes
+      // are in the cloud, but nothing here can fetch them until the user
+      // connects once. Pulsing "on its way" forever was the old lie.
       final drive = _FakeDrive(deviceConnected: false, liveSession: false, ownerId: 'u1');
       final service = MediaService(
         store: store,
@@ -239,7 +242,7 @@ void main() {
 
       final r = await service.resolveWithStatus(ref);
 
-      expect(r.availability, MediaAvailability.cloudOnly);
+      expect(r.availability, MediaAvailability.notConnected);
       expect(r.file, isNull);
       expect(drive.downloaded, isEmpty); // never even attempted without a session
     });

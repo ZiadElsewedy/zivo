@@ -3396,6 +3396,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get mediaCapturedOnAnotherDevice => 'التُقطت على جهاز آخر';
 
   @override
+  String get mediaConnectDriveToView => 'اربط Drive للعرض';
+
+  @override
   String get mediaOnAnotherBackupAccount => 'في حساب Drive آخر';
 
   @override

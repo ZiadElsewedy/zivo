@@ -20,7 +20,17 @@ import 'dart:io';
 ///   no retry can succeed until some other device uploads it, so UI must NOT
 ///   offer a tap-to-retry that would always fail — it should say, honestly,
 ///   where the photo actually lives.
-enum MediaAvailability { onDevice, cloudOnly, otherAccount, nowhere }
+/// - [notConnected] — backed up, but this device has no backup connection for
+///   the signed-in account (typically a second phone that never connected
+///   Drive). Nothing is in flight and nothing will arrive on its own; the
+///   remedy is connecting Drive here once.
+enum MediaAvailability {
+  onDevice,
+  cloudOnly,
+  otherAccount,
+  nowhere,
+  notConnected,
+}
 
 /// The result of resolving a reference through [MediaService].
 final class MediaResolution {

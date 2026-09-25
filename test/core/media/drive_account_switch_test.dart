@@ -8,6 +8,7 @@ import 'package:zivo/core/media/domain/media_backup_provider.dart';
 import 'package:zivo/core/media/domain/media_kind.dart';
 import 'package:zivo/core/media/domain/media_object.dart';
 import 'package:zivo/core/media/domain/media_resolution.dart';
+import 'package:zivo/core/media/domain/media_storage_preferences.dart';
 import 'package:zivo/core/media/media_service.dart';
 
 /// A [MediaBackupProvider] that models what the other fakes in this folder
@@ -101,6 +102,7 @@ class _MultiAccountDrive implements MediaBackupProvider {
     required String fileName,
     required String mimeType,
     required String accountFolder,
+    String? subfolder,
     String? replaceRemoteId,
     String? replaceInAccountKey,
   }) async {
@@ -489,20 +491,20 @@ void main() {
       expect(resolution.hasBytes, isFalse);
     });
 
-    test('connecting a new Drive account queues the whole library for re-upload',
+    test('connecting a new Drive account re-uploads the whole library by itself',
         () async {
       await service.connectBackup();
       await captureAndSettle('m1');
       expect(drive.files['drive-1'], hasLength(1), reason: 'precondition');
 
       await switchDriveTo('drive-2'); // local bytes still present
+      // Connecting kicks the background pass; join it.
+      await service.uploadPendingInBackground();
 
-      expect(
-        await service.backupNow(),
-        1,
-        reason: 'a record backed up to another account still needs backing up here',
-      );
-      expect(drive.files['drive-2'], hasLength(1));
+      expect(drive.files['drive-2'], hasLength(1),
+          reason: 'a record backed up to another account needs backing up here');
+      expect(await service.backupNow(), 0,
+          reason: 'nothing is left for the manual button');
 
       final record = await registry.get('m1');
       expect(record!.remoteAccountKey, 'drive-2');
@@ -515,7 +517,7 @@ void main() {
       await service.connectBackup();
       await captureAndSettle('m1');
       await switchDriveTo('drive-2');
-      await service.backupNow();
+      await service.uploadPendingInBackground();
 
       await deleteLocalBytes();
       final resolution = await service.resolveWithStatus(ref);
@@ -554,6 +556,10 @@ void main() {
         'account that actually received it', () async {
       await service.connectBackup();
       await captureAndSettle('m1');
+      // This is about the manual path: keep the connect-time background pass
+      // from uploading before the hook below is armed.
+      await service.preferences.save(
+          const MediaStoragePreferences(autoUploadToDrive: false));
       await switchDriveTo('drive-2');
 
       // The user disconnects and reconnects while the bytes are on the wire.

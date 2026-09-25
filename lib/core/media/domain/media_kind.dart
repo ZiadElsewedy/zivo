@@ -7,17 +7,23 @@
 /// means adding a case here (and nothing else in the storage layer).
 enum MediaKind {
   /// A photo attached to a [Moment].
-  moment('moments'),
+  moment('moments', 'Moments'),
 
   /// A user's profile picture (avatar).
-  avatar('avatars');
+  avatar('avatars', 'Profile');
 
-  const MediaKind(this.folder);
+  const MediaKind(this.folder, this.remoteFolder);
 
   /// The on-disk (and remote) folder segment for this kind. Stable — persisted
   /// inside relative paths, so renaming a value's folder would strand existing
   /// files. Add new kinds; don't repurpose folders.
   final String folder;
+
+  /// The folder this kind is filed under in the cloud backup
+  /// (`ZIVO/{account}/{remoteFolder}/`). A display name, not an identity:
+  /// files are addressed by their remote id, so renaming it only changes
+  /// where *new* uploads land.
+  final String remoteFolder;
 
   static MediaKind fromName(String name) =>
       MediaKind.values.firstWhere((k) => k.name == name, orElse: () => MediaKind.moment);

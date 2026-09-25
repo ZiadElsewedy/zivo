@@ -3356,6 +3356,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mediaCapturedOnAnotherDevice => 'Captured on another device';
 
   @override
+  String get mediaConnectDriveToView => 'Connect Drive to view';
+
+  @override
   String get mediaOnAnotherBackupAccount => 'In another Drive account';
 
   @override

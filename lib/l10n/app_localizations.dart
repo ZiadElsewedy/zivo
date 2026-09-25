@@ -5742,6 +5742,12 @@ abstract class AppLocalizations {
   /// **'Captured on another device'**
   String get mediaCapturedOnAnotherDevice;
 
+  /// Shown on a photo tile whose image is backed up to Google Drive, on a device where Drive is not connected yet. Tapping opens Storage & Sync. Keep very short: it sits under an icon in a small grid tile.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Drive to view'**
+  String get mediaConnectDriveToView;
+
   /// Shown on a photo tile that is backed up to a Google Drive account this device is not connected to.
   ///
   /// In en, this message translates to:

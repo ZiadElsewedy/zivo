@@ -112,8 +112,10 @@ abstract interface class MediaBackupProvider {
   /// user-initiated actions (Back up now / Sync).
   Future<BackupAccount?> restoreSession();
 
-  /// Uploads [file] into the account's namespace ([accountFolder]). Returns
-  /// the remote id, or null on failure.
+  /// Uploads [file] into the account's namespace ([accountFolder]), inside
+  /// its [subfolder] when one is given (one per [MediaKind], so a browse of
+  /// the cloud copy reads "Moments", "Profile" rather than one flat pile).
+  /// Returns the remote id, or null on failure.
   ///
   /// [replaceRemoteId] is an *optimisation*, never a requirement: when the id
   /// is given and [replaceInAccountKey] matches the live session's account,
@@ -126,6 +128,7 @@ abstract interface class MediaBackupProvider {
     required String fileName,
     required String mimeType,
     required String accountFolder,
+    String? subfolder,
     String? replaceRemoteId,
     String? replaceInAccountKey,
   });

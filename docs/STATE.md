@@ -97,6 +97,28 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- 2026-09-25 (`upgrades`) — **Moments reach every device of the account without a
+  manual "Back up now"; Drive gets a readable layout; the gallery is by month.**
+  Traced end to end: media was already keyed by **account, never device**
+  (`users/{uid}/moments` + `users/{uid}/media`, local refs `media/{uid}/…`, Drive
+  folder `ZIVO/{uid}/`). What broke cross-device was that the upload happened only
+  once, at capture, and only if Drive was connected *and* reachable right then; a
+  photo taken offline or before connecting stayed on that phone until someone
+  tapped "Back up now", so every other device showed a record with no image. Now
+  `MediaService.uploadPendingInBackground()` pushes any local, not-yet-uploaded
+  photo on sign-in, on every app resume, and right after connecting Drive (silent;
+  gated on the account's auto-upload setting; one pass at a time; each record
+  patched onto the freshest registry row). Drive layout is
+  `ZIVO/{uid}/Moments/ZIVO 2026-09-25 11.15.03 ab12cd34.jpg` (new uploads only;
+  existing files stay put and resolve by id). A backed-up photo on a device with
+  no Drive connection now reads **"Connect Drive to view"** (new
+  `MediaAvailability.notConnected`, opens Storage & Sync, tiles re-resolve when
+  Drive connects) instead of pulsing "on its way" forever. The Moments grid is
+  sectioned by month. **Needs on-device verification:** a photo uploaded from iOS
+  opening on Android — this relies on `drive.file` grants being shared by the iOS
+  and Android OAuth clients of `zivo-63f15`. Still per device by design: each
+  phone connects Drive once, and signing out clears that phone's connection.
+
 - 2026-09-25 (`upgrades`) — **Admin Console** ([ADR-018](DECISIONS/ADR-018-admin-console.md),
   [ADMIN.md](ADMIN.md), NOT deployed). An account with the `admin` custom claim
   lands in `AdminShell` (Dashboard · Users · Activity; sidebar/rail/bottom-bar)
