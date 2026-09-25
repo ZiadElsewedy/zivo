@@ -1260,7 +1260,10 @@ ImportedDay _importedDayFromJson(Object? data) {
   return ImportedDay(
     slot: map['slot'] as String? ?? '',
     label: map['label'] as String? ?? '',
-    exercises: exercises,
+    // A rest day in the source ("Wednesday — Rest") comes back as a real day
+    // with `rest: true`, never as an empty workout.
+    isRest: map['rest'] == true,
+    exercises: map['rest'] == true ? const <ImportedExercise>[] : exercises,
   );
 }
 

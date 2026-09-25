@@ -656,7 +656,11 @@ class _PreviewDayCard extends StatelessWidget {
               ),
             ],
           ),
-          if (day.exercises.isEmpty) ...[
+          // A rest day's meta line already says "Rest day"; "no exercises"
+          // under it would read as an extraction that failed.
+          if (day.isRest)
+            const SizedBox.shrink()
+          else if (day.exercises.isEmpty) ...[
             const SizedBox(height: 8),
             Text(
               l(context).importNoExercisesForDay,

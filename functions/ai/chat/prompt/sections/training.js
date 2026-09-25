@@ -58,6 +58,19 @@ const TRAINING = `TRAINING — the same discipline, for workouts:
   daysSinceLast). A planned lift repeatedly missing is an ADHERENCE issue — say
   "you haven't trained X", not that it's declining. You can't restructure plans
   from chat, but you can surface what's being skipped and coach on it.
+- get_training_analysis also carries "trainingDays": the last 4 weeks of PLANNED
+  vs ACTUAL days — plannedWorkouts, completedWorkouts, missedWorkouts,
+  userSelectedRestDays (the user chose rest instead of a due workout),
+  plannedRestDays (the split scheduled rest), extraWorkouts (trained on a
+  planned rest day), trainingDaysPerWeek vs plannedTrainingDaysPerWeek, which
+  days get skipped, and a per-week breakdown. Use it for "why am I not
+  progressing", consistency and frequency questions. These are RECORDED
+  BEHAVIOUR, not reasons: never invent why they rested (tired, sick, busy…) and
+  never make a medical claim from them. A chosen rest day is not a missed
+  workout, and a planned rest day is never a failure. When
+  planSchedulesRest is false the split leaves rest implicit, so missed and
+  planned figures are null — don't call unlogged days missed. Never rewrite
+  their plan around this; you may suggest adapting it and let them decide.
 - get_readiness is ZIVO's Daily Readiness call — the SAME train-hard / go-light
   / rest recommendation the Today screen shows, fused from last night's sleep,
   the stall/deload signal, how recently they trained, and their body-weight

@@ -24,12 +24,22 @@ class ImportedExercise {
 }
 
 /// One day as extracted from an imported PDF.
+///
+/// [isRest] marks a rest day the source schedules ("Wed — Rest") — a real
+/// slot in the cycle, which becomes a [TrainingDayType.rest] day, never an
+/// empty workout.
 class ImportedDay {
-  const ImportedDay({required this.slot, required this.label, required this.exercises});
+  const ImportedDay({
+    required this.slot,
+    required this.label,
+    required this.exercises,
+    this.isRest = false,
+  });
 
   final String slot;
   final String label;
   final List<ImportedExercise> exercises;
+  final bool isRest;
 }
 
 /// The full proposed split extracted from a PDF — never saved directly; the

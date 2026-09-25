@@ -38,11 +38,16 @@ class UpNextWorkoutCard extends StatefulWidget {
     required this.plan,
     required this.day,
     required this.resumable,
+    this.onTakeRest,
     super.key,
   });
 
   final WorkoutPlan plan;
   final WorkoutDay day;
+
+  /// "Take a rest day" — offered (by `TrainingDayCard`) only while today's
+  /// workout is due and untouched. Null hides it.
+  final VoidCallback? onTakeRest;
 
   /// A same plan/day active session to resume into, or null to start fresh.
   final LiveSession? resumable;
@@ -244,6 +249,8 @@ class _UpNextWorkoutCardState extends State<UpNextWorkoutCard>
                     icon: const TrainPlayGlyph(color: Colors.white, size: 15),
                     onTap: _start,
                   ),
+                  if (widget.onTakeRest != null && !isResume)
+                    _TakeRestLink(onTap: widget.onTakeRest!),
                 ],
               ),
             ),
@@ -252,6 +259,46 @@ class _UpNextWorkoutCardState extends State<UpNextWorkoutCard>
       ),
     );
     return CardScale(active: isResume, child: card);
+  }
+}
+
+/// The quiet way out of today's session — a word under the ember CTA, never a
+/// second button competing with it. Choosing rest is deliberate, not failure,
+/// so it reads as an option rather than an escape hatch.
+class _TakeRestLink extends StatelessWidget {
+  const _TakeRestLink({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Center(
+        child: PressableScale(
+          child: GestureDetector(
+            key: const Key('training-take-rest'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              onTap();
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Text(
+                l(context).restDayTake,
+                style: TrainType.ui(
+                  size: 13,
+                  weight: FontWeight.w600,
+                  height: 1,
+                  color: TrainColors.sessionInk.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

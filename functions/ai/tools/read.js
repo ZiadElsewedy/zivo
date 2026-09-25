@@ -62,7 +62,13 @@ const {
   upNextDay,
   dayAfter,
   dayName,
+  isRestDay,
 } = require("./workout_rotation");
+const {
+  classifyTrainingDayRecords,
+  summarizeTrainingDays,
+  addDays,
+} = require("../analytics/training_days");
 const {
   resolveComposite,
   resolveAndCompute,
@@ -615,6 +621,98 @@ const LAST_WORKOUT_TOOL = {
   },
 };
 
+const TRAINING_DAYS_WINDOW = 28;
+const DAY_MS_READ = 24 * 60 * 60 * 1000;
+
+/**
+ * Whether a session counts as a day trained — the app's `qualifiesForStreak`:
+ * completed or still running, with at least one completed working set.
+ * @param {!Object} s
+ * @return {boolean}
+ */
+function qualifiesAsTrainingDay(s) {
+  if (s.status !== "completed" && s.status !== "active") return false;
+  return (s.exercises || []).some((e) => (e.sets || []).some((set) =>
+    set.outcome === "completed" && set.type !== "warmup"));
+}
+
+/**
+ * Planned vs actual days for the active split over the last `windowDays`
+ * days — `analytics/training_days.js` fed from the user's own sessions and
+ * day marks, on their local calendar. Null without a plan with workouts.
+ * @param {{plan: ?Object, sessions: !Array<!Object>,
+ *   marks: !Array<!Object>, now: Date, offsetMinutes: (number|undefined),
+ *   windowDays: number}} args
+ * @return {?{records: !Array<!Object>, summary: !Object, today: string,
+ *   from: string}}
+ */
+function trainingDaysFor({plan, sessions, marks, now, offsetMinutes,
+  windowDays}) {
+  if (!plan || !Array.isArray(plan.days) ||
+      !plan.days.some((d) => !isRestDay(d))) return null;
+  const at = (s) => s.completedAt || s.startedAt;
+  const trainedDayIds = {};
+  for (const s of (sessions || []).filter(qualifiesAsTrainingDay)
+      .filter((s) => at(s))
+      .sort((a, b) => at(a) - at(b))) {
+    const key = dayKeyFor(at(s), offsetMinutes);
+    (trainedDayIds[key] = trainedDayIds[key] || []).push(s.dayId);
+  }
+  const today = dayKeyFor(now, offsetMinutes);
+  const from = addDays(today, -(windowDays - 1));
+  const enginePlan = {
+    createdDay: plan.createdAt ? dayKeyFor(plan.createdAt, offsetMinutes) :
+      from,
+    cycleCursor: plan.cycleCursor,
+    days: plan.days,
+  };
+  const records = classifyTrainingDayRecords({
+    plan: enginePlan,
+    trainedDayIds,
+    userRestDays: (marks || []).filter((m) => m.reason === "rest")
+        .map((m) => m.day),
+    from,
+    today,
+  });
+  return {records, summary: summarizeTrainingDays(enginePlan, records),
+    today, from};
+}
+
+/**
+ * The coach-facing `trainingDays` block of get_training_analysis.
+ * @param {!Object} plan
+ * @param {!Object} result `trainingDaysFor`'s result.
+ * @return {!Object}
+ */
+function trainingDaysPayload(plan, result) {
+  const {summary: s, records} = result;
+  const nameOf = (id) => {
+    const day = plan.days.find((d) => d.id === id);
+    return day ? dayName(day) : id;
+  };
+  const last = records[records.length - 1];
+  return dropNull({
+    from: result.from,
+    to: result.today,
+    daysJudged: s.days,
+    planSchedulesRest: s.schedulesRest,
+    plannedWorkouts: s.plannedWorkouts,
+    completedWorkouts: s.completed,
+    missedWorkouts: s.missed,
+    userSelectedRestDays: s.userRest,
+    plannedRestDays: s.plannedRest,
+    extraWorkouts: s.extraWorkouts,
+    unscheduledDays: s.schedulesRest ? null : s.unscheduled,
+    trainingDaysPerWeek: s.trainingDaysPerWeek,
+    plannedTrainingDaysPerWeek: s.plannedTrainingDaysPerWeek,
+    skippedDays: Object.entries(s.skippedByDayId)
+        .sort((a, b) => b[1] - a[1])
+        .map(([id, times]) => ({day: nameOf(id), times})),
+    weeks: s.weeks,
+    today: last ? last.outcome : null,
+  });
+}
+
 const TRAINING_ANALYSIS_TOOL = {
   name: "get_training_analysis",
   description:
@@ -630,6 +728,10 @@ const TRAINING_ANALYSIS_TOOL = {
     "conclusions each marked confidence 'fact' (measured) or 'interpretation'; " +
     "and `planAdherence` — planned movements the user is SKIPPING (reason " +
     "'neverTrained') or has let go STALE ('stale', with daysSinceLast). " +
+    "`trainingDays` — the last 4 weeks of PLANNED vs ACTUAL days (planned / " +
+    "completed / missed workouts, user-selected rest days, planned rest " +
+    "days, extra workouts, actual vs planned training days per week, which " +
+    "days get skipped, per-week counts). " +
     "**Lead with findings**, keep facts and interpretations distinct, and if " +
     "there is no data say so. This is the WHOLE-training summary — for one " +
     "specific lift's session-by-session detail, use get_exercise_analysis. " +
@@ -641,9 +743,10 @@ const TRAINING_ANALYSIS_TOOL = {
    * @param {string} uid
    * @param {!Object} input
    * @param {Date} now
+   * @param {number=} offsetMinutes
    * @return {!Promise<!Object>}
    */
-  async execute(store, uid, input, now) {
+  async execute(store, uid, input, now, offsetMinutes) {
     const {sessions, resolver} = await loadResolvedSessions(store, uid);
     // The active plan is what makes "what's being skipped" answerable; a store
     // without the reader (or with no plan) just yields empty adherence.
@@ -651,6 +754,10 @@ const TRAINING_ANALYSIS_TOOL = {
       await store.getActiveWorkoutPlan(uid) : null;
     const analysis = analyzeTraining({sessions, now});
     const adherence = analyzePlanAdherence({plan, sessions, now, resolver});
+    const marks = plan && store.listTrainingDayMarks ?
+      await store.listTrainingDayMarks(uid) : [];
+    const days = trainingDaysFor({plan, sessions, marks, now, offsetMinutes,
+      windowDays: TRAINING_DAYS_WINDOW});
     return {
       ...analysis,
       // ISO the PR dates for the model.
@@ -663,6 +770,7 @@ const TRAINING_ANALYSIS_TOOL = {
         lastPerformedAt: iso(e.lastPerformedAt),
       })),
       planAdherence: adherence,
+      ...(days ? {trainingDays: trainingDaysPayload(plan, days)} : {}),
     };
   },
 };
@@ -1573,9 +1681,12 @@ const WORKOUT_SCHEDULE_TOOL = {
     "The user's training ROTATION (their active split) — which workout is " +
     "scheduled today, what comes after it, and every day in the cycle with " +
     "its dayId and exercises. A split is a rotating cycle (Push → Pull → " +
-    "Legs → …), not a weekday calendar: `today` is the day up next in the " +
-    "rotation. `trainedToday` says whether a session was already completed " +
-    "today. Use it for \"what's my workout today\", and ALWAYS before " +
+    "Legs → …), not a weekday calendar: `today` is the WORKOUT up next in " +
+    "the rotation. Rest slots appear in `rotation` with rest: true; " +
+    "`todayPlanned` is 'rest' when the split schedules rest today, and " +
+    "`todayStatus` 'userRest' means the user chose to rest today. " +
+    "`trainedToday` says whether a session was already completed today. " +
+    "Use it for \"what's my workout today\", and ALWAYS before " +
     "change_workout_day — its dayIds are the only valid ones.",
   inputSchema: {type: "object", properties: {}},
   /**
@@ -1594,27 +1705,49 @@ const WORKOUT_SCHEDULE_TOOL = {
         note: "The user has no workout split set up."};
     }
     const cycle = rotationFrom(plan.days, plan.cycleCursor);
-    const describe = (d) => ({
-      dayId: d.id,
-      name: dayName(d),
-      slot: d.slot || null,
-      exercises: (d.exercises || []).slice()
-          .sort((a, b) => (a.order || 0) - (b.order || 0))
-          .map((e) => e.name).filter(Boolean),
-    });
+    if (!cycle.length) {
+      return {outcome: "noPlan",
+        note: "The user's split has only rest days — no workout to train."};
+    }
+    const describe = (d) => isRestDay(d) ?
+      {dayId: d.id, name: dayName(d), rest: true} :
+      {
+        dayId: d.id,
+        name: dayName(d),
+        slot: d.slot || null,
+        exercises: (d.exercises || []).slice()
+            .sort((a, b) => (a.order || 0) - (b.order || 0))
+            .map((e) => e.name).filter(Boolean),
+      };
+    const workouts = cycle.filter((d) => !isRestDay(d));
     let trainedToday = null;
+    let todayRecord = null;
     if (store.listWorkoutSessions) {
-      const sessions = await store.listWorkoutSessions(
-          uid, dayRangeMs(now, offsetMinutes));
-      const done = sessions.find((x) => x.status === "completed");
+      // Enough history to place today in the cycle: planned rest only ever
+      // follows the last workout trained, a cycle-length ago at most.
+      const todayRange = dayRangeMs(now, offsetMinutes);
+      const sessions = await store.listWorkoutSessions(uid, {
+        fromMs: todayRange.fromMs - (plan.days.length + 1) * DAY_MS_READ,
+        toMs: todayRange.toMs,
+      });
+      const done = sessions.find((x) => x.status === "completed" &&
+        x.startedAt && x.startedAt.getTime() >= todayRange.fromMs);
       trainedToday = done ? {dayId: done.dayId, name: done.dayLabel} : null;
+      const marks = store.listTrainingDayMarks ?
+        await store.listTrainingDayMarks(uid) : [];
+      const days = trainingDaysFor({plan, sessions, marks, now,
+        offsetMinutes, windowDays: 1});
+      todayRecord = days && days.records.length ?
+        days.records[days.records.length - 1] : null;
     }
     return {
       outcome: "found",
       date: dayKeyFor(now, offsetMinutes),
       split: plan.name,
-      today: describe(cycle[0]),
-      next: cycle.length > 1 ? describe(cycle[1]) : null,
+      today: describe(workouts[0]),
+      ...(todayRecord ? {todayPlanned: todayRecord.planned,
+        todayStatus: todayRecord.outcome} : {}),
+      next: workouts.length > 1 ? describe(workouts[1]) : null,
       rotation: cycle.map(describe),
       trainedToday,
     };
@@ -1664,6 +1797,10 @@ const PREVIEW_WORKOUT_CHANGE_TOOL = {
     if (!target) {
       return {outcome: "invalidInput",
         note: "Unknown dayId — use one from get_workout_schedule."};
+    }
+    if (isRestDay(target)) {
+      return {outcome: "invalidInput",
+        note: "That's a rest day in the split, not a workout to train."};
     }
     if (target.id === due.id) {
       return {outcome: "alreadyToday", today: dayName(due)};

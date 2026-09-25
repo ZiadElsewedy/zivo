@@ -1892,5 +1892,20 @@
   "adminEventDeleted": "حُذف الحساب",
   "adminEventOther": "حدث آخر",
   "adminEventMinutes": "{minutes} د",
-  "adminEventTokens": "{tokens} رمز"
+  "adminEventTokens": "{tokens} رمز",
+  "restDayLabel": "راحة",
+  "restDayMeta": "يوم راحة",
+  "planDayTypeWorkout": "تمرين",
+  "planDayTypeRest": "يوم راحة",
+  "restDayTake": "خذ يوم راحة",
+  "restDayCaps": "يوم راحة",
+  "restDayTitle": "يوم راحتك اليوم",
+  "restDayBody": "الاستشفاء جزء من تمرينك.",
+  "restDayChosenTitle": "اخترت أن ترتاح اليوم",
+  "restDayChosenBody": "الاستشفاء جزء من الخطة.",
+  "restDayNextSession": "التالي",
+  "restDayNextLine": "{day} · {meta}",
+  "restDayViewNext": "اعرض التمرين التالي",
+  "restDayTrainAnyway": "تمرّن على أي حال",
+  "restDayResume": "ارجع لتمرين اليوم"
 }

@@ -20,6 +20,7 @@ LiveSession session({
   SessionStatus status = SessionStatus.completed,
   String dayLabel = 'Push',
   String planId = 'p1',
+  String dayId = 'day-a',
   int workingSets = 1,
   int warmupSets = 0,
   int pendingSets = 0,
@@ -87,7 +88,7 @@ LiveSession session({
   return LiveSession(
     id: id,
     planId: planId,
-    dayId: 'day-a',
+    dayId: dayId,
     dayLabel: dayLabel,
     startedAt: startedAt,
     completedAt: status == SessionStatus.active

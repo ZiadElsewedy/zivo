@@ -138,6 +138,43 @@ void main() {
       },
     );
 
+    test('a rest day round-trips as a rest day; a workout day stores no type', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirestoreWorkoutPlanRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+      await repo.savePlan(
+        _makePlan(
+          'p1',
+          days: [
+            _defaultDays.first,
+            const WorkoutDay(
+              id: 'day-rest',
+              slot: 'B',
+              label: 'Rest',
+              order: 1,
+              type: TrainingDayType.rest,
+              exercises: [],
+            ),
+          ],
+        ),
+      );
+      final doc = await firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('workoutPlans')
+          .doc('p1')
+          .get();
+      final days = (doc.data()!['days'] as List).cast<Map<String, dynamic>>();
+      expect(days[0].containsKey('type'), isFalse, reason: 'byte-identical for workouts');
+      expect(days[1]['type'], 'rest');
+
+      final plan = await repo.watchActivePlan().first;
+      expect(plan!.days.map((d) => d.type), [TrainingDayType.workout, TrainingDayType.rest]);
+      expect(plan.nextDay?.id, 'day-a');
+    });
+
     test('savePlan normalizes order: out-of-order tree reads back contiguous 0-based', () async {
       final firestore = FakeFirebaseFirestore();
       final repo = FirestoreWorkoutPlanRepository(

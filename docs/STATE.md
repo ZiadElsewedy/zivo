@@ -97,6 +97,25 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- 2026-09-25 (`upgrades`) — **Rest days as a first-class day type**
+  ([ADR-019](DECISIONS/ADR-019-rest-days.md), NOT deployed). `WorkoutDay.type`
+  (`workout`/`rest`); imports keep a document's rest days as rest
+  (`workout_import.js` schema gains `rest`), the split editor can add one, and
+  a rest slot is never started, swapped or offered in Change. Planned vs actual
+  per day is derived in `training_days.dart` (completed · missed · userRest ·
+  plannedRest · extraWorkout · unscheduled · pending); **missed only on plans
+  that schedule rest**. Today/Workout show a `RestDayCard` on rest, and
+  "Take a rest day" / "Resume today's workout" write/withdraw a
+  `trainingDayMarks` `reason: rest` — the plan is never edited. Planned rest
+  bridges the streak on every surface (Today's Momentum row now also counts
+  restores, which it silently ignored). Coach: `get_training_analysis.trainingDays`
+  (28-day planned-vs-actual) + rest-aware `get_workout_schedule`, Node mirror
+  pinned by `test/fixtures/training_days_vectors.json`. No rules change.
+  **Owner action:** deploy `functions` (import schema + tools).
+  Pre-existing failures seen while verifying, unrelated to this change and
+  failing identically on the base: `light_mode_smoke_test` "the Hub reads on
+  paper", and 3 functions tests (chat cap ×2, choice-card persistence).
+
 - 2026-09-25 (`upgrades`) — **Moments reach every device of the account without a
   manual "Back up now"; Drive gets a readable layout; the gallery is by month.**
   Traced end to end: media was already keyed by **account, never device**

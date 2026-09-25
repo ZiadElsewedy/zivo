@@ -60,13 +60,15 @@ class DayCard extends StatefulWidget {
 }
 
 class _DayCardState extends State<DayCard> with SingleTickerProviderStateMixin {
-  late bool _expanded = widget.initiallyExpanded;
+  late bool _expanded = widget.initiallyExpanded && !widget.day.isRest;
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    value: widget.initiallyExpanded ? 1 : 0,
+    value: _expanded ? 1 : 0,
   );
 
   void _toggle() {
+    // A rest day has nothing to disclose: no exercises, no "Add exercise".
+    if (widget.day.isRest) return;
     final target = _expanded ? 0.0 : 1.0;
     setState(() => _expanded = !_expanded);
     if (reducedMotion(context)) {
@@ -123,7 +125,9 @@ class _DayCardState extends State<DayCard> with SingleTickerProviderStateMixin {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '$count exercise${count == 1 ? '' : 's'}',
+                            day.isRest
+                                ? l(context).restDayMeta
+                                : '$count exercise${count == 1 ? '' : 's'}',
                             style: TrainType.mono(
                               size: 10.5,
                               tracking: 0.06,
@@ -133,6 +137,7 @@ class _DayCardState extends State<DayCard> with SingleTickerProviderStateMixin {
                         ],
                       ),
                     ),
+                    if (!day.isRest)
                     AnimatedBuilder(
                       animation: _controller,
                       builder: (context, child) => Transform.rotate(

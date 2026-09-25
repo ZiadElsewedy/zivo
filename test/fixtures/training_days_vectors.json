@@ -1,0 +1,868 @@
+{
+  "_comment": "Shared golden vectors for the planned-vs-actual training-day engine. Run by test/workout/training_days_vectors_test.dart (Dart, lib/features/workout/domain/training_days.dart) AND functions/ai/analytics/training_days.test.js (Node mirror). Change one engine and the other fails until they agree.",
+  "cases": [
+    {
+      "name": "following a plan with scheduled rest: rest days are planned rest, never missed",
+      "input": {
+        "plan": {
+          "createdDay": "2026-09-01",
+          "cycleCursor": 1,
+          "days": [
+            {
+              "id": "up",
+              "label": "Upper",
+              "order": 0,
+              "type": "workout"
+            },
+            {
+              "id": "lo",
+              "label": "Lower",
+              "order": 1,
+              "type": "workout"
+            },
+            {
+              "id": "r1",
+              "label": "Rest",
+              "order": 2,
+              "type": "rest"
+            },
+            {
+              "id": "pu",
+              "label": "Push",
+              "order": 3,
+              "type": "workout"
+            },
+            {
+              "id": "pl",
+              "label": "Pull",
+              "order": 4,
+              "type": "workout"
+            },
+            {
+              "id": "r2",
+              "label": "Rest",
+              "order": 5,
+              "type": "rest"
+            },
+            {
+              "id": "r3",
+              "label": "Rest",
+              "order": 6,
+              "type": "rest"
+            }
+          ]
+        },
+        "trainedDayIds": {
+          "2026-09-01": [
+            "up"
+          ],
+          "2026-09-02": [
+            "lo"
+          ],
+          "2026-09-04": [
+            "pu"
+          ],
+          "2026-09-05": [
+            "pl"
+          ],
+          "2026-09-08": [
+            "up"
+          ]
+        },
+        "userRestDays": [],
+        "from": "2026-09-01",
+        "today": "2026-09-08"
+      },
+      "expected": {
+        "records": [
+          {
+            "day": "2026-09-01",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "up"
+          },
+          {
+            "day": "2026-09-02",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "lo"
+          },
+          {
+            "day": "2026-09-03",
+            "planned": "rest",
+            "outcome": "plannedRest",
+            "dueDayId": null
+          },
+          {
+            "day": "2026-09-04",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "pu"
+          },
+          {
+            "day": "2026-09-05",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "pl"
+          },
+          {
+            "day": "2026-09-06",
+            "planned": "rest",
+            "outcome": "plannedRest",
+            "dueDayId": null
+          },
+          {
+            "day": "2026-09-07",
+            "planned": "rest",
+            "outcome": "plannedRest",
+            "dueDayId": null
+          },
+          {
+            "day": "2026-09-08",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "up"
+          }
+        ],
+        "summary": {
+          "days": 8,
+          "schedulesRest": true,
+          "plannedWorkouts": 5,
+          "completed": 5,
+          "missed": 0,
+          "userRest": 0,
+          "plannedRest": 3,
+          "extraWorkouts": 0,
+          "unscheduled": 0,
+          "trainingDaysPerWeek": 4.38,
+          "plannedTrainingDaysPerWeek": 4,
+          "skippedByDayId": {},
+          "weeks": [
+            {
+              "start": "2026-09-01",
+              "trainedDays": 1,
+              "userRestDays": 0,
+              "missedDays": 0,
+              "plannedRestDays": 0
+            },
+            {
+              "start": "2026-09-02",
+              "trainedDays": 4,
+              "userRestDays": 0,
+              "missedDays": 0,
+              "plannedRestDays": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "chosen rest, a missed workout and an extra workout on a rest day stay distinct",
+      "input": {
+        "plan": {
+          "createdDay": "2026-09-01",
+          "cycleCursor": 4,
+          "days": [
+            {
+              "id": "up",
+              "label": "Upper",
+              "order": 0,
+              "type": "workout"
+            },
+            {
+              "id": "lo",
+              "label": "Lower",
+              "order": 1,
+              "type": "workout"
+            },
+            {
+              "id": "r1",
+              "label": "Rest",
+              "order": 2,
+              "type": "rest"
+            },
+            {
+              "id": "pu",
+              "label": "Push",
+              "order": 3,
+              "type": "workout"
+            },
+            {
+              "id": "pl",
+              "label": "Pull",
+              "order": 4,
+              "type": "workout"
+            },
+            {
+              "id": "r2",
+              "label": "Rest",
+              "order": 5,
+              "type": "rest"
+            },
+            {
+              "id": "r3",
+              "label": "Rest",
+              "order": 6,
+              "type": "rest"
+            }
+          ]
+        },
+        "trainedDayIds": {
+          "2026-09-01": [
+            "up"
+          ],
+          "2026-09-04": [
+            "lo"
+          ],
+          "2026-09-05": [
+            "pu"
+          ]
+        },
+        "userRestDays": [
+          "2026-09-02"
+        ],
+        "from": "2026-09-01",
+        "today": "2026-09-07"
+      },
+      "expected": {
+        "records": [
+          {
+            "day": "2026-09-01",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "up"
+          },
+          {
+            "day": "2026-09-02",
+            "planned": "workout",
+            "outcome": "userRest",
+            "dueDayId": "lo"
+          },
+          {
+            "day": "2026-09-03",
+            "planned": "workout",
+            "outcome": "missed",
+            "dueDayId": "lo"
+          },
+          {
+            "day": "2026-09-04",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "lo"
+          },
+          {
+            "day": "2026-09-05",
+            "planned": "rest",
+            "outcome": "extraWorkout",
+            "dueDayId": null
+          },
+          {
+            "day": "2026-09-06",
+            "planned": "workout",
+            "outcome": "missed",
+            "dueDayId": "pl"
+          },
+          {
+            "day": "2026-09-07",
+            "planned": "workout",
+            "outcome": "pending",
+            "dueDayId": "pl"
+          }
+        ],
+        "summary": {
+          "days": 6,
+          "schedulesRest": true,
+          "plannedWorkouts": 5,
+          "completed": 2,
+          "missed": 2,
+          "userRest": 1,
+          "plannedRest": 0,
+          "extraWorkouts": 1,
+          "unscheduled": 0,
+          "trainingDaysPerWeek": 3.5,
+          "plannedTrainingDaysPerWeek": 4,
+          "skippedByDayId": {
+            "lo": 2,
+            "pl": 1
+          },
+          "weeks": [
+            {
+              "start": "2026-09-01",
+              "trainedDays": 3,
+              "userRestDays": 1,
+              "missedDays": 2,
+              "plannedRestDays": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a pure rotation never calls an unlogged day missed",
+      "input": {
+        "plan": {
+          "createdDay": "2026-09-01",
+          "cycleCursor": 2,
+          "days": [
+            {
+              "id": "a",
+              "label": "Push",
+              "order": 0,
+              "type": "workout"
+            },
+            {
+              "id": "b",
+              "label": "Pull",
+              "order": 1,
+              "type": "workout"
+            },
+            {
+              "id": "c",
+              "label": "Legs",
+              "order": 2,
+              "type": "workout"
+            }
+          ]
+        },
+        "trainedDayIds": {
+          "2026-09-01": [
+            "a"
+          ],
+          "2026-09-03": [
+            "b"
+          ]
+        },
+        "userRestDays": [
+          "2026-09-04"
+        ],
+        "from": "2026-09-01",
+        "today": "2026-09-06"
+      },
+      "expected": {
+        "records": [
+          {
+            "day": "2026-09-01",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "a"
+          },
+          {
+            "day": "2026-09-02",
+            "planned": "workout",
+            "outcome": "unscheduled",
+            "dueDayId": "b"
+          },
+          {
+            "day": "2026-09-03",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "b"
+          },
+          {
+            "day": "2026-09-04",
+            "planned": "workout",
+            "outcome": "userRest",
+            "dueDayId": "c"
+          },
+          {
+            "day": "2026-09-05",
+            "planned": "workout",
+            "outcome": "unscheduled",
+            "dueDayId": "c"
+          },
+          {
+            "day": "2026-09-06",
+            "planned": "workout",
+            "outcome": "pending",
+            "dueDayId": "c"
+          }
+        ],
+        "summary": {
+          "days": 5,
+          "schedulesRest": false,
+          "plannedWorkouts": null,
+          "completed": 2,
+          "missed": null,
+          "userRest": 1,
+          "plannedRest": 0,
+          "extraWorkouts": 0,
+          "unscheduled": 2,
+          "trainingDaysPerWeek": 2.8,
+          "plannedTrainingDaysPerWeek": null,
+          "skippedByDayId": {
+            "c": 1
+          },
+          "weeks": [
+            {
+              "start": "2026-09-01",
+              "trainedDays": 2,
+              "userRestDays": 1,
+              "missedDays": 0,
+              "plannedRestDays": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "no history yet: workouts due from the plan start, today still pending",
+      "input": {
+        "plan": {
+          "createdDay": "2026-09-01",
+          "cycleCursor": 0,
+          "days": [
+            {
+              "id": "up",
+              "label": "Upper",
+              "order": 0,
+              "type": "workout"
+            },
+            {
+              "id": "lo",
+              "label": "Lower",
+              "order": 1,
+              "type": "workout"
+            },
+            {
+              "id": "r1",
+              "label": "Rest",
+              "order": 2,
+              "type": "rest"
+            },
+            {
+              "id": "pu",
+              "label": "Push",
+              "order": 3,
+              "type": "workout"
+            },
+            {
+              "id": "pl",
+              "label": "Pull",
+              "order": 4,
+              "type": "workout"
+            },
+            {
+              "id": "r2",
+              "label": "Rest",
+              "order": 5,
+              "type": "rest"
+            },
+            {
+              "id": "r3",
+              "label": "Rest",
+              "order": 6,
+              "type": "rest"
+            }
+          ]
+        },
+        "trainedDayIds": {},
+        "userRestDays": [],
+        "from": "2026-08-20",
+        "today": "2026-09-03"
+      },
+      "expected": {
+        "records": [
+          {
+            "day": "2026-09-01",
+            "planned": "workout",
+            "outcome": "missed",
+            "dueDayId": "up"
+          },
+          {
+            "day": "2026-09-02",
+            "planned": "workout",
+            "outcome": "missed",
+            "dueDayId": "up"
+          },
+          {
+            "day": "2026-09-03",
+            "planned": "workout",
+            "outcome": "pending",
+            "dueDayId": "up"
+          }
+        ],
+        "summary": {
+          "days": 2,
+          "schedulesRest": true,
+          "plannedWorkouts": 2,
+          "completed": 0,
+          "missed": 2,
+          "userRest": 0,
+          "plannedRest": 0,
+          "extraWorkouts": 0,
+          "unscheduled": 0,
+          "trainingDaysPerWeek": 0,
+          "plannedTrainingDaysPerWeek": 4,
+          "skippedByDayId": {
+            "up": 2
+          },
+          "weeks": [
+            {
+              "start": "2026-09-01",
+              "trainedDays": 0,
+              "userRestDays": 0,
+              "missedDays": 2,
+              "plannedRestDays": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a session of another split counts as training but does not move this rotation",
+      "input": {
+        "plan": {
+          "createdDay": "2026-09-01",
+          "cycleCursor": 1,
+          "days": [
+            {
+              "id": "up",
+              "label": "Upper",
+              "order": 0,
+              "type": "workout"
+            },
+            {
+              "id": "lo",
+              "label": "Lower",
+              "order": 1,
+              "type": "workout"
+            },
+            {
+              "id": "r1",
+              "label": "Rest",
+              "order": 2,
+              "type": "rest"
+            },
+            {
+              "id": "pu",
+              "label": "Push",
+              "order": 3,
+              "type": "workout"
+            },
+            {
+              "id": "pl",
+              "label": "Pull",
+              "order": 4,
+              "type": "workout"
+            },
+            {
+              "id": "r2",
+              "label": "Rest",
+              "order": 5,
+              "type": "rest"
+            },
+            {
+              "id": "r3",
+              "label": "Rest",
+              "order": 6,
+              "type": "rest"
+            }
+          ]
+        },
+        "trainedDayIds": {
+          "2026-09-01": [
+            "up"
+          ],
+          "2026-09-02": [
+            "other-split-day"
+          ],
+          "2026-09-03": [
+            "lo"
+          ]
+        },
+        "userRestDays": [
+          "2026-09-03"
+        ],
+        "from": "2026-09-01",
+        "today": "2026-09-05"
+      },
+      "expected": {
+        "records": [
+          {
+            "day": "2026-09-01",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "up"
+          },
+          {
+            "day": "2026-09-02",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "lo"
+          },
+          {
+            "day": "2026-09-03",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "lo"
+          },
+          {
+            "day": "2026-09-04",
+            "planned": "rest",
+            "outcome": "plannedRest",
+            "dueDayId": null
+          },
+          {
+            "day": "2026-09-05",
+            "planned": "workout",
+            "outcome": "pending",
+            "dueDayId": "lo"
+          }
+        ],
+        "summary": {
+          "days": 4,
+          "schedulesRest": true,
+          "plannedWorkouts": 3,
+          "completed": 3,
+          "missed": 0,
+          "userRest": 0,
+          "plannedRest": 1,
+          "extraWorkouts": 0,
+          "unscheduled": 0,
+          "trainingDaysPerWeek": 5.25,
+          "plannedTrainingDaysPerWeek": 4,
+          "skippedByDayId": {},
+          "weeks": [
+            {
+              "start": "2026-09-01",
+              "trainedDays": 3,
+              "userRestDays": 0,
+              "missedDays": 0,
+              "plannedRestDays": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "user rest chosen on a planned rest day is just planned rest",
+      "input": {
+        "plan": {
+          "createdDay": "2026-09-01",
+          "cycleCursor": 3,
+          "days": [
+            {
+              "id": "up",
+              "label": "Upper",
+              "order": 0,
+              "type": "workout"
+            },
+            {
+              "id": "lo",
+              "label": "Lower",
+              "order": 1,
+              "type": "workout"
+            },
+            {
+              "id": "r1",
+              "label": "Rest",
+              "order": 2,
+              "type": "rest"
+            },
+            {
+              "id": "pu",
+              "label": "Push",
+              "order": 3,
+              "type": "workout"
+            },
+            {
+              "id": "pl",
+              "label": "Pull",
+              "order": 4,
+              "type": "workout"
+            },
+            {
+              "id": "r2",
+              "label": "Rest",
+              "order": 5,
+              "type": "rest"
+            },
+            {
+              "id": "r3",
+              "label": "Rest",
+              "order": 6,
+              "type": "rest"
+            }
+          ]
+        },
+        "trainedDayIds": {
+          "2026-09-01": [
+            "up"
+          ],
+          "2026-09-02": [
+            "lo"
+          ]
+        },
+        "userRestDays": [
+          "2026-09-03"
+        ],
+        "from": "2026-09-01",
+        "today": "2026-09-03"
+      },
+      "expected": {
+        "records": [
+          {
+            "day": "2026-09-01",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "up"
+          },
+          {
+            "day": "2026-09-02",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "lo"
+          },
+          {
+            "day": "2026-09-03",
+            "planned": "rest",
+            "outcome": "plannedRest",
+            "dueDayId": null
+          }
+        ],
+        "summary": {
+          "days": 3,
+          "schedulesRest": true,
+          "plannedWorkouts": 2,
+          "completed": 2,
+          "missed": 0,
+          "userRest": 0,
+          "plannedRest": 1,
+          "extraWorkouts": 0,
+          "unscheduled": 0,
+          "trainingDaysPerWeek": 4.67,
+          "plannedTrainingDaysPerWeek": 4,
+          "skippedByDayId": {},
+          "weeks": [
+            {
+              "start": "2026-09-01",
+              "trainedDays": 2,
+              "userRestDays": 0,
+              "missedDays": 0,
+              "plannedRestDays": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "chosen rest today replaces the due workout",
+      "input": {
+        "plan": {
+          "createdDay": "2026-09-01",
+          "cycleCursor": 3,
+          "days": [
+            {
+              "id": "up",
+              "label": "Upper",
+              "order": 0,
+              "type": "workout"
+            },
+            {
+              "id": "lo",
+              "label": "Lower",
+              "order": 1,
+              "type": "workout"
+            },
+            {
+              "id": "r1",
+              "label": "Rest",
+              "order": 2,
+              "type": "rest"
+            },
+            {
+              "id": "pu",
+              "label": "Push",
+              "order": 3,
+              "type": "workout"
+            },
+            {
+              "id": "pl",
+              "label": "Pull",
+              "order": 4,
+              "type": "workout"
+            },
+            {
+              "id": "r2",
+              "label": "Rest",
+              "order": 5,
+              "type": "rest"
+            },
+            {
+              "id": "r3",
+              "label": "Rest",
+              "order": 6,
+              "type": "rest"
+            }
+          ]
+        },
+        "trainedDayIds": {
+          "2026-09-01": [
+            "up"
+          ],
+          "2026-09-02": [
+            "lo"
+          ]
+        },
+        "userRestDays": [
+          "2026-09-04"
+        ],
+        "from": "2026-09-01",
+        "today": "2026-09-04"
+      },
+      "expected": {
+        "records": [
+          {
+            "day": "2026-09-01",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "up"
+          },
+          {
+            "day": "2026-09-02",
+            "planned": "workout",
+            "outcome": "completed",
+            "dueDayId": "lo"
+          },
+          {
+            "day": "2026-09-03",
+            "planned": "rest",
+            "outcome": "plannedRest",
+            "dueDayId": null
+          },
+          {
+            "day": "2026-09-04",
+            "planned": "workout",
+            "outcome": "userRest",
+            "dueDayId": "pu"
+          }
+        ],
+        "summary": {
+          "days": 4,
+          "schedulesRest": true,
+          "plannedWorkouts": 3,
+          "completed": 2,
+          "missed": 0,
+          "userRest": 1,
+          "plannedRest": 1,
+          "extraWorkouts": 0,
+          "unscheduled": 0,
+          "trainingDaysPerWeek": 3.5,
+          "plannedTrainingDaysPerWeek": 4,
+          "skippedByDayId": {
+            "pu": 1
+          },
+          "weeks": [
+            {
+              "start": "2026-09-01",
+              "trainedDays": 2,
+              "userRestDays": 1,
+              "missedDays": 0,
+              "plannedRestDays": 1
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -343,6 +343,9 @@ class FirestoreWorkoutPlanRepository implements WorkoutPlanRepository {
     'label': day.label,
     'notes': day.notes,
     'order': day.order,
+    // Omitted for a workout day, so plans written before rest days existed
+    // round-trip byte-identical and older app versions keep reading them.
+    if (day.isRest) 'type': day.type.name,
     'exercises': day.exercises.map(_exerciseToMap).toList(),
   };
 
@@ -397,6 +400,7 @@ class FirestoreWorkoutPlanRepository implements WorkoutPlanRepository {
       label: map['label'] as String? ?? '',
       notes: map['notes'] as String?,
       order: (map['order'] as num?)?.toInt() ?? 0,
+      type: trainingDayTypeFromName(map['type'] as String?),
       exercises: rawExercises.map(_exerciseFromMap).toList(growable: false),
     );
   }

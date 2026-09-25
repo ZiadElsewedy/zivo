@@ -24,7 +24,9 @@ import '../../domain/training_dashboard_stats.dart';
 import '../../domain/up_next_selection.dart';
 import '../../domain/weight_trend.dart';
 import '../../domain/workout_plan.dart';
-import '../widgets/up_next_workout_card.dart';
+import '../../domain/training_day_mark.dart';
+import '../../domain/training_days.dart';
+import '../widgets/training_day_card.dart';
 import 'bodyweight_history_page.dart';
 import '../widgets/add_workout_sheet.dart';
 import 'workout_plan_edit_page.dart';
@@ -93,12 +95,20 @@ class WorkoutDashboardPage extends StatelessWidget {
               }
               final sessions = sessionsSnap.data ?? const <LiveSession>[];
               final now = DateTime.now();
+              final marks =
+                  AppScope.of(context).trainingDayMarks?.current ??
+                  const <TrainingDayMark>[];
               final stats = computeTrainingDashboardStats(
                 sessions: sessions,
                 now: now,
                 maxSessionDuration: AppScope.of(context).maxSessionDuration,
-                marks:
-                    AppScope.of(context).trainingDayMarks?.current ?? const [],
+                marks: marks,
+                plannedRestDays: plannedRestDaysFor(
+                  plan: plan,
+                  sessions: sessions,
+                  marks: marks,
+                  now: now,
+                ),
               );
               final selection = resolveUpNext(
                 plan,
@@ -159,7 +169,7 @@ class WorkoutDashboardPage extends StatelessWidget {
                       if (selection.day != null) ...[
                         RiseIn(
                           delay: const Duration(milliseconds: 40),
-                          child: UpNextWorkoutCard(
+                          child: TrainingDayCard(
                             plan: plan,
                             day: selection.day!,
                             resumable: selection.resumable,

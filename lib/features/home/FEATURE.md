@@ -26,6 +26,9 @@ the Move ring). Keep it that way: Today composes, it doesn't duplicate feature l
 
 - The Training glance and the Workout page share the **same** `watchActivePlan()` source —
   don't introduce a separate Today workout source (they must stay in sync).
+- The Training card is `TrainingDayCard` (workout feature): a planned or
+  user-chosen rest day renders `RestDayCard`, and "Take a rest day" writes a
+  day mark — never a plan edit ([ADR-019](../../../docs/DECISIONS/ADR-019-rest-days.md)).
 - The Move ring hides itself when there's no step sensor (`AppScope.stepCounter == null`).
 - **The insights strip is judged against an injectable clock** (`InsightsSection.now`,
   threaded from `TodayPage.now`), because two `buildInsights` rules are hour-of-day rules —

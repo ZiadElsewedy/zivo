@@ -30,6 +30,7 @@ Future<void> showMissedDaySheet(
   required DateTime now,
   required List<LiveSession> sessions,
   required List<TrainingDayMark> marks,
+  Set<DateTime> plannedRestDays = const {},
   required TrainingDayMarkRepository repository,
 }) {
   final key = startOfDay(day);
@@ -50,6 +51,7 @@ Future<void> showMissedDaySheet(
     now: now,
     sessions: sessions,
     marks: marks,
+    plannedRestDays: plannedRestDays,
   );
   final canRestore = eligible && rescues;
 

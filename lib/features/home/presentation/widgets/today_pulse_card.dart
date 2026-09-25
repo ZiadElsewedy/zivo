@@ -18,6 +18,8 @@ import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/theme/zivo_palette.dart';
 import '../../../../core/widgets/train_chrome.dart';
 import '../../../workout/domain/live_session.dart';
+import '../../../workout/domain/training_days.dart';
+import '../../../workout/domain/training_day_mark.dart';
 import '../../../workout/domain/session_estimate.dart';
 import '../../../workout/domain/session_status.dart';
 import '../../../workout/domain/training_volume.dart';
@@ -375,7 +377,21 @@ class _StreakRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = clock();
-    final streak = trainingStreakDays(sessions, now);
+    // The same inputs every other streak surface passes — restores and the
+    // plan's own rest days — so Today can't show a different number.
+    final scope = AppScope.of(context);
+    final marks = scope.trainingDayMarks?.current ?? const <TrainingDayMark>[];
+    final streak = trainingStreakDays(
+      sessions,
+      now,
+      marks: marks,
+      plannedRestDays: plannedRestDaysFor(
+        plan: scope.workoutPlans.activePlan,
+        sessions: sessions,
+        marks: marks,
+        now: now,
+      ),
+    );
     final weekTotal = weekActivity(
       sessions,
       now,
@@ -804,8 +820,16 @@ class _InsightsInputsState extends State<_InsightsInputs> {
             .map((e) => (e.loggedAt, e.weightKg))
             .toList() ??
         const <(DateTime, double)>[];
+    final marks = scope.trainingDayMarks?.current ?? const <TrainingDayMark>[];
     final insights = buildInsights(
       strings: l(context),
+      marks: marks,
+      plannedRestDays: plannedRestDaysFor(
+        plan: scope.workoutPlans.activePlan,
+        sessions: widget.sessions,
+        marks: marks,
+        now: widget.now(),
+      ),
       sessions: widget.sessions,
       expenses: widget.expenses,
       kcalLeft: kcalLeft,

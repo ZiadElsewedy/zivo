@@ -26,18 +26,71 @@ class WorkoutPlan {
   final List<WorkoutDay> days;
   final int cycleCursor;
 
-  /// The day whose `order` matches [cycleCursor]; null only if [days] is
-  /// empty. Defensive fallback to the first day by `order` when no day
-  /// matches [cycleCursor] (e.g. a stale cursor from before this invariant
-  /// was enforced) — a plan with days should never read as "nothing up
-  /// next."
+  /// The next WORKOUT due: the day whose `order` matches [cycleCursor], or —
+  /// when that slot is a rest day — the first workout after it in the
+  /// rotation. Null only when the plan has no workout days at all.
+  ///
+  /// Never a rest day. Every caller of this starts, swaps or describes a
+  /// session, and a rest slot is none of those; whether TODAY is a rest day is
+  /// a calendar question answered by `training_days.dart`, not by the cursor.
+  ///
+  /// Defensive fallback to the first day by `order` when no day matches
+  /// [cycleCursor] (e.g. a stale cursor from before this invariant was
+  /// enforced) — a plan with days should never read as "nothing up next."
   WorkoutDay? get nextDay {
-    if (days.isEmpty) return null;
-    for (final day in days) {
-      if (day.order == cycleCursor) return day;
+    final sorted = sortedDays;
+    if (sorted.isEmpty) return null;
+    var start = sorted.indexWhere((d) => d.order == cycleCursor);
+    if (start < 0) start = 0;
+    for (var i = 0; i < sorted.length; i++) {
+      final day = sorted[(start + i) % sorted.length];
+      if (day.isWorkout) return day;
     }
-    final sorted = [...days]..sort((a, b) => a.order.compareTo(b.order));
-    return sorted.first;
+    return null;
+  }
+
+  /// [days] in rotation order.
+  List<WorkoutDay> get sortedDays =>
+      [...days]..sort((a, b) => a.order.compareTo(b.order));
+
+  /// The days that are workouts, in rotation order.
+  List<WorkoutDay> get workoutDays => [
+    for (final d in sortedDays)
+      if (d.isWorkout) d,
+  ];
+
+  /// Whether the cycle spells out its rest days. Only then is a day with
+  /// nothing logged a *missed* workout — a pure rotation (Push → Pull → Legs)
+  /// leaves rest implicit, and treating every unlogged day as missed would call
+  /// the rest the plan assumes an error.
+  bool get schedulesRest => days.any((d) => d.isRest);
+
+  /// How many rest days immediately follow [dayId] in the rotation (wrapping,
+  /// stopping at the next workout). 0 for an unknown id or a pure rotation.
+  int restDaysAfter(String dayId) {
+    final sorted = sortedDays;
+    final index = sorted.indexWhere((d) => d.id == dayId);
+    if (index < 0) return 0;
+    var count = 0;
+    for (var i = 1; i < sorted.length; i++) {
+      if (!sorted[(index + i) % sorted.length].isRest) break;
+      count++;
+    }
+    return count;
+  }
+
+  /// The first workout after [dayId] in the rotation (wrapping; may be the day
+  /// itself in a one-workout cycle). Null when [dayId] is unknown or the plan
+  /// has no workouts.
+  WorkoutDay? workoutAfter(String dayId) {
+    final sorted = sortedDays;
+    final index = sorted.indexWhere((d) => d.id == dayId);
+    if (index < 0) return null;
+    for (var i = 1; i <= sorted.length; i++) {
+      final day = sorted[(index + i) % sorted.length];
+      if (day.isWorkout) return day;
+    }
+    return null;
   }
 
   /// A copy with [cycleCursor] advanced to the next day in the rotation,
@@ -45,6 +98,7 @@ class WorkoutPlan {
   /// this instance.
   WorkoutPlan advanceCursor() {
     if (days.isEmpty) return this;
+    // Landing on a rest slot is fine: [nextDay] reads past it.
     return copyWith(cycleCursor: (cycleCursor + 1) % days.length);
   }
 
@@ -59,7 +113,7 @@ class WorkoutPlan {
   /// back to the blind one-step advance rather than corrupting the cursor.
   WorkoutPlan advanceToAfterDay(String dayId) {
     if (days.isEmpty) return this;
-    final sorted = [...days]..sort((a, b) => a.order.compareTo(b.order));
+    final sorted = sortedDays;
     final index = sorted.indexWhere((d) => d.id == dayId);
     if (index < 0) return advanceCursor();
     return copyWith(cycleCursor: sorted[(index + 1) % sorted.length].order);
@@ -79,7 +133,9 @@ class WorkoutPlan {
   /// `slot` stays with its day — it is the day's identity ("Day B is Arms"),
   /// not its position, which is why reordering in the editor doesn't reassign
   /// it either. Returns `this` when the two ids are the same or either one is
-  /// not in [days].
+  /// not in [days], and when either is a rest day — rest is a place in the
+  /// calendar, not a workout to trade (a swap onto a rest slot would make the
+  /// due workout itself vanish into the rest position).
   WorkoutPlan swapDays(String aId, String bId) {
     if (aId == bId) return this;
     WorkoutDay? a;
@@ -89,6 +145,7 @@ class WorkoutPlan {
       if (day.id == bId) b = day;
     }
     if (a == null || b == null) return this;
+    if (a.isRest || b.isRest) return this;
     final aOrder = a.order;
     final bOrder = b.order;
     return copyWith(

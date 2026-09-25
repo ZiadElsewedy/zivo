@@ -676,10 +676,13 @@ class _BrowseDayRowState extends State<_BrowseDayRow> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          setState(() => _expanded = !_expanded);
-        },
+        // A rest day has nothing to open and nothing to start.
+        onTap: day.isRest
+            ? null
+            : () {
+                HapticFeedback.selectionClick();
+                setState(() => _expanded = !_expanded);
+              },
         child: Padding(
           padding: const EdgeInsets.fromLTRB(17, 14, 13, 14),
           child: Column(
@@ -728,6 +731,7 @@ class _BrowseDayRowState extends State<_BrowseDayRow> {
                       color: TrainColors.ink4,
                     ),
                   ),
+                  if (!day.isRest)
                   AnimatedRotation(
                     turns: _expanded ? 0.5 : 0,
                     duration: reducedMotion(context)

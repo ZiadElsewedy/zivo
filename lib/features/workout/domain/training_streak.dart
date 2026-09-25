@@ -18,6 +18,11 @@
 /// * one or two days off change nothing — they are the rest the plan assumes;
 /// * a gap **longer** than [kStreakMaxGapDays] calendar days between trained
 ///   days is the only thing that breaks it (a restore aside);
+/// * a rest day the PLAN scheduled (see `training_days.dart`) does not use up
+///   that allowance — a two-day-a-week split with three rest days in a row
+///   is following its plan, not falling off it. A rest the user *chose* in
+///   place of a workout gets no such pass: it is honest rest, and the normal
+///   allowance already covers it;
 /// * training twice in one day is still one day.
 ///
 /// "Trained" means a session that logged at least one **completed working
@@ -169,9 +174,22 @@ TrainingStreak computeTrainingStreak({
   required List<LiveSession> sessions,
   required DateTime now,
   List<TrainingDayMark> marks = const [],
+  Set<DateTime> plannedRestDays = const {},
   int maxGapDays = kStreakMaxGapDays,
 }) {
   final counts = trainedDayCounts(sessions);
+  final excused = {for (final d in plannedRestDays) startOfDay(d)};
+  // Calendar days from [a] to [b], less the planned rest days strictly
+  // between them — the gap the allowance is measured against.
+  int gap(DateTime a, DateTime b) {
+    var days = calendarDaysBetween(a, b);
+    if (excused.isEmpty) return days;
+    for (var d = addCalendarDays(a, 1); d.isBefore(b); d = addCalendarDays(d, 1)) {
+      if (excused.contains(d)) days--;
+    }
+    return days;
+  }
+
   final trained = counts.keys.toSet();
   final marksByDay = <DateTime, TrainingDayMark>{
     for (final m in marks) startOfDay(m.day): m,
@@ -184,7 +202,7 @@ TrainingStreak computeTrainingStreak({
       if (entry.value.restored && !trained.contains(entry.key)) entry.key,
   };
 
-  final best = _bestRun(trained, maxGapDays);
+  final best = _bestRun(trained, maxGapDays, gap);
   final lastTrained = _latestOnOrBefore(trained, startOfDay(now));
 
   // The chain is trained days plus the restores that bridge between them.
@@ -193,7 +211,7 @@ TrainingStreak computeTrainingStreak({
 
   final today = startOfDay(now);
   final head = chain.where((d) => !d.isAfter(today)).firstOrNull;
-  if (head == null || calendarDaysBetween(head, today) > maxGapDays) {
+  if (head == null || gap(head, today) > maxGapDays) {
     // Nothing logged, or the allowance has already run out.
     return TrainingStreak(
       currentDays: 0,
@@ -209,7 +227,7 @@ TrainingStreak computeTrainingStreak({
   var earliest = head;
   for (final day in chain) {
     if (!day.isBefore(earliest)) continue;
-    if (calendarDaysBetween(day, earliest) > maxGapDays) break;
+    if (gap(day, earliest) > maxGapDays) break;
     earliest = day;
   }
 
@@ -260,7 +278,7 @@ TrainingStreak computeTrainingStreak({
     days: days,
     restoresUsed: restoresUsed,
     lastTrainedDay: lastTrained,
-    daysUntilBreak: maxGapDays - calendarDaysBetween(head, today),
+    daysUntilBreak: maxGapDays - gap(head, today),
   );
 }
 
@@ -310,18 +328,21 @@ bool restoreRescuesStreak({
   required DateTime now,
   required List<LiveSession> sessions,
   required List<TrainingDayMark> marks,
+  Set<DateTime> plannedRestDays = const {},
 }) {
   final target = startOfDay(day);
   final without = computeTrainingStreak(
     sessions: sessions,
     now: now,
     marks: marks,
+    plannedRestDays: plannedRestDays,
   );
   final withRestore = computeTrainingStreak(
     sessions: sessions,
     now: now,
     // Appended last so it wins the day key over any existing reason-only mark.
     marks: [...marks, TrainingDayMark(day: target, createdAt: now, restored: true)],
+    plannedRestDays: plannedRestDays,
   );
   return withRestore.currentDays > without.currentDays;
 }
@@ -338,13 +359,17 @@ DateTime? _latestOnOrBefore(Set<DateTime> days, DateTime limit) {
 
 /// The longest run of trained days under the gap rule — restores excluded, so
 /// an all-time best is always something that was actually trained.
-int _bestRun(Set<DateTime> trained, int maxGapDays) {
+int _bestRun(
+  Set<DateTime> trained,
+  int maxGapDays,
+  int Function(DateTime, DateTime) gap,
+) {
   if (trained.isEmpty) return 0;
   final sorted = trained.toList()..sort();
   var best = 1;
   var run = 1;
   for (var i = 1; i < sorted.length; i++) {
-    run = calendarDaysBetween(sorted[i - 1], sorted[i]) <= maxGapDays
+    run = gap(sorted[i - 1], sorted[i]) <= maxGapDays
         ? run + 1
         : 1;
     if (run > best) best = run;

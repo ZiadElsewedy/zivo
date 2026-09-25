@@ -107,6 +107,22 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   is `isWorkingSet`). **Mirrored in Node** (`functions/ai/exercise_analytics.js`) and fed
   to the AI coach via `get_exercise_analysis` + `get_training_analysis`'s `planAdherence`,
   pinned to the Dart engines by shared golden vectors (both suites run them).
+- **Rest days + planned vs actual: `training_days.dart`** ([ADR-019](../../../docs/DECISIONS/ADR-019-rest-days.md)).
+  `WorkoutDay.type` is `TrainingDayType.workout|rest` (stored as `type: 'rest'`,
+  omitted for a workout). A rest slot is never `nextDay`, never swapped, never
+  in the Change sheet, never has exercises. What was *planned* on a date is
+  derived from the rotation + history (the N days after a workout followed by N
+  rest slots are planned rest); what the user *chose* is a `TrainingDayMark`
+  with `reason: rest` ("Take a rest day" on Today — the plan is never edited).
+  `classifyTrainingDays` → `DayOutcome` (completed · missed · userRest ·
+  plannedRest · extraWorkout · unscheduled · pending) → `summarizeTrainingDays`.
+  **Missed only exists on a plan that schedules rest** — a pure rotation's
+  unlogged day is `unscheduled`. Planned rest bridges the streak
+  (`plannedRestDaysFor` → `computeTrainingStreak(plannedRestDays:)`; every
+  streak surface passes it). Mirrored in `functions/ai/analytics/training_days.js`,
+  pinned by `test/fixtures/training_days_vectors.json`. UI:
+  `widgets/training_day_card.dart` (`TrainingDayCard` picks workout vs
+  `RestDayCard`; Today + Workout tab both use it).
 - **Adherence engine: `analytics/plan_adherence.dart`** (`analyzePlanAdherence`) — joins
   the active plan against completed history (join key `PlannedExercise.id` ==
   `SessionExercise.exerciseId`) to flag **skipped** (planned, never trained) and **stale**
@@ -173,6 +189,11 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   set. **Phosphor icons already match text direction** — never `Transform.flip` them.
 - The splits-migration tie-break resolves to **oldest-by-`createdAt`** on purpose (matches
   `deleteSplit()` re-pointing).
+- **A rest day is not an empty workout — ever.** Don't branch on
+  `exerciseCount == 0` or a label containing "Rest"; read `WorkoutDay.isRest`.
+  Anything that starts, swaps or counts a *workout* goes through `nextDay` /
+  `workoutDays`, which already exclude rest. Anything that asks "what was today"
+  goes through `training_days.dart`, not the cursor.
 - Home's Training card and the Workout page read the **same** `watchActivePlan()` →
   `plan.nextDay` source, so they stay in sync — don't add a separate Home workout source.
 - **Training out of rotation defaults to a SWAP, not a skip.** `advanceToAfterDay`

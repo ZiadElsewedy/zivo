@@ -10,6 +10,7 @@ import '../../../../core/widgets/rise_in.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../workout/domain/live_session.dart';
+import '../../../workout/domain/training_days.dart';
 import '../../../workout/domain/training_day_mark.dart';
 import '../../../workout/domain/training_streak.dart';
 
@@ -53,10 +54,17 @@ class StreakOrbitPage extends StatelessWidget {
             initialData: marksRepo?.current ?? const <TrainingDayMark>[],
             builder: (context, marksSnapshot) {
               final marks = marksSnapshot.data ?? const <TrainingDayMark>[];
+              final now = clock();
               final streak = computeTrainingStreak(
                 sessions: sessions,
-                now: clock(),
+                now: now,
                 marks: marks,
+                plannedRestDays: plannedRestDaysFor(
+                  plan: scope.workoutPlans.activePlan,
+                  sessions: sessions,
+                  marks: marks,
+                  now: now,
+                ),
               );
               // Lifetime distinct days trained — a record independent of the
               // current run, so a broken streak still has something proud to

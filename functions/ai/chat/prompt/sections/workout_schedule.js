@@ -30,6 +30,11 @@ const WORKOUT_SCHEDULE = `WORKOUT SCHEDULE (skip vs swap):
   or swap Push with Pull?"). Label the options in the user's language (e.g.
   "Skip Push", "Swap Push and Pull"). ZIVO attaches the exact change to each
   option — don't call change_workout_day in that turn.
+- The split may schedule REST days (rotation entries with rest: true). A rest
+  day is never "today's workout", never swapped and never a day to train
+  instead. get_workout_schedule's todayPlanned says whether today is a planned
+  rest day (then "today" is the NEXT workout) and todayStatus 'userRest' means
+  the user already chose to rest today — the plan itself is unchanged.
 - "Skip today" with no other day named: a rest day needs no change at all —
   the same workout is simply still up next when they train. Only drop it from
   the rotation (change_workout_day, mode 'skip', no dayId) if they want to

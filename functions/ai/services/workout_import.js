@@ -101,9 +101,15 @@ const DAY_SCHEMA = {
   properties: {
     slot: {type: "string", description: "A short slot label, e.g. \"A\", \"B\", \"1\" — the rotation position."},
     label: {type: "string", description: "The day's name, e.g. \"Push\", \"Pull\", \"Legs\"."},
+    rest: {
+      type: "boolean",
+      description: "True when the document schedules this day as a REST day " +
+        "(\"Wednesday — Rest\", \"Off\", \"Recovery\"). A rest day has no " +
+        "exercises. False for every training day.",
+    },
     exercises: {type: "array", items: EXERCISE_SCHEMA},
   },
-  required: ["slot", "label", "exercises"],
+  required: ["slot", "label", "rest", "exercises"],
   additionalProperties: false,
 };
 
@@ -210,6 +216,11 @@ exercises legible) is a success, not a reason to reject.
 Guidance for a genuine extraction:
 - Use the document's own day names/labels; if it doesn't slot letters,
   invent short ones (A, B, C…) in reading order.
+- A day the plan schedules as rest ("Rest", "Off", "Recovery", "Rest day")
+  is a real day: keep it in its place in the order with rest: true and no
+  exercises — never drop it, and never turn it into an empty workout. Every
+  training day has rest: false. A plan still needs at least one real
+  training day.
 - A rep target given as a single number (e.g. "10 reps") is a fixed count —
   set repsMin and repsMax to that same number, toFailure false.
 - A range (e.g. "8-12") sets repsMin/repsMax to the two ends.
@@ -444,7 +455,8 @@ async function extractWorkoutPlan({
   // name/label) — that's not a usable plan either, regardless of which tool
   // was called, so it gets the same honest rejection rather than handing the
   // client an empty-but-"successful" split.
-  if (normalized.days.length === 0) {
+  // A split of nothing but rest days is no more usable than an empty one.
+  if (!normalized.days.some((d) => !d.rest)) {
     logEvent({
       stage: "rejected_empty_after_normalize",
       stopReason: response.stopReason,
@@ -511,6 +523,12 @@ function normalize(raw) {
     const slot = typeof day.slot === "string" && day.slot.trim() ?
       day.slot.trim() : String.fromCharCode(0x41 + normalizedDays.length);
     const exercises = Array.isArray(day.exercises) ? day.exercises : [];
+    // A rest day is kept in its place in the cycle and never carries
+    // exercises, whatever the extraction left on it.
+    if (day.rest === true) {
+      normalizedDays.push({slot, label, rest: true, exercises: []});
+      continue;
+    }
 
     const normalizedExercises = [];
     for (const ex of exercises) {
@@ -530,7 +548,8 @@ function normalize(raw) {
       });
     }
 
-    normalizedDays.push({slot, label, exercises: normalizedExercises});
+    normalizedDays.push({slot, label, rest: false,
+      exercises: normalizedExercises});
   }
 
   return {planName, days: normalizedDays};

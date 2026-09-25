@@ -55,3 +55,18 @@ test("a change is refused when the day that was due has moved on", () => {
   /isn't in your split/);
   assert.equal(swapDayOrders(days(), "push", "push").length, 3);
 });
+
+test("rest slots are never up next, never swapped, never a target", () => {
+  const {upNextDay, swapDayOrders, applyRotationChange, dayAfter} =
+    require("./workout_rotation");
+  const days = [
+    {id: "push", label: "Push", order: 0},
+    {id: "rest", label: "Rest", order: 1, type: "rest"},
+    {id: "pull", label: "Pull", order: 2},
+  ];
+  assert.equal(upNextDay(days, 1).id, "pull", "a cursor on rest reads past it");
+  assert.equal(dayAfter(days, "push").id, "pull");
+  assert.equal(swapDayOrders(days, "push", "rest"), days);
+  assert.throws(() => applyRotationChange({days, cycleCursor: 0},
+      {mode: "skip", dueDayId: "push", targetDayId: "rest"}), /rest day/);
+});

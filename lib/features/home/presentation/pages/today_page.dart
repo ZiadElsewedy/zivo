@@ -41,7 +41,7 @@ import '../widgets/common.dart';
 import '../widgets/diet_glance.dart';
 import '../widgets/sleep_glance.dart';
 import '../widgets/today_pulse_card.dart';
-import '../../../workout/presentation/widgets/up_next_workout_card.dart';
+import '../../../workout/presentation/widgets/training_day_card.dart';
 import '../../../shell/presentation/widgets/bottom_chrome.dart';
 import '../../../../core/util/date_format.dart';
 
@@ -615,7 +615,9 @@ class _TrainingUpNext extends StatelessWidget {
                   // that's a split to fix, not "nothing logged today".
                   _EmptySplitCard(plan: plan)
                 else
-                  UpNextWorkoutCard(
+                  // Rest-aware: a planned or chosen rest day shows as rest,
+                  // never as an empty workout (`training_day_card.dart`).
+                  TrainingDayCard(
                     plan: plan,
                     day: day,
                     resumable: selection.resumable,

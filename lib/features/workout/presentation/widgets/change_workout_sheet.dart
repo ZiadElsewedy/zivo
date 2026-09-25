@@ -92,7 +92,8 @@ class _ChangeWorkoutSheetState extends State<_ChangeWorkoutSheet> {
   @override
   Widget build(BuildContext context) {
     final plan = widget.plan;
-    final days = [...plan.days]..sort((a, b) => a.order.compareTo(b.order));
+    // Rest days are places in the calendar, not workouts to pick.
+    final days = plan.workoutDays;
     final due = plan.nextDay;
     final canSwap = due != null && days.length > 1;
     return SafeArea(

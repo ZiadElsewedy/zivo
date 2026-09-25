@@ -102,9 +102,11 @@ String plannedExerciseMetaText(BuildContext context, PlannedExercise e) {
   return l(context).workoutExerciseMeta(sets, group);
 }
 
-/// "6 exercises" — the one-line meta beneath a workout day.
-String workoutDayMetaText(BuildContext context, WorkoutDay day) =>
-    l(context).workoutExerciseCount(day.exerciseCount);
+/// "6 exercises" — the one-line meta beneath a workout day; "Rest day" for a
+/// rest slot, which never reads as a workout with nothing in it.
+String workoutDayMetaText(BuildContext context, WorkoutDay day) => day.isRest
+    ? l(context).restDayMeta
+    : l(context).workoutExerciseCount(day.exerciseCount);
 
 // ---- Persisted enums -> copy ---------------------------------------------
 //

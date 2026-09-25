@@ -8,6 +8,7 @@ import '../../../../core/util/time_ago.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../domain/live_session.dart';
+import '../../domain/training_days.dart';
 import '../../domain/session_status.dart';
 import '../../../../core/util/calendar.dart';
 import '../../domain/training_dashboard_stats.dart';
@@ -387,10 +388,17 @@ class WorkoutStreakPage extends StatelessWidget {
           builder: (context, marksSnapshot) {
             final marks = marksSnapshot.data ?? const <TrainingDayMark>[];
             final now = DateTime.now();
+            final plannedRest = plannedRestDaysFor(
+              plan: scope.workoutPlans.activePlan,
+              sessions: sessions,
+              marks: marks,
+              now: now,
+            );
             final streak = computeTrainingStreak(
               sessions: sessions,
               now: now,
               marks: marks,
+              plannedRestDays: plannedRest,
             );
             final rows = streak.days.isNotEmpty
                 ? streak.days
@@ -432,6 +440,7 @@ class WorkoutStreakPage extends StatelessWidget {
                             marks: marks,
                             now: now,
                             marksRepo: marksRepo,
+                            plannedRestDays: plannedRest,
                           ),
                         ),
                     ],
@@ -536,6 +545,7 @@ class _StreakDayRow extends StatelessWidget {
     required this.marks,
     required this.now,
     required this.marksRepo,
+    this.plannedRestDays = const {},
   });
 
   final StreakDay entry;
@@ -543,6 +553,7 @@ class _StreakDayRow extends StatelessWidget {
   final List<TrainingDayMark> marks;
   final DateTime now;
   final TrainingDayMarkRepository? marksRepo;
+  final Set<DateTime> plannedRestDays;
 
   @override
   Widget build(BuildContext context) {
@@ -639,6 +650,7 @@ class _StreakDayRow extends StatelessWidget {
         now: now,
         sessions: sessions,
         marks: marks,
+        plannedRestDays: plannedRestDays,
         repository: marksRepo!,
       ),
       child: row,
