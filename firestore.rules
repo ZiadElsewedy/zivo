@@ -389,7 +389,12 @@ service cloud.firestore {
             || request.resource.data.equipment == null
             || request.resource.data.equipment in
                  ['barbell', 'dumbbell', 'machine', 'cable', 'smith',
-                  'kettlebell', 'band', 'bodyweight']);
+                  'kettlebell', 'band', 'bodyweight'])
+        // Exercises the user said are NOT this one ("Keep separate" on the
+        // same-exercise card), so the pair isn't suggested again.
+        && (!('distinctFrom' in request.resource.data)
+            || (request.resource.data.distinctFrom is list
+                && request.resource.data.distinctFrom.size() <= 200));
       allow delete: if canWrite(userId);
     }
 

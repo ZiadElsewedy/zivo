@@ -6357,4 +6357,135 @@ class AppLocalizationsAr extends AppLocalizations {
   String askChoiceSwapDetail(String to, String from) {
     return '$to اليوم، و$from بعده';
   }
+
+  @override
+  String get liveSessionMap => 'خريطة التمرين';
+
+  @override
+  String liveSessionMapProgress(int done, int total) {
+    return 'خلّصت $done من $total تمارين';
+  }
+
+  @override
+  String get liveExerciseNow => 'الآن';
+
+  @override
+  String get liveExerciseDone => 'خلص';
+
+  @override
+  String get liveExerciseSkipped => 'اتخطّى';
+
+  @override
+  String liveExerciseSetsProgress(int done, int total) {
+    return '$done/$total مجموعات';
+  }
+
+  @override
+  String get liveDoNow => 'اعمله دلوقتي';
+
+  @override
+  String get liveDoLater => 'أجّله لبعدين';
+
+  @override
+  String get liveSwapExercise => 'بدّل التمرين';
+
+  @override
+  String get liveSkipExercise => 'تخطَّ التمرين';
+
+  @override
+  String get liveAddSet => 'زوّد مجموعة';
+
+  @override
+  String get liveRemoveSet => 'شيل آخر مجموعة';
+
+  @override
+  String get liveRemoveExercise => 'شيل التمرين';
+
+  @override
+  String get liveAddExercise => 'أضف تمرين';
+
+  @override
+  String get liveNextExercise => 'التمرين اللي بعده';
+
+  @override
+  String get livePreviousExercise => 'التمرين اللي قبله';
+
+  @override
+  String get liveExerciseOptions => 'خيارات التمرين';
+
+  @override
+  String get livePickExercise => 'اختار تمرين';
+
+  @override
+  String livePickExerciseSwapNote(String name) {
+    return 'بدل $name. المجموعات اللي سجّلتها هتفضل عليه.';
+  }
+
+  @override
+  String get livePickExerciseSearch => 'دوّر أو اكتب اسم';
+
+  @override
+  String livePickExerciseAddNamed(String name) {
+    return 'أضف «$name»';
+  }
+
+  @override
+  String get livePickExerciseEmpty => 'اكتب اسم عشان تضيف تمرين جديد.';
+
+  @override
+  String liveExerciseSwapped(String name) {
+    return 'اتبدّل لـ $name';
+  }
+
+  @override
+  String liveExerciseMovedLater(String name) {
+    return '$name اتنقل للآخر';
+  }
+
+  @override
+  String get workoutSameExerciseTitle => 'نفس التمرين؟';
+
+  @override
+  String workoutSameExerciseBody(String merge, String keep) {
+    return '«$merge» و«$keep» شكلهم نفس الحركة. لو كده، تاريخهم هيبقى واحد تحت «$keep».';
+  }
+
+  @override
+  String get workoutSameExerciseMerge => 'نفس التمرين';
+
+  @override
+  String get workoutSameExerciseKeep => 'خلّيهم منفصلين';
+
+  @override
+  String workoutSameExerciseMerged(String merge, String keep) {
+    return '«$merge» بقى تاريخه مع «$keep».';
+  }
+
+  @override
+  String get workoutUndo => 'تراجع';
+
+  @override
+  String get livePickSameMuscle => 'نفس العضلة';
+
+  @override
+  String get livePickAllExercises => 'تمارينك';
+
+  @override
+  String get livePickNewNote => 'تمرين جديد، بتاريخ خاص بيه';
+
+  @override
+  String get livePickNoMatch => 'مفيش تمرين من تمارينك مطابق.';
+
+  @override
+  String liveExerciseAdded(String name) {
+    return 'اتضاف $name';
+  }
+
+  @override
+  String liveExerciseSkippedToast(String name) {
+    return 'اتخطّى $name';
+  }
+
+  @override
+  String get liveChangeNext => 'غيّر';
 }

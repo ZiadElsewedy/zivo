@@ -30,6 +30,8 @@ class FirestoreExerciseLibraryRepository implements ExerciseLibraryRepository {
 
   Map<String, CanonicalExercise> _exercises = const {};
   List<ExerciseAlias> _aliases = const [];
+  bool _exercisesLoaded = false;
+  bool _aliasesLoaded = false;
   ExerciseLibrary _current = ExerciseLibrary.empty;
   final _controller = StreamController<ExerciseLibrary>.broadcast();
   StreamSubscription<String?>? _uidSub;
@@ -47,22 +49,30 @@ class FirestoreExerciseLibraryRepository implements ExerciseLibraryRepository {
     _aliasesSub?.cancel();
     _exercises = const {};
     _aliases = const [];
+    _exercisesLoaded = false;
+    _aliasesLoaded = false;
     _emit();
     if (uid == null) return;
     _exercisesSub = _exercisesOf(uid).snapshots().listen((snap) {
       _exercises = {
         for (final d in snap.docs) d.id: _exerciseFromDoc(d.id, d.data()),
       };
+      _exercisesLoaded = true;
       _emit();
     }, onError: _controller.addError);
     _aliasesSub = _aliasesOf(uid).snapshots().listen((snap) {
       _aliases = [for (final d in snap.docs) ?_aliasFromDoc(d.id, d.data())];
+      _aliasesLoaded = true;
       _emit();
     }, onError: _controller.addError);
   }
 
   void _emit() {
-    _current = ExerciseLibrary(exercises: _exercises, aliases: _aliases);
+    _current = ExerciseLibrary(
+      exercises: _exercises,
+      aliases: _aliases,
+      loaded: _exercisesLoaded && _aliasesLoaded,
+    );
     if (!_controller.isClosed) _controller.add(_current);
   }
 
@@ -78,29 +88,49 @@ class FirestoreExerciseLibraryRepository implements ExerciseLibraryRepository {
   @override
   Future<void> saveExercise(CanonicalExercise exercise) {
     final uid = uidSource.requireUid(this);
-    return _exercisesOf(uid).doc(exercise.id).set({
-      'name': exercise.name,
-      'equipment': exercise.equipment?.name,
-      'muscleGroup': exercise.muscleGroup,
-      'createdAt': Timestamp.fromDate(exercise.createdAt),
-      'schemaVersion': 1,
-    });
+    return _exercisesOf(uid).doc(exercise.id).set(_exerciseToDoc(exercise));
   }
+
+  @override
+  Future<void> saveExercises(List<CanonicalExercise> exercises) async {
+    if (exercises.isEmpty) return;
+    final uid = uidSource.requireUid(this);
+    // A batch holds 500 writes; a migration of a long history can exceed it.
+    for (var i = 0; i < exercises.length; i += 400) {
+      final batch = _firestore.batch();
+      for (final e in exercises.skip(i).take(400)) {
+        batch.set(_exercisesOf(uid).doc(e.id), _exerciseToDoc(e));
+      }
+      await batch.commit();
+    }
+  }
+
+  Map<String, Object?> _exerciseToDoc(CanonicalExercise exercise) => {
+    'name': exercise.name,
+    'equipment': exercise.equipment?.name,
+    'muscleGroup': exercise.muscleGroup,
+    'createdAt': Timestamp.fromDate(exercise.createdAt),
+    if (exercise.distinctFrom.isNotEmpty)
+      'distinctFrom': exercise.distinctFrom.toList()..sort(),
+    'schemaVersion': 1,
+  };
 
   @override
   Future<void> saveAliases(List<ExerciseAlias> aliases) async {
     if (aliases.isEmpty) return;
     final uid = uidSource.requireUid(this);
-    final batch = _firestore.batch();
-    for (final a in aliases) {
-      batch.set(_aliasesOf(uid).doc(a.legacyId), {
-        'canonicalId': a.canonicalId,
-        'source': a.source.name,
-        'createdAt': Timestamp.fromDate(a.createdAt),
-        'schemaVersion': 1,
-      });
+    for (var i = 0; i < aliases.length; i += 400) {
+      final batch = _firestore.batch();
+      for (final a in aliases.skip(i).take(400)) {
+        batch.set(_aliasesOf(uid).doc(a.legacyId), {
+          'canonicalId': a.canonicalId,
+          'source': a.source.name,
+          'createdAt': Timestamp.fromDate(a.createdAt),
+          'schemaVersion': 1,
+        });
+      }
+      await batch.commit();
     }
-    await batch.commit();
   }
 
   @override
@@ -119,6 +149,10 @@ class FirestoreExerciseLibraryRepository implements ExerciseLibraryRepository {
       createdAt: createdAt is Timestamp
           ? createdAt.toDate()
           : DateTime.fromMillisecondsSinceEpoch(0),
+      distinctFrom: {
+        for (final id in (data['distinctFrom'] as List?) ?? const [])
+          if (id is String) id,
+      },
     );
   }
 

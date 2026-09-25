@@ -1142,6 +1142,22 @@ describe('exercise identities', () => {
     );
   });
 
+  it('an exercise can remember which others it is not', async () => {
+    await assertSucceeds(
+      setDoc(doc(ownerDb(), collPath(OWNER, 'exercises')), {
+        ...valid.exercises, distinctFrom: ['x-hammer-curl'],
+      }),
+    );
+  });
+
+  it('distinctFrom must be a list', async () => {
+    await assertFails(
+      setDoc(doc(ownerDb(), collPath(OWNER, 'exercises')), {
+        ...valid.exercises, distinctFrom: 'x-hammer-curl',
+      }),
+    );
+  });
+
   it('removing an alias (undoing a merge) is allowed', async () => {
     await seed(collPath(OWNER, 'exerciseAliases'), { ...valid.exerciseAliases });
     await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'exerciseAliases'))));

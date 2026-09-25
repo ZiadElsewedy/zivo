@@ -56,6 +56,7 @@ const {calibrateMaintenance, energyFor, ageFrom} = require("../../diet/energy");
 const {coachingFindings} = require("../../diet/rules");
 const {analyzeTraining} = require("../analytics/workout_analytics");
 const {analyzeExercise, analyzePlanAdherence} = require("../analytics/exercise_analytics");
+const {makeResolver, IDENTITY} = require("../analytics/exercise_identity");
 const {
   rotationFrom,
   upNextDay,
@@ -486,7 +487,7 @@ const WORKOUTS_TOOL = {
   async execute(store, uid, input, now, offsetMinutes) {
     const range = input.range === "month" ?
       monthRangeMs(now, offsetMinutes) : weekRangeMs(now, offsetMinutes);
-    const sessions = await store.listWorkoutSessions(uid, range);
+    const {sessions} = await loadResolvedSessions(store, uid, range);
     sessions.sort((a, b) =>
       (b.completedAt || b.startedAt) - (a.completedAt || a.startedAt));
     // The "warm-up isn't working volume / top set is the heaviest working set"
@@ -569,7 +570,7 @@ const LAST_WORKOUT_TOOL = {
    */
   async execute(store, uid, input, now, offsetMinutes) {
     const today = dayKeyFor(now, offsetMinutes);
-    const sessions = await store.listWorkoutSessions(uid);
+    const {sessions} = await loadResolvedSessions(store, uid);
     const s = (sessions || [])
         .filter((x) => x.status === "completed")
         .sort((a, b) =>
@@ -643,13 +644,13 @@ const TRAINING_ANALYSIS_TOOL = {
    * @return {!Promise<!Object>}
    */
   async execute(store, uid, input, now) {
-    const sessions = await store.listWorkoutSessions(uid);
+    const {sessions, resolver} = await loadResolvedSessions(store, uid);
     // The active plan is what makes "what's being skipped" answerable; a store
     // without the reader (or with no plan) just yields empty adherence.
     const plan = store.getActiveWorkoutPlan ?
       await store.getActiveWorkoutPlan(uid) : null;
     const analysis = analyzeTraining({sessions, now});
-    const adherence = analyzePlanAdherence({plan, sessions, now});
+    const adherence = analyzePlanAdherence({plan, sessions, now, resolver});
     return {
       ...analysis,
       // ISO the PR dates for the model.
@@ -704,7 +705,7 @@ const EXERCISE_ANALYSIS_TOOL = {
    * @return {!Promise<!Object>}
    */
   async execute(store, uid, input, now) {
-    const sessions = await store.listWorkoutSessions(uid);
+    const {sessions} = await loadResolvedSessions(store, uid);
     const resolved = resolveExerciseId(sessions, input.exercise);
     if (!resolved.exerciseId) {
       return {
@@ -732,6 +733,30 @@ const EXERCISE_ANALYSIS_TOOL = {
 };
 
 /**
+ * The user's sessions read through their exercise identities (ADR-017): each
+ * session's `exerciseId`s folded into the canonical exercise they mean, so one
+ * movement trained on two days — or in two splits — is one history, exactly
+ * as the Analysis screen reads it. In memory only; nothing is written back.
+ *
+ * A store without the alias reader (a test fake), or a failed read, resolves
+ * every id to itself: the pre-identity reading, never an error.
+ * @param {!Object} store
+ * @param {string} uid
+ * @param {{fromMs: number, toMs: number}=} range
+ * @return {!Promise<{sessions: !Array<Object>, resolver: !Object}>}
+ */
+async function loadResolvedSessions(store, uid, range) {
+  const [sessions, aliases] = await Promise.all([
+    store.listWorkoutSessions(uid, range),
+    store.listExerciseAliases ?
+      store.listExerciseAliases(uid).catch(() => []) :
+      Promise.resolve([]),
+  ]);
+  const resolver = aliases.length ? makeResolver(aliases) : IDENTITY;
+  return {sessions: resolver.canonicalize(sessions), resolver};
+}
+
+/**
  * Resolves a free-text exercise name to a logged exerciseId. Prefers an exact
  * (case-insensitive) name, then a whole-word/substring match, and returns the
  * available names as candidates so the model can disambiguate or fall back.
@@ -741,6 +766,10 @@ const EXERCISE_ANALYSIS_TOOL = {
  */
 function resolveExerciseId(sessions, query) {
   const byId = new Map(); // exerciseId -> freshest name
+  // Every name an exercise was ever logged under. Sessions arrive already
+  // canonicalized, so "Hammer Curl" on one day and "Hammer Dumbbell Curl" on
+  // another are one id — and asking about either name finds it.
+  const namesById = new Map();
   const ordered = [...(sessions || [])].sort((a, b) =>
     (a.completedAt || a.startedAt) - (b.completedAt || b.startedAt));
   for (const s of ordered) {
@@ -748,7 +777,11 @@ function resolveExerciseId(sessions, query) {
     for (const e of s.exercises || []) {
       const hasWorking = (e.sets || []).some(
           (set) => set.outcome === "completed" && set.type !== "warmup");
-      if (hasWorking) byId.set(e.exerciseId, e.name || e.exerciseId);
+      if (!hasWorking) continue;
+      const name = e.name || e.exerciseId;
+      byId.set(e.exerciseId, name);
+      if (!namesById.has(e.exerciseId)) namesById.set(e.exerciseId, new Set());
+      namesById.get(e.exerciseId).add(name.toLowerCase());
     }
   }
   const candidates = [...byId.values()];
@@ -758,14 +791,13 @@ function resolveExerciseId(sessions, query) {
   let exact = null;
   let starts = null;
   let contains = null;
-  for (const [id, name] of byId) {
-    const n = name.toLowerCase();
-    if (n === q) {
-      exact = id;
-      break;
+  for (const [id, names] of namesById) {
+    for (const n of names) {
+      if (n === q) exact = exact || id;
+      if (starts == null && n.startsWith(q)) starts = id;
+      if (contains == null && (n.includes(q) || q.includes(n))) contains = id;
     }
-    if (starts == null && n.startsWith(q)) starts = id;
-    if (contains == null && (n.includes(q) || q.includes(n))) contains = id;
+    if (exact) break;
   }
   return {exerciseId: exact || starts || contains, candidates};
 }
@@ -1399,7 +1431,7 @@ const READINESS_TOOL = {
     };
 
     // Training — the deload signal and how recently they trained.
-    const sessions = await store.listWorkoutSessions(uid);
+    const {sessions} = await loadResolvedSessions(store, uid);
     const analysis = analyzeTraining({sessions, now});
     let lastSessionMs = null;
     for (const s of sessions) {

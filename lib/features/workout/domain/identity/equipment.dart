@@ -43,6 +43,10 @@ const Map<String, Equipment> _equipmentWords = {
 /// Movements that only exist on one kind of equipment, so the name implies
 /// it even without saying "machine".
 const Map<String, Equipment> _equipmentPhrases = {
+  // A bench press that names no equipment is a barbell press by gym
+  // convention; "Dumbbell Bench Press" states its own and wins (words are
+  // checked before phrases).
+  'bench press': Equipment.barbell,
   'pec deck': Equipment.machine,
   'rear delt fly': Equipment.machine,
   'leg press': Equipment.machine,

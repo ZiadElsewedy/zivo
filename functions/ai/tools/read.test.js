@@ -402,6 +402,74 @@ test("get_exercise_analysis: an unknown lift returns candidates, not a guess",
       assert.ok(result.candidates.includes("Incline DB Press"));
     });
 
+test("get_exercise_analysis: one exercise on two days is ONE history (ADR-017)",
+    async () => {
+      const tool = toolsByName.get("get_exercise_analysis");
+      const pecDeck = (id, day, slotId, name, weight) => ({
+        id, dayLabel: "Push", status: "completed",
+        startedAt: ago(day), completedAt: ago(day),
+        exercises: [{
+          name, exerciseId: slotId, muscleGroup: "Chest",
+          sets: [{
+            id: `${id}-0`, actualReps: 10, actualWeightKg: weight,
+            type: "working", outcome: "completed",
+          }],
+        }],
+      });
+      const store = {
+        // Logged in two slots on two days, before identities existed.
+        listWorkoutSessions: async () => [
+          pecDeck("a", 9, "push-e1", "Pec Deck", 50),
+          pecDeck("b", 5, "cb-e3", "Pec Deck Fly", 55),
+          pecDeck("c", 1, "push-e1", "Pec Deck", 57.5),
+        ],
+        listExerciseAliases: async () => [
+          {legacyId: "push-e1", canonicalId: "x-pec"},
+          {legacyId: "cb-e3", canonicalId: "x-pec"},
+        ],
+      };
+      const result = await tool.execute(store, UID, {exercise: "pec deck fly"}, NOW);
+      assert.equal(result.matched, true);
+      assert.equal(result.sessions.length, 3,
+          "both slots' sessions are the same lift's history");
+    });
+
+test("get_exercise_analysis: a store without aliases reads as before", async () => {
+  const tool = toolsByName.get("get_exercise_analysis");
+  const store = {
+    listWorkoutSessions: async () => [
+      inclineSession("s1", 3, [{reps: 8, weight: 35}]),
+    ],
+    listExerciseAliases: async () => {
+      throw new Error("permission-denied");
+    },
+  };
+  const result = await tool.execute(store, UID, {exercise: "incline"}, NOW);
+  assert.equal(result.matched, true);
+});
+
+test("get_training_analysis: adherence joins a slot by its canonical exercise",
+    async () => {
+      const tool = toolsByName.get("get_training_analysis");
+      const store = {
+        // Trained in the Push slot; the Chest & Back slot is the same lift.
+        listWorkoutSessions: async () => [
+          inclineSession("s1", 2, [{reps: 8, weight: 35}]),
+        ],
+        listExerciseAliases: async () => [
+          {legacyId: "incline", canonicalId: "x-incline"},
+        ],
+        getActiveWorkoutPlan: async () => ({
+          days: [{label: "Chest & Back", exercises: [
+            {id: "cb-e1", exerciseId: "x-incline", name: "Incline DB Press"},
+          ]}],
+        }),
+      };
+      const result = await tool.execute(store, UID, {}, NOW);
+      assert.equal(result.planAdherence.neglected.length, 0,
+          "trained in another slot is still trained");
+    });
+
 test("get_training_analysis surfaces plan adherence (what's being skipped)",
     async () => {
       const tool = toolsByName.get("get_training_analysis");

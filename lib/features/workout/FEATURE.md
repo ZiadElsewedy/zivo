@@ -147,7 +147,30 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   **and splits**; "last time"/goals are **slot-first** (`lastPerformanceFor(slotId:)`).
   Pass sessions through the resolver before any per-exercise analysis. `matchExercise`
   only suggests identity from a name (equipment gate + variation words).
+  **Migration/sync:** `identity_reconcile.dart` (pure, deterministic, idempotent) run by
+  `ExerciseIdentitySync` at app root — never writes a session, waits for
+  `ExerciseLibrary.loaded`. **Merges the pass can't prove** are asked on the Analysis hub
+  (`widgets/same_exercise_card.dart`, `identity/exercise_merge.dart`). A plan-editor rename
+  to a different movement (`isDifferentMovement`) gets a new identity (`identityAfterEdit`).
   The `splitId` alias is still intentional.
+- **Moving around a live workout is a change of ORDER, never a cursor.** The current set
+  stays derived (first pending set). Next/previous rotate the exercises still owed
+  (`LiveSession.rotatePending`, exact inverses), the workout map's jump is `bringForward`,
+  "do it later" is `moveToEnd`; each first puts finished exercises ahead of the rest. Every
+  structural command (swap, add/remove set or exercise, skip exercise) goes through
+  `LiveSessionController._restructure`, which keeps the typed draft on its set, re-prefills,
+  and completes the session if nothing is left. Back (`previousResolvedSet`) reads
+  `resolvedAt`, not list order, because order can change. Nothing resolved is ever removed:
+  "remove" only takes an exercise/set with nothing logged. UI:
+  `widgets/live_session/exercise_navigation_sheets.dart` (map timeline with progress
+  rings · grouped actions · picker with same-muscle section and confident-name dedupe),
+  the ‹ › capsule + ⋯ on `ExerciseHeader`, the finger-following swipe
+  (`exercise_swipe.dart`), and the map opened from the "EXERCISE n / N" caption
+  (`TrainSegmentCaptions.onLeftTap`) or the rest card's "Change". A change of exercise
+  slides horizontally the way the user went (`LiveSessionController.lastMove` →
+  `_phaseTransition`, read per frame because the switcher caches transitions). Set chips:
+  a distinct **skipped** state, tap a resolved chip to correct it, trailing **+** adds a
+  set. **Phosphor icons already match text direction** — never `Transform.flip` them.
 - The splits-migration tie-break resolves to **oldest-by-`createdAt`** on purpose (matches
   `deleteSplit()` re-pointing).
 - Home's Training card and the Workout page read the **same** `watchActivePlan()` →

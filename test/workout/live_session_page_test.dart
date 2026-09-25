@@ -29,6 +29,8 @@ import 'package:zivo/features/workout/domain/workout_session_repository.dart';
 import 'package:zivo/features/workout/domain/workout_set.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/presentation/pages/live_session_page.dart';
+import 'package:zivo/features/workout/presentation/widgets/live_session/phases/phase_scaffold.dart';
+import 'package:zivo/features/workout/presentation/widgets/live_session/session_review.dart';
 import 'package:zivo/features/music/data/fake_music_controller.dart';
 import 'package:zivo/features/music/domain/music_controller.dart';
 
@@ -403,6 +405,142 @@ int restWholeSeconds(WidgetTester tester) {
 }
 
 void main() {
+  group('moving between exercises', () {
+    Future<InMemoryWorkoutSessionRepository> pumpTwo(WidgetTester tester) async {
+      final plans = _RecordingWorkoutPlanRepository();
+      final plan = _twoExercisePlan();
+      await plans.savePlan(plan);
+      final sessions = InMemoryWorkoutSessionRepository();
+      await tester.pumpWidget(
+        _wrap(
+          workouts: _RecordingWorkoutRepository(),
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+      return sessions;
+    }
+
+    String heading(WidgetTester tester) => tester
+        .widget<Text>(
+          find.descendant(
+            of: find.byType(ExerciseHeader),
+            matching: find.byWidgetPredicate(
+              (w) => w is Text && w.style?.fontSize == 34,
+            ),
+          ),
+        )
+        .data!;
+
+    testWidgets('the arrows move to the next exercise and back', (
+      tester,
+    ) async {
+      await pumpTwo(tester);
+      expect(heading(tester), 'Bench');
+      await _tap(tester, find.byKey(const Key('exercise-next')));
+      expect(heading(tester), 'Dips');
+      await _tap(tester, find.byKey(const Key('exercise-previous')));
+      expect(heading(tester), 'Bench');
+    });
+
+    testWidgets('a horizontal swipe across the exercise moves too', (
+      tester,
+    ) async {
+      await pumpTwo(tester);
+      await tester.fling(
+        find.byKey(const Key('exercise-swipe')),
+        const Offset(-300, 0),
+        1000,
+      );
+      await _settle(tester);
+      expect(heading(tester), 'Dips');
+    });
+
+    testWidgets('the workout map jumps straight to an exercise', (
+      tester,
+    ) async {
+      await pumpTwo(tester);
+      await _tap(tester, find.byKey(const Key('session-map-chip')));
+      expect(find.text('Workout map'), findsOneWidget);
+      await _tap(tester, find.byKey(const Key('map-row-ex2')));
+      expect(heading(tester), 'Dips');
+    });
+
+    testWidgets('swap from the options sheet puts a typed exercise in its '
+        'place', (tester) async {
+      await pumpTwo(tester);
+      await _tap(tester, find.byKey(const Key('exercise-options')));
+      await _tap(tester, find.byKey(const Key('exercise-action-swap')));
+      await tester.enterText(
+        find.byKey(const Key('exercise-picker-search')),
+        'Chest Press Machine',
+      );
+      await tester.pump();
+      await _tap(tester, find.byKey(const Key('exercise-picker-add-named')));
+      expect(heading(tester), 'Chest Press Machine');
+    });
+
+    testWidgets('a skipped set reads as skipped, not as a set still to do', (
+      tester,
+    ) async {
+      await pumpTwo(tester);
+      await _tap(tester, find.byKey(const Key('skip-set')));
+      if (find.text('Skip rest').evaluate().isNotEmpty) {
+        await _tap(tester, find.text('Skip rest'));
+      }
+      expect(find.byKey(const Key('set-chip-1-skipped')), findsOneWidget);
+      expect(find.byKey(const Key('set-chip-2-current')), findsOneWidget);
+    });
+
+    testWidgets('the + chip adds a set to the exercise', (tester) async {
+      await pumpTwo(tester);
+      expect(find.byKey(const Key('set-chip-3-upcoming')), findsNothing);
+      await _tap(tester, find.byKey(const Key('add-set-chip')));
+      expect(find.byKey(const Key('set-chip-3-upcoming')), findsOneWidget);
+    });
+
+    testWidgets('tapping a logged set opens it for correction', (tester) async {
+      await pumpTwo(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
+      if (find.text('Skip rest').evaluate().isNotEmpty) {
+        await _tap(tester, find.text('Skip rest'));
+      }
+      await _tap(tester, find.byKey(const Key('set-chip-1-done')));
+      expect(find.byType(SetReviewSheet), findsOneWidget);
+    });
+
+    testWidgets('during rest, "Change" on the up-next card opens the map', (
+      tester,
+    ) async {
+      await pumpTwo(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
+      expect(find.text('Skip rest'), findsOneWidget);
+      await _tap(tester, find.byKey(const Key('up-next-change')));
+      expect(find.text('Workout map'), findsOneWidget);
+    });
+
+    testWidgets('a single exercise left offers no arrows', (tester) async {
+      final plans = _RecordingWorkoutPlanRepository();
+      final plan = _plan();
+      await plans.savePlan(plan);
+      await tester.pumpWidget(
+        _wrap(
+          workouts: _RecordingWorkoutRepository(),
+          workoutPlans: plans,
+          workoutSessions: InMemoryWorkoutSessionRepository(),
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+      expect(find.byKey(const Key('exercise-next')), findsNothing);
+      expect(find.byKey(const Key('exercise-options')), findsOneWidget);
+    });
+  });
+
   testWidgets(
     'happy path: start → previous performance + delta → done → rest (±15s) → '
     'skip → complete → finish persists + advances',
@@ -2188,7 +2326,7 @@ void main() {
 
       // Not yet on the first set — the per-exercise view hasn't shown at all.
       expect(find.byKey(const Key('set-chip-1-current')), findsNothing);
-      expect(find.text('Bench'), findsNothing);
+      expect(find.byType(ExerciseHeader), findsNothing);
     },
   );
 

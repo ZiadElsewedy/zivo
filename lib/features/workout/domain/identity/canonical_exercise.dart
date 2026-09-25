@@ -31,6 +31,7 @@ class CanonicalExercise {
     this.equipment,
     this.muscleGroup,
     required this.createdAt,
+    this.distinctFrom = const {},
   });
 
   final String id;
@@ -46,15 +47,41 @@ class CanonicalExercise {
   final String? muscleGroup;
   final DateTime createdAt;
 
+  /// Exercises the user said are NOT this one, when the names suggested they
+  /// might be — so "same exercise?" is asked once, not on every visit.
+  final Set<String> distinctFrom;
+
   CanonicalExercise copyWith({
     String? name,
     Equipment? equipment,
     String? muscleGroup,
+    Set<String>? distinctFrom,
   }) => CanonicalExercise(
     id: id,
     name: name ?? this.name,
     equipment: equipment ?? this.equipment,
     muscleGroup: muscleGroup ?? this.muscleGroup,
     createdAt: createdAt,
+    distinctFrom: distinctFrom ?? this.distinctFrom,
   );
 }
+
+int _idCounter = 0;
+
+/// A fresh canonical exercise id. Prefixed so it can never collide with a
+/// plan slot id — slot ids are what legacy records carry, and a canonical id
+/// equal to one would make "this slot is its own exercise" and "this slot
+/// performs that exercise" indistinguishable.
+String newCanonicalExerciseId(DateTime now) =>
+    'x-${now.microsecondsSinceEpoch.toRadixString(36)}'
+    '${(_idCounter++).toRadixString(36)}';
+
+/// The canonical id the identity migration gives the group of legacy ids
+/// represented by [legacyId]. Deterministic, so two devices migrating the
+/// same account at once write the same documents instead of duplicates.
+String migratedCanonicalExerciseId(String legacyId) =>
+    'x-${legacyId.replaceAll('/', '_')}';
+
+/// Whether [id] was minted as a canonical id ([newCanonicalExerciseId] or
+/// [migratedCanonicalExerciseId]) rather than being a legacy slot id.
+bool isCanonicalExerciseId(String id) => id.startsWith('x-');

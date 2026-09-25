@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -8,6 +10,8 @@ import '../../../../core/widgets/async_action.dart';
 import '../../../../core/widgets/zivo_sheet.dart';
 import '../../../../core/widgets/zivo_confirm.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
+import '../../domain/identity/canonical_exercise.dart';
+import '../../domain/identity/exercise_choice.dart';
 import '../../domain/planned_exercise.dart';
 import '../../domain/workout_plan.dart';
 import '../widgets/staggered_reveal.dart';
@@ -108,8 +112,44 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage>
       builder: (_) =>
           ExerciseSheet(initial: _c.days[dayIndex].exercises[exerciseIndex]),
     );
-    if (exercise == null) return;
-    _c.replaceExercise(dayIndex, exerciseIndex, exercise);
+    if (exercise == null || !mounted) return;
+    _c.replaceExercise(
+      dayIndex,
+      exerciseIndex,
+      _withIdentity(_c.days[dayIndex].exercises[exerciseIndex], exercise),
+    );
+  }
+
+  /// [edited] carrying the right exercise identity (ADR-017): the same one
+  /// for any edit that keeps the movement, a different one when the rename
+  /// names another movement — see [identityAfterEdit]. A newly minted
+  /// exercise is saved in the background; the identity sync creates it
+  /// anyway if that write doesn't land.
+  PlannedExercise _withIdentity(PlannedExercise before, PlannedExercise edited) {
+    final library = AppScope.of(context).exerciseLibrary;
+    final now = DateTime.now();
+    final identity = identityAfterEdit(
+      before: before,
+      after: edited,
+      library: library?.current.exercises.values ?? const [],
+      newId: () => newCanonicalExerciseId(now),
+      now: now,
+    );
+    final created = identity.created;
+    if (created != null && library != null) {
+      unawaited(library.saveExercise(created).catchError((Object _) {}));
+    }
+    if (identity.exerciseId == edited.exerciseId) return edited;
+    return PlannedExercise(
+      id: edited.id,
+      exerciseId: identity.exerciseId,
+      name: edited.name,
+      order: edited.order,
+      muscleGroup: edited.muscleGroup,
+      notes: edited.notes,
+      defaultRestSeconds: edited.defaultRestSeconds,
+      sets: edited.sets,
+    );
   }
 
   Future<void> _pickDefaultRest() async {

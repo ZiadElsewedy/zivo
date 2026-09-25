@@ -97,12 +97,29 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- 2026-09-25 (`upgrades`) — **Workout redesign: exercise navigation + identity
+  completed** (ADR-017, NOT deployed). Live session: next/previous arrows + swipe,
+  a workout map (jump to any exercise, add one), per-exercise options — do now / do
+  later / swap / add or remove a set / skip / remove (only if nothing logged).
+  Identity: the one-time migration + ongoing sync (`ExerciseIdentitySync`, additive,
+  never touches a session), "Same exercise?" merge card with Undo on the Analysis
+  hub (`distinctFrom` rule + test), plan-editor rename-to-a-different-movement gets a
+  new identity, and the Node mirror (coach reads + adherence through aliases).
+  Session polish pass: map timeline, grouped actions sheet, picker (same-muscle first,
+  duplicates collapsed), ‹ › capsule + finger-following swipe with a directional slide,
+  skipped/tap-to-correct/+ set chips, "Change" on the rest card. Also fixed four
+  app-root test harnesses the foundation commit broke (no injected exercise library).
+  **Owner actions:** deploy `firestore.rules` (the `exercises` / `exerciseAliases`
+  collections + `distinctFrom`) and then `functions` for the coach mirror. Until the
+  rules are live the sync's writes are denied and it quietly does nothing — every
+  account keeps reading exactly as before.
+
 - 2026-09-25 (`upgrades`) — **Exercise identity foundation**
   ([ADR-017](DECISIONS/ADR-017-exercise-identity.md)): canonical exercise vs plan slot
   vs history; alias layer read-only over history; history shared across days and
   splits; slot-first goals; new `exercises` / `exerciseAliases` collections with rules +
-  rule tests. **No account changes behaviour yet** — migration, matcher wiring and the
-  Node mirror are the next increments. Also on `upgrades`: the live session's
+  rule tests. (Migration, matcher wiring and the Node mirror landed the same day —
+  see the entry above.) Also on `upgrades`: the live session's
   set-logged moment (check takes over the rest ring's face) + per-set segment fill.
 
 - **Ask can change today's workout — skip vs swap; premium confirmation

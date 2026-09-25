@@ -224,4 +224,14 @@ class AppIcons {
   static const catBills = PhosphorIconsRegular.receipt;
   static const catPersonalCare = PhosphorIconsRegular.shower;
   static const catOther = PhosphorIconsRegular.tag;
+
+  // The live session's exercise navigation: the map of the whole workout,
+  // moving between exercises, and what can be done to one.
+  static const sessionMap = PhosphorIconsRegular.listNumbers;
+  static const previous = PhosphorIconsRegular.caretLeft;
+  static const next = PhosphorIconsRegular.caretRight;
+  static const more = PhosphorIconsRegular.dotsThree;
+  static const swapExercise = PhosphorIconsRegular.arrowsLeftRight;
+  static const doLater = PhosphorIconsRegular.hourglassMedium;
+  static const skipExercise = PhosphorIconsRegular.skipForward;
 }

@@ -43,6 +43,7 @@ class CountdownPhase extends StatelessWidget {
     this.accent2,
     this.runningIcon,
     this.runningGlyph,
+    this.onChangeNext,
     super.key,
   });
 
@@ -84,6 +85,10 @@ class CountdownPhase extends StatelessWidget {
   final VoidCallback onTogglePause;
   final void Function(int seconds) onAdjust;
   final VoidCallback onSkip;
+
+  /// Opens the workout map from the up-next card — the rest is exactly when
+  /// you find the next machine taken. Null (nothing else left) hides it.
+  final VoidCallback? onChangeNext;
 
   /// The eyebrow's running-state mark. Warm-up shows a streak icon, rest a
   /// pause glyph; both swap to a play glyph while held.
@@ -131,6 +136,7 @@ class CountdownPhase extends StatelessWidget {
           exercise: exercise,
           set: set,
           unit: unit,
+          onChange: onChangeNext,
         ),
         // A hard minimum gap, not just the Spacer below it: on a short screen
         // the Spacer collapses to zero and the card would otherwise weld to

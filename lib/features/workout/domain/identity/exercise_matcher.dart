@@ -61,6 +61,30 @@ ExerciseMatch matchExercise({
   return ExerciseMatch(confident: confident, suggestions: suggestions);
 }
 
+/// Whether renaming [from] to [to] names a **different movement** rather
+/// than the same one spelled better — the question a plan edit has to ask
+/// before a slot keeps or loses its history.
+///
+/// Deliberately lenient toward "same": a typo fix ("Bench Pres" → "Bench
+/// Press") or rewording must never cut a slot off from its history. Only
+/// changes that alter what the numbers mean count as different: another
+/// known equipment, a variation word gained or lost (incline, seated,
+/// single-arm …), or no movement word in common at all.
+bool isDifferentMovement(String from, String to) {
+  final a = ExerciseSignature.of(from);
+  final b = ExerciseSignature.of(to);
+  if (a.equipment != null && b.equipment != null && a.equipment != b.equipment) {
+    return true;
+  }
+  final changed = a.movement.difference(b.movement).union(
+    b.movement.difference(a.movement),
+  );
+  if (changed.any(_variationWords.contains)) return true;
+  return a.movement.isNotEmpty &&
+      b.movement.isNotEmpty &&
+      a.movement.intersection(b.movement).isEmpty;
+}
+
 enum SignatureMatch { same, plausible, different }
 
 /// A name reduced to what matters for identity: the movement words and the
@@ -139,6 +163,21 @@ const Set<String> _variationWords = {
   'deficit',
   'pause',
   'paused',
+  // Grip, support and bar change the movement as much as angle does — a
+  // hammer curl is not a dumbbell curl with a longer name (all found as
+  // false "same exercise?" suggestions on a real library).
+  'hammer',
+  'neutral',
+  'supinated',
+  'pronated',
+  'underhand',
+  'overhand',
+  'preacher',
+  'concentration',
+  'spider',
+  'bayesian',
+  'supported',
+  'ez',
 };
 
 /// Multi-word synonyms, applied to the space-joined lowercase name before it

@@ -10415,6 +10415,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{to} today, {from} next'**
   String askChoiceSwapDetail(String to, String from);
+
+  /// Title of the sheet listing every exercise in the live workout, and the header button that opens it.
+  ///
+  /// In en, this message translates to:
+  /// **'Workout map'**
+  String get liveSessionMap;
+
+  /// Subtitle of the workout map.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total} exercises done'**
+  String liveSessionMapProgress(int done, int total);
+
+  /// Status pill on the workout map for the exercise being done now.
+  ///
+  /// In en, this message translates to:
+  /// **'NOW'**
+  String get liveExerciseNow;
+
+  /// Status pill on the workout map for an exercise with every set resolved.
+  ///
+  /// In en, this message translates to:
+  /// **'DONE'**
+  String get liveExerciseDone;
+
+  /// Status pill on the workout map for an exercise whose sets were all skipped.
+  ///
+  /// In en, this message translates to:
+  /// **'SKIPPED'**
+  String get liveExerciseSkipped;
+
+  /// How many of an exercise's sets are resolved, on the workout map.
+  ///
+  /// In en, this message translates to:
+  /// **'{done}/{total} sets'**
+  String liveExerciseSetsProgress(int done, int total);
+
+  /// Makes an exercise the current one.
+  ///
+  /// In en, this message translates to:
+  /// **'Do this now'**
+  String get liveDoNow;
+
+  /// Moves an exercise to the end of the workout; it is still owed.
+  ///
+  /// In en, this message translates to:
+  /// **'Do it later'**
+  String get liveDoLater;
+
+  /// Replaces an exercise with a different one (e.g. the machine is taken).
+  ///
+  /// In en, this message translates to:
+  /// **'Swap exercise'**
+  String get liveSwapExercise;
+
+  /// Skips every set of an exercise that hasn't been done.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip exercise'**
+  String get liveSkipExercise;
+
+  /// Adds one more set to an exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a set'**
+  String get liveAddSet;
+
+  /// Removes the last not-yet-done set of an exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove last set'**
+  String get liveRemoveSet;
+
+  /// Removes an exercise nothing was logged on.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove exercise'**
+  String get liveRemoveExercise;
+
+  /// Adds an exercise the plan didn't have to the live workout.
+  ///
+  /// In en, this message translates to:
+  /// **'Add exercise'**
+  String get liveAddExercise;
+
+  /// Accessibility label: move to the next exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Next exercise'**
+  String get liveNextExercise;
+
+  /// Accessibility label: move to the previous exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous exercise'**
+  String get livePreviousExercise;
+
+  /// Accessibility label for the button that opens an exercise's actions.
+  ///
+  /// In en, this message translates to:
+  /// **'Exercise options'**
+  String get liveExerciseOptions;
+
+  /// Title of the exercise picker when adding an exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an exercise'**
+  String get livePickExercise;
+
+  /// Note under the swap picker's title: logged sets keep their original exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Replacing {name}. Sets you\'ve already logged stay with it.'**
+  String livePickExerciseSwapNote(String name);
+
+  /// Hint in the exercise picker's search field.
+  ///
+  /// In en, this message translates to:
+  /// **'Search or type a name'**
+  String get livePickExerciseSearch;
+
+  /// Picker row that adds a new exercise with the typed name.
+  ///
+  /// In en, this message translates to:
+  /// **'Add “{name}”'**
+  String livePickExerciseAddNamed(String name);
+
+  /// Shown in the picker when the user has no exercises to choose from.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a name to add a new exercise.'**
+  String get livePickExerciseEmpty;
+
+  /// Toast after swapping an exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Swapped to {name}'**
+  String liveExerciseSwapped(String name);
+
+  /// Toast after moving an exercise to later.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} moved to the end'**
+  String liveExerciseMovedLater(String name);
+
+  /// Card on the Analysis hub asking whether two similarly named exercises are one movement.
+  ///
+  /// In en, this message translates to:
+  /// **'Same exercise?'**
+  String get workoutSameExerciseTitle;
+
+  /// Body of the same-exercise card.
+  ///
+  /// In en, this message translates to:
+  /// **'“{merge}” and “{keep}” look like the same movement. If they are, their history becomes one, under “{keep}”.'**
+  String workoutSameExerciseBody(String merge, String keep);
+
+  /// Confirms two exercises are one movement and merges their history.
+  ///
+  /// In en, this message translates to:
+  /// **'Same exercise'**
+  String get workoutSameExerciseMerge;
+
+  /// Says two exercises are different; the pair is not suggested again.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep separate'**
+  String get workoutSameExerciseKeep;
+
+  /// Shown after merging two exercises.
+  ///
+  /// In en, this message translates to:
+  /// **'“{merge}” now shares history with “{keep}”.'**
+  String workoutSameExerciseMerged(String merge, String keep);
+
+  /// Reverses the action just taken.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get workoutUndo;
+
+  /// Picker section: exercises for the same muscle as the one being swapped.
+  ///
+  /// In en, this message translates to:
+  /// **'Same muscle group'**
+  String get livePickSameMuscle;
+
+  /// Picker section: every exercise the user has.
+  ///
+  /// In en, this message translates to:
+  /// **'Your exercises'**
+  String get livePickAllExercises;
+
+  /// Under the picker's add-by-name row: this creates a new exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'New exercise, with its own history'**
+  String get livePickNewNote;
+
+  /// Picker: the search found nothing among the user's exercises.
+  ///
+  /// In en, this message translates to:
+  /// **'None of your exercises match.'**
+  String get livePickNoMatch;
+
+  /// Toast after adding an exercise to the workout.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {name}'**
+  String liveExerciseAdded(String name);
+
+  /// Toast after skipping an exercise's remaining sets.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped {name}'**
+  String liveExerciseSkippedToast(String name);
+
+  /// On the rest screen's up-next card: opens the workout map to pick something else.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get liveChangeNext;
 }
 
 class _AppLocalizationsDelegate

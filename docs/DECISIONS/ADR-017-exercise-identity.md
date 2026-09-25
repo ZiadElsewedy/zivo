@@ -58,8 +58,32 @@ Read-side rules:
   re-save could persist resolved ids.
 - New rules + rule tests for both collections. Embedded plan/session exercise
   fields are unvalidated by the rules, so `exerciseId`/`slotId` needed none.
-- Not yet done (next increments): the matcher wired into manual add / import
-  review / plan-editor rename; the one-time migration and "these look like
-  the same exercise" review card; the Node mirror (`functions/ai` analytics +
-  the coach's name resolver) reading aliases. Until the migration writes
-  aliases or slot `exerciseId`s, every account reads exactly as before.
+- **Migration + sync** (`identity_reconcile.dart`, `ExerciseIdentitySync`,
+  wired at app root on sign-in/resume and after splits change). One pure,
+  deterministic, idempotent pass: every slot and every id only history
+  remembers gets a canonical exercise; a **confident** name match joins an
+  existing one, anything less gets its own; each legacy id gets a
+  `migration` alias; slots get their `exerciseId` filled on the LIVE split.
+  Ids are `x-<legacyId>`, so two devices migrating at once write the same
+  docs. It waits for the library, splits and history to have really loaded
+  (`ExerciseLibrary.loaded`) — an empty-because-not-read library would mint
+  duplicates. It never writes a session. The same pass links new imports and
+  in-session adds afterwards, so no flow needs its own matcher call.
+- **"Same exercise?"** — plausible pairs (e.g. Hammer Curl / Hammer Dumbbell
+  Curl: one name states equipment, the other doesn't) are never merged by
+  the pass; the Analysis hub asks. "Same" writes a `merge` alias (keeping
+  the more specific name), with Undo; "Keep separate" is remembered in
+  `CanonicalExercise.distinctFrom` (rules + rule test).
+- **Plan-editor rename**: a typo fix keeps the identity; a rename to a
+  different movement (`isDifferentMovement`: other known equipment, a
+  variation word gained/lost, or no movement word in common) gives the slot
+  a new identity, so a variation never inherits another's history.
+- **In-session swap/add** resolve the pick through `resolveExerciseChoice`
+  (library id kept, confident name match linked, else a new exercise). A
+  swap keeps logged sets on the original exercise and moves only pending
+  sets to the substitute, which keeps the slot but not the target loads.
+- **Node mirror**: `functions/ai/analytics/exercise_identity.js` +
+  `store.listExerciseAliases`; the coach's workout reads
+  (`loadResolvedSessions`) and `analyzePlanAdherence` key on the canonical
+  exercise exactly as the app does. Any name an exercise was logged under
+  finds it in `get_exercise_analysis`.

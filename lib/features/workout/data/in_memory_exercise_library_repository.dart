@@ -45,6 +45,15 @@ class InMemoryExerciseLibraryRepository implements ExerciseLibraryRepository {
   }
 
   @override
+  Future<void> saveExercises(List<CanonicalExercise> exercises) async {
+    if (exercises.isEmpty) return;
+    for (final e in exercises) {
+      _exercises[e.id] = e;
+    }
+    _emit();
+  }
+
+  @override
   Future<void> saveAliases(List<ExerciseAlias> aliases) async {
     for (final a in aliases) {
       _aliases[a.legacyId] = a;

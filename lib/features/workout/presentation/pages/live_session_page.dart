@@ -10,6 +10,8 @@ import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/train_chrome.dart';
 import '../../../../core/widgets/zivo_sheet.dart';
 import '../../../../core/widgets/zivo_confirm.dart';
+import '../../../../core/widgets/zivo_toast.dart';
+import '../../domain/identity/exercise_choice.dart';
 import '../../domain/exercise_history.dart';
 import '../../domain/live_session.dart';
 import '../../domain/logged_set.dart';
@@ -28,6 +30,7 @@ import '../controllers/live_session_controller.dart';
 import '../widgets/live_session/phases/completed_phase.dart';
 import '../widgets/live_session/phases/countdown_phase.dart';
 import '../widgets/live_session/phases/running_phase.dart';
+import '../widgets/live_session/exercise_navigation_sheets.dart';
 import '../widgets/live_session/live_session_format.dart';
 import '../widgets/live_session/session_header.dart';
 import '../widgets/live_session/session_review.dart';
@@ -378,6 +381,13 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                                   const SizedBox(height: 9),
                                   TrainSegmentCaptions(
                                     left: _exerciseCaption,
+                                    // Where you are in the workout opens the
+                                    // whole workout.
+                                    onLeftTap: _c.session.isComplete
+                                        ? null
+                                        : _openMap,
+                                    leftKey: const Key('session-map-chip'),
+                                    leftSemanticLabel: l(context).liveSessionMap,
                                     right: _tallyCaption,
                                     rightColor: _c.restRemaining != null
                                         ? TrainColors.green.withValues(
@@ -422,26 +432,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                                           duration: const Duration(
                                             milliseconds: 280,
                                           ),
-                                          transitionBuilder:
-                                              (child, animation) =>
-                                                  reducedMotion(context)
-                                                  ? FadeTransition(
-                                                      opacity: animation,
-                                                      child: child,
-                                                    )
-                                                  : FadeTransition(
-                                                      opacity: animation,
-                                                      child: SlideTransition(
-                                                        position: Tween<Offset>(
-                                                          begin: const Offset(
-                                                            0,
-                                                            0.03,
-                                                          ),
-                                                          end: Offset.zero,
-                                                        ).animate(animation),
-                                                        child: child,
-                                                      ),
-                                                    ),
+                                          transitionBuilder: _phaseTransition,
                                           child: KeyedSubtree(
                                             key: ValueKey(_phaseKey),
                                             child: _buildPhase(
@@ -547,6 +538,56 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           },
         ),
       ),
+    );
+  }
+
+  /// How one phase gives way to the next.
+  ///
+  /// A change of EXERCISE (next, previous, jump, do later) slides
+  /// horizontally the way the user went — the new exercise arrives from the
+  /// side they swiped toward and the old one leaves by the other — so moving
+  /// through the workout feels like turning pages rather than a screen
+  /// swapping. Everything else (a set logged, rest starting) keeps the quiet
+  /// rise-and-fade. Reduced motion is a plain fade for both.
+  Widget _phaseTransition(Widget child, Animation<double> animation) {
+    if (reducedMotion(context)) {
+      return FadeTransition(opacity: animation, child: child);
+    }
+    // Read per frame, not per build: the switcher caches a child's
+    // transition when it arrives, so whether a child is entering or leaving
+    // is only knowable from its animation running forward or in reverse.
+    return AnimatedBuilder(
+      animation: animation,
+      child: child,
+      builder: (context, child) {
+        final move = _c.lastMove;
+        final t = animation.value;
+        if (move == 0) {
+          // The quiet rise-and-fade every other phase change uses.
+          final height = MediaQuery.sizeOf(context).height;
+          return Opacity(
+            opacity: t,
+            child: Transform.translate(
+              offset: Offset(0, 0.03 * height * (1 - t)),
+              child: child,
+            ),
+          );
+        }
+        final leaving = animation.status == AnimationStatus.reverse;
+        final eased = leaving
+            ? Curves.easeInCubic.transform(t)
+            : Curves.easeOutCubic.transform(t);
+        final rtl = Directionality.of(context) == TextDirection.rtl;
+        // Forward brings the next exercise in from the trailing edge and
+        // sends the old one out the leading one.
+        final side = (move > 0 ? 1.0 : -1.0) * (rtl ? -1.0 : 1.0);
+        final width = MediaQuery.sizeOf(context).width;
+        final dx = (leaving ? -side : side) * 0.16 * width * (1 - eased);
+        return Opacity(
+          opacity: eased,
+          child: Transform.translate(offset: Offset(dx, 0), child: child),
+        );
+      },
     );
   }
 
@@ -674,6 +715,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         unit: _c.weightUnit,
         skipLabel: l(context).liveSkipWarmUp,
         adjustKeyPrefix: 'warmup',
+        onChangeNext: _c.canChangeExercise ? _openMap : null,
         onTogglePause: _c.togglePause,
         onAdjust: _c.adjustWarmup,
         onSkip: _c.endWarmup,
@@ -697,6 +739,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         unit: _c.weightUnit,
         skipLabel: l(context).liveSkipRest,
         adjustKeyPrefix: 'rest',
+        onChangeNext: _c.canChangeExercise ? _openMap : null,
         onTogglePause: _c.togglePause,
         onAdjust: _c.adjustRest,
         onSkip: _c.endRest,
@@ -707,8 +750,107 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       accent: accent,
       onDone: _onSetDone,
       onSkip: _onSetSkip,
+      onOptions: () {
+        final current = _c.session.currentExercise;
+        if (current != null) unawaited(_openOptions(current.id));
+      },
+      onEditSet: _reviewSet,
     );
   }
+
+  // ---- Moving around the workout -------------------------------------------
+  //
+  // The sheets ask; the controller does. Every command below goes through
+  // `LiveSessionController._restructure`, so none of them can leave the
+  // screen pointing at a set that moved.
+
+  /// The workout map — every exercise, where it stands, and a way to jump.
+  Future<void> _openMap() async {
+    if (_c.isBusy || _c.session.isComplete) return;
+    final result = await showSessionMapSheet(context, session: _c.session);
+    if (!mounted || result == null) return;
+    switch (result) {
+      case SessionMapJump(:final exerciseId):
+        _c.startExercise(exerciseId);
+      case SessionMapOptions(:final exerciseId):
+        await _openOptions(exerciseId);
+      case SessionMapAdd():
+        await _addExercise();
+    }
+  }
+
+  /// One exercise's options, then whatever was picked.
+  Future<void> _openOptions(String exerciseId) async {
+    final exercise = _exerciseById(exerciseId);
+    if (exercise == null || _c.session.isComplete) return;
+    final action = await showExerciseActionsSheet(
+      context,
+      session: _c.session,
+      exercise: exercise,
+    );
+    if (!mounted || action == null) return;
+    final strings = l(context);
+    switch (action) {
+      case ExerciseAction.doNow:
+        _c.startExercise(exerciseId);
+      case ExerciseAction.doLater:
+        _c.doLater(exerciseId);
+        showZivoToast(context, strings.liveExerciseMovedLater(exercise.name));
+      case ExerciseAction.swap:
+        final choice = await _pickExercise(swapping: exercise);
+        if (!mounted || choice == null) return;
+        _c.swapExercise(exerciseId, choice);
+        showZivoToast(
+          context,
+          strings.liveExerciseSwapped(choice.name.trim()),
+          kind: ToastKind.success,
+        );
+      case ExerciseAction.addSet:
+        _c.addSet(exerciseId);
+      case ExerciseAction.removeSet:
+        final last = exercise.sets.lastWhere((s) => s.pending);
+        _c.removeSet(exerciseId, last.id);
+      case ExerciseAction.skip:
+        _c.skipExercise(exerciseId);
+        showZivoToast(context, strings.liveExerciseSkippedToast(exercise.name));
+      case ExerciseAction.remove:
+        _c.removeExercise(exerciseId);
+    }
+  }
+
+  Future<void> _addExercise() async {
+    final choice = await _pickExercise();
+    if (!mounted || choice == null) return;
+    _c.addExercise(choice);
+    showZivoToast(
+      context,
+      l(context).liveExerciseAdded(choice.name.trim()),
+      kind: ToastKind.success,
+    );
+  }
+
+  /// The picker over the user's own exercises — library and every split —
+  /// without the one being swapped out.
+  Future<ExerciseChoice?> _pickExercise({SessionExercise? swapping}) {
+    final scope = AppScope.of(context);
+    final resolver = scope.exerciseResolver;
+    return showExercisePickerSheet(
+      context,
+      swappingName: swapping?.name,
+      swappingMuscle: swapping?.muscleGroup,
+      candidates: exerciseCandidates(
+        splits: scope.workoutPlans.splits,
+        library: scope.exerciseLibrary?.current.exercises ?? const {},
+        canonicalIdOf: resolver.canonicalIdOf,
+        exclude: {
+          if (swapping != null) resolver.canonicalIdOf(swapping.exerciseId),
+        },
+      ),
+    );
+  }
+
+  SessionExercise? _exerciseById(String id) =>
+      _c.session.exercises.where((e) => e.id == id).firstOrNull;
 
   /// Opens the review-edit sheet for one resolved set and applies the
   /// result: marks a skip actually-done (or just corrects a completed set's

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:zivo/features/workout/data/in_memory_exercise_library_repository.dart';
 import 'package:zivo/app/app.dart';
 import 'package:zivo/features/sleep/data/health_sleep_source.dart';
 import 'package:zivo/features/sleep/data/in_memory_sleep_repository.dart';
@@ -87,6 +88,7 @@ void main() {
         workoutPlans: InMemoryWorkoutPlanRepository(),
         workoutSessions: InMemoryWorkoutSessionRepository(),
         workoutSettings: InMemoryWorkoutSettingsRepository(),
+        exerciseLibrary: InMemoryExerciseLibraryRepository(),
         reminders: InMemoryRemindersRepository(),
         notifications: const NoOpNotificationScheduler(),
         trainingDayMarks: InMemoryTrainingDayMarkRepository(),

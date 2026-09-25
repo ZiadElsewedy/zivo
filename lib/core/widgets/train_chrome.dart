@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../motion/springs.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_icons.dart';
 import '../theme/train_tokens.dart';
 import 'pressable_scale.dart';
 
@@ -397,6 +398,9 @@ class TrainSegmentCaptions extends StatelessWidget {
     required this.left,
     required this.right,
     Color? rightColor,
+    this.onLeftTap,
+    this.leftSemanticLabel,
+    this.leftKey,
     super.key,
   // `this._x`, which the lint asks for here, is not a thing Dart will
   // accept: a named parameter cannot be private. The field is private
@@ -408,6 +412,13 @@ class TrainSegmentCaptions extends StatelessWidget {
   final String left;
   final String right;
   final Color? _rightColor;
+
+  /// Makes the left caption a control (the live session opens its workout
+  /// map from "EXERCISE 4 / 10" — the caption already IS where you are in
+  /// the workout). It gains a small caret so it reads as one.
+  final VoidCallback? onLeftTap;
+  final String? leftSemanticLabel;
+  final Key? leftKey;
 
   /// Defaults to the active skin's `ink4` — resolved on read
   /// rather than as a parameter default, which is what lets this
@@ -423,14 +434,7 @@ class TrainSegmentCaptions extends StatelessWidget {
         // length, one-handed, by someone who is out of breath — "EXERCISE 4 /
         // 10" and the running set tally are the two things you check without
         // picking the phone up, and at 9pt mono they were decoration.
-        Text(
-          left,
-          style: TrainType.caption(
-            size: 10.5,
-            tracking: 0.14,
-            color: TrainColors.inkAt(0.48),
-          ),
-        ),
+        _left(),
         Text(
           right,
           key: const Key('session-tally'),
@@ -441,6 +445,45 @@ class TrainSegmentCaptions extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _left() {
+    final style = TrainType.caption(
+      size: 10.5,
+      tracking: 0.14,
+      color: TrainColors.inkAt(0.48),
+    );
+    final onTap = onLeftTap;
+    if (onTap == null) return Text(left, style: style);
+    return Semantics(
+      button: true,
+      label: leftSemanticLabel,
+      child: GestureDetector(
+        key: leftKey,
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        // A taller hit area than the caption's own line — it is read at a
+        // glance and tapped without looking closely.
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(left, style: style),
+              const SizedBox(width: 5),
+              Icon(
+                AppIcons.chevronDown,
+                size: 11,
+                color: TrainColors.inkAt(0.48),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

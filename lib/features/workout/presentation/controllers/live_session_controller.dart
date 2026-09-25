@@ -22,7 +22,10 @@ import '../../domain/workout_plan_repository.dart';
 import '../../domain/workout_repository.dart';
 import '../../domain/workout_session_repository.dart';
 import '../../domain/identity/exercise_identity_resolver.dart';
+import '../../domain/identity/canonical_exercise.dart';
+import '../../domain/identity/exercise_choice.dart';
 import '../../domain/identity/exercise_library_repository.dart';
+import '../../domain/rep_target.dart';
 
 /// Whole seconds remaining until [d] elapses, rounded up so a countdown never
 /// flashes "0" a moment before it's actually over; clamped at 0 for an
@@ -658,6 +661,7 @@ class LiveSessionController extends ChangeNotifier {
   /// where there is no spring to wait for.
   void _afterResolvingCurrentSet(int restSeconds, bool reducedMotion) {
     _resolvingSet = true;
+    _lastMove = 0;
     final completing = _session.currentSet == null;
 
     // When another rest follows, go STRAIGHT there — the session pointer has
@@ -725,6 +729,7 @@ class LiveSessionController extends ChangeNotifier {
     if (_disposed) return;
     HapticFeedback.selectionClick();
     final wasComplete = _session.isComplete;
+    _lastMove = 0;
     _session = _session.clearOutcome(exerciseId, setId);
     if (wasComplete) _session = _session.reopen();
     _notify();
@@ -738,6 +743,154 @@ class LiveSessionController extends ChangeNotifier {
       _elapsedTimer ??= _newElapsedTimer();
     }
     _prefillInputs();
+  }
+
+  // ---- Moving around the workout -------------------------------------------
+  //
+  // Every one of these is a change to the session's ORDER or SHAPE — the
+  // current set stays derived (first pending set), so jumping to an exercise
+  // is moving it to the front of what's left, and nothing can point at a set
+  // that isn't there any more. See the "Exercise order" section of
+  // [LiveSession].
+
+  /// Whether there is anywhere to move to — two or more exercises still owed.
+  bool get canChangeExercise =>
+      !_session.isComplete && _session.pendingExercises.length > 1;
+
+  /// Which way the last change of exercise went: +1 forward (next, jump, do
+  /// later), -1 back (previous), 0 for anything that wasn't a move between
+  /// exercises. Presentation reads it to slide the screen the way the user
+  /// went; it carries no session meaning.
+  int get lastMove => _lastMove;
+  int _lastMove = 0;
+
+  /// Swipe left / "next": the current exercise goes to the back of the queue.
+  void nextExercise() => _restructure((s) => s.rotatePending(1), move: 1);
+
+  /// Swipe right / "previous": the exact inverse of [nextExercise].
+  void previousExercise() =>
+      _restructure((s) => s.rotatePending(-1), move: -1);
+
+  /// "Do this now" — from the session map.
+  void startExercise(String exerciseId) =>
+      _restructure((s) => s.bringForward(exerciseId), move: 1);
+
+  /// "Do it later" — to the back of the queue, still owed.
+  void doLater(String exerciseId) =>
+      _restructure((s) => s.moveToEnd(exerciseId), move: 1);
+
+  /// "Not today" — every set still pending on it is skipped.
+  void skipExercise(String exerciseId) => _restructure(
+    (s) => s.skipRemainingSets(exerciseId, now: now()),
+  );
+
+  /// One more set, inheriting the last one's prescription. On an exercise
+  /// that was finished, the new set makes it the current one again.
+  void addSet(String exerciseId) => _restructure(
+    (s) => s.addSet(exerciseId, setId: '$exerciseId-s${_newSuffix()}'),
+  );
+
+  /// Removes a set that hasn't been done. A resolved set is history and is
+  /// corrected in the review, never deleted from here.
+  void removeSet(String exerciseId, String setId) => _restructure((s) {
+    final exercise = s.exercises.where((e) => e.id == exerciseId).firstOrNull;
+    final set = exercise?.sets.where((x) => x.id == setId).firstOrNull;
+    if (set == null || !set.pending) return s;
+    return s.removeSet(exerciseId, setId);
+  });
+
+  /// Adds an exercise the plan didn't have. It joins the back of the queue,
+  /// or becomes current straight away with [now].
+  void addExercise(ExerciseChoice choice, {bool startNow = false}) {
+    final canonicalId = _identityFor(choice);
+    final id = '$canonicalId-${_newSuffix()}';
+    final template = _session.currentExercise;
+    final exercise = SessionExercise(
+      id: id,
+      exerciseId: canonicalId,
+      name: choice.name.trim(),
+      muscleGroup: choice.muscleGroup,
+      restSeconds: template?.restSeconds ?? 90,
+      sets: [
+        for (var i = 0; i < 3; i++)
+          LoggedSet(id: '$id-s$i', target: const RepTarget.range(8, 12)),
+      ],
+    );
+    _restructure((s) {
+      final added = s.addExercise(exercise);
+      return startNow ? added.bringForward(id) : added;
+    });
+  }
+
+  /// Replaces [exerciseId] with a different exercise — see
+  /// [LiveSession.swapExercise] for what happens to sets already logged.
+  void swapExercise(String exerciseId, ExerciseChoice choice) {
+    final canonicalId = _identityFor(choice);
+    _restructure(
+      (s) => s.swapExercise(
+        exerciseId,
+        newId: '$canonicalId-${_newSuffix()}',
+        canonicalId: canonicalId,
+        name: choice.name.trim(),
+        muscleGroup: choice.muscleGroup,
+      ),
+    );
+  }
+
+  /// Removes an exercise nothing was logged on. One with a resolved set is a
+  /// record of training and stays; skip what's left of it instead.
+  void removeExercise(String exerciseId) => _restructure((s) {
+    final exercise = s.exercises.where((e) => e.id == exerciseId).firstOrNull;
+    if (exercise == null || exercise.sets.any((x) => !x.pending)) return s;
+    return s.removeExercise(exerciseId);
+  });
+
+  int _suffixCounter = 0;
+  String _newSuffix() =>
+      '${now().microsecondsSinceEpoch.toRadixString(36)}${_suffixCounter++}';
+
+  /// The canonical exercise [choice] is. A typed name that isn't one the user
+  /// already has becomes a new canonical exercise, saved in the background —
+  /// the session doesn't wait on it, and an unsaved one is picked up later
+  /// by the identity sync, which gives every orphaned id a library entry.
+  String _identityFor(ExerciseChoice choice) {
+    final library = _library;
+    final resolved = resolveExerciseChoice(
+      choice,
+      library: library?.current.exercises.values ?? const [],
+      newId: () => newCanonicalExerciseId(now()),
+      now: now(),
+    );
+    final created = resolved.created;
+    if (created != null && library != null) {
+      unawaited(
+        library.saveExercise(created).catchError((Object _) {}),
+      );
+    }
+    return resolved.canonicalId;
+  }
+
+  /// The one path every structural change takes. It keeps the typed draft
+  /// on the set it was typed for, settles the session if the change left
+  /// nothing pending, re-prefills the inputs when the current set moved,
+  /// and saves.
+  void _restructure(LiveSession Function(LiveSession) change, {int move = 0}) {
+    if (_disposed || _resolvingSet || _busy || _session.isComplete) return;
+    _saveDraft();
+    final before = _session.currentSet?.id;
+    final next = change(_session);
+    if (identical(next, _session)) return;
+    HapticFeedback.selectionClick();
+    _lastMove = move;
+    _session = next;
+    if (_session.currentSet == null) {
+      _session = _session.complete(now: now());
+      _clearRest();
+      _elapsedTimer?.cancel();
+    }
+    if (_session.currentSet?.id != before) _prefillInputs();
+    _notify();
+    unawaited(_sessions.saveSession(_session));
   }
 
   // ---- Rest ----------------------------------------------------------------

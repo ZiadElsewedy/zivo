@@ -159,6 +159,27 @@ class FirestoreStore {
   }
 
   /**
+   * The user's exercise-identity aliases (ADR-017) —
+   * `users/{uid}/exerciseAliases/{legacyId}` → `canonicalId`. Read-side only:
+   * the coach folds history through them (`../analytics/exercise_identity.js`)
+   * the same way the app does, and never writes one. A doc without a usable
+   * target is skipped, matching `FirestoreExerciseLibraryRepository`.
+   * @param {string} uid
+   * @return {!Promise<!Array<{legacyId: string, canonicalId: string}>>}
+   */
+  async listExerciseAliases(uid) {
+    const snap = await this._user(uid).collection("exerciseAliases").get();
+    const out = [];
+    for (const doc of snap.docs) {
+      const canonicalId = doc.data().canonicalId;
+      if (typeof canonicalId === "string" && canonicalId.length > 0) {
+        out.push({legacyId: doc.id, canonicalId});
+      }
+    }
+    return out;
+  }
+
+  /**
    * The active `workoutPlans` doc for `uid`, resolved EXACTLY the way the app's
    * `FirestoreWorkoutPlanRepository._resolveActive` does — so the coach's
    * plan-adherence read and the Analysis screen agree on which split is active:
@@ -192,6 +213,9 @@ class FirestoreStore {
           order: typeof day.order === "number" ? day.order : 0,
           exercises: (day.exercises || []).map((e) => ({
             id: e.id || "",
+            // The canonical exercise this slot performs (ADR-017); null while
+            // the slot is still its own exercise.
+            exerciseId: e.exerciseId || null,
             name: e.name || "",
             muscleGroup: e.muscleGroup || null,
             order: typeof e.order === "number" ? e.order : 0,

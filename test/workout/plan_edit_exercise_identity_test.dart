@@ -134,36 +134,51 @@ Future<void> _savePlan(WidgetTester tester) async {
 }
 
 void main() {
+  Future<PlannedExercise> renameBench(WidgetTester tester, String to) async {
+    final plans = _RecordingWorkoutPlanRepository();
+    await tester.pumpWidget(_wrap(child: WorkoutPlanEditPage(initialPlan: _planWithBench()), plans: plans));
+    await tester.pump();
+    await _expandDay(tester, 'Day A · Push');
+
+    // Tap the exercise to edit it in place, rename it, save.
+    await tester.tap(find.text('Bench Press'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit exercise'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('exercise-name-field')), to);
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(PillButton, 'Save changes'));
+    await tester.tap(find.widgetWithText(PillButton, 'Save changes'));
+    await tester.pumpAndSettle();
+
+    await _savePlan(tester);
+
+    final exercises = plans.saved.single.days.single.exercises;
+    expect(exercises, hasLength(1));
+    return exercises.single;
+  }
+
   testWidgets(
     'editing an existing exercise KEEPS its PlannedExercise.id (history stays linked)',
     (tester) async {
-      final plans = _RecordingWorkoutPlanRepository();
-      await tester.pumpWidget(_wrap(child: WorkoutPlanEditPage(initialPlan: _planWithBench()), plans: plans));
-      await tester.pump();
-      await _expandDay(tester, 'Day A · Push');
-
-      // Tap the exercise to edit it in place, rename it (a machine swap), save.
-      await tester.tap(find.text('Bench Press'));
-      await tester.pumpAndSettle();
-      expect(find.text('Edit exercise'), findsOneWidget);
-      await tester.enterText(find.byKey(const Key('exercise-name-field')), 'Incline Bench Press');
-      await tester.pump();
-      await tester.ensureVisible(find.widgetWithText(PillButton, 'Save changes'));
-      await tester.tap(find.widgetWithText(PillButton, 'Save changes'));
-      await tester.pumpAndSettle();
-
-      await _savePlan(tester);
-
-      final exercises = plans.saved.single.days.single.exercises;
-      expect(exercises, hasLength(1));
-      final exercise = exercises.single;
+      final exercise = await renameBench(tester, 'Barbell Bench Press');
       // Renamed, but the SAME id — an edit-in-place, not a new movement.
-      expect(exercise.name, 'Incline Bench Press');
+      expect(exercise.name, 'Barbell Bench Press');
       expect(exercise.id, 'e1');
       // ...and it still performs the same canonical exercise (ADR-017): the
       // sheet rebuilds the slot, and dropping this would silently cut the
       // slot off from its history.
       expect(exercise.exerciseId, 'bench');
+    },
+  );
+
+  testWidgets(
+    'renaming to another variation keeps the slot but gives it a new exercise '
+    '(variations never share history)',
+    (tester) async {
+      final exercise = await renameBench(tester, 'Incline Bench Press');
+      expect(exercise.id, 'e1', reason: 'still the same place in the plan');
+      expect(exercise.exerciseId, isNot('bench'));
+      expect(exercise.exerciseId, startsWith('x-'));
     },
   );
 

@@ -103,6 +103,7 @@ import '../features/workout/domain/session_maintenance.dart';
 import '../features/workout/domain/training_day_mark_repository.dart';
 import '../features/workout/domain/workout_session_repository.dart';
 import '../features/workout/domain/workout_settings_repository.dart';
+import '../features/workout/domain/identity/exercise_identity_sync.dart';
 import '../features/workout/domain/identity/exercise_library_repository.dart';
 import '../features/workout/data/firestore_training_day_mark_repository.dart';
 import '../features/workout/data/firestore_workout_settings_repository.dart';
@@ -275,6 +276,17 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     sessions: _workoutSessions,
     settings: _workoutSettings,
   );
+
+  /// The exercise-identity migration and sync (ADR-017). Same shape as
+  /// [_sessionMaintenance]: a domain service over the repository seam, run on
+  /// sign-in and resume — and, on a real (Firestore) run, shortly after the
+  /// splits change, so an imported plan is linked in the same session.
+  bool _identitySyncStarted = false;
+  late final ExerciseIdentitySync _identitySync = ExerciseIdentitySync(
+    plans: _workoutPlans,
+    sessions: _workoutSessions,
+    library: _exerciseLibrary,
+  );
   late final BodyWeightRepository _bodyWeight =
       widget.bodyWeight ?? _defaultBodyWeight();
   late final DietRepository _diet = widget.diet ?? _defaultDiet();
@@ -432,6 +444,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       // *only* automatic sleep read at launch — see [_syncSleep].
       if (uid != null) _syncSleep();
       if (uid != null) _sweepStaleSessions();
+      if (uid != null) _syncExerciseIdentities();
       // Accrue a step history from now on (see [_startStepSnapshots]). Signed
       // out, the writer stops — its writes would be denied anyway.
       if (uid != null) {
@@ -520,6 +533,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       // exactly this moment — the phone that was locked at 6pm is unlocked
       // again the next morning.
       if (_auth.currentUser != null) _sweepStaleSessions();
+      if (_auth.currentUser != null) _syncExerciseIdentities();
     }
   }
 
@@ -531,6 +545,17 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   /// one, and it re-checks on its own resume anyway.
   void _sweepStaleSessions() =>
       unawaited(_sessionMaintenance.sweep(now: DateTime.now()));
+
+  /// Give every planned and logged exercise its canonical identity (ADR-017).
+  /// Idempotent and additive — see [ExerciseIdentitySync]. The splits watch
+  /// is Firestore-only: an in-memory run has no account history to migrate,
+  /// and its debounce timer would outlive every widget test that pumps the
+  /// app.
+  void _syncExerciseIdentities() {
+    _identitySyncStarted = true;
+    unawaited(_identitySync.run());
+    if (_useFirestore) _identitySync.watchSplits();
+  }
 
   /// Rebuild the OS notification schedule from the latest reminders and active
   /// plan, skipping the platform call when neither the reminders nor the resolved
@@ -599,6 +624,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     if (widget.deviceSession == null) _deviceSession.dispose();
     // Only when we own it (the default) — a caller-supplied controller
     // (a test passing its own fake) stays theirs to dispose.
+    if (_identitySyncStarted) _identitySync.dispose();
     if (widget.music == null) _music.dispose();
     if (widget.locale == null) _locale.dispose();
     if (widget.theme == null) _theme.dispose();

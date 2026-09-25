@@ -6241,4 +6241,135 @@ class AppLocalizationsEn extends AppLocalizations {
   String askChoiceSwapDetail(String to, String from) {
     return '$to today, $from next';
   }
+
+  @override
+  String get liveSessionMap => 'Workout map';
+
+  @override
+  String liveSessionMapProgress(int done, int total) {
+    return '$done of $total exercises done';
+  }
+
+  @override
+  String get liveExerciseNow => 'NOW';
+
+  @override
+  String get liveExerciseDone => 'DONE';
+
+  @override
+  String get liveExerciseSkipped => 'SKIPPED';
+
+  @override
+  String liveExerciseSetsProgress(int done, int total) {
+    return '$done/$total sets';
+  }
+
+  @override
+  String get liveDoNow => 'Do this now';
+
+  @override
+  String get liveDoLater => 'Do it later';
+
+  @override
+  String get liveSwapExercise => 'Swap exercise';
+
+  @override
+  String get liveSkipExercise => 'Skip exercise';
+
+  @override
+  String get liveAddSet => 'Add a set';
+
+  @override
+  String get liveRemoveSet => 'Remove last set';
+
+  @override
+  String get liveRemoveExercise => 'Remove exercise';
+
+  @override
+  String get liveAddExercise => 'Add exercise';
+
+  @override
+  String get liveNextExercise => 'Next exercise';
+
+  @override
+  String get livePreviousExercise => 'Previous exercise';
+
+  @override
+  String get liveExerciseOptions => 'Exercise options';
+
+  @override
+  String get livePickExercise => 'Choose an exercise';
+
+  @override
+  String livePickExerciseSwapNote(String name) {
+    return 'Replacing $name. Sets you\'ve already logged stay with it.';
+  }
+
+  @override
+  String get livePickExerciseSearch => 'Search or type a name';
+
+  @override
+  String livePickExerciseAddNamed(String name) {
+    return 'Add “$name”';
+  }
+
+  @override
+  String get livePickExerciseEmpty => 'Type a name to add a new exercise.';
+
+  @override
+  String liveExerciseSwapped(String name) {
+    return 'Swapped to $name';
+  }
+
+  @override
+  String liveExerciseMovedLater(String name) {
+    return '$name moved to the end';
+  }
+
+  @override
+  String get workoutSameExerciseTitle => 'Same exercise?';
+
+  @override
+  String workoutSameExerciseBody(String merge, String keep) {
+    return '“$merge” and “$keep” look like the same movement. If they are, their history becomes one, under “$keep”.';
+  }
+
+  @override
+  String get workoutSameExerciseMerge => 'Same exercise';
+
+  @override
+  String get workoutSameExerciseKeep => 'Keep separate';
+
+  @override
+  String workoutSameExerciseMerged(String merge, String keep) {
+    return '“$merge” now shares history with “$keep”.';
+  }
+
+  @override
+  String get workoutUndo => 'Undo';
+
+  @override
+  String get livePickSameMuscle => 'Same muscle group';
+
+  @override
+  String get livePickAllExercises => 'Your exercises';
+
+  @override
+  String get livePickNewNote => 'New exercise, with its own history';
+
+  @override
+  String get livePickNoMatch => 'None of your exercises match.';
+
+  @override
+  String liveExerciseAdded(String name) {
+    return 'Added $name';
+  }
+
+  @override
+  String liveExerciseSkippedToast(String name) {
+    return 'Skipped $name';
+  }
+
+  @override
+  String get liveChangeNext => 'Change';
 }
