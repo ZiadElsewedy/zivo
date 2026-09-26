@@ -253,3 +253,34 @@ test("a general or ambiguous turn runs no read before the model", async () => {
     assert.equal(store.reads.length, 0, message);
   }
 });
+
+test("an Arabic message is answered in Arabic: every step's CONTEXT says " +
+    "so, and a marker sits right before the words when English data " +
+    "precedes them; English turns get neither", async () => {
+  const {ARABIC_REPLY} = require("./context");
+  const lastSystem = (req) => req.system[req.system.length - 1].text;
+
+  const store = makeStore();
+  const provider = scriptedProvider([answer("تمام")]);
+  await run(store, provider, "كام بروتين فاضل النهارده؟");
+  const sent = firstUserText(provider);
+  assert.match(sent, /^\[EARLIER RESULTS/);
+  assert.ok(sent.endsWith(
+      "[The user's message, in Arabic — reply in Arabic:]\nكام بروتين فاضل النهارده؟"));
+  assert.ok(lastSystem(provider.requests[0]).startsWith("CONTEXT "));
+  assert.ok(lastSystem(provider.requests[0]).endsWith(ARABIC_REPLY));
+  // The cached prompt block is untouched.
+  assert.ok(!provider.requests[0].system[0].text.includes(ARABIC_REPLY));
+
+  // Arabic with nothing ahead of it: the CONTEXT line, no marker.
+  const greet = scriptedProvider([answer("أهلا")]);
+  await run(makeStore(), greet, "ازيك");
+  assert.equal(firstUserText(greet), "ازيك");
+  assert.ok(lastSystem(greet.requests[0]).endsWith(ARABIC_REPLY));
+
+  // English: unchanged.
+  const en = scriptedProvider([answer("Plenty left.")]);
+  await run(makeStore(), en, "how much protein do I have left?");
+  assert.ok(!firstUserText(en).includes("reply in Arabic"));
+  assert.ok(!lastSystem(en.requests[0]).includes(ARABIC_REPLY));
+});

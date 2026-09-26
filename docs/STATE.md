@@ -132,8 +132,13 @@ notifications)**.
     (calories, macros, prices: the NUMBERS rule needs tools), is personal,
     came from a screen's entry point, or has no area word (follow-ups keep
     continuity).
-  - Separate findings (not fixed): Sonnet sometimes
-    answers Arabic in English; "Log 3 eggs and a banana" → tool-error in both
+  - Arabic answered in English — FIXED in code, unverified live: a short
+    Arabic message after ~5K chars of English JSON (prefetch / EARLIER
+    RESULTS) got English replies. Arabic-script turns now carry an
+    Arabic-reply line in the uncached CONTEXT block (every step; cache
+    untouched) and a marker before the user's words when data precedes them.
+    Still open: Arabic bullets starting with English exercise names.
+  - Separate findings (not fixed): "Log 3 eggs and a banana" → tool-error in both
     prod reps; "no rest day" claim (incl. prod's reply) contradicting the rotation.
   - **Verify after deploy:** aiUsage `reasoning.level` mix; DIET/MONEY
     medium turns' output tokens vs pre-deploy; validator `ok` rate and

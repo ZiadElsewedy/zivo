@@ -52,9 +52,16 @@ is ~16% of cost). Small samples — ambiguous and safety turns stay at high.
   (Egyptian negation م…ش), "انا بضخم", "sugar", "3amel eh ya coach",
   "شكرا يا كوتش" no longer AMBIGUOUS; "What does creatine actually do?" is
   GENERAL (a knowledge question with no figures to look up).
-- Sonnet sometimes answers Arabic in English ("مش عندي فول مدمس", 3 variants
-  incl. the control; "التمرين الجاي ايه؟" mostly English in both prod reps).
-  Arabizi got Arabic-script replies in both prod reps — possibly intended.
+- ~~Arabic answered in English~~ — FIXED 2026-09-26 (not yet verified
+  against the real model): the short Arabic message sat after ~5K chars of
+  English JSON (the prefetched plan / EARLIER RESULTS) in the same user
+  message. Arabic-script turns now get an Arabic-reply line in the uncached
+  CONTEXT block on every step, plus a marker right before the user's words
+  when a data block precedes them (`chat/context.js`, `chat/turn.js`).
+  "التمرين الجاي ايه؟" was a checker false positive: the reply WAS Arabic,
+  but its bullets start with the plan's English exercise names (a LANGUAGE
+  bullet-rule miss, still open). Arabizi → Arabic-script replies: possibly
+  intended, unchanged.
 - "Log 3 eggs and a banana" ended `tool-error` in both prod reps.
 - Several Sonnet replies (incl. prod's) claimed the plan has no rest day;
   the rotation has one ("حابب اعرف عادي متمرنش…").

@@ -506,6 +506,14 @@ async function runAiTurn({
   // last thing the model reads. A failed binding means the plan moved: the
   // model is told to re-read, so nothing stale is offered to it.
   const earlier = bindingFailure ? "" : ledger.toPromptBlock(turnNow);
+  // Arabic-script message → the reply must be Arabic; every step's CONTEXT
+  // block says so (`context.js`), and when kilobytes of English lookups sit
+  // ahead of the user's words in this same message, a marker right before
+  // those words repeats it where the model reads last.
+  const replyLanguage = replyLanguageFor(userContent);
+  if (earlier && replyLanguage === "ar") {
+    userTurn = `[The user's message, in Arabic — reply in Arabic:]\n${userTurn}`;
+  }
   messages.push({
     role: "user",
     content: earlier ? `${earlier}\n\n${userTurn}` : userTurn,
@@ -529,7 +537,7 @@ async function runAiTurn({
   // coach's own question, not a new request, so it keeps the default.
   const replyShape = picked ? ReplyShape.DEFAULT : replyShapeFor(userContent);
   let systemBlocks = buildSystemBlocks({responseStyle, replyShape,
-    facts: nowFacts, systemPrompt: scope.systemPrompt});
+    facts: nowFacts, systemPrompt: scope.systemPrompt, replyLanguage});
   let normalizedTools = scope.tools;
   // What the turn handed the model, by size — the usage record's `context`
   // breakdown. Sizes only; never the text.
@@ -990,7 +998,8 @@ async function runAiTurn({
           scope = widen(scope, area);
           expandedTo.push(area);
           systemBlocks = buildSystemBlocks({responseStyle, replyShape,
-            facts: nowFacts, systemPrompt: scope.systemPrompt});
+            facts: nowFacts, systemPrompt: scope.systemPrompt,
+            replyLanguage});
           normalizedTools = scope.tools;
         }
         toolRow.area = valid ? area : null;
