@@ -1462,3 +1462,53 @@ test("get_diet_history: a long window comes back as weeks, bounded", async () =>
   assert.equal(result.from, "2026-05-20", "clamped to 90 days");
   assert.ok(JSON.stringify(result).length < 3000);
 });
+
+test("get_readiness always carries the training facts a train-today call " +
+    "rests on — last session, today, and what the split has up next",
+async () => {
+  const tool = toolsByName.get("get_readiness");
+  const day = 24 * 60 * 60 * 1000;
+  const store = {
+    listWorkoutSessions: async () => [{
+      id: "s1", dayLabel: "Push", status: "completed",
+      startedAt: new Date(NOW.getTime() - 3 * day),
+      completedAt: new Date(NOW.getTime() - 3 * day),
+      exercises: [],
+    }],
+    listSleepNights: async () => [],
+    listBodyWeights: async () => [],
+    getActiveWorkoutPlan: async () => ({
+      name: "PPL", cycleCursor: 1,
+      days: [
+        {id: "d0", label: "Push", order: 0, exercises: []},
+        {id: "d1", label: "Pull", order: 1, exercises: []},
+        {id: "d2", label: "Legs", order: 2, exercises: []},
+      ],
+    }),
+  };
+  const result = await tool.execute(store, UID, {}, NOW, 0);
+  assert.deepEqual(result.training, {
+    lastSessionName: "Push",
+    lastSessionDaysAgo: 3,
+    trainedToday: false,
+    upNext: "Pull",
+  });
+});
+
+test("get_readiness with no readiness call still says what it knows about " +
+    "training, and never invents a split", async () => {
+  const tool = toolsByName.get("get_readiness");
+  const store = {
+    listWorkoutSessions: async () => [],
+    listSleepNights: async () => [],
+    listBodyWeights: async () => [],
+  };
+  const result = await tool.execute(store, UID, {}, NOW, 0);
+  assert.equal(result.available, false);
+  assert.deepEqual(result.training, {
+    lastSessionName: null,
+    lastSessionDaysAgo: null,
+    trainedToday: false,
+    upNext: null,
+  });
+});

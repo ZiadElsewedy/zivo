@@ -72,6 +72,24 @@ test("the readiness entry point prefetches get_readiness; other training " +
       {entryPoint: "workout"}), null);
 });
 
+test("a training decision about today prefetches get_readiness — the call " +
+    "plus the training facts it must be grounded in", () => {
+  for (const m of ["should I go to the gym today?", "أروح الجيم النهارده؟",
+    "اتمرن ولا اريح النهارده؟"]) {
+    assert.deepEqual(plan({intent: "training", reason: "keywords"}, m),
+        {tool: "get_readiness", input: {}}, m);
+  }
+  // Not a decision, or not about today: nothing guessed.
+  assert.equal(plan({intent: "training", reason: "keywords"},
+      "what did I train last week?"), null);
+  assert.equal(plan({intent: "training", reason: "keywords"},
+      "should I have trained yesterday?"), null);
+  // Already read this conversation: not read again.
+  assert.equal(plan({intent: "training", reason: "keywords"},
+      "should I train today?",
+      {ledger: ledgerWith([["get_readiness"]])}), null);
+});
+
 test("ambiguous, general, money and bound picks never prefetch", () => {
   assert.equal(plan({intent: "ambiguous", reason: "no_signal"}, "hm"), null);
   assert.equal(plan({intent: "general", reason: "general"}, "hi"), null);

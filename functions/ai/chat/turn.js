@@ -25,6 +25,7 @@
 const {dayKeyFor, localNowFacts, isUsableOffset} = require("../shared/dates");
 const {mutatingToolsByName} = require("../tools/mutations");
 const {validateAdvice} = require("./validator");
+const {LiveText, restates} = require("./live_text");
 const {AnthropicProvider} = require("../providers/anthropic_provider");
 const {legacyAnthropicClient} = require("../providers/legacy_client");
 
@@ -79,6 +80,7 @@ const {ContextLedger} = require("./context_ledger");
 const {prefetchFor} = require("./prefetch");
 const {planTurn} = require("./reasoning_policy");
 const {keyForModelId, modelSpec} = require("../routing/models");
+const {ReplyShape, replyShapeFor} = require("./reply_shape");
 const {
   TerminalState,
   terminalStateFor,
@@ -173,8 +175,9 @@ function offersMore(offer) {
  *   meaningful together with `provider`; with the legacy seam, streaming is
  *   requested by passing `streamModel` instead.
  * @param {(function(!Object): void)=} args.onEvent Optional sink for live turn
- *   events — `{type:'phase', phase}`, `{type:'step', tool, status}` and
- *   `{type:'delta', text}`. Phases and steps are derived from the loop's real
+ *   events — `{type:'phase', phase}`, `{type:'step', tool, status}`,
+ *   `{type:'delta', text}` and (with `streamReplace`) `{type:'replace',
+ *   text}`. Phases and steps are derived from the loop's real
  *   state (never the model's reasoning): a step is emitted as each READ tool
  *   starts (`running`) and finishes (`ok`|`error`). Mutating tools emit none —
  *   they don't execute here, they become a proposal, which the
@@ -224,6 +227,10 @@ function offersMore(offer) {
  * @param {(string|undefined)} args.entryPoint The screen Ask was opened from
  *   (untrusted; an unknown value is ignored) — one of the signals that route
  *   the turn to an area's prompt and tools (`intent.js`).
+ * @param {boolean=} args.streamReplace The client applies `{type:'replace',
+ *   text}` snapshots of the live reply (`live_text.js`), so a retried or
+ *   restated step can supersede text already on screen instead of appending
+ *   a second copy after it. Absent (an older app): deltas only.
  * @return {!Promise<{status: string, assistantText: string, usage: ?Object}>}
  */
 async function runAiTurn({
@@ -247,6 +254,7 @@ async function runAiTurn({
   fetchImpl,
   signal,
   entryPoint,
+  streamReplace,
 }) {
   const activeProvider = provider ||
     new AnthropicProvider(legacyAnthropicClient(callModel, streamModel));
@@ -515,8 +523,13 @@ async function runAiTurn({
   // keeps element 0 (the intent's prompt, cache: 'ephemeral') identical on
   // every turn of that intent.
   const nowFacts = localNowFacts(turnNow, offsetMinutes, zoneLabel);
-  let systemBlocks = buildSystemBlocks(
-      {responseStyle, facts: nowFacts, systemPrompt: scope.systemPrompt});
+  // How much this message calls for — a decision, a request for detail, or
+  // the concise default (`reply_shape.js`) — decided before generation, never
+  // by cutting a reply short after it. A tapped option is an answer to the
+  // coach's own question, not a new request, so it keeps the default.
+  const replyShape = picked ? ReplyShape.DEFAULT : replyShapeFor(userContent);
+  let systemBlocks = buildSystemBlocks({responseStyle, replyShape,
+    facts: nowFacts, systemPrompt: scope.systemPrompt});
   let normalizedTools = scope.tools;
   // What the turn handed the model, by size — the usage record's `context`
   // breakdown. Sizes only; never the text.
@@ -649,9 +662,10 @@ async function runAiTurn({
   // persisted message keeps it, or the text the user watched being written
   // would shrink the moment the durable copy lands.
   const narration = [];
-  // Whether any earlier step already streamed visible text — the next step's
-  // text starts a new paragraph (see `onText` below).
-  let streamedAny = false;
+  // What the screen shows, mirrored (`live_text.js`): shapes each step's
+  // deltas, and makes sure a retried attempt or a step that restates the
+  // previous one's lead-in never shows the reply starting over.
+  const live = new LiveText(emit, {replace: streamReplace === true});
   // Set when the model tries to propose while an unexpired pending action
   // already awaits the user — the new proposal is suppressed (no duplicate).
   let proposalBlocked = false;
@@ -703,6 +717,8 @@ async function runAiTurn({
       // The reasoning policy's plan for the turn (tier, model, level, why);
       // null = the user's model at API defaults.
       reasoning: plan,
+      // The reply shape the message was given (`reply_shape.js`).
+      replyShape,
       // A fingerprint of every prompt and tool definition (`scope.js`), so
       // before/after a prompt change compares like with like.
       promptVersion: PROMPT_VERSION,
@@ -827,32 +843,16 @@ async function runAiTurn({
     if (!finalStep) normalizedRequest.cacheTail = "ephemeral";
     const genOpts = {};
     // Each step's text is its own paragraph, exactly as the persisted reply
-    // joins them (`narration` + the final text, "\n\n" apart): a step's
-    // leading whitespace is dropped and, when an earlier step already wrote
-    // something, the paragraph break is sent first — so the words streamed
-    // are the words saved, and nothing jumps when the saved copy lands.
-    // Trailing whitespace is held back until more text follows it in the
-    // same step (and dropped if none does) — the saved text is trimmed, so
-    // this keeps the two identical to the character.
-    const priorStreamed = streamedAny;
-    let stepStreamed = false;
-    let heldSpace = "";
+    // joins them (`narration` + the final text, "\n\n" apart) — shaped by
+    // `live_text.js`, so the words streamed are the words saved and nothing
+    // jumps when the saved copy lands.
+    live.beginStep();
     if (wantsStream) {
-      genOpts.onText = (text) => {
-        let t = String(text || "");
-        if (!stepStreamed) {
-          t = t.replace(/^\s+/, "");
-          if (!t) return;
-          if (priorStreamed) t = `\n\n${t}`;
-          stepStreamed = true;
-          streamedAny = true;
-        }
-        t = heldSpace + t;
-        const tail = /\s+$/.exec(t);
-        heldSpace = tail ? tail[0] : "";
-        if (tail) t = t.slice(0, t.length - heldSpace.length);
-        if (t) emit({type: "delta", text: t});
-      };
+      genOpts.onText = (text) => live.push(text);
+      // The router is re-running this step after a transient failure: what
+      // the failed attempt streamed must not stay on screen in front of the
+      // retry's answer (the "reply restarts from the beginning" bug).
+      genOpts.onRetry = () => live.retry();
     }
     if (signal) genOpts.signal = signal;
     // The router is about to re-run this step on the other provider after the
@@ -868,10 +868,8 @@ async function runAiTurn({
       }
       // The failed attempt's text is superseded: the client truncates back
       // to where this step began, and the retry starts its paragraph afresh.
-      stepStreamed = false;
-      streamedAny = priorStreamed;
-      heldSpace = "";
       emit({type: "fallback", from: info.from, to: info.to});
+      if (wantsStream) live.fallback();
     };
     let resp;
     const callStartedAt = Date.now();
@@ -910,6 +908,14 @@ async function runAiTurn({
       throw err;
     }
 
+    if (wantsStream) live.endStep();
+    // The step opened by restating the previous step's lead-in: that lead-in
+    // left the screen (`live_text.js`), so it leaves the saved reply too. A
+    // buffered turn applies the same rule to the finished texts.
+    const restatedLeadIn = wantsStream ? live.restatedPrevious :
+      restates(narration[narration.length - 1],
+          extractText(resp.content));
+    if (restatedLeadIn) narration.pop();
     if (resp.provider) usedProvider = resp.provider;
     if (resp.model) usedModel = resp.model;
     if (resp.modelKey) usedModelKey = resp.modelKey;
@@ -983,8 +989,8 @@ async function runAiTurn({
         if (valid) {
           scope = widen(scope, area);
           expandedTo.push(area);
-          systemBlocks = buildSystemBlocks({responseStyle, facts: nowFacts,
-            systemPrompt: scope.systemPrompt});
+          systemBlocks = buildSystemBlocks({responseStyle, replyShape,
+            facts: nowFacts, systemPrompt: scope.systemPrompt});
           normalizedTools = scope.tools;
         }
         toolRow.area = valid ? area : null;

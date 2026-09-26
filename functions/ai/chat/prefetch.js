@@ -27,6 +27,10 @@
  *     `get_diet_history`, and today's state would be wasted input).
  *   - The readiness entry point (the Readiness page's "Ask about it") →
  *     `get_readiness` (~100 chars; it's what that screen is).
+ *   - A TRAINING decision about today ("should I train today?", "أروح
+ *     الجيم النهارده؟" — `reply_shape.js`) → `get_readiness`: the
+ *     readiness call plus the training facts (last session, trained today,
+ *     what the split has up next) the decision must be grounded in.
  * Never when the ledger already holds the answer, never for a tapped option
  * (bound choices run no model), and never for AMBIGUOUS or GENERAL.
  *
@@ -34,6 +38,7 @@
  */
 
 const {Intent} = require("./intent");
+const {ReplyShape, replyShapeFor} = require("./reply_shape");
 
 /**
  * Whether a ledger entry already answers "what's today's diet state": a
@@ -66,6 +71,17 @@ function namesOtherDay(text) {
 }
 
 /**
+ * Whether the message asks for a call about today ("should I train?").
+ * @param {string} text
+ * @return {boolean}
+ */
+function isTodayDecision(text) {
+  const shape = replyShapeFor(text);
+  return (shape === ReplyShape.DECISION ||
+    shape === ReplyShape.DECISION_DETAIL) && !namesOtherDay(text);
+}
+
+/**
  * The read to run before the first model call, or null.
  * @param {!Object} args
  * @param {{intent: string, reason: string}} args.routed `classifyIntent`'s
@@ -80,7 +96,8 @@ function prefetchFor({routed, entryPoint, message, ledger}) {
   if (!routed || routed.reason === "bound_choice") return null;
   const entry = typeof entryPoint === "string" ?
     entryPoint.trim().toLowerCase() : "";
-  if (routed.intent === Intent.TRAINING && entry === "readiness") {
+  if (routed.intent === Intent.TRAINING &&
+      (entry === "readiness" || isTodayDecision(message))) {
     return ledger.entries.some((e) => e.tool === "get_readiness") ? null :
       {tool: "get_readiness", input: {}};
   }

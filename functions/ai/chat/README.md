@@ -27,6 +27,8 @@ the split is invisible to `index.js` and the other importers.
 | **Which area a turn is about** (intent routing) | [`intent.js`](intent.js) |
 | **What's read before the first model call** (prefetch) | [`prefetch.js`](prefetch.js) |
 | **Which prompt + tools a turn gets** (per-intent scope, `load_tools`) | [`scope.js`](scope.js) |
+| **How long a reply should be** (decision / detail / default, per message) | [`reply_shape.js`](reply_shape.js) + [`prompt/sections/length.js`](prompt/sections/length.js) |
+| **What streams to the screen** (deltas, retry/restatement `replace`) | [`live_text.js`](live_text.js) |
 
 ## The files
 
@@ -58,6 +60,20 @@ the split is invisible to `index.js` and the other importers.
 - **`messages.js`** — history normalization, assistant-text extraction, empty
   thinking-block stripping, and tool-result capping. Pure string/array helpers.
 - **`errors.js`** — `GatewayError` (gRPC-style `code`) and the document-id guard.
+- **`live_text.js`** — what a streaming turn puts on screen. Mirrors the
+  client's text (one segment per step), shapes deltas so streamed == saved,
+  and guarantees **a reply never visibly starts over**: when a same-provider
+  retry (the router's `onRetry`) or a step that restates the previous step's
+  lead-in would repeat words already on screen, it holds them back and sends
+  one `{type:'replace', text}` snapshot instead (the client keeps the shared
+  prefix). A restated lead-in is dropped from the saved reply too
+  (`restatedPrevious`; a buffered turn applies the same `restates` rule).
+  `replace` goes only to a client that sends `streamReplace: true`.
+- **`reply_shape.js`** — the per-message length decision, deterministic like
+  `intent.js`: DECISION ("should I…", "أروح الجيم؟") → the verdict first;
+  DETAIL ("explain", "بالتفصيل") → depth is welcome; otherwise the prompt's
+  concise default. A non-default shape adds one uncached system block
+  (`context.js`); nothing is truncated after generation.
 - **`validator.js`** — the advice validator + safety intercept (Diet Coach Phase 7):
   checks a diet-reading turn's final text against the state it read and, on a
   violation, replaces it with the findings' deterministic sentences (or a safety
@@ -140,6 +156,11 @@ provider failure (after the router's own retry + fallback) → thrown, tagged pr
   (`selectionNote`). Typed picks ("option 2") still work: history carries the
   options numbered with their values (`messages.js` `toNormalizedMessage`).
   Proposal cards carry their status.
+- **A retry never shows twice.** The router gates each attempt's `onText`
+  (an abandoned attempt can't keep streaming) and calls `onRetry` before a
+  same-provider retry; `live_text.js` turns that into a `replace` so the
+  half-answer the failed attempt wrote isn't followed by the whole answer
+  again. Pinned by `turn_stream.test.js`.
 - **No cross-provider fallback.** The selected model answers or its own
   failure ends the turn (`../routing/router.js`, `CROSS_PROVIDER_FALLBACK`
   off). The turn attaches its usage record to the error (`err.turnUsage`:
@@ -157,6 +178,9 @@ substrings, not order. Sections:
 |---|---|---|
 | `persona.js` | Who ZIVO is + how it talks (voice) | no — free to tune |
 | `focus.js` | Answer the exact question; pull only relevant context | tested (focus) |
+| `length.js` | Response-length policy: answer first, short by default, depth when asked | tested (length) |
+| `language.js` | Reply in the user's language/dialect (Egyptian Arabic); Arabic the RTL screen can lay out | tested (language) |
+| `decisions.js` | Make the call: FACT → ASSESSMENT → RECOMMENDATION → ACTION; never from missing data (+ per-area train-today / diet calls) | tested (decisions) |
 | `activity.js` | Say what you did (not what you thought); plan within the step budget; don't re-call a failed lookup | no |
 | `formatting.js` | Plain-text structure the client can actually render | tested (formatting) |
 | `numbers.js` | Every figure comes from a tool, never invented | **yes** — tested, safety-critical |

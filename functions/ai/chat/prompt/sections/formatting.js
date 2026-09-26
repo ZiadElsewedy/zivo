@@ -12,7 +12,10 @@
  *
  * If a Markdown renderer is ever added on the client, this is the one section
  * to revisit (relax the "plain text only" rule); nothing else in the prompt
- * depends on it.
+ * depends on it. The client's display pass
+ * (`lib/features/ai/presentation/assistant_text.dart`) strips any Markdown
+ * that slips through anyway and evens out paragraph spacing — a safety net,
+ * not a licence to emit it.
  *
  * New guidance — covered by the "formatting" gateway test added with it.
  */

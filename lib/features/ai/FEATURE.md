@@ -26,6 +26,17 @@
   with the NEXT turn only (`aiChat`'s `entryPoint`, kept for that turn's retry) — the
   server routes a bare "why?" to that area and prefetches its data
   (`functions/ai/chat/prefetch.js`).
+- `presentation/assistant_text.dart` — the **display pass** every coach reply goes through
+  (live and saved alike, in `MessageBubble`): direction from the reply's *dominant* script
+  (`dominantDirectionOf` — an Arabic reply opening with "Pull" is still RTL), Latin/number
+  runs isolated inside Arabic (`isolateLtrRuns`, so `8–10` never reads `10–8`), stray
+  Markdown stripped and blank lines evened out. Display only — the saved text is untouched.
+- **Streaming never restarts on screen.** Besides `delta`, the server may send
+  `{type:'replace', text}` (`AiReplaceEvent`) when text already streamed is superseded — a
+  same-provider retry after partial output, or a step restating the previous lead-in
+  (`functions/ai/chat/live_text.js`). `AskController._replaceLive` keeps the prefix the
+  snapshot shares with the screen and rewrites only the rest. The app opts in with
+  `streamReplace: true` on the `aiChat` payload (an older build keeps plain deltas).
 - `presentation/ask_constants.dart` — the turn timings and the composer's float clearance,
   shared by the page and its widgets.
 - Widgets: `presentation/widgets/ask/` (`message_bubble`, `proposal_card`, `thought_trail`,

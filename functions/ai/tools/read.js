@@ -1834,7 +1834,11 @@ const READINESS_TOOL = {
     "sleepDeltaMinutes vs target), `deload` (deloadExerciseCount stalled " +
     "lifts), `recentLoad` (restDays since last session), `bodyWeight` " +
     "(weightChangeKg over ~30 days) — and a `direction` of supports / " +
-    "caution / limits.",
+    "caution / limits. Always carries `training`: the last completed " +
+    "session (`lastSessionName`, `lastSessionDaysAgo`, null = never), " +
+    "`trainedToday`, and `upNext` — the next day in their split rotation " +
+    "(after today's session when one is done; null = no split). That's " +
+    "everything a 'should I train today' call needs in one read.",
   inputSchema: {type: "object", properties: {}},
   /**
    * @param {!Object} store
@@ -1853,19 +1857,38 @@ const READINESS_TOOL = {
     };
 
     // Training — the deload signal and how recently they trained.
-    const {sessions} = await loadResolvedSessions(store, uid);
+    const [{sessions}, plan] = await Promise.all([
+      loadResolvedSessions(store, uid),
+      store.getActiveWorkoutPlan ?
+        store.getActiveWorkoutPlan(uid) : Promise.resolve(null),
+    ]);
     const analysis = analyzeTraining({sessions, now});
     let lastSessionMs = null;
+    let lastSession = null;
     for (const s of sessions) {
       if (s.status !== "completed") continue;
       const at = s.completedAt || s.startedAt;
       const ms = at ? at.getTime() : null;
       if (ms !== null && (lastSessionMs === null || ms > lastSessionMs)) {
         lastSessionMs = ms;
+        lastSession = s;
       }
     }
     const lastSessionDaysAgo =
       lastSessionMs === null ? null : daysAgo(lastSessionMs);
+    // The facts a train-today decision rests on besides the readiness call
+    // itself — what was done last, and what the split has up next — so the
+    // coach decides from one read instead of guessing the half it didn't
+    // fetch. Facts only: the decision is the model's, grounded in these.
+    const hasSplit = plan && Array.isArray(plan.days) && plan.days.length > 0;
+    const training = {
+      lastSessionName: lastSession ?
+        String(lastSession.dayLabel || "").trim() || null : null,
+      lastSessionDaysAgo,
+      trainedToday: lastSessionDaysAgo === 0,
+      upNext: hasSplit ?
+        dayName(rotationFrom(plan.days, plan.cycleCursor)[0]) : null,
+    };
 
     // Sleep — only the newest night, and only if it is genuinely recent.
     const nights = store.listSleepNights ?
@@ -1902,10 +1925,13 @@ const READINESS_TOOL = {
       return {
         date: dayKeyFor(now, offsetMinutes),
         available: false,
-        reason: "Not enough data yet — no recent sleep, training, or weigh-in.",
+        reason: "No readiness call: last night's sleep, training load and " +
+          "weigh-ins are missing or show nothing notable.",
+        training,
       };
     }
-    return {date: dayKeyFor(now, offsetMinutes), available: true, ...readiness};
+    return {date: dayKeyFor(now, offsetMinutes), available: true, ...readiness,
+      training};
   },
 };
 

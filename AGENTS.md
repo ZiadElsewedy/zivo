@@ -273,7 +273,7 @@ never model-supplied, and snapshotted at propose time so it can't drift.
 | `get_last_workout` | Just the single most recent completed session; each exercise's top working set precomputed. |
 | `get_training_analysis` | Deterministic workout analysis + typed `findings` + `planAdherence`. The model phrases, never computes. |
 | `get_exercise_analysis` | One lift by name → full session-by-session history, deltas, verdict/tone, deterministic insight. |
-| `get_readiness` | The Daily Readiness call (train hard / go light / rest), fusing sleep + load + recovery + weight. Owns "how am I today". |
+| `get_readiness` | The Daily Readiness call (train hard / go light / rest), fusing sleep + load + recovery + weight, plus `training` (last session + days ago, trained today, what the split has up next) — everything a "should I train today?" call rests on. Owns "how am I today". |
 | `get_sleep_summary` | Last night vs target + rolling average, for sleep-specific questions. |
 | `get_expenses` | Expenses, each with its real `id` (so edit/delete can target it). |
 | `summarize_week` | Trailing-week rollup across surfaces. |
@@ -314,9 +314,12 @@ form-submit is the user's own confirmation (no ADR-003 propose→confirm). Rule:
 
 ### System prompt — [`chat/prompt/`](functions/ai/chat/prompt) (composed in `system_prompt.js`, pinned by `gateway.test.js`)
 
-`persona` · `focus` (answer the exact question) · `formatting` (**plain text**, no Markdown) ·
+`persona` · `focus` (answer the exact question) · `length` (answer first, short by default —
+plus a per-message decision/detail directive from `chat/reply_shape.js`) · `language` (the
+user's language/dialect; Arabic the RTL screen can lay out) · `formatting` (**plain text**, no Markdown) ·
 `numbers` (look figures up, never invent) · `training`/`coaching` (lead with deterministic
-`findings`, never contradict/invent one) · `mutations` (propose→confirm; identify by real `id`) ·
+`findings`, never contradict/invent one) · `decisions` (make the call — fact → assessment →
+recommendation → action — never from data it didn't read) · `mutations` (propose→confirm; identify by real `id`) ·
 `elicitation` (read before you ask; one question per turn) · `safety`. The prompt is static and
 cached; only the appended `CONTEXT` block carries the date.
 

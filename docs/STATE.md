@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-25 · **Active branch:** `feature/ai-gemini-provider`
+**Last updated:** 2026-09-26 · **Active branch:** `feature/ai-gemini-provider`
 (cut from `feature/readiness`); music-reactive session background on `upgrades`;
 Diet Builder wizard on `claude/affectionate-wozniak-wcnkpm`; AI food/diet
 interaction layer — all 5 phases shipped and deployed, on
@@ -96,6 +96,39 @@ notifications)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- 2026-09-26 (`claude/zivo-ai-experience-audit-faa1ce`, NOT deployed —
+  functions + app) — **Ask AI experience pass: streaming never restarts,
+  grounded decisions, short-by-default, Arabic that reads right.**
+  - **Streaming bug (the reply "restarting from the beginning").** Two causes,
+    both server-side: (1) the router's same-provider retry after partial
+    output reused the first attempt's `onText`, so the retry's full answer was
+    appended after the half already on screen; (2) Gemini restating a step's
+    lead-in after a tool call. Fix: the router gates each attempt's stream and
+    calls `onRetry`; `chat/live_text.js` mirrors the screen and, instead of
+    appending duplicate words, sends one `{type:'replace', text}` snapshot
+    (a restated lead-in is dropped from the saved reply too). App:
+    `AiReplaceEvent` → `AskController._replaceLive` (keeps the shared prefix).
+    Gated on the app sending `streamReplace: true` — an old build keeps plain
+    deltas. Regression tests: `turn_stream.test.js`, `live_text.test.js`,
+    router tests, `ask_controller_test.dart`.
+  - **Decisions.** New `decisions` prompt section (FACT → ASSESSMENT →
+    RECOMMENDATION → ACTION; never decide from missing data) + per-area
+    train-today / diet calls. `get_readiness` now carries `training` (last
+    session + days ago, trained today, split's `upNext`) and a training
+    decision question prefetches it.
+  - **Length.** New `length` section (answer first, short by default) +
+    `chat/reply_shape.js`: a deterministic per-message DECISION / DETAIL
+    directive (an uncached system block; the cached prompt is untouched;
+    usage logs `replyShape`). No post-generation truncation.
+  - **Arabic.** New `language` section (reply in the user's dialect — natural
+    Egyptian Arabic; no English glosses in parentheses; don't start a line with
+    English/a number; ranges in words). App: `assistant_text.dart` display
+    pass — direction from the dominant script, Latin/number runs isolated in
+    RTL, stray Markdown stripped, even paragraph spacing.
+  - **Owner action:** `firebase deploy --only functions` (prompt + tools +
+    streaming) and ship the app build (for `replace`). Check real Gemini
+    replies in Egyptian Arabic after deploy — offline tests can't judge tone.
 
 - 2026-09-26 (`upgrades`, NOT deployed — functions + app) — **Ask token
   efficiency Phase 7: prefetch + the app sends `entryPoint`.**

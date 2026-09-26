@@ -917,6 +917,31 @@ test("the system prompt gives plain-text formatting rules the client can " +
   assert.match(SYSTEM_PROMPT, /Keep structure proportional/);
 });
 
+test("the system prompt sets a response-length policy: answer first, short " +
+    "by default, depth only when asked", () => {
+  assert.match(SYSTEM_PROMPT, /LENGTH — short by default/);
+  assert.match(SYSTEM_PROMPT, /The first line answers the/);
+  assert.match(SYSTEM_PROMPT, /never stop mid-thought/);
+});
+
+test("the system prompt answers in the user's language and dialect, with " +
+    "Arabic the RTL screen can lay out", () => {
+  assert.match(SYSTEM_PROMPT, /natural Egyptian Arabic/);
+  assert.match(SYSTEM_PROMPT,
+      /never an Arabic word followed by the English in/);
+  assert.match(SYSTEM_PROMPT,
+      /Start every line and every "• " bullet with an Arabic/);
+});
+
+test("the system prompt makes grounded decisions — fact, assessment, " +
+    "recommendation, action — and never decides from missing data", () => {
+  assert.match(SYSTEM_PROMPT, /1\. FACT/);
+  assert.match(SYSTEM_PROMPT, /3\. RECOMMENDATION/);
+  assert.match(SYSTEM_PROMPT, /Never decide from data you don't have/);
+  assert.match(SYSTEM_PROMPT, /TRAIN-TODAY CALLS — read get_readiness first/);
+  assert.match(SYSTEM_PROMPT, /DIET CALLS/);
+});
+
 test("usage is logged once with tokens/tools/iterations", async () => {
   const store = makeStore();
   const callModel = scriptedModel([
