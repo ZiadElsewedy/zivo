@@ -203,6 +203,8 @@ test("the token ceiling does not count cache reads once per call — a " +
   assert.equal(provider.requests.length, 5);
   for (const req of provider.requests) {
     assert.equal(req.toolChoice, undefined, "no step was forced to answer");
+    // Each step marks its tail so the next step reads it back from cache.
+    assert.equal(req.cacheTail, "ephemeral");
   }
   assert.equal(store.logged[0].cacheReadTokens, 100000);
 });
@@ -217,6 +219,9 @@ test("the token ceiling still ends a turn whose CONTEXT outgrows it",
       ]);
       await run(store, provider, "how is my training going?");
       assert.equal(provider.requests[1].toolChoice, "none");
+      // The forced final step has no follow-up to read its tail back.
+      assert.equal(provider.requests[0].cacheTail, "ephemeral");
+      assert.equal(provider.requests[1].cacheTail, undefined);
     });
 
 test("per-call usage aggregates exactly into the turn's totals, with tool " +

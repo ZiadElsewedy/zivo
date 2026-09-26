@@ -56,6 +56,24 @@ test("routing works in Arabic and Arabizi", () => {
   }
 });
 
+test("Egyptian greetings go GENERAL, but not the questions around them", () => {
+  // The first real v7 turns: each routed AMBIGUOUS (full prompt, 26 tools).
+  for (const message of ["عامل إيه", "3amel eh", "إيه الأخبار",
+    "إزيك يا باشا", "ezayak ya basha", "الحمد لله كويس", "eh el akhbar"]) {
+    assert.equal(intentOf(message), Intent.GENERAL, message);
+  }
+  // A greeting word inside a real question doesn't make it small talk.
+  assert.equal(intentOf("عامل إيه في التمرين؟"), Intent.TRAINING);
+  assert.equal(intentOf("إيه ده"), Intent.AMBIGUOUS);
+  assert.equal(intentOf("eh el plan"), Intent.AMBIGUOUS);
+});
+
+test("Arabic punctuation glued to a word doesn't hide it", () => {
+  assert.equal(intentOf("كلت إيه النهارده؟"), Intent.DIET);
+  assert.equal(intentOf("التمرين،"), Intent.TRAINING);
+  assert.equal(intentOf("عامل إيه؟"), Intent.GENERAL);
+});
+
 test("an Arabic word is not matched inside another word", () => {
   // "مشاكل" (problems) contains "اكل" (food) — it must not route to DIET.
   assert.notEqual(intentOf("عندي مشاكل كتير"), Intent.DIET);

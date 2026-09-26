@@ -139,6 +139,17 @@ function toolUse(name, input, id = "tool-1") {
 }
 
 /**
+ * The text of a wire message's content — a plain string, or (once the chat
+ * loop marks the tail as a cache breakpoint) its text blocks joined.
+ * @param {(string|!Array<!Object>)} content
+ * @return {string}
+ */
+function wireText(content) {
+  return typeof content === "string" ? content :
+    content.filter((b) => b.type === "text").map((b) => b.text).join("");
+}
+
+/**
  * A plain text (end_turn) model response.
  * @param {string} text
  * @return {!Object}
@@ -1448,7 +1459,7 @@ test("structured choices: a bound pick whose item moved hands the model the " +
   });
   assert.equal(result.status, "ok");
   assert.equal(store.pendingActions.size, 0);
-  const sent = callModel.requests[0].messages.pop().content;
+  const sent = wireText(callModel.requests[0].messages.pop().content);
   assert.match(sent, /value=usda:173420/);
   assert.match(sent, /Proposing that change failed/);
 });
@@ -1490,7 +1501,7 @@ test("structured choices are generic: an unbound question's pick reaches " +
     });
     assert.equal(answer.status, "ok");
     const label = scenario.options.find((o) => o.value === scenario.pick).label;
-    const sent = callModel.requests[0].messages.pop().content;
+    const sent = wireText(callModel.requests[0].messages.pop().content);
     assert.ok(sent.startsWith(label));
     assert.match(sent, new RegExp(`value=${scenario.pick}`));
     assert.equal(store.messages.filter((m) => m.role === "user").pop().content,
@@ -1535,8 +1546,7 @@ test("context ledger: the turn after a choice reuses the diet + search it " +
   });
   assert.equal(result.status, "ok");
   const lastUser = callModel.requests[0].messages.at(-1);
-  const text = typeof lastUser.content === "string" ?
-    lastUser.content : JSON.stringify(lastUser.content);
+  const text = wireText(lastUser.content);
   assert.match(text, /EARLIER RESULTS/);
   assert.match(text, /get_diet/);
   assert.match(text, /search_food_alternatives/);
@@ -1578,7 +1588,8 @@ test("'Other options' is ZIVO's own chip: tapping it reaches the model as " +
   assert.equal(result.status, "ok");
   // Nothing was proposed — "none of these" means no change.
   assert.equal(store.pendingActions.size, 0);
-  const lastUser = callModel.requests[0].messages.at(-1).content;
+  const lastUser =
+      wireText(callModel.requests[0].messages.at(-1).content);
   assert.match(lastUser, /DIFFERENT/);
   assert.match(lastUser, /Feta cheese, Tuna salad, Turkey breast/);
   assert.match(lastUser, /EARLIER RESULTS/);

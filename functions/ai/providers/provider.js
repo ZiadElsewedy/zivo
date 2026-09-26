@@ -113,6 +113,10 @@
  *   Omit for the provider's default (Anthropic: `auto`). `none` keeps the
  *   tools declared but forbids calling one — the chat loop's final step.
  * @property {!Array<!NormalizedMessage>} messages
+ * @property {string=} cacheTail Set to `"ephemeral"` to add a prompt-caching
+ *   breakpoint on the last message's last block, so a follow-up call that
+ *   re-sends this conversation reads it back from cache (the chat loop's
+ *   tool steps). Anthropic only; Gemini ignores it, as it does `cache`.
  * @property {{googleSearch: boolean}=} grounding Gemini-only: set
  *   `{googleSearch: true}` to ground the reply in a live Google Search instead
  *   of declaring function-calling tools. Gemini does not support combining

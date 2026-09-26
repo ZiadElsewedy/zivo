@@ -63,6 +63,62 @@ test("a system block with cache: 'ephemeral' becomes a cache_control breakpoint"
   assert.deepEqual(req.system[0].cache_control, {type: "ephemeral"});
 });
 
+test("cacheTail marks the last block of the last message only", () => {
+  const req = toAnthropicRequest({
+    model: "m",
+    maxTokens: 10,
+    cacheTail: "ephemeral",
+    messages: [
+      {role: "user", content: "first"},
+      {role: "assistant", content: [{type: "raw", raw: {type: "tool_use",
+        id: "toolu_1", name: "get_diet", input: {}}}]},
+      {role: "user", content: [
+        {type: "tool_result", toolUseId: "toolu_1", content: "{}"},
+        {type: "text", text: "and?"},
+      ]},
+    ],
+  });
+  assert.equal(req.messages[0].content, "first");
+  assert.equal(req.messages[1].content[0].cache_control, undefined);
+  assert.equal(req.messages[2].content[0].cache_control, undefined);
+  assert.deepEqual(req.messages[2].content[1].cache_control,
+      {type: "ephemeral"});
+});
+
+test("cacheTail turns a string message into a marked text block", () => {
+  const req = toAnthropicRequest({model: "m", maxTokens: 10,
+    cacheTail: "ephemeral", messages: [{role: "user", content: "hi"}]});
+  assert.deepEqual(req.messages[0].content, [{type: "text", text: "hi",
+    cache_control: {type: "ephemeral"}}]);
+});
+
+test("cacheTail skips thinking and empty text, and never mutates a raw block",
+    () => {
+      const toolUse = {type: "tool_use", id: "toolu_1", name: "x", input: {}};
+      const request = {model: "m", maxTokens: 10, cacheTail: "ephemeral",
+        messages: [{role: "assistant", content: [
+          {type: "raw", raw: toolUse},
+          {type: "raw", raw: {type: "thinking", thinking: "", signature: "s"}},
+          {type: "text", text: ""},
+        ]}]};
+      const req = toAnthropicRequest(request);
+      assert.deepEqual(req.messages[0].content[0].cache_control,
+          {type: "ephemeral"});
+      assert.equal(req.messages[0].content[1].cache_control, undefined);
+      // The caller's round-tripped block is re-sent on later calls; a marker
+      // left on it would pile up past the 4-breakpoint limit.
+      assert.equal(toolUse.cache_control, undefined);
+      assert.equal(
+          toAnthropicRequest(Object.assign({}, request, {cacheTail: undefined}))
+              .messages[0].content[0].cache_control, undefined);
+    });
+
+test("without cacheTail no message block carries cache_control", () => {
+  const req = toAnthropicRequest({model: "m", maxTokens: 10,
+    messages: [{role: "user", content: "hi"}]});
+  assert.equal(req.messages[0].content, "hi");
+});
+
 test("a system block without cache carries no cache_control", async () => {
   const client = fakeClient({stop_reason: "end_turn", content: [], usage: {}});
   const provider = new AnthropicProvider(client);

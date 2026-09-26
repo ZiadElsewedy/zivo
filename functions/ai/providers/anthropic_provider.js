@@ -190,6 +190,36 @@ function toAnthropicToolChoice(toolChoice) {
 }
 
 /**
+ * Marks the last cacheable block of the last message as a cache breakpoint
+ * (`NormalizedRequest.cacheTail`). Thinking blocks and empty text can't carry
+ * `cache_control`, so it walks back past them; with nothing eligible the
+ * request is left as-is. The marked block is a COPY — a round-tripped `raw`
+ * block is the caller's object and is re-sent on later calls, where a
+ * leftover marker would pile up past Anthropic's 4-breakpoint limit.
+ * @param {!Array<!Object>} messages Anthropic-shape messages, mutated.
+ * @param {string} cacheType e.g. `"ephemeral"`.
+ */
+function markCacheTail(messages, cacheType) {
+  const last = messages[messages.length - 1];
+  if (!last) return;
+  if (typeof last.content === "string") {
+    if (!last.content) return;
+    last.content = [{type: "text", text: last.content}];
+  }
+  for (let i = last.content.length - 1; i >= 0; i--) {
+    const block = last.content[i];
+    if (!block || typeof block === "string" || block.type === "thinking" ||
+        block.type === "redacted_thinking" ||
+        (block.type === "text" && !block.text)) {
+      continue;
+    }
+    last.content[i] = Object.assign({}, block,
+        {cache_control: {type: cacheType}});
+    return;
+  }
+}
+
+/**
  * @param {!Object} normalizedRequest
  * @return {!Object} An Anthropic Messages API request.
  */
@@ -199,6 +229,9 @@ function toAnthropicRequest(normalizedRequest) {
     max_tokens: normalizedRequest.maxTokens,
     messages: normalizedRequest.messages.map(toAnthropicMessage),
   };
+  if (normalizedRequest.cacheTail) {
+    markCacheTail(req.messages, normalizedRequest.cacheTail);
+  }
   if (normalizedRequest.system && normalizedRequest.system.length > 0) {
     req.system = normalizedRequest.system.map((block) => {
       const b = {type: "text", text: block.text};

@@ -756,6 +756,13 @@ async function runAiTurn({
     // `none`, not dropping `tools`: the tool list is part of the cached
     // prefix (and a history holding tool calls needs it declared).
     if (finalStep) normalizedRequest.toolChoice = "none";
+    // A second cache breakpoint on the message tail (Phase 5): the next step
+    // re-sends everything this one did — the style + CONTEXT blocks, history,
+    // ledger, earlier tool rounds — plus its own tool results, so it reads
+    // that prefix back at 0.1x instead of paying full price for it again.
+    // Not on the final step: nothing follows it, and its extra system block
+    // means no later request could share its prefix anyway.
+    if (!finalStep) normalizedRequest.cacheTail = "ephemeral";
     const genOpts = {};
     // Each step's text is its own paragraph, exactly as the persisted reply
     // joins them (`narration` + the final text, "\n\n" apart): a step's

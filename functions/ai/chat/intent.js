@@ -149,6 +149,16 @@ const SMALL_TALK = new Set([
   "shokran", "tamam", "ahlan", "salam", "mashy", "mashi", "7elw", "helw",
   "اهلا", "مرحبا", "هاي", "شكرا", "تمام", "ماشي", "السلام", "عليكم",
   "صباح", "مساء", "الخير", "النور", "حلو", "جميل", "باي", "تسلم",
+  // Egyptian greetings — "عامل إيه", "إيه الأخبار", "إزيك يا باشا",
+  // "3amel eh", "ezayak" — which fell through to AMBIGUOUS (the full prompt)
+  // on the first v7 turns. Only whole-message small talk matches (every token
+  // must be here), so "إيه" alone never turns a real question GENERAL.
+  "عامل", "عامله", "ايه", "اخبارك", "اخباركم", "الاخبار", "ازيك", "ازيكم",
+  "ازايك", "هلا", "سلام", "وعليكم", "الحمد", "لله", "الحمدلله", "كويس",
+  "كويسه", "يا", "باشا", "مشكور", "ميرسي", "يسلمو",
+  "3amel", "3amla", "eh", "eih", "ezayak", "ezayek", "izayak", "ezzayak",
+  "akhbarak", "a5barak", "el", "akhbar", "a5bar", "kwayes", "kowayes",
+  "alhamdulillah", "el7amdulillah", "7amdella", "ya", "basha", "merci",
 ]);
 
 // "What is …", "explain …" — a knowledge question.
@@ -184,8 +194,10 @@ function normalizeArabic(s) {
  * @return {!Array<string>}
  */
 function tokenize(text) {
+  // The Arabic comma, semicolon and question mark (، ؛ ؟) sit inside the
+  // Arabic block, so they're split on explicitly: "التمرين؟" is "التمرين".
   return normalizeArabic(String(text || "").toLowerCase())
-      .split(/[^a-z0-9؀-ۿ'’-]+/)
+      .split(/[^a-z0-9؀-ۿ'’-]+|[،؛؟]+/)
       .map((t) => t.replace(/[’]/g, "'").replace(/^['-]+|['-]+$/g, ""))
       .filter(Boolean);
 }

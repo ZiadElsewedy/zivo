@@ -98,6 +98,28 @@ notifications)**.
 ## Recently landed (verified in code on `version-1`)
 
 - 2026-09-26 (`upgrades`, NOT deployed — functions changes need an owner
+  deploy) — **Ask token efficiency: Phase 4 read + greeting routing fix +
+  Phase 5 (in-turn tail caching).**
+  - **Phase 4 (first v7 data, 7 turns — an early sample):** scoped prefixes
+    match `count_prompt_tokens.js` within 0.5% (DIET 13,625 vs 13,693);
+    like-for-like cost −13% on the sample. All 3 AMBIGUOUS turns were
+    Egyptian greetings ("عامل إيه", "3amel eh", "إيه الأخبار"); area routing
+    was 4/4; no `load_tools`, no out-of-scope calls, no tool hit the 6K cap.
+    Cold cache writes were 46% of cost, fresh (uncached) input 29% — mostly
+    the ledger, re-sent uncached on every step.
+  - **Routing fix** (`chat/intent.js`): Egyptian/Arabizi small talk joins
+    `SMALL_TALK` (whole-message only, so "إيه ده" stays AMBIGUOUS); the
+    tokenizer now splits on ، ؛ ؟ — "التمرين؟" used to miss TRAINING.
+  - **Phase 5, in-turn only:** every non-final chat step sets
+    `cacheTail: "ephemeral"`; the Anthropic adapter puts a 2nd breakpoint on
+    the last message block (a copy — never the round-tripped raw block), so
+    the next tool step reads history + ledger + earlier rounds at 0.1x.
+    Gemini ignores it. Cross-turn tail caching / moving CONTEXT into the user
+    message was deliberately NOT done (history + ledger change every turn).
+    Verify after deploy: step ≥2 `perCall.cacheReadTokens` > the intent
+    prefix, `inputTokens` ≈ just the new tool results.
+
+- 2026-09-26 (`upgrades`, NOT deployed — functions changes need an owner
   deploy) — **Ask token efficiency (audit Phases 1–3) + no cross-provider
   fallback.**
   - **Provider selection is deterministic.** Gemini selected → Gemini only;
