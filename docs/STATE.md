@@ -2797,6 +2797,25 @@ notifications)**.
 
 ## Owner action items (blockers only the owner can clear — not code bugs)
 
+- **OPEN (owner-held, 2026-09-26) — Ask daily cap / usage limits / cost
+  controls. Not started in code; do NOT finalize, deploy or close it until the
+  owner has settled testing strategy, limits and cost controls. No paid API
+  calls for it.**
+  - Trigger: the owner's account (ziadtawfiikk@) hit "You've reached ZIVO's
+    daily Ask limit" on 2026-09-26 after 33 turns — the TOKEN ceiling
+    (`config.js` `perDayTokenCeiling` 500,000; turns cap 100), counted by
+    `usage.js` `dailyCapUsageFor` (fresh input + output; cache reads free).
+    509,450 counted: Gemini 346,654 (~18 turns), Claude 162,796. Not the
+    Phase 8 eval (it wrote only to the emulator; 0 `ev-*` conversations).
+  - Root cause of the skew: Gemini reports no cache reads, so every Gemini
+    turn counts its full 12–50K input; Claude's cached prefix is excluded.
+    Gemini users hit the cap ~3x sooner per turn.
+  - Options discussed (none chosen): cap by cost (USD, already on every
+    usage record) instead of raw tokens; exempt admin accounts (the admin
+    claim from `functions/scripts/set-admin.js`); raise the token ceiling;
+    reword the limit copy ("Claude and Gemini are still available" reads as
+    if switching models would help — ZIVO blocks both).
+
 - **Rules deploy for single-device sessions (2026-09-10):**
   `firebase deploy --only firestore:rules` (owner creds). Until it ships, the
   catch-all denies the new `users/{uid}/session/current` doc, so a device cannot
