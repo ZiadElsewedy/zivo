@@ -195,6 +195,28 @@ async function attempt(provider, request, opts, timeoutMs) {
 }
 
 /**
+ * `opts` with its streaming sinks (`onText`, `onInputJson`) routed through a
+ * gate that `close()` shuts — so one attempt's stream can't outlive it.
+ * @param {(!Object|undefined)} opts
+ * @return {{opts: (!Object|undefined), close: function(): void}}
+ */
+function gatedStreamOpts(opts) {
+  let open = true;
+  const close = () => {
+    open = false;
+  };
+  if (!opts) return {opts, close};
+  const gated = Object.assign({}, opts);
+  for (const sink of ["onText", "onInputJson"]) {
+    if (typeof opts[sink] !== "function") continue;
+    gated[sink] = (...args) => {
+      if (open) opts[sink](...args);
+    };
+  }
+  return {opts: gated, close};
+}
+
+/**
  * One route's outcome: either a stamped response, or a classified failure
  * kind with nothing thrown yet — `generate` decides what a failure MEANS
  * (retry, fall back, or give up) rather than unwinding the stack for it.
@@ -245,10 +267,16 @@ async function runRoute(
   for (let i = 0; ; i++) {
     if (i > 0) await delay(backoff[Math.min(i - 1, backoff.length - 1)]);
     const startedAt = Date.now();
+    // Each attempt streams through its OWN gate, closed the moment the
+    // attempt settles. An attempt abandoned at its deadline may still be
+    // streaming (a provider that ignores the abort signal), and its late
+    // words must never land in the retry's reply.
+    const gate = gatedStreamOpts(opts);
     try {
       const response = await attempt(provider,
           Object.assign({}, normalizedRequest, {model: target.model}),
-          opts, attemptTimeoutMs);
+          gate.opts, attemptTimeoutMs);
+      gate.close();
       tries.push({provider: target.provider, model: target.model, ok: true,
         latencyMs: Date.now() - startedAt});
       response.provider = target.provider;
@@ -256,6 +284,7 @@ async function runRoute(
       response.modelKey = target.key;
       return {ok: true, response, tries};
     } catch (err) {
+      gate.close();
       const kind = classifyProviderError(err);
       tries.push({provider: target.provider, model: target.model, ok: false,
         kind, latencyMs: Date.now() - startedAt});
@@ -274,6 +303,12 @@ async function runRoute(
         return {ok: false, kind, permanent: false, cause: err, tries};
       }
       // Transient and another attempt remains — loop retries after the delay.
+      // The caller hears it first: whatever this attempt already streamed is
+      // about to be superseded by a fresh answer, and a streaming chat must
+      // not show the two back to back (`../chat/live_text.js`).
+      if (opts && typeof opts.onRetry === "function") {
+        opts.onRetry({attempt: i + 2, reason: kind});
+      }
     }
   }
 }
@@ -298,10 +333,12 @@ async function runRoute(
  *   overridden by the route.
  * @param {{onText: (function(string): void),
  *   signal: (AbortSignal|undefined),
+ *   onRetry: (function({attempt: number, reason: string}): void|undefined),
  *   onFallback: (function({from: string, to: string, reason: string}): void|
  *     undefined)}=} opts Passed through to the provider. An aborted `signal`
- *   (a user cancel) is rethrown unchanged; `onFallback` is called just before
- *   the other provider is tried.
+ *   (a user cancel) is rethrown unchanged; `onRetry` is called just before a
+ *   same-provider retry (the failed attempt's streamed text is superseded);
+ *   `onFallback` just before the other provider is tried.
  * @param {!RouteOptions=} routeOpts
  * @return {!Promise<!Object>} A `NormalizedResponse`.
  * @throws {AiUnavailableError} When no provider could answer.

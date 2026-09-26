@@ -12,6 +12,8 @@
  *   [0] the intent's prompt      (cached — fixed per intent, see scope.js;
  *                                 the full SYSTEM_PROMPT for AMBIGUOUS)
  *   [1] style directive          (uncached — only if concise/detailed)
+ *   [2] reply-shape directive    (uncached — only for a decision or a
+ *                                 request for detail, `reply_shape.js`)
  *   [last] CONTEXT (date/time)   (uncached — changes every turn)
  *
  * The gateway tests pin this layout (element 0 === SYSTEM_PROMPT with the
@@ -20,6 +22,7 @@
  */
 
 const {SYSTEM_PROMPT} = require("./prompt/system_prompt");
+const {replyShapeDirective} = require("./reply_shape");
 
 // The user's reply-length/style preference (`users/{uid}/settings/ai`, plumbed
 // through `aiChat`'s `responseStyle` field). 'balanced' adds no directive at
@@ -68,22 +71,29 @@ Today is ${facts.weekday}, ${facts.longDate} (${facts.dayKey}). ` +
 }
 
 /**
- * Builds the ordered system-block array for a turn: the cached prompt, an
- * optional uncached style directive, and the uncached CONTEXT block. The block
+ * Builds the ordered system-block array for a turn: the cached prompt, the
+ * optional uncached style and reply-shape directives, and the uncached
+ * CONTEXT block. The block
  * shape (`{text, cache}`) is the normalized request shape the provider converts
  * to `cache_control`.
  *
  * @param {!Object} args
  * @param {?string} args.responseStyle 'concise'|'balanced'|'detailed'|other.
+ * @param {string=} args.replyShape This message's `ReplyShape`
+ *   (`reply_shape.js`); the default shape adds no block.
  * @param {!Object} args.facts A `localNowFacts()` result for the CONTEXT block.
  * @param {string=} args.systemPrompt The intent's prompt (`scope.js`);
  *   defaults to the full SYSTEM_PROMPT.
  * @return {!Array<{text: string, cache: (string|undefined)}>}
  */
-function buildSystemBlocks({responseStyle, facts, systemPrompt}) {
+function buildSystemBlocks({responseStyle, replyShape, facts, systemPrompt}) {
   const blocks = [{text: systemPrompt || SYSTEM_PROMPT, cache: "ephemeral"}];
   const styleDirective = styleDirectiveFor(responseStyle);
   if (styleDirective) blocks.push({text: styleDirective});
+  // After the saved preference, so an explicit "explain it in detail" in
+  // THIS message reads as the later, more specific instruction.
+  const shapeDirective = replyShapeDirective(replyShape);
+  if (shapeDirective) blocks.push({text: shapeDirective});
   blocks.push({text: contextBlockFor(facts)});
   return blocks;
 }

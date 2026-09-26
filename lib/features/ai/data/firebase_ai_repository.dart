@@ -399,6 +399,10 @@ class FirebaseAiRepository implements AiRepository {
   /// gates its per-token work on that flag, and the transport alone doesn't
   /// set it. Without it the turn silently degrades to buffered, dropping the
   /// whole reply on screen at once.
+  ///
+  /// `streamReplace: true` says this client understands `{type:'replace'}`
+  /// (see [AiReplaceEvent]); an older build that doesn't send it keeps the
+  /// plain append stream.
   static Future<void> Function(
     String conversationId,
     String message,
@@ -433,6 +437,10 @@ class FirebaseAiRepository implements AiRepository {
             'responseStyle': responseStyle,
             'provider': provider,
             'acceptsStreaming': true,
+            // This build applies `replace` snapshots of the live reply, so the
+            // server may supersede text already streamed (a retried attempt)
+            // instead of appending a second copy after it.
+            'streamReplace': true,
             'clientTurnId': ?clientTurnId,
             'choice': ?_choicePayload(choice),
             'entryPoint': ?entryPoint,

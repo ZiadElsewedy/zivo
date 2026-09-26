@@ -1040,6 +1040,9 @@ exports.aiChat = onCall(
           foodSearchProvider: foodSearchMeter.wrap(providerForCapability(
               registry, "food_search", routeOptionsFor("food_search"))),
           stream: streaming,
+          // The app applies `replace` snapshots of the live reply (sent only
+          // to a client that says so — an older build just appends deltas).
+          streamReplace: streaming && data.streamReplace === true,
           onEvent: streaming ? (event) => response.sendChunk(event) : undefined,
           uid: auth.uid,
           conversationId,

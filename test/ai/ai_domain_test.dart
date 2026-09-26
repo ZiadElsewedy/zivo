@@ -131,6 +131,14 @@ void main() {
       expect(aiTurnEventFromChunk({'type': 'fallback', 'from': 'x'}), isNull);
     });
 
+    test('parses a replace snapshot of the live reply', () {
+      final event =
+          aiTurnEventFromChunk({'type': 'replace', 'text': 'أيوه، اتمرن.'})
+              as AiReplaceEvent;
+      expect(event.text, 'أيوه، اتمرن.');
+      expect(aiTurnEventFromChunk({'type': 'replace'}), isNull);
+    });
+
     test('parses the thinking phase the loop emits between tool rounds', () {
       final event =
           aiTurnEventFromChunk({'type': 'phase', 'phase': 'thinking'})

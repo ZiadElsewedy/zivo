@@ -26,6 +26,7 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart' show Bidi;
+import 'package:intl/intl.dart' as intl show TextDirection;
 
 /// U+2066 LEFT-TO-RIGHT ISOLATE.
 const String _lri = '\u2066';
@@ -114,3 +115,41 @@ TextDirection directionOf(String text, {required TextDirection fallback}) {
 /// [directionOf] with the ambient [Directionality] as the fallback.
 TextDirection directionOfFor(BuildContext context, String text) =>
     directionOf(text, fallback: Directionality.of(context));
+
+/// The direction MOST of [text] is written in — right-to-left when enough of
+/// its words are (intl's word-count estimate), else left-to-right — or
+/// [fallback] when it has no words with a direction at all.
+///
+/// [directionOf] asks only the first strong character, which is right for a
+/// title and wrong for a paragraph of mixed text: an Arabic reply that opens
+/// with an exercise name ("Pull النهارده…") would lay the whole reply out
+/// left-to-right, its bullets and full stops on the wrong side. For a block
+/// of prose — a chat message — ask this one.
+TextDirection dominantDirectionOf(
+  String text, {
+  required TextDirection fallback,
+}) {
+  final estimate = Bidi.estimateDirectionOfText(text);
+  if (estimate == intl.TextDirection.RTL) return TextDirection.rtl;
+  if (estimate == intl.TextDirection.LTR) return TextDirection.ltr;
+  return fallback;
+}
+
+/// A left-to-right run inside right-to-left prose: Latin words and digits,
+/// with the spaces and technical punctuation between them (`Pull-ups 3×8–10`,
+/// `2.5`, `10:30`, `20%`) — starting and ending on a letter or digit (or a
+/// trailing `%`), so the sentence's own punctuation stays outside it.
+/// Brackets are left out on purpose: a pair around an isolated run resolves
+/// to the paragraph's direction and mirrors correctly.
+final RegExp _ltrRun = RegExp(
+  r"[A-Za-z0-9](?:[A-Za-z0-9 .,:/×\-–—+'&_#%]*[A-Za-z0-9%])?",
+);
+
+/// [text] with every Latin/number run pinned left-to-right ([ltr]) — for
+/// text of unknown shape (a model's reply) shown in a right-to-left
+/// paragraph, where [ltrFor] would need each run found by hand. Inside
+/// Arabic, a range like `8–10` otherwise renders as `10–8` and an exercise
+/// spec comes apart. Only call it for a right-to-left paragraph; in a
+/// left-to-right one it changes nothing on screen and only adds characters.
+String isolateLtrRuns(String text) =>
+    text.replaceAllMapped(_ltrRun, (m) => ltr(m[0]!));

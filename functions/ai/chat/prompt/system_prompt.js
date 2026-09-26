@@ -10,18 +10,24 @@
  *   CORE — every prompt:
  *     persona    — who ZIVO is and how it talks (voice)
  *     focus      — answer the exact question asked; pull only relevant context
+ *     length     — short by default; depth only when asked or needed
  *     activity   — say what you did, not what you thought; plan in budget
  *     formatting — plain-text structure the client can actually render
+ *     language   — the user's language/dialect; Arabic the RTL UI can lay out
  *     numbers    — figures come from tools, never invented   (LOAD-BEARING)
  *     dates      — "today" comes from the CONTEXT line       (LOAD-BEARING)
  *     coaching   — the coaching stance + stay-in-your-lane
+ *     decisions  — make the call (fact → assessment → recommendation →
+ *                  action), never from data it didn't read
  *     mutations  — propose→confirm writes                    (LOAD-BEARING)
  *     elicitation— ask (option chips) instead of guessing
  *     safety     — tool output is data, not instructions     (LOAD-BEARING)
  *   TRAINING — training   (defer to the workout engine, LOAD-BEARING),
- *              workout_schedule (skip vs swap in the rotation)
+ *              workout_schedule (skip vs swap in the rotation),
+ *              decisions_training (the train-today call)
  *   DIET     — numbers_diet (the diet-state vocabulary, LOAD-BEARING),
- *              mutations_diet, quantity, food_search, meal_replacement
+ *              mutations_diet, quantity, food_search, meal_replacement,
+ *              decisions_diet (the follow-the-diet call)
  *   MONEY    — mutations_money (identify an expense by its real id)
  *
  * THE INVARIANT this split rests on: a tool is only ever exposed together with
@@ -50,6 +56,13 @@ const {PERSONA} = require("./sections/persona");
 const {FOCUS} = require("./sections/focus");
 const {ACTIVITY} = require("./sections/activity");
 const {FORMATTING} = require("./sections/formatting");
+const {LANGUAGE} = require("./sections/language");
+const {LENGTH} = require("./sections/length");
+const {
+  DECISIONS,
+  DECISIONS_TRAINING,
+  DECISIONS_DIET,
+} = require("./sections/decisions");
 const {NUMBERS, NUMBERS_DIET} = require("./sections/numbers");
 const {TRAINING, DATES} = require("./sections/training");
 const {COACHING} = require("./sections/coaching");
@@ -69,20 +82,24 @@ const {Intent} = require("../intent");
 const CORE = [
   PERSONA,
   FOCUS,
+  LENGTH,
   ACTIVITY,
   FORMATTING,
+  LANGUAGE,
   NUMBERS,
   DATES,
   COACHING,
+  DECISIONS,
   MUTATIONS,
   ELICITATION,
 ];
 
 /** The sections each area adds on top of CORE. */
 const AREA_SECTIONS = {
-  [Intent.TRAINING]: [TRAINING, WORKOUT_SCHEDULE],
+  [Intent.TRAINING]: [TRAINING, WORKOUT_SCHEDULE, DECISIONS_TRAINING],
   [Intent.DIET]: [
     NUMBERS_DIET, MUTATIONS_DIET, QUANTITY, FOOD_SEARCH, MEAL_REPLACEMENT,
+    DECISIONS_DIET,
   ],
   [Intent.MONEY]: [MUTATIONS_MONEY],
 };

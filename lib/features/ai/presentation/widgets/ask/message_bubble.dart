@@ -4,6 +4,7 @@ import '../../../../../core/theme/train_tokens.dart';
 import '../../../../../core/util/bidi.dart';
 import '../../../domain/ai_message.dart';
 import '../../../domain/ai_role.dart';
+import '../../assistant_text.dart';
 import 'thought_trail.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -15,6 +16,7 @@ class MessageBubble extends StatelessWidget {
     this.onRevealDone,
     this.streaming = false,
     this.thought,
+    this.directionSource,
     super.key,
   });
 
@@ -44,10 +46,15 @@ class MessageBubble extends StatelessWidget {
   /// rides the text so "still writing" is visible at a glance.
   final bool streaming;
 
+  /// The text to take the paragraph's direction from when [text] is only
+  /// the part of it written so far — the live bubble passes everything that
+  /// has streamed, so the paragraph doesn't flip while the words arrive.
+  final String? directionSource;
+
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == AiRole.user;
-    final content = text ?? message.content;
+    final raw = text ?? message.content;
     // A message is written in whatever language its author used, which is not
     // necessarily the language the app is set to: ZIVO answers an English
     // question in English while the UI is Arabic, and the user types Arabic
@@ -59,7 +66,37 @@ class MessageBubble extends StatelessWidget {
     //
     // Only the paragraph flips. The bubble's SIDE stays with the UI, because
     // that says who is speaking, not what language they said it in.
-    final direction = directionOfFor(context, content);
+    //
+    // The direction is the one MOST of the message is written in, not its
+    // first letter's: "Pull النهارده…" is an Arabic line. ZIVO's replies also
+    // get the display pass (`assistant_text.dart`) — stray Markdown removed,
+    // Latin/number runs isolated inside Arabic — the same for the live stream
+    // and the saved copy.
+    final fallback = Directionality.of(context);
+    final String content;
+    final TextDirection direction;
+    var from = revealFrom;
+    if (isUser) {
+      content = raw;
+      direction = dominantDirectionOf(raw, fallback: fallback);
+    } else {
+      final shown = assistantDisplay(
+        raw,
+        fallback: fallback,
+        directionSource: directionSource,
+      );
+      content = shown.text;
+      direction = shown.direction;
+      // [revealFrom] counts the raw characters already on screen; the
+      // display text can differ in length, so measure the same prefix in it.
+      if (from > 0) {
+        from = assistantDisplay(
+          raw.characters.take(from).toString(),
+          fallback: fallback,
+          directionSource: raw,
+        ).text.characters.length;
+      }
+    }
     // ZIVO's replies read a touch larger than the user's own lines — it's the
     // long-form text the user actually reads, so a bump to 16 (from body's
     // 14.5) with generous leading makes it easier on the eyes without
@@ -120,7 +157,7 @@ class MessageBubble extends StatelessWidget {
                     content,
                     style: style,
                     textDirection: direction,
-                    from: revealFrom,
+                    from: from,
                     onDone: onRevealDone,
                   )
                 : streaming && !MediaQuery.of(context).disableAnimations

@@ -328,3 +328,66 @@ test("a user cancel is rethrown unchanged", async () => {
       () => generate(registry, "chat", REQ, {signal: controller.signal}),
       (err) => err.name === "AbortError");
 });
+
+test("a retry after partial output tells the caller first, and each attempt " +
+    "streams only its own words", async () => {
+  // Regression: the retry used to reuse the first attempt's `onText`, so a
+  // reply that failed half-way was streamed again from its first word right
+  // after the half already on screen — the reply "restarted".
+  const events = [];
+  let call = 0;
+  const gemini = {
+    generate: async (_req, opts) => {
+      call += 1;
+      if (call === 1) {
+        opts.onText("أيوه، بناءً على");
+        opts.onText(" جدولك");
+        const err = new Error("stream reset");
+        err.status = 503;
+        throw err;
+      }
+      opts.onText("أيوه، بناءً على جدولك اتمرن النهارده.");
+      return {stopReason: "end"};
+    },
+  };
+  const registry = new ProviderRegistry().register("gemini", gemini);
+  const resp = await generate(registry, "chat", REQ, Object.assign({}, FAST, {
+    onText: (t) => events.push(["text", t]),
+    onRetry: (info) => events.push(["retry", info.attempt, info.reason]),
+  }), {preferModel: "gemini-flash"});
+  assert.equal(resp.provider, "gemini");
+  assert.deepEqual(events, [
+    ["text", "أيوه، بناءً على"],
+    ["text", " جدولك"],
+    ["retry", 2, "overloaded"],
+    ["text", "أيوه، بناءً على جدولك اتمرن النهارده."],
+  ]);
+});
+
+test("an attempt abandoned at its deadline can't stream into the retry",
+    async () => {
+      // A provider that ignores the abort signal keeps writing after the
+      // router gave up on it; those words must be dropped, not interleaved
+      // with the retry's answer.
+      const texts = [];
+      let lateWrite;
+      let call = 0;
+      const anthropic = {
+        generate: (_req, opts) => {
+          call += 1;
+          if (call === 1) {
+            opts.onText("first ");
+            lateWrite = () => opts.onText("LATE");
+            return new Promise(() => {});
+          }
+          lateWrite();
+          opts.onText("second");
+          return Promise.resolve({stopReason: "end"});
+        },
+      };
+      const registry = new ProviderRegistry().register("anthropic", anthropic);
+      await generate(registry, "chat", REQ, Object.assign({}, FAST, {
+        onText: (t) => texts.push(t),
+      }), {attemptTimeoutMs: 20});
+      assert.deepEqual(texts, ["first ", "second"]);
+    });

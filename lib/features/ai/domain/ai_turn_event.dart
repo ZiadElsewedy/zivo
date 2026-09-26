@@ -116,6 +116,17 @@ class AiDeltaEvent extends AiTurnEvent {
   final String text;
 }
 
+/// The whole live reply as it should read now — sent instead of a delta when
+/// text already on screen is superseded: a provider retry after partial
+/// output, or a step restating the previous one's lead-in
+/// (`functions/ai/chat/live_text.js`). Applied as a REPLACE, never appended,
+/// so the reply can't appear to start over.
+class AiReplaceEvent extends AiTurnEvent {
+  const AiReplaceEvent(this.text);
+
+  final String text;
+}
+
 /// Maps the gateway's wire phase string to an [AiPhase]; unknown values are
 /// tolerated (forward-compatible) rather than thrown.
 AiPhase aiPhaseFromName(String? name) => switch (name) {
@@ -137,7 +148,7 @@ AiStepStatus aiStepStatusFromName(String? name) => switch (name) {
   _ => AiStepStatus.running,
 };
 
-/// Parses one streamed chunk (`{type: 'phase'|'step'|'delta', ...}`) into an
+/// Parses one streamed chunk (`{type: 'phase'|'step'|'delta'|'replace', ...}`) into an
 /// [AiTurnEvent], or null if the chunk is malformed / unrecognised.
 AiTurnEvent? aiTurnEventFromChunk(Object? chunk) {
   if (chunk is! Map) return null;
@@ -157,6 +168,9 @@ AiTurnEvent? aiTurnEventFromChunk(Object? chunk) {
     case 'delta':
       final text = chunk['text'];
       return text is String ? AiDeltaEvent(text) : null;
+    case 'replace':
+      final text = chunk['text'];
+      return text is String ? AiReplaceEvent(text) : null;
     case 'fallback':
       final from = chunk['from'];
       final to = chunk['to'];

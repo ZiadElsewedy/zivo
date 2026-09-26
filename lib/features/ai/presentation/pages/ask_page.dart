@@ -875,6 +875,9 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                             // live thought.
                                             streaming:
                                                 isLive && _c.revealInFlight,
+                                            directionSource: isLive
+                                                ? _c.liveTargetText
+                                                : null,
                                             thought: isLive
                                                 ? _liveThought()
                                                 : null,

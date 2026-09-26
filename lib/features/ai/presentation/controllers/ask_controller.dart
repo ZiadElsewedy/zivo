@@ -725,8 +725,9 @@ class AskController extends ChangeNotifier {
   /// Consumed by the builder the moment it hands a reply to the typewriter.
   void consumeExpectReveal() => _expectReveal = false;
 
-  /// Everything streamed for the live reply so far, revealed or not.
-  @visibleForTesting
+  /// Everything streamed for the live reply so far, revealed or not — the
+  /// live bubble takes its paragraph direction from this, not from the
+  /// half-written [liveText], so it doesn't flip mid-reveal.
   String get liveTargetText => _liveTargetChars.join();
 
   /// True while the paced reveal still has characters left to write.
@@ -796,6 +797,36 @@ class AskController extends ChangeNotifier {
         _setWriting(true);
         if (!wasWriting) _notify();
         _ensureRevealTicker();
+      case AiReplaceEvent(:final text):
+        _slowTurnTimer?.cancel();
+        if (_turnSlow) _turnSlow = false;
+        _replaceLive(text);
+        _notify();
+    }
+  }
+
+  /// The server superseded text already streamed (a retried attempt, or a
+  /// restated lead-in) and sent the whole reply as it reads now. The part it
+  /// shares with what's on screen stays put — a retry that reproduces the
+  /// same words continues without a flicker — and only what differs is
+  /// rewritten. Replaces, never appends: the reply can't restart on screen.
+  void _replaceLive(String text) {
+    final next = text.characters.toList();
+    var shared = 0;
+    final limit = math.min(next.length, _liveTargetChars.length);
+    while (shared < limit && next[shared] == _liveTargetChars[shared]) {
+      shared++;
+    }
+    _liveTargetChars
+      ..removeRange(shared, _liveTargetChars.length)
+      ..addAll(next.skip(shared));
+    _liveShownChars = math.min(_liveShownChars, shared);
+    _stepStartChars = math.min(_stepStartChars, _liveTargetChars.length);
+    _liveText = _liveTargetChars.take(_liveShownChars).join();
+    _streamed = _liveTargetChars.isNotEmpty;
+    if (_liveShownChars < _liveTargetChars.length) {
+      _setWriting(true);
+      _ensureRevealTicker();
     }
   }
 
