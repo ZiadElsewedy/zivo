@@ -53,6 +53,8 @@ function makeStore(overrides) {
     touchConversation: async () => {},
     getActiveDietPlan: async () => null,
     listDietEntries: async () => [],
+    listFoodLogs: async () => [],
+    getDietTargets: async () => null,
     getTodayUsageTotals: async () => ({turns: 0, tokens: 0}),
     getRecentMessages: async () => [],
     logUsage: async () => {},
@@ -1104,8 +1106,9 @@ test("'I don't want molokhia': search offers options, a same-turn replace is " +
     "refused, and the turn ends on the user's choice — nothing proposed",
 async () => {
   const store = molokhiaStore();
+  // No get_diet step: a diet turn finds today's plan already read
+  // (`chat/prefetch.js`) in its EARLIER RESULTS.
   const callModel = scriptedModel([
-    toolUse("get_diet", {}, "t-diet"),
     toolUse("search_food_alternatives", MOLOKHIA_CANDIDATES, "t-search"),
     // The model tries to pick for the user…
     toolUse("replace_meal_item", {
@@ -1136,12 +1139,12 @@ async () => {
   assert.equal(result.actionId, null, "no change proposed during discovery");
   assert.equal(store.pendingActions.size, 0);
   // The refused proposal went back to the model as an error to act on.
-  const afterReplace = callModel.requests[3].messages
+  const afterReplace = callModel.requests[2].messages
       .flatMap((m) => Array.isArray(m.content) ? m.content : [])
       .find((b) => b.type === "tool_result" && b.tool_use_id === "t-replace");
   assert.equal(afterReplace.is_error, true);
   assert.match(afterReplace.content, /hasn't chosen yet/);
-  // The user saw what ran: diet read, then the alternatives search.
+  // The user saw what ran: the (prefetched) diet read, then the search.
   const steps = events.filter((e) => e.type === "step" && e.status === "ok")
       .map((e) => e.tool);
   assert.deepEqual(steps, ["get_diet", "search_food_alternatives"]);
@@ -1268,8 +1271,9 @@ const TURKEY = "usda:171501";
  * @return {!Promise<!Object>} The turn result.
  */
 async function discoverEggSwaps(store, lastResponse) {
+  // Today's plan is prefetched (`chat/prefetch.js`), so the model starts at
+  // the search.
   const callModel = scriptedModel([
-    toolUse("get_diet", {}, "t-diet"),
     toolUse("search_food_alternatives", EGG_SEARCH, "t-search"),
     lastResponse || toolUse("ask_choice", {
       prompt: "I found 3 verified swaps that are close to the original " +
@@ -1506,7 +1510,9 @@ test("structured choices are generic: an unbound question's pick reaches " +
     assert.equal(answer.status, "ok");
     const label = scenario.options.find((o) => o.value === scenario.pick).label;
     const sent = wireText(callModel.requests[0].messages.pop().content);
-    assert.ok(sent.startsWith(label));
+    // The pick opens the user's words — after any EARLIER RESULTS block (a
+    // diet-sounding label prefetches today's plan, `chat/prefetch.js`).
+    assert.ok(sent.startsWith(label) || sent.includes(`]\n\n${label}`));
     assert.match(sent, new RegExp(`value=${scenario.pick}`));
     assert.equal(store.messages.filter((m) => m.role === "user").pop().content,
         label);

@@ -21,7 +21,11 @@
 - `presentation/pages/ask_page.dart` — the Ask tab's `build`, plus the state that is
   genuinely about a list of widgets: scroll position and auto-follow, the entrance ledger,
   and which bubble is mid-typewriter. Reached as tab index 2 in the shell; other surfaces
-  switch to it via `HomeShell`'s `onOpenAsk`.
+  switch to it via `HomeShell`'s `onOpenAsk`. An in-context open (today only Readiness's
+  "Ask about it") also sets `incomingEntryPoint`; the controller's `openedFrom` sends it
+  with the NEXT turn only (`aiChat`'s `entryPoint`, kept for that turn's retry) — the
+  server routes a bare "why?" to that area and prefetches its data
+  (`functions/ai/chat/prefetch.js`).
 - `presentation/ask_constants.dart` — the turn timings and the composer's float clearance,
   shared by the page and its widgets.
 - Widgets: `presentation/widgets/ask/` (`message_bubble`, `proposal_card`, `thought_trail`,

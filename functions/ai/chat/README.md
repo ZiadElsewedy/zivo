@@ -25,6 +25,7 @@ the split is invisible to `index.js` and the other importers.
 | **How a turn ends** (terminal states, tool retry rules) | [`outcome.js`](outcome.js) |
 | **What a follow-up reuses** (carried tool results) | [`context_ledger.js`](context_ledger.js) |
 | **Which area a turn is about** (intent routing) | [`intent.js`](intent.js) |
+| **What's read before the first model call** (prefetch) | [`prefetch.js`](prefetch.js) |
 | **Which prompt + tools a turn gets** (per-intent scope, `load_tools`) | [`scope.js`](scope.js) |
 
 ## The files

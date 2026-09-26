@@ -43,6 +43,11 @@ class _HomeShellState extends State<HomeShell> {
   /// the tab switches — one Ask instance, no duplicate route.
   final ValueNotifier<String?> _askDraft = ValueNotifier(null);
 
+  /// The screen Ask was just opened from, for the next turn's routing
+  /// (`aiChat`'s `entryPoint`). Set only by an in-context "ask about it" —
+  /// switching tabs by hand opens Ask from nowhere in particular.
+  final ValueNotifier<String?> _askEntryPoint = ValueNotifier(null);
+
   /// Whether the now-playing strip is on screen. This is the ONE input that
   /// changes the bottom chrome's height, so it is tracked here rather than
   /// read from a `StreamBuilder` wrapped around the shell: the four tab
@@ -116,6 +121,8 @@ class _HomeShellState extends State<HomeShell> {
     _connectionSub?.cancel();
     _trackSub?.cancel();
     _linkedSub?.cancel();
+    _askDraft.dispose();
+    _askEntryPoint.dispose();
     super.dispose();
   }
 
@@ -173,10 +180,14 @@ class _HomeShellState extends State<HomeShell> {
     // it" needs one, since HomeShell is the only thing that owns `_index`.
     final tabs = [
       TodayPage(
-        onOpenAsk: () => setState(() => _index = 2),
+        // Today's only way into Ask is the readiness card's "ask about it".
+        onOpenAsk: () {
+          _askEntryPoint.value = 'readiness';
+          setState(() => _index = 2);
+        },
       ),
       const HubPage(),
-      AskPage(incomingDraft: _askDraft),
+      AskPage(incomingDraft: _askDraft, incomingEntryPoint: _askEntryPoint),
       const ProfilePage(),
     ];
     // The bottom is ONE object: the nav island, with the now-playing strip

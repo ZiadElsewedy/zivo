@@ -40,6 +40,7 @@ class AskPage extends StatefulWidget {
     super.key,
     this.transcribeTimeout = kTranscribeTimeout,
     this.incomingDraft,
+    this.incomingEntryPoint,
   });
 
   /// Injectable for tests — how long to wait on transcription before
@@ -50,6 +51,10 @@ class AskPage extends StatefulWidget {
   /// value, the composer takes it over as an editable draft. One-shot — the
   /// notifier resets to null after consumption so a repeated log re-triggers.
   final ValueNotifier<String?>? incomingDraft;
+
+  /// The screen the shell just opened Ask from (e.g. 'readiness'), handed to
+  /// the next turn as a routing hint. One-shot, like [incomingDraft].
+  final ValueNotifier<String?>? incomingEntryPoint;
 
   @override
   State<AskPage> createState() => _AskPageState();
@@ -132,6 +137,7 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     widget.incomingDraft?.addListener(_onIncomingDraft);
+    widget.incomingEntryPoint?.addListener(_onIncomingEntryPoint);
     _scroll.addListener(() {
       if (!_scroll.hasClients) return;
       final p = _scroll.position;
@@ -180,6 +186,9 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
         }
       },
     )..addListener(_onControllerChanged);
+    // An entry set before this tab was first built (Ask opened from another
+    // screen on a cold start) is picked up here.
+    _onIncomingEntryPoint();
   }
 
   void _onControllerChanged() {
@@ -196,6 +205,17 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
     _c.fillComposer(text);
   }
 
+  /// Consumes the screen the shell opened Ask from — the controller sends it
+  /// with the next turn — and clears the notifier so the next open from the
+  /// same screen re-triggers.
+  void _onIncomingEntryPoint() {
+    final entryPoint = widget.incomingEntryPoint?.value;
+    final controller = _controller;
+    if (entryPoint == null || controller == null || !mounted) return;
+    widget.incomingEntryPoint!.value = null;
+    controller.openedFrom(entryPoint);
+  }
+
   @override
   void didUpdateWidget(covariant AskPage old) {
     super.didUpdateWidget(old);
@@ -203,11 +223,16 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
       old.incomingDraft?.removeListener(_onIncomingDraft);
       widget.incomingDraft?.addListener(_onIncomingDraft);
     }
+    if (widget.incomingEntryPoint != old.incomingEntryPoint) {
+      old.incomingEntryPoint?.removeListener(_onIncomingEntryPoint);
+      widget.incomingEntryPoint?.addListener(_onIncomingEntryPoint);
+    }
   }
 
   @override
   void dispose() {
     widget.incomingDraft?.removeListener(_onIncomingDraft);
+    widget.incomingEntryPoint?.removeListener(_onIncomingEntryPoint);
     _controller?.removeListener(_onControllerChanged);
     _controller?.dispose();
     _scroll.dispose();

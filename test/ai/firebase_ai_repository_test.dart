@@ -129,7 +129,7 @@ void main() {
         firestore: firestore,
         uidSource: _signedInAs('test-uid'),
         invokeChat:
-            (conversationId, message, responseStyle, provider, clientTurnId, _) async {
+            (conversationId, message, responseStyle, provider, clientTurnId, _, _) async {
           calls.add((conversationId, message, responseStyle, provider));
         },
       );
@@ -164,6 +164,26 @@ void main() {
       ]);
     });
 
+    test('send forwards the entry point Ask was opened from', () async {
+      final entryPoints = <String?>[];
+      final repo = FirebaseAiRepository(
+        firestore: FakeFirebaseFirestore(),
+        uidSource: _signedInAs('test-uid'),
+        invokeChat: (_, _, _, _, _, _, entryPoint) async {
+          entryPoints.add(entryPoint);
+        },
+      );
+
+      await repo.send(
+        conversationId: 'c',
+        text: 'why?',
+        entryPoint: 'readiness',
+      );
+      await repo.send(conversationId: 'c', text: 'and now?');
+
+      expect(entryPoints, ['readiness', null]);
+    });
+
     test('send is a no-op for empty or whitespace-only text', () async {
       final firestore = FakeFirebaseFirestore();
       var callCount = 0;
@@ -171,7 +191,7 @@ void main() {
         firestore: firestore,
         uidSource: _signedInAs('test-uid'),
         invokeChat:
-            (conversationId, message, responseStyle, provider, clientTurnId, _) async {
+            (conversationId, message, responseStyle, provider, clientTurnId, _, _) async {
           callCount++;
         },
       );

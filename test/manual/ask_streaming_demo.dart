@@ -106,6 +106,7 @@ class DemoAi implements AiRepository {
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;

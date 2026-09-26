@@ -341,6 +341,13 @@ class AskController extends ChangeNotifier {
   /// card — kept with [_turnText] so [retry] re-sends the same structured
   /// pick, not just its label.
   AiChoiceSelection? _turnChoice;
+
+  /// The screen Ask was just opened from ([openedFrom]), not yet sent.
+  String? _entryPoint;
+
+  /// The entry point the current turn carries — kept with [_turnText] so
+  /// [retry] routes the same way.
+  String? _turnEntryPoint;
   int _baselineUserCount = 0;
   int _baselineAssistantCount = 0;
   String? _activeTurnId;
@@ -437,6 +444,11 @@ class AskController extends ChangeNotifier {
     _writing = value;
   }
 
+  /// Ask was opened from [entryPoint] (e.g. 'readiness'). The NEXT turn tells
+  /// the server, so a bare "why?" is read as a question about that screen;
+  /// one turn only — after it, the conversation carries its own context.
+  void openedFrom(String entryPoint) => _entryPoint = entryPoint;
+
   /// Drops text into the composer as editable content — never auto-sent.
   /// Used by the shell's voice quick-log and by transcription.
   void fillComposer(String text, {bool collapseSelection = false}) {
@@ -499,8 +511,10 @@ class AskController extends ChangeNotifier {
     _baselineUserCount = baselineUserCount;
     _baselineAssistantCount = baselineAssistantCount;
     _draftTitle = null;
+    final entryPoint = _entryPoint;
+    _entryPoint = null;
     _notify();
-    await runSend(conversationId, text, choice: choice);
+    await runSend(conversationId, text, choice: choice, entryPoint: entryPoint);
   }
 
   /// Fills the composer with an empty-state suggestion and sends it —
@@ -522,7 +536,12 @@ class AskController extends ChangeNotifier {
   Future<void> retry(String conversationId) async {
     final text = _pendingText ?? _turnText;
     if (text == null || _sending) return;
-    await runSend(conversationId, text, choice: _turnChoice);
+    await runSend(
+      conversationId,
+      text,
+      choice: _turnChoice,
+      entryPoint: _turnEntryPoint,
+    );
   }
 
   /// Best-effort: a failed rename just leaves the conversation titled 'New
@@ -543,9 +562,11 @@ class AskController extends ChangeNotifier {
     String conversationId,
     String text, {
     AiChoiceSelection? choice,
+    String? entryPoint,
   }) async {
     _turnText = text;
     _turnChoice = choice;
+    _turnEntryPoint = entryPoint;
     _slowTurnTimer?.cancel();
     _landingWatchdog?.cancel();
     _sending = true;
@@ -588,6 +609,7 @@ class AskController extends ChangeNotifier {
         text: text,
         clientTurnId: _activeTurnId,
         choice: choice,
+        entryPoint: entryPoint,
         onEvent: _onTurnEvent,
         responseStyle: _responseStyle,
         modelSelection: _modelSelection,

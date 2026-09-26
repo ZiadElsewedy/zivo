@@ -64,6 +64,11 @@ function makeStore(overrides) {
     },
     getTodayUsageTotals: async () => ({turns: 0, tokens: 0}),
     getRecentMessages: async () => [],
+    // A diet-routed turn prefetches today's plan (`chat/prefetch.js`).
+    getActiveDietPlan: async () => null,
+    listDietEntries: async () => [],
+    listFoodLogs: async () => [],
+    getDietTargets: async () => null,
     logUsage: async (uid, usageDoc) => {
       calls.logUsage.push({uid, usageDoc});
     },
@@ -1347,7 +1352,10 @@ test("a mutating tool emits no step — it proposes, it does not execute", async
     now: makeClock(0),
   });
 
-  assert.deepEqual(events.filter((e) => e.type === "step"), []);
+  // ("food" routes this turn DIET, so today's plan read may be prefetched —
+  // a read, not the mutation.)
+  assert.deepEqual(events.filter((e) => e.type === "step" &&
+    e.tool === "create_expense"), []);
   const phases = events.filter((e) => e.type === "phase").map((e) => e.phase);
   assert.ok(phases.includes("preparing_change"));
 });

@@ -76,6 +76,7 @@ const {
   withMoreOption,
 } = require("./choices");
 const {ContextLedger} = require("./context_ledger");
+const {prefetchFor} = require("./prefetch");
 const {
   TerminalState,
   terminalStateFor,
@@ -445,6 +446,35 @@ async function runAiTurn({
   const ledger = ContextLedger.fromHistory(history, {now: turnNow, dayKey});
   const ledgerDropped = scope.intent === Intent.AMBIGUOUS ?
     0 : ledger.retainTools(scope.toolNames);
+  // The read this turn is all but certain to open with, run now so the model
+  // finds it in the ledger instead of spending a step on it (`prefetch.js`).
+  // A failure is dropped silently — the model can still call the tool.
+  const prefetched = [];
+  const planned = bindingFailure ? null : prefetchFor({
+    routed, entryPoint, message: userContent, ledger,
+  });
+  const prefetchTool = planned ? allToolsByName.get(planned.tool) : null;
+  // The turn is committed to running (past validation and the daily cap).
+  emitPhase("understanding");
+  if (prefetchTool && !(signal && signal.aborted)) {
+    const startedAt = Date.now();
+    emitStep(planned.tool, "running");
+    let status = "ok";
+    try {
+      const result = await prefetchTool.execute(
+          store, uid, planned.input, turnNow, offsetMinutes, {});
+      const content =
+        capToolResult(JSON.stringify(result), cfg.maxToolResultChars);
+      ledger.record(planned.tool, planned.input, content, turnNow, dayKey);
+      prefetched.push({name: planned.tool, status, resultChars: content.length,
+        latencyMs: Date.now() - startedAt});
+    } catch (_) {
+      status = "error";
+      prefetched.push({name: planned.tool, status,
+        latencyMs: Date.now() - startedAt});
+    }
+    emitStep(planned.tool, status);
+  }
   let userTurn = picked ? selectionNote(picked) : trimmed;
   if (bindingFailure) {
     userTurn += `\n[Proposing that change failed: ${bindingFailure} Re-read ` +
@@ -549,6 +579,8 @@ async function runAiTurn({
   // on the assistant message, and the only source of the "here's what I
   // checked" text when the turn can't finish. Names only, never input/result.
   const activity = [];
+  // A prefetched read is work the turn did, like any other lookup.
+  for (const p of prefetched) activity.push({tool: p.name, status: p.status});
   // Failures per tool name this turn; see `cfg.maxToolFailuresPerTool`.
   const toolFailures = new Map();
   let toolErrorHit = false;
@@ -698,6 +730,9 @@ async function runAiTurn({
     // are observable in production, not a black box.
     if (validation) usageDoc.validation = validation;
     if (failedTool) usageDoc.failedTool = failedTool;
+    // The read run before the first model call (`prefetch.js`) — whether it
+    // saved a step is read off `calls` and whether the model re-ran it.
+    if (prefetched.length) usageDoc.prefetched = prefetched;
     if (expandedTo.length) usageDoc.expandedTo = expandedTo;
     if (unexposedToolCalls) usageDoc.unexposedToolCalls = unexposedToolCalls;
     if (errorKind) usageDoc.errorKind = errorKind;
@@ -712,9 +747,6 @@ async function runAiTurn({
     }
     return usageDoc;
   };
-
-  // The turn is committed to running (past validation and the daily cap).
-  emitPhase("understanding");
 
   // Records a failed tool call and decides whether the turn must stop: a
   // transient failure that survived its retry is fatal at once; any other

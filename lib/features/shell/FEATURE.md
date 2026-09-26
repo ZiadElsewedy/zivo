@@ -6,7 +6,8 @@
 
 - `presentation/home_shell.dart` — **`HomeShell`**: a 4-tab `IndexedStack` —
   **Today (0) · Hub (1) · Ask (2) · You (3)**. Owns `_index`, exposes `onOpenAsk`
-  (used by Today to jump to Ask), and routes the quick-capture sheet result into Ask's
+  (used by Today's readiness card to jump to Ask — it tags the next turn with
+  `entryPoint: 'readiness'` via `_askEntryPoint`; a plain tab tap sends none), and routes the quick-capture sheet result into Ask's
   composer.
 - `presentation/widgets/zivo_bottom_bar.dart` — the floating "island" bottom bar with the
   spring-gliding ember capsule, plus `ZivoBottomBarMetrics`. Its `fused` slot takes a slim

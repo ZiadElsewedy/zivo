@@ -235,6 +235,7 @@ class FirebaseAiRepository implements AiRepository {
       String provider,
       String? clientTurnId,
       AiChoiceSelection? choice,
+      String? entryPoint,
     )?
     invokeChat,
     Future<void> Function(
@@ -244,6 +245,7 @@ class FirebaseAiRepository implements AiRepository {
       String provider,
       String? clientTurnId,
       AiChoiceSelection? choice,
+      String? entryPoint,
       void Function(AiTurnEvent event) onEvent,
     )?
     invokeChatStream,
@@ -294,6 +296,7 @@ class FirebaseAiRepository implements AiRepository {
     String provider,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   )
   _invokeChat;
   final Future<void> Function(
@@ -303,6 +306,7 @@ class FirebaseAiRepository implements AiRepository {
     String provider,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
     void Function(AiTurnEvent event) onEvent,
   )
   _invokeChatStream;
@@ -347,6 +351,7 @@ class FirebaseAiRepository implements AiRepository {
     String provider,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   )
   _defaultInvokeChat(FirebaseFunctions? functions) {
     return (
@@ -356,6 +361,7 @@ class FirebaseAiRepository implements AiRepository {
       provider,
       clientTurnId,
       choice,
+      entryPoint,
     ) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
@@ -371,6 +377,7 @@ class FirebaseAiRepository implements AiRepository {
             'provider': provider,
             'clientTurnId': ?clientTurnId,
             'choice': ?_choicePayload(choice),
+            'entryPoint': ?entryPoint,
             ...clientClockFields(),
           });
     };
@@ -399,6 +406,7 @@ class FirebaseAiRepository implements AiRepository {
     String provider,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
     void Function(AiTurnEvent event) onEvent,
   )
   _defaultInvokeChatStream(FirebaseFunctions? functions) {
@@ -409,6 +417,7 @@ class FirebaseAiRepository implements AiRepository {
       provider,
       clientTurnId,
       choice,
+      entryPoint,
       onEvent,
     ) async {
       final f =
@@ -426,6 +435,7 @@ class FirebaseAiRepository implements AiRepository {
             'acceptsStreaming': true,
             'clientTurnId': ?clientTurnId,
             'choice': ?_choicePayload(choice),
+            'entryPoint': ?entryPoint,
             ...clientClockFields(),
           });
       // The failure the server announced before the stream errored — the
@@ -836,6 +846,7 @@ class FirebaseAiRepository implements AiRepository {
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   }) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return Future.value();
@@ -854,6 +865,7 @@ class FirebaseAiRepository implements AiRepository {
               provider,
               clientTurnId,
               choice,
+              entryPoint,
             )
           : _invokeChatStream(
               conversationId,
@@ -862,6 +874,7 @@ class FirebaseAiRepository implements AiRepository {
               provider,
               clientTurnId,
               choice,
+              entryPoint,
               onEvent,
             ),
     );

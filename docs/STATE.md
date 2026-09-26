@@ -97,6 +97,35 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- 2026-09-26 (`upgrades`, NOT deployed — functions + app) — **Ask token
+  efficiency Phase 7: prefetch + the app sends `entryPoint`.**
+  - **Prefetch** (`functions/ai/chat/prefetch.js`, run in `turn.js` before
+    the first model call): a DIET turn (keywords / entry point / continuity)
+    gets today's `get_diet` read up front into the context ledger — so the
+    model answers in one call instead of spending step 1 asking for it; the
+    Readiness entry point gets `get_readiness`. Skipped when the ledger
+    already holds today's diet state (or readiness), when the message names
+    another day (yesterday / last week / امبارح / الاسبوع …), and for
+    AMBIGUOUS / GENERAL / MONEY / bound picks. `get_diet`, not `get_today`:
+    get_today lists items only for eaten meals, so swaps still needed
+    get_diet. A failed prefetch is dropped (the model can still read). Why
+    DIET only: every v7 DIET turn with an empty ledger opened with a diet
+    read; TRAINING turns opened with a different read each time.
+  - It rides the ledger, so it's fenced the same way, seeds the validator,
+    shows as a step on the rail + in the reply's activity, and carries to the
+    next turn. aiUsage: `prefetched: [{name, status, resultChars,
+    latencyMs}]`; `contextCarried` still counts only the previous turn's.
+  - **App:** `AiRepository.send(entryPoint:)` → `aiChat` payload.
+    Readiness's "Ask about it" → `HomeShell._askEntryPoint = 'readiness'` →
+    `AskPage.incomingEntryPoint` → `AskController.openedFrom`; sent with the
+    next turn only (and its retry). Tab taps send none.
+  - **Verify after deploy:** DIET turns with `prefetched` should mostly be
+    `calls=1`; a `get_diet` in `perCall[0].tools` right after a prefetch means
+    the model re-read (wasted). Compare DIET `calls`/`costUsd`/`latencyMs` vs
+    the pre-Phase-7 v7 rows (08:24 diet/keywords: 2 calls).
+  - Tests: 766 backend (new `chat/prefetch.test.js`; 3 old scripts dropped
+    their now-prefetched `get_diet` step), 301 Flutter (ai/home/readiness/shell).
+
 - 2026-09-26 (`upgrades`, committed `35fcf37`, NOT deployed) — **Phase 6 (diet
   payload trim) + daily diet tracking (`dietDays`) + diet history in Ask.**
   - **Phase 6:** `get_diet`/`get_today` no longer repeat a ticked meal's items

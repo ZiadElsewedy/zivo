@@ -45,7 +45,7 @@ void main() {
         currentUid: () => 'u',
         uidChanges: Stream.value('u'),
       ),
-      invokeChat: (cid, message, style, provider, turnId, choice) async =>
+      invokeChat: (cid, message, style, provider, turnId, choice, _) async =>
           onChat?.call(choice),
     );
 

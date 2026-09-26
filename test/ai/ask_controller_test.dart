@@ -317,6 +317,27 @@ void main() {
     expect(ai.sent.last.choice, isNull);
   });
 
+  test('the screen Ask was opened from rides the next turn only — and its '
+      'retry', () async {
+    final ai = _FakeAi(failSend: true);
+    final c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+
+    c.openedFrom('readiness');
+    c.input.text = 'why?';
+    await c.send();
+    expect(ai.sent.single.entryPoint, 'readiness');
+
+    await c.retry(c.activeConversationId!);
+    expect(ai.sent.last.entryPoint, 'readiness');
+
+    // The next message is part of the conversation, not a fresh open.
+    c.input.text = 'and tomorrow?';
+    await c.send();
+    expect(ai.sent.last.entryPoint, isNull);
+  });
+
   test('a second tap on an answered card sends nothing', () async {
     final ai = _FakeAi();
     final c = _controller(ai);
@@ -763,6 +784,7 @@ typedef _Sent = ({
   String? turnId,
   String modelSelection,
   AiChoiceSelection? choice,
+  String? entryPoint,
 });
 
 /// A scripted [AiRepository] — only the members Ask actually drives are
@@ -862,6 +884,7 @@ class _FakeAi implements AiRepository {
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   }) async {
     sent.add((
       conversationId: conversationId,
@@ -869,6 +892,7 @@ class _FakeAi implements AiRepository {
       turnId: clientTurnId,
       modelSelection: modelSelection,
       choice: choice,
+      entryPoint: entryPoint,
     ));
     for (final phase in phases) {
       observedPhases.add(phase);
