@@ -23,7 +23,11 @@
 
 const {initializeApp} = require("firebase-admin/app");
 const {getAuth} = require("firebase-admin/auth");
-const {getFirestore} = require("firebase-admin/firestore");
+const {
+  getFirestore,
+  FieldValue,
+  AggregateField,
+} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {setGlobalOptions} = require("firebase-functions");
@@ -71,9 +75,15 @@ const {transcribeAudio, SpeechError} = require("./ai/speech/gateway");
 const {GeminiSpeechProvider} = require("./ai/speech/providers/gemini_speech_provider");
 const {OpenAiSpeechProvider} = require("./ai/speech/providers/openai_speech_provider");
 const speechRouter = require("./ai/speech/routing/speech_router");
+const {AdminService} = require("./admin/service");
+const {buildAdminHandlers} = require("./admin/handlers");
+const {buildDietDayTriggers} = require("./diet/triggers");
 
 initializeApp();
 const db = getFirestore();
+const adminService = new AdminService({
+  db, auth: getAuth(), FieldValue, AggregateField,
+});
 
 setGlobalOptions({maxInstances: 10});
 
@@ -663,6 +673,34 @@ exports.resetPasswordWithOtp = onCall(
 // --- deleteAccount ----------------------------------------------------------
 
 /**
+ * Erases an account: every document under its `users/{uid}` subtree, both
+ * OTP records, the auth identity, and its admin summary. Data-first so a
+ * partial failure can never orphan documents beneath a deleted uid.
+ *
+ * The ONE erasure path — the user's own `deleteAccount` and the Admin
+ * Console's `adminDeleteUser` both run exactly this.
+ * @param {string} uid
+ * @return {!Promise<void>}
+ */
+const eraseAccount = async (uid) => {
+  await db.recursiveDelete(db.collection("users").doc(uid));
+  await Promise.all([
+    db.collection(EMAIL_OTP_COLLECTION).doc(uid).delete()
+        .catch(() => undefined),
+    db.collection(PASSWORD_RESET_OTP_COLLECTION).doc(uid).delete()
+        .catch(() => undefined),
+  ]);
+  await getAuth().deleteUser(uid);
+  // Bookkeeping after the fact: the account is already gone, so a failure
+  // here must not report the deletion as failed.
+  try {
+    await adminService.forgetUser(uid);
+  } catch (err) {
+    console.error("eraseAccount: admin cleanup failed", err.message);
+  }
+};
+
+/**
  * Permanently erases the signed-in user: every document under their
  * `users/{uid}` subtree, both OTP records, and finally the auth identity
  * itself. Data-first so a partial failure can never orphan documents beneath a
@@ -682,16 +720,8 @@ exports.deleteAccount = onCall(
       // client-side prompt into an actual gate — this is the app's only
       // irreversible operation, so it must not be reachable by a token alone.
       requireRecentAuth(auth, "delete your account");
-      const uid = auth.uid;
       try {
-        await db.recursiveDelete(db.collection("users").doc(uid));
-        await Promise.all([
-          db.collection(EMAIL_OTP_COLLECTION).doc(uid).delete()
-              .catch(() => undefined),
-          db.collection(PASSWORD_RESET_OTP_COLLECTION).doc(uid).delete()
-              .catch(() => undefined),
-        ]);
-        await getAuth().deleteUser(uid);
+        await eraseAccount(auth.uid);
       } catch (err) {
         console.error("deleteAccount: failed", err.message);
         throw new HttpsError(
@@ -791,13 +821,12 @@ function aiUnavailableHttpsError(err) {
  * callable's own `timeoutSeconds`, so a hung provider never surfaces as the
  * client's opaque DEADLINE_EXCEEDED.
  *
- * Sized to leave room for the router's retry-then-fallback (`./ai/routing/
- * router.js`): up to 3 attempts now run for a transient failure (primary,
- * its retry, the fallback provider), so each attempt's budget is roughly a
- * THIRD of the callable's own `timeoutSeconds`, not the whole thing —
- * `workout_import`/`diet_import` dropped from 150s (half of their 300s
- * callable, sized for a single attempt) to 90s for exactly this reason;
- * `diet_generate` similarly from 120s to 85s. `chat`'s 50s is unchanged: its
+ * Sized to leave room for the router's retry (`./ai/routing/router.js`): a
+ * timed-out call is retried ONCE on the same provider (no cross-provider
+ * fallback any more), so at most 2 deadlines run per call, well inside the
+ * callable's `timeoutSeconds` — `workout_import`/`diet_import` at 90s and
+ * `diet_generate` at 85s were sized for the old 3-attempt fallback chain
+ * and are left as they are. `chat`'s 50s is unchanged: its
  * callable already budgets for up to `maxAgentSteps` model calls in one
  * turn, not one, so it was never sized as "half the callable" to begin with.
  * @const {!Object<string, number>}
@@ -840,12 +869,15 @@ async function savedModelPreference(store, uid) {
  * a quota refusal) — there is nothing to account for.
  * @param {{store: !FirestoreStore, uid: string, feature: string,
  *   meter: !UsageMeter, startedAt: !Date, offsetMinutes: (number|undefined),
- *   error: *, extra: (!Object|undefined)}} args
+ *   error: *, extra: (!Object|undefined), force: (boolean|undefined)}} args
+ *   `force` logs a failed request even when no model call went through the
+ *   meter (an unexpected error before the model was reached).
  * @return {!Promise<void>}
  */
-async function logMeteredUsage(
-    {store, uid, feature, meter, startedAt, offsetMinutes, error, extra}) {
-  if (!meter.used) return;
+async function logMeteredUsage({
+  store, uid, feature, meter, startedAt, offsetMinutes, error, extra, force,
+}) {
+  if (!meter.used && !force) return;
   const finishedAt = new Date();
   await saveUsageRecord(store, uid, buildUsageRecord({
     feature,
@@ -856,6 +888,18 @@ async function logMeteredUsage(
     error,
     extra,
   }), (msg, data) => logger.warn(msg, data));
+}
+
+/**
+ * The Anthropic client every AI callable uses — with the SDK's own retries
+ * OFF. The router (`./ai/routing/router.js`) is the one retry owner: with the
+ * SDK's default `maxRetries: 2` running inside each router attempt, one
+ * overloaded call became up to six provider requests, none of them visible
+ * in the usage log. (The Gemini client retries nothing unless asked.)
+ * @return {!Anthropic}
+ */
+function newAnthropic() {
+  return new Anthropic({apiKey: ANTHROPIC_API_KEY.value(), maxRetries: 0});
 }
 
 /**
@@ -936,6 +980,10 @@ exports.aiChat = onCall(
       // Client-generated idempotency key — makes a retried turn safe.
       const clientTurnId =
         (data.clientTurnId || "").toString() || undefined;
+      // The screen Ask was opened from — one routing signal among several
+      // (`./ai/chat/intent.js`). Untrusted: an unknown value is ignored.
+      const entryPoint =
+        (data.entryPoint || "").toString().slice(0, 40) || undefined;
       // A tapped answer to a question card — `{requestId, value}`, the
       // option's stable id. Untrusted: runAiTurn resolves it against the
       // stored card and rejects anything that isn't one of its options.
@@ -955,7 +1003,7 @@ exports.aiChat = onCall(
           undefined,
       };
 
-      const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      const anthropic = newAnthropic();
       const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic, genai);
       const store = new FirestoreStore(db);
@@ -992,6 +1040,9 @@ exports.aiChat = onCall(
           foodSearchProvider: foodSearchMeter.wrap(providerForCapability(
               registry, "food_search", routeOptionsFor("food_search"))),
           stream: streaming,
+          // The app applies `replace` snapshots of the live reply (sent only
+          // to a client that says so — an older build just appends deltas).
+          streamReplace: streaming && data.streamReplace === true,
           onEvent: streaming ? (event) => response.sendChunk(event) : undefined,
           uid: auth.uid,
           conversationId,
@@ -1000,6 +1051,7 @@ exports.aiChat = onCall(
           responseStyle,
           clientTurnId,
           clientClock,
+          entryPoint,
           // Fires when the client closes the stream — the turn stops before
           // its next model call instead of finishing for nobody.
           signal: response ? response.signal : undefined,
@@ -1021,16 +1073,42 @@ exports.aiChat = onCall(
         });
         // A turn that died on the model call leaves a failed chat record, so
         // "what happened to that message?" has an answer in the usage log.
-        // (Kept out of the daily cap — see `getTodayUsageTotals`.)
-        await logMeteredUsage({
-          store, uid: auth.uid, feature: AiFeature.CHAT, meter: chatMeter,
-          startedAt, offsetMinutes: clientClock.offsetMinutes, error: err,
-          extra: Object.assign({},
-              clientTurnId ? {clientTurnId} : {},
-              err && err.terminalState ?
-                {terminalState: err.terminalState} : {}),
-        });
-        throw toHttpsError(err);
+        // (Kept out of the daily cap — see `getTodayUsageTotals`.) The turn
+        // hands over its own full record (`err.turnUsage`: the steps that did
+        // run, the tools, the intent, which provider failed and why); a
+        // failure before the loop falls back to the meter's record — and an
+        // unexpected error is logged even when no model was reached, so no
+        // failure is missing from the log.
+        if (err && err.turnUsage) {
+          await saveUsageRecord(store, auth.uid, err.turnUsage,
+              (msg, d) => logger.warn(msg, d));
+        } else {
+          await logMeteredUsage({
+            store, uid: auth.uid, feature: AiFeature.CHAT, meter: chatMeter,
+            startedAt, offsetMinutes: clientClock.offsetMinutes, error: err,
+            force: !(err instanceof GatewayError),
+            extra: Object.assign({},
+                clientTurnId ? {clientTurnId} : {},
+                err && err.terminalState ?
+                  {terminalState: err.terminalState} : {}),
+          });
+        }
+        const httpsError = toHttpsError(err);
+        // A streamed turn also says WHY as a last chunk: the iOS plugin's
+        // stream path drops a callable error's code and details (every
+        // streamed error reaches Dart as "unknown"), so the app would show
+        // a generic failure instead of "Gemini is unavailable — busy" with
+        // Switch model. Data chunks do arrive intact; the client turns this
+        // one into the provider-named failure (`aiFailureFromStreamChunk`).
+        const details = httpsError.details;
+        if (streaming && details && details.reason === "ai_unavailable") {
+          try {
+            await response.sendChunk(Object.assign({type: "error"}, details));
+          } catch (_) {
+            // The stream is already gone — the thrown error still stands.
+          }
+        }
+        throw httpsError;
       }
     },
 );
@@ -1195,7 +1273,7 @@ exports.aiImportWorkoutPlan = onCall(
       const executionId = (data.executionId || "").toString() || undefined;
       const key = importKey(auth.uid, executionId);
 
-      const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      const anthropic = newAnthropic();
       const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic, genai);
       const store = new FirestoreStore(db);
@@ -1315,7 +1393,7 @@ exports.aiImportDietPlan = onCall(
       const executionId = (data.executionId || "").toString() || undefined;
       const key = importKey(auth.uid, executionId);
 
-      const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      const anthropic = newAnthropic();
       const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic, genai);
       const store = new FirestoreStore(db);
@@ -1442,7 +1520,7 @@ exports.aiGenerateDietPlan = onCall(
       // call, and the one with no file to make a caller think twice.
       await enforceDailyQuota(auth.uid, "dietGenerate", offsetFromData(data));
 
-      const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      const anthropic = newAnthropic();
       const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic, genai);
       const store = new FirestoreStore(db);
@@ -1748,3 +1826,17 @@ exports.weeklyCoachReport = onSchedule(
       logger.info("weeklyCoachReport", {reported, skipped});
     },
 );
+
+// --- Daily diet record (functions/diet/day_record.js) ------------------------
+// `dietDays/{dayKey}` is rebuilt server-side whenever a food log, a meal tick
+// or the plan changes, so history is one small document per day.
+Object.assign(exports, buildDietDayTriggers({store: new FirestoreStore(db)}));
+
+// --- Admin Console (ADR-018, docs/ADMIN.md) ----------------------------------
+// Admin-only callables (each re-checks the `admin` claim server-side) and the
+// triggers that derive product events from writes ZIVO already makes.
+Object.assign(exports, buildAdminHandlers({
+  service: adminService,
+  eraseAccount,
+  requireRecentAuth,
+}));

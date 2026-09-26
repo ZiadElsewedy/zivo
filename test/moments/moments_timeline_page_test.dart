@@ -105,6 +105,36 @@ void main() {
     expect(find.text('Sunset run'), findsOneWidget);
   });
 
+  testWidgets('the gallery is sectioned by month, newest first', (
+    tester,
+  ) async {
+    final moments = _PendingMomentRepository();
+    addTearDown(moments.dispose);
+
+    await tester.pumpWidget(
+      _wrap(child: const MomentsTimelinePage(), momentsOverride: moments),
+    );
+    moments.emit([
+      Moment(id: 'a', caption: 'Leg day', takenAt: DateTime(2026, 9, 20)),
+      Moment(id: 'b', caption: 'New shoes', takenAt: DateTime(2026, 9, 2)),
+      Moment(id: 'c', caption: 'Summer run', takenAt: DateTime(2026, 8, 14)),
+    ]);
+    await tester.pump();
+
+    // One heading per month, not per moment.
+    expect(find.text('SEPTEMBER 2026'), findsOneWidget);
+    expect(find.text('AUGUST 2026'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('SEPTEMBER 2026')).dy,
+      lessThan(tester.getTopLeft(find.text('AUGUST 2026')).dy),
+    );
+    // August's moment sits under August's heading.
+    expect(
+      tester.getTopLeft(find.text('Summer run')).dy,
+      greaterThan(tester.getTopLeft(find.text('AUGUST 2026')).dy),
+    );
+  });
+
   testWidgets('the FAB opens the capture page for a new moment', (tester) async {
     _useTallSurface(tester);
     final moments = InMemoryMomentRepository();

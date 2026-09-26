@@ -90,6 +90,21 @@ test("a component figure the coach may cite (a logged food) passes", () => {
   assert.equal(r.ok, true);
 });
 
+test("a ticked meal's item figure is citable (it's no longer a log entry)",
+    () => {
+      // Phase 6: a ticked meal's foods live in its `items`, not `logEntries`.
+      const ctx = Object.assign({}, CTX, {logEntries: [], meals: [
+        {id: "m1", label: "Lunch", eaten: true, kcal: 525, items: [
+          {index: 0, name: "Chicken breast", calories: 330},
+          {index: 1, name: "Rice", calories: 195},
+        ]},
+      ]});
+      const r = validateAdvice(
+          "The chicken breast (330) and rice (195) are what put you at 1,180 " +
+          "so far.", ctx);
+      assert.equal(r.ok, true);
+    });
+
 test("a general-knowledge per-100g fact is not treated as a day claim", () => {
   const r = validateAdvice(
       "For reference, chicken breast is about 165 calories per 100g.", CTX);
@@ -211,4 +226,58 @@ test("WARNING about a sub-floor number is not mistaken for recommending it",
 test("an empty reply passes (nothing to validate)", () => {
   assert.equal(validateAdvice("", CTX).ok, true);
   assert.equal(validateAdvice("   ", CTX).ok, true);
+});
+
+// --- several days in one reply --------------------------------------------
+
+const YESTERDAY = {
+  date: "2026-08-16", kind: "pastDay",
+  consumed: {kcal: 1900, proteinG: 140, basis: "logged"},
+  targets: {calories: 2200},
+  meals: [{id: "m1", label: "Lunch", status: "eaten", plannedKcal: 650,
+    actual: {kcal: 610}}],
+  logEntries: [],
+};
+
+test("a figure from another day the turn read is citable", () => {
+  const ctx = Object.assign({}, CTX, {otherDays: [YESTERDAY]});
+  const r = validateAdvice(
+      "Yesterday you ate 1,900 calories; today you're at 1,180 so far.", ctx);
+  assert.equal(r.ok, true);
+  // Without yesterday in play, 1,900 is an invented figure.
+  assert.equal(validateAdvice(
+      "Yesterday you ate 1,900 calories.", CTX).ok, false);
+});
+
+test("a history average is citable", () => {
+  const history = {from: "2026-08-11", to: "2026-08-17",
+    summary: {avgKcal: 1850, target: {calories: 2200}},
+    days: [{date: "2026-08-16", kcal: 1900, vsTargetKcal: -300}]};
+  const ctx = Object.assign({}, CTX, {otherDays: [history]});
+  assert.equal(validateAdvice(
+      "This week you've averaged 1,850 calories, 300 under on the 16th.",
+      ctx).ok, true);
+});
+
+test("an empty today doesn't forbid talking about what was eaten yesterday",
+    () => {
+      const today = Object.assign({}, CTX, {
+        consumed: {kcal: 0, basis: "nothingLogged"},
+        quality: Object.assign({}, CTX.quality, {nothingLogged: true}),
+        logEntries: [],
+      });
+      const r = validateAdvice("Yesterday you ate 1,900 calories.",
+          Object.assign({}, today, {otherDays: [YESTERDAY]}));
+      assert.equal(r.ok, true);
+      // A second read of the SAME day is not "another day": the rule holds.
+      const sameDay = Object.assign({}, today, {otherDays: [today]});
+      assert.equal(validateAdvice("You ate 1,900 calories.", sameDay).ok,
+          false);
+    });
+
+test("a past day's meal figures are citable", () => {
+  const r = validateAdvice(
+      "Lunch was planned at 650 and you logged 610 of it — 1,900 for the " +
+      "day, 300 under your target.", YESTERDAY);
+  assert.equal(r.ok, true);
 });

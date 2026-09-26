@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -33,6 +34,9 @@ import '../../../workout/presentation/pages/workout_plan_edit_page.dart';
 import '../../../workout/presentation/widgets/add_workout_sheet.dart';
 import '../../../../l10n/l10n.dart';
 import '../header_builder.dart';
+import '../motivation_lines.dart';
+import '../../../../core/theme/zivo_palette.dart';
+import '../../../../core/motion/springs.dart';
 import '../widgets/common.dart';
 import '../widgets/diet_glance.dart';
 import '../widgets/sleep_glance.dart';
@@ -44,7 +48,7 @@ import '../../../../core/util/date_format.dart';
 /// The Today command centre — the adaptive surface that reads like a
 /// sentence about the day, built live from the day's real signals.
 class TodayPage extends StatefulWidget {
-  const TodayPage({super.key, this.onOpenAsk, this.onQuickLog, this.now});
+  const TodayPage({super.key, this.onOpenAsk, this.now});
 
   /// The clock the **insights strip** is judged against — real wall time in
   /// production, injected in tests.
@@ -58,23 +62,13 @@ class TodayPage extends StatefulWidget {
   final DateTime Function()? now;
 
   /// Opens the Ask tab — Today can't switch tabs itself (HomeShell owns the
-  /// tab index), so this is how the pull/tap gesture below reaches it.
+  /// tab index), so this is how the readiness card's "ask about it" reaches
+  /// it.
   final VoidCallback? onOpenAsk;
-
-  /// Opens the voice quick-log sheet; HomeShell transcribes and lands the
-  /// text in Ask's composer, switching tabs itself.
-  final VoidCallback? onQuickLog;
 
   @override
   State<TodayPage> createState() => _TodayPageState();
 }
-
-/// How far (in logical pixels) the list must be pulled below its top —
-/// i.e. how negative [ScrollMetrics.pixels] must go under the app-wide
-/// bouncing overscroll (see `ZivoScrollBehavior`, applied on every platform)
-/// — before a pull-down is treated as "open Ask" rather than an incidental
-/// rubber-band wobble.
-const double _kAskPullThreshold = 80;
 
 /// Vertical room the now-playing strip occupies above the tab bar (the strip
 /// plus its swipe handle and margins) — see the list padding below.
@@ -83,23 +77,67 @@ const double _kAskPullThreshold = 80;
 const double _kCaptureFabAllowance = 56 + 16;
 
 class _TodayPageState extends State<TodayPage> {
-  bool _askTriggered = false;
+  /// Bumped by pull-to-refresh. Keys the sections, so each one remounts:
+  /// every stream resubscribes, and everything judged against the clock
+  /// (insights, readiness, the greeting) is judged again.
+  int _generation = 0;
 
-  bool _handleScroll(ScrollNotification notification) {
-    if (notification is ScrollStartNotification) {
-      _askTriggered = false;
-    } else if (!_askTriggered &&
-        notification.metrics.pixels <= -_kAskPullThreshold) {
-      _askTriggered = true;
-      _openAsk();
-    }
-    return false;
+  /// Pull-to-refresh. Most of Today is live streams that never go stale on
+  /// their own; what doesn't update itself is sleep, which is READ from
+  /// Health on a throttle — so a pull forces that read (past the throttle),
+  /// then rebuilds the sections over the result. It used to open Ask
+  /// instead, which a pull on a feed never means anywhere else in iOS.
+  Future<void> _refresh() async {
+    HapticFeedback.mediumImpact();
+    final sleep = AppScope.of(context).sleepService;
+    await Future.wait([
+      if (sleep != null) sleep.sync().catchError((Object _) {}),
+      // A floor, so an instant refresh still reads as one rather than the
+      // spinner blinking.
+      Future<void>.delayed(const Duration(milliseconds: 600)),
+    ]);
+    if (mounted) setState(() => _generation++);
   }
 
-  void _openAsk() {
-    if (widget.onOpenAsk == null) return;
-    HapticFeedback.selectionClick();
-    widget.onOpenAsk!();
+  /// The spinner the pull reveals: drawn in as the pull deepens, spinning
+  /// once armed — the platform control, in the page's own ink.
+  Widget _refreshIndicator(
+    BuildContext context,
+    RefreshIndicatorMode mode,
+    double pulled,
+    double trigger,
+    double extent,
+  ) {
+    final progress = (pulled / trigger).clamp(0.0, 1.0);
+    final color = TrainColors.inkAt(0.6);
+    // The gap opens at the very top of the screen, under the status bar —
+    // so the spinner is pinned to the gap's bottom and then drawn one
+    // status bar lower, into the list's own (empty) top inset. It rides just
+    // above the date, clear of the Dynamic Island, without holding the
+    // content a whole extra status bar down while it spins.
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Transform.translate(
+        offset: Offset(0, MediaQuery.paddingOf(context).top - 16),
+        child: switch (mode) {
+          RefreshIndicatorMode.inactive => const SizedBox.shrink(),
+          RefreshIndicatorMode.drag => Opacity(
+            opacity: Curves.easeIn.transform(progress),
+            child: CupertinoActivityIndicator.partiallyRevealed(
+              progress: progress,
+              color: color,
+              radius: 12,
+            ),
+          ),
+          RefreshIndicatorMode.armed || RefreshIndicatorMode.refresh =>
+            CupertinoActivityIndicator(color: color, radius: 12),
+          RefreshIndicatorMode.done => Opacity(
+            opacity: progress,
+            child: CupertinoActivityIndicator(color: color, radius: 12),
+          ),
+        },
+      ),
+    );
   }
 
   @override
@@ -116,87 +154,99 @@ class _TodayPageState extends State<TodayPage> {
           // corner, so the screen the handoff describes as having exactly one
           // glow was lit from both the top-left and the top-right at once.
           //
-          // The status-bar inset belongs to the LIST's padding, not to a
-          // SizedBox above it: as a fixed band outside the viewport it shrank
-          // the scrollable area by the inset on every device and pinned a
-          // strip of dead ground to the top of the screen. Inside the padding
-          // the viewport is the full height of the page, the first card still
+          // The status-bar inset lives INSIDE the scroll view (the list's
+          // top padding), not in a fixed band above it: a band outside the
+          // viewport shrank the scrollable area on every device and pinned a
+          // strip of dead ground to the top of the screen. Inside, the
+          // viewport is the full height of the page, the first card still
           // starts 62px down, and the inset scrolls away with the content the
           // way it does everywhere else in iOS.
           Positioned.fill(
-            child: NotificationListener<ScrollNotification>(
-              onNotification: _handleScroll,
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.screen,
-                  // 62px from the top of the safe area to the date caption,
-                  // per the handoff's screen padding.
-                  media.padding.top + 14,
-                  AppSpacing.screen,
-                  // The shell runs `extendBody: true`, so the list scrolls
-                  // UNDER the whole bottom object — nav island plus the
-                  // fused now-playing strip. [BottomChrome] is that
-                  // object's live measured height, so this tracks music
-                  // appearing and leaving instead of reserving a fixed
-                  // allowance that was right in only one of the two states.
-                  // The FAB floats over this same corner, so its disc
-                  // clears too: without that, "Start Workout" ended up
-                  // underneath it.
-                  BottomChrome.of(context) +
-                      _kCaptureFabAllowance +
-                      AppSpacing.base,
-                ),
-                children: [
-                  RiseIn(
-                    delay: Duration.zero,
-                    child: _Header(onQuickLog: widget.onQuickLog),
-                  ),
-                  // Primary tier — the day at a glance: train / fuel /
-                  // move rings answering "what have I done today?"
-                  RiseIn(
-                    delay: const Duration(milliseconds: 70),
-                    child: TodayPulseSection(now: widget.now),
-                  ),
-                  // The day's training, full-weight card — the first thing to
-                  // act on today, so it leads the sections below the pulse.
-                  const RiseIn(
-                    delay: Duration(milliseconds: 105),
-                    child: _TrainingSection(),
-                  ),
-                  // The day's call — train hard / go light / rest — fused from
-                  // sleep, training load, recovery and weight. Hides itself
-                  // when there is nothing to base a call on.
-                  RiseIn(
-                    delay: const Duration(milliseconds: 140),
-                    child: ReadinessSection(
-                      onOpenAsk: widget.onOpenAsk,
-                      now: widget.now,
-                    ),
-                  ),
-                  // Momentum — "how am I doing?" streak, week bars,
-                  // weight trend.
-                  RiseIn(
-                    delay: const Duration(milliseconds: 210),
-                    child: MomentumSection(now: widget.now),
-                  ),
-                  // Worth knowing — computed right-now nudges.
-                  RiseIn(
-                    delay: const Duration(milliseconds: 280),
-                    child: InsightsSection(now: widget.now),
-                  ),
-                  // Tertiary tier — quiet glances, muted ink tones (no bright hues).
-                  const RiseIn(
-                    delay: Duration(milliseconds: 350),
-                    child: _DietSection(),
-                  ),
-                  // Sleep hides itself when there is no night to report,
-                  // rather than showing a zero — see SleepGlanceSection.
-                  const RiseIn(
-                    delay: Duration(milliseconds: 420),
-                    child: SleepGlanceSection(),
-                  ),
-                ],
+            child: CustomScrollView(
+              // Pullable even when the day's content is shorter than the
+              // screen.
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
               ),
+              slivers: [
+                // Must be the FIRST sliver — the control reads the pull from
+                // the viewport's own overscroll. (Its spinner is drawn down
+                // past the status bar; see [_refreshIndicator].)
+                CupertinoSliverRefreshControl(
+                  onRefresh: _refresh,
+                  builder: _refreshIndicator,
+                  refreshTriggerPullDistance: 110,
+                  refreshIndicatorExtent: 50,
+                ),
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.screen,
+                    // 62px from the top of the safe area to the date caption,
+                    // per the handoff's screen padding.
+                    media.padding.top + 14,
+                    AppSpacing.screen,
+                    // The shell runs `extendBody: true`, so the list scrolls
+                    // UNDER the whole bottom object — nav island plus the
+                    // fused now-playing strip. [BottomChrome] is that
+                    // object's live measured height, so this tracks music
+                    // appearing and leaving. The FAB floats over this same
+                    // corner, so its disc clears too.
+                    BottomChrome.of(context) +
+                        _kCaptureFabAllowance +
+                        AppSpacing.base,
+                  ),
+                  sliver: SliverList.list(
+                    key: ValueKey(_generation),
+                    children: [
+                      RiseIn(delay: Duration.zero, child: const _Header()),
+                      // Primary tier — the day at a glance: train / fuel /
+                      // move rings answering "what have I done today?"
+                      RiseIn(
+                        delay: const Duration(milliseconds: 70),
+                        child: TodayPulseSection(now: widget.now),
+                      ),
+                      // The day's training, full-weight card — the first thing to
+                      // act on today, so it leads the sections below the pulse.
+                      const RiseIn(
+                        delay: Duration(milliseconds: 105),
+                        child: _TrainingSection(),
+                      ),
+                      // The day's call — train hard / go light / rest — fused from
+                      // sleep, training load, recovery and weight. Hides itself
+                      // when there is nothing to base a call on.
+                      RiseIn(
+                        delay: const Duration(milliseconds: 140),
+                        child: ReadinessSection(
+                          onOpenAsk: widget.onOpenAsk,
+                          now: widget.now,
+                        ),
+                      ),
+                      // Momentum — "how am I doing?" streak, week bars,
+                      // weight trend.
+                      RiseIn(
+                        delay: const Duration(milliseconds: 210),
+                        child: MomentumSection(now: widget.now),
+                      ),
+                      // Worth knowing — computed right-now nudges.
+                      RiseIn(
+                        delay: const Duration(milliseconds: 280),
+                        child: InsightsSection(now: widget.now),
+                      ),
+                      // Tertiary tier — quiet glances, muted ink tones (no bright hues).
+                      const RiseIn(
+                        delay: Duration(milliseconds: 350),
+                        child: _DietSection(),
+                      ),
+                      // Sleep hides itself when there is no night to report,
+                      // rather than showing a zero — see SleepGlanceSection.
+                      const RiseIn(
+                        delay: Duration(milliseconds: 420),
+                        child: SleepGlanceSection(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -206,77 +256,150 @@ class _TodayPageState extends State<TodayPage> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({this.onQuickLog});
-
-  final VoidCallback? onQuickLog;
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                formatTodayShort(
-                  now,
-                  Localizations.localeOf(context).toLanguageTag(),
-                ),
-                style: TrainType.mono(
-                  size: 10,
-                  weight: FontWeight.w500,
-                  tracking: 0.18,
-                  color: TrainColors.inkAt(0.42),
-                ),
-              ),
-              const SizedBox(height: 12),
-              // The live clock is the header's anchor and this screen's one
-              // hero number — a glance answers "what time is it" before
-              // anything else on Today does.
-              const _LiveTime(),
-              const SizedBox(height: 10),
-              _GreetingRow(now: now),
-            ],
+        Text(
+          formatTodayShort(
+            now,
+            Localizations.localeOf(context).toLanguageTag(),
+          ),
+          style: TrainType.mono(
+            size: 10,
+            weight: FontWeight.w500,
+            tracking: 0.18,
+            color: TrainColors.inkAt(0.42),
           ),
         ),
-        const SizedBox(width: 12),
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Column(
-            children: [
-              // Voice quick-log — one tap from the command centre to a logged
-              // expense/workout via Ask's proposal flow.
-              if (onQuickLog != null) _QuickLogButton(onTap: onQuickLog!),
-              const SizedBox(height: 6),
-              _TimeOfDayChip(now: now),
-            ],
-          ),
-        ),
+        const SizedBox(height: 12),
+        // The live clock is the header's anchor and this screen's one hero
+        // number — a glance answers "what time is it" before anything else
+        // on Today does.
+        const _LiveTime(),
+        const SizedBox(height: 10),
+        _GreetingRow(now: now),
+        const SizedBox(height: 8),
+        const _MotivationLine(),
       ],
     );
   }
 }
 
-/// The header's mic affordance for the voice quick-log sheet — a 40px glass
-/// circle, the handoff's control shape.
-class _QuickLogButton extends StatelessWidget {
-  const _QuickLogButton({required this.onTap});
+/// The hourly push under the greeting (see [motivationFor]) — lit like a
+/// flame, amber at its base burning into ember, so it reads as the day's
+/// heat rather than one more caption. Smaller and lighter than the greeting,
+/// and text rather than a button, so it never competes with the ember Start
+/// workout below it.
+class _MotivationLine extends StatefulWidget {
+  const _MotivationLine();
 
-  final VoidCallback onTap;
+  @override
+  State<_MotivationLine> createState() => _MotivationLineState();
+}
+
+class _MotivationLineState extends State<_MotivationLine> {
+  DateTime _now = DateTime.now();
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _schedule();
+  }
+
+  /// One timer to the top of the next hour, re-armed each time — not a
+  /// periodic one, which would drift off the hour.
+  void _schedule() {
+    _timer = Timer(nextMotivationChange(_now).difference(DateTime.now()), () {
+      if (!mounted) return;
+      setState(() => _now = DateTime.now());
+      _schedule();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return TrainCircleButton(
-      key: const Key('today-quicklog'),
-      size: 40,
-      fill: TrainColors.glassSoft,
-      border: TrainColors.liftAt(0.1),
-      semanticLabel: l(context).todayQuickLogVoice,
-      onTap: onTap,
-      child: Icon(AppIcons.mic, size: 16, color: TrainColors.violet),
+    final line = motivationFor(
+      _now,
+      Localizations.localeOf(context).languageCode,
+    );
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    return AnimatedSwitcher(
+      duration: reducedMotion(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 500),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (current, previous) => Stack(
+        alignment: AlignmentDirectional.topStart,
+        children: [...previous, ?current],
+      ),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position: Tween(
+            begin: const Offset(0, 0.25),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
+        ),
+      ),
+      child: ShaderMask(
+        key: ValueKey(line),
+        blendMode: BlendMode.srcIn,
+        shaderCallback: (bounds) => LinearGradient(
+          begin: rtl ? Alignment.centerRight : Alignment.centerLeft,
+          end: rtl ? Alignment.centerLeft : Alignment.centerRight,
+          colors: [TrainColors.amber, TrainColors.ember],
+        ).createShader(bounds),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              // White under the mask — the gradient supplies the colour.
+              child: Icon(AppIcons.streak, size: 17, color: Colors.white),
+            ),
+            const SizedBox(width: 7),
+            Flexible(
+              child: Text(
+                line,
+                key: const Key('today-motivation'),
+                maxLines: 2,
+                style:
+                    TrainType.ui(
+                      size: 16,
+                      weight: FontWeight.w800,
+                      tracking: -0.01,
+                      height: 1.3,
+                      color: Colors.white,
+                    ).copyWith(
+                      // Masked like the glyphs, so this becomes the flame's own
+                      // warm glow rather than a grey drop shadow. Dark skin only:
+                      // on paper a glow reads as a smudge, not heat.
+                      shadows: ZivoTheme.brightness == Brightness.dark
+                          ? const [
+                              Shadow(color: Color(0x99FFFFFF), blurRadius: 14),
+                            ]
+                          : null,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -357,54 +480,6 @@ class _LiveTimeState extends State<_LiveTime> {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// The glass chip beside the mic — sun by day, twilight at dusk, moon at
-/// night — so the header carries the feel of the actual hour.
-///
-/// Deliberately not a control: the handoff draws a do-not-disturb toggle
-/// here, and ZIVO has no such mode, so this stays the read-only marker it
-/// already was rather than promising an action it can't perform.
-class _TimeOfDayChip extends StatelessWidget {
-  const _TimeOfDayChip({required this.now});
-
-  final DateTime now;
-
-  @override
-  Widget build(BuildContext context) {
-    final h = now.hour;
-    final (IconData icon, Color color, String label) = switch (h) {
-      >= 6 && < 18 => (
-        Icons.wb_sunny_rounded,
-        TrainColors.ember,
-        l(context).todayDaytime,
-      ),
-      >= 18 && < 22 => (
-        Icons.wb_twilight_rounded,
-        TrainColors.amber,
-        l(context).todayEvening,
-      ),
-      _ => (
-        Icons.nightlight_round,
-        TrainColors.violetGlyph,
-        l(context).todayNight,
-      ),
-    };
-    return Semantics(
-      label: label,
-      child: Container(
-        width: 40,
-        height: 40,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color.withValues(alpha: 0.10),
-          border: Border.all(color: color.withValues(alpha: 0.22)),
-        ),
-        child: Icon(icon, color: color, size: 15),
-      ),
     );
   }
 }

@@ -46,8 +46,39 @@ const AiFeature = {
  * other provider (`../routing/router.js`). v6 adds `fallbackCount` (calls
  * that needed the other provider) and `failedAttempts`
  * (`[{provider, model, kind}]`) — additive, so a v5 reader is unaffected.
+ * v7 adds `perCall` — one row per model call (tokens by bucket, stop reason,
+ * latency, and the provider requests it took: `tries`) — plus, on chat turns,
+ * `intent`, `promptVersion` and a `context` size breakdown
+ * (`../chat/turn.js`). Sizes and names only: never prompt, message or tool
+ * text. Additive, so a v6 reader is unaffected.
  */
-const USAGE_SCHEMA_VERSION = 6;
+const USAGE_SCHEMA_VERSION = 7;
+
+/**
+ * One model call as a `perCall` row: its token buckets, why it stopped, how
+ * long it took, and — only when it took more than one provider request —
+ * every request (`tries`), so a retry or fallback is visible per call.
+ * @param {!Object} response A router-stamped `NormalizedResponse`.
+ * @param {number} latencyMs
+ * @return {!Object}
+ */
+function callRow(response, latencyMs) {
+  const u = (response && response.usage) || {};
+  const row = {
+    provider: response && response.provider,
+    model: response && response.model,
+    inputTokens: u.inputTokens || 0,
+    cacheReadTokens: u.cacheReadTokens || 0,
+    cacheWriteTokens: u.cacheWriteTokens || 0,
+    outputTokens: u.outputTokens || 0,
+    stopReason: (response && response.stopReason) || null,
+    latencyMs,
+  };
+  const tries = response && Array.isArray(response.tries) ?
+    response.tries : [];
+  if (tries.length > 1) row.tries = tries;
+  return row;
+}
 
 /**
  * Records every model call made through a wrapped provider.
@@ -73,13 +104,24 @@ class UsageMeter {
   wrap(provider) {
     return {
       generate: async (request, opts) => {
+        const startedAt = Date.now();
         try {
           const response = await provider.generate(request, opts);
-          this.record(response);
+          this.record(response, Date.now() - startedAt);
           return response;
         } catch (err) {
           if (err instanceof AiUnavailableError) {
             this.failedAttempts.push(...err.attempts);
+          } else if (err && Array.isArray(err.tries)) {
+            // A request the router rethrew as-is (`bad_request` — our own
+            // malformed request): recorded, so the failure is in the log
+            // rather than silently missing from it.
+            for (const t of err.tries) {
+              if (!t.ok) {
+                this.failedAttempts.push(
+                    {provider: t.provider, model: t.model, kind: t.kind});
+              }
+            }
           }
           throw err;
         }
@@ -90,8 +132,9 @@ class UsageMeter {
   /**
    * Folds one model response into the meter.
    * @param {!Object} response A router-stamped `NormalizedResponse`.
+   * @param {number=} latencyMs
    */
-  record(response) {
+  record(response, latencyMs) {
     const u = (response && response.usage) || {};
     const provider = response && response.provider;
     const model = response && response.model;
@@ -104,6 +147,7 @@ class UsageMeter {
       cacheReadTokens: u.cacheReadTokens || 0,
       cacheWriteTokens: u.cacheWriteTokens || 0,
       costUsd: costUsd(u, provider, model),
+      row: callRow(response, latencyMs || 0),
     };
     // Set only when the router actually fell back — see `../routing/
     // router.js` — so an ordinary (non-fallback) call's record shape is
@@ -170,6 +214,7 @@ function buildUsageRecord(
     tokensOut: sum("outputTokens"),
     costUsd: calls.reduce((n, c) => n + c.costUsd, 0),
     calls: calls.length,
+    perCall: calls.map((c) => c.row).filter(Boolean),
     latencyMs: finishedAt.getTime() - startedAt.getTime(),
     createdAt: finishedAt,
     schemaVersion: USAGE_SCHEMA_VERSION,
@@ -197,7 +242,16 @@ function buildUsageRecord(
   ];
   if (fellBack.length) record.fallbackCount = fellBack.length;
   if (failedAttempts.length) record.failedAttempts = failedAttempts;
-  if (error) record.errorKind = errorKindFor(error);
+  if (error) {
+    record.errorKind = errorKindFor(error);
+    // Which provider/model the failure came from — the SELECTED one, since
+    // nothing falls back to another provider (`../routing/router.js`).
+    const failedOn = failed[failed.length - 1];
+    if (failedOn) {
+      record.failedProvider = failedOn.provider;
+      record.failedModel = failedOn.model;
+    }
+  }
   return Object.assign(record, extra || {});
 }
 
@@ -226,6 +280,7 @@ async function saveUsageRecord(store, uid, record, warn) {
 module.exports = {
   AiFeature,
   USAGE_SCHEMA_VERSION,
+  callRow,
   UsageMeter,
   buildUsageRecord,
   saveUsageRecord,

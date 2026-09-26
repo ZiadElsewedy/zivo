@@ -393,18 +393,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get actionBack => 'رجوع';
 
   @override
-  String get todayQuickLogVoice => 'تسجيل سريع بالصوت';
-
-  @override
-  String get todayDaytime => 'نهار';
-
-  @override
-  String get todayEvening => 'مساء';
-
-  @override
-  String get todayNight => 'ليل';
-
-  @override
   String get todayNextSession => 'التمرين القادم';
 
   @override
@@ -3406,6 +3394,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get mediaCapturedOnAnotherDevice => 'التُقطت على جهاز آخر';
+
+  @override
+  String get mediaConnectDriveToView => 'اربط Drive للعرض';
 
   @override
   String get mediaOnAnotherBackupAccount => 'في حساب Drive آخر';
@@ -6488,4 +6479,518 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveChangeNext => 'غيّر';
+
+  @override
+  String get adminConsoleTitle => 'الإدارة';
+
+  @override
+  String get adminNavDashboard => 'لوحة المعلومات';
+
+  @override
+  String get adminNavUsers => 'المستخدمون';
+
+  @override
+  String get adminNavActivity => 'النشاط';
+
+  @override
+  String get adminSignOut => 'تسجيل الخروج';
+
+  @override
+  String get adminRefresh => 'تحديث';
+
+  @override
+  String get adminRetry => 'حاول مرة أخرى';
+
+  @override
+  String adminUpdatedAt(String time) {
+    return 'آخر تحديث $time';
+  }
+
+  @override
+  String get adminActive7dLabel => 'نشطون خلال آخر ٧ أيام';
+
+  @override
+  String get adminReachTotal => 'كل الحسابات';
+
+  @override
+  String get adminReach30 => 'آخر ٣٠ يومًا';
+
+  @override
+  String get adminReach7 => 'آخر ٧ أيام';
+
+  @override
+  String get adminReachToday => 'اليوم';
+
+  @override
+  String get adminSectionPeople => 'الأشخاص';
+
+  @override
+  String get adminSectionTraining => 'التمرين';
+
+  @override
+  String get adminSectionAi => 'الذكاء الاصطناعي';
+
+  @override
+  String get adminKpiTotalUsers => 'إجمالي المستخدمين';
+
+  @override
+  String get adminKpiNewToday => 'جدد اليوم';
+
+  @override
+  String get adminKpiNewWeek => 'جدد هذا الأسبوع';
+
+  @override
+  String get adminKpiDisabled => 'موقوفون';
+
+  @override
+  String get adminKpiWithPlan => 'لديهم خطة تمرين';
+
+  @override
+  String adminKpiPlanShare(int percent) {
+    return '$percent٪ من المستخدمين';
+  }
+
+  @override
+  String get adminKpiWorkoutsToday => 'تمارين مكتملة اليوم';
+
+  @override
+  String get adminKpiAiToday => 'طلبات اليوم';
+
+  @override
+  String get adminKpiAi30 => 'الطلبات خلال ٣٠ يومًا';
+
+  @override
+  String get adminKpiTokens30 => 'الرموز خلال ٣٠ يومًا';
+
+  @override
+  String get adminKpiCost30 => 'التكلفة التقديرية خلال ٣٠ يومًا';
+
+  @override
+  String get adminKpiTokensAll => 'الرموز منذ البداية';
+
+  @override
+  String get adminCostNote => 'تقدير بسعر كل نموذج وقت تنفيذ الطلب.';
+
+  @override
+  String get adminChartTitle => 'آخر ١٤ يومًا';
+
+  @override
+  String get adminChartWorkouts => 'تمارين مكتملة';
+
+  @override
+  String get adminChartOpens => 'مرات فتح التطبيق';
+
+  @override
+  String get adminRebuild => 'إعادة بناء الملخصات';
+
+  @override
+  String get adminRebuildHint =>
+      'يعيد عدّ كل حساب من بياناته. شغّله مرة بعد الإعداد، أو إذا بدا رقم غير صحيح.';
+
+  @override
+  String adminRebuildRunning(int count) {
+    return 'جارٍ إعادة البناء… $count حسابًا حتى الآن';
+  }
+
+  @override
+  String adminRebuildDone(int count) {
+    return 'تمت إعادة بناء $count حسابًا';
+  }
+
+  @override
+  String get adminUsersTitle => 'المستخدمون';
+
+  @override
+  String get adminSearchHint => 'ابحث بالاسم أو البريد أو معرّف الحساب';
+
+  @override
+  String get adminSegmentAll => 'الكل';
+
+  @override
+  String get adminSegmentActive => 'نشطون';
+
+  @override
+  String get adminSegmentInactive => 'غير نشطين';
+
+  @override
+  String get adminSegmentNew => 'جدد';
+
+  @override
+  String get adminFilter => 'تصفية';
+
+  @override
+  String get adminFilterNone => 'بدون تصفية';
+
+  @override
+  String get adminFilterHasPlan => 'لديه خطة تمرين';
+
+  @override
+  String get adminFilterNoPlan => 'بلا خطة تمرين';
+
+  @override
+  String get adminFilterSuspended => 'موقوف';
+
+  @override
+  String get adminFilterNotSuspended => 'غير موقوف';
+
+  @override
+  String adminFilterPlatform(String platform) {
+    return 'المنصة: $platform';
+  }
+
+  @override
+  String get adminFilterVersion => 'إصدار التطبيق…';
+
+  @override
+  String adminFilterVersionActive(String version) {
+    return 'الإصدار: $version';
+  }
+
+  @override
+  String get adminFilterVersionHint => 'مثال: 1.0.0+1';
+
+  @override
+  String get adminApply => 'تطبيق';
+
+  @override
+  String get adminSearchIgnoresFilters =>
+      'البحث في كل المستخدمين — لا تنطبق الفئة والتصفية.';
+
+  @override
+  String get adminColUser => 'المستخدم';
+
+  @override
+  String get adminColStatus => 'الحالة';
+
+  @override
+  String get adminColLastActive => 'آخر نشاط';
+
+  @override
+  String get adminColJoined => 'انضم';
+
+  @override
+  String get adminColDevice => 'الجهاز';
+
+  @override
+  String get adminColPlan => 'خطة';
+
+  @override
+  String get adminColWorkouts => 'التمارين';
+
+  @override
+  String get adminColAi => 'الذكاء الاصطناعي';
+
+  @override
+  String get adminColLastActivity => 'آخر إجراء';
+
+  @override
+  String get adminStatusActive => 'نشط';
+
+  @override
+  String get adminStatusSuspended => 'موقوف';
+
+  @override
+  String get adminYes => 'نعم';
+
+  @override
+  String get adminNo => 'لا';
+
+  @override
+  String get adminNever => 'أبدًا';
+
+  @override
+  String get adminUnnamed => 'بلا اسم بعد';
+
+  @override
+  String get adminLoadMore => 'تحميل المزيد';
+
+  @override
+  String get adminUsersEmpty =>
+      'لا يوجد مستخدمون مطابقون. امسح البحث أو التصفية لرؤية الجميع.';
+
+  @override
+  String get adminSectionAccount => 'الحساب';
+
+  @override
+  String get adminSectionWorkout => 'التمرين';
+
+  @override
+  String get adminSectionUsage => 'الاستخدام';
+
+  @override
+  String get adminSectionRecent => 'النشاط الأخير';
+
+  @override
+  String get adminSectionManage => 'إدارة الحساب';
+
+  @override
+  String get adminFieldCreated => 'تاريخ الإنشاء';
+
+  @override
+  String get adminFieldLastActive => 'آخر نشاط';
+
+  @override
+  String get adminFieldLastSignIn => 'آخر تسجيل دخول';
+
+  @override
+  String get adminFieldPlatform => 'المنصة';
+
+  @override
+  String get adminFieldVersion => 'إصدار التطبيق';
+
+  @override
+  String get adminFieldStatus => 'الحالة';
+
+  @override
+  String get adminFieldSignInMethod => 'طريقة الدخول';
+
+  @override
+  String get adminFieldAccountId => 'معرّف الحساب';
+
+  @override
+  String get adminFieldHasPlan => 'خطة التمرين';
+
+  @override
+  String get adminFieldPlanCreated => 'إنشاء أول خطة';
+
+  @override
+  String get adminFieldPlans => 'الخطط المنشأة';
+
+  @override
+  String get adminFieldSessions => 'الجلسات المبدوءة';
+
+  @override
+  String get adminFieldCompleted => 'المكتملة';
+
+  @override
+  String get adminFieldAbandoned => 'المتروكة';
+
+  @override
+  String get adminFieldLastWorkout => 'آخر تمرين';
+
+  @override
+  String get adminFieldAiRequests => 'طلبات الذكاء الاصطناعي';
+
+  @override
+  String get adminFieldTokens => 'الرموز داخل / خارج';
+
+  @override
+  String get adminFieldAiCost => 'تكلفة الذكاء الاصطناعي التقديرية';
+
+  @override
+  String get adminFieldAppOpens => 'مرات فتح التطبيق';
+
+  @override
+  String get adminFieldDietImports => 'استيراد الأنظمة الغذائية';
+
+  @override
+  String get adminNoEvents =>
+      'لا يوجد نشاط مسجّل بعد. تُسجَّل الأحداث منذ يوم تشغيل لوحة الإدارة.';
+
+  @override
+  String get adminPrivacyNote =>
+      'تظهر الأعداد والتواريخ فقط. تبقى المحادثات والملاحظات والصور ومحتوى التمارين والوجبات والمصروفات خاصة.';
+
+  @override
+  String get adminIsAdminNote =>
+      'هذا حساب مسؤول. تُدار حسابات المسؤولين عبر سكربت set-admin وليس من هنا.';
+
+  @override
+  String get adminSuspend => 'إيقاف الحساب';
+
+  @override
+  String get adminSuspendTitle => 'إيقاف هذا الحساب؟';
+
+  @override
+  String adminSuspendBody(String name) {
+    return 'سيُسجَّل خروج $name من كل الأجهزة خلال ساعة، ولن يتمكن من الدخول حتى تعيد تفعيل الحساب. تبقى بياناته كما هي.';
+  }
+
+  @override
+  String get adminSuspendConfirm => 'إيقاف';
+
+  @override
+  String get adminSuspended => 'تم إيقاف الحساب';
+
+  @override
+  String get adminReinstate => 'إعادة تفعيل الحساب';
+
+  @override
+  String get adminReinstateTitle => 'إعادة تفعيل هذا الحساب؟';
+
+  @override
+  String adminReinstateBody(String name) {
+    return 'سيتمكن $name من تسجيل الدخول مجددًا.';
+  }
+
+  @override
+  String get adminReinstateConfirm => 'إعادة التفعيل';
+
+  @override
+  String get adminReinstated => 'تمت إعادة تفعيل الحساب';
+
+  @override
+  String get adminDelete => 'حذف الحساب';
+
+  @override
+  String get adminDeleteTitle => 'حذف هذا الحساب نهائيًا؟';
+
+  @override
+  String adminDeleteBody(String name) {
+    return 'سيُمحى حساب $name وكل ما فيه — التمارين والخطط وسجلات الوجبات والمصروفات والمحادثات والإعدادات — وتُحذف بيانات دخوله. لا يمكن التراجع عن ذلك، ولن يُبلَّغ صاحبه.';
+  }
+
+  @override
+  String adminDeleteTypeCode(String code) {
+    return 'اكتب $code للتأكيد';
+  }
+
+  @override
+  String get adminDeletePassword => 'كلمة مرور المسؤول';
+
+  @override
+  String get adminDeleteReauthNote => 'ستؤكد هويتك قبل حذف أي شيء.';
+
+  @override
+  String get adminDeleteConfirm => 'حذف نهائي';
+
+  @override
+  String get adminDeleted => 'تم حذف الحساب';
+
+  @override
+  String get adminActivityTitle => 'النشاط';
+
+  @override
+  String get adminWindow1 => '٢٤ ساعة';
+
+  @override
+  String get adminWindow7 => '٧ أيام';
+
+  @override
+  String get adminWindow30 => '٣٠ يومًا';
+
+  @override
+  String get adminAllEvents => 'كل الأحداث';
+
+  @override
+  String get adminFeedTitle => 'أحدث الأحداث';
+
+  @override
+  String get adminActivityEmpty => 'لا شيء مسجّل في هذه الفترة بعد.';
+
+  @override
+  String get adminUnknownUser => 'حساب بلا اسم أو محذوف';
+
+  @override
+  String get adminEventAccountCreated => 'انضم';
+
+  @override
+  String get adminEventAppOpened => 'فتح التطبيق';
+
+  @override
+  String get adminEventPlanCreated => 'أنشأ خطة تمرين';
+
+  @override
+  String get adminEventWorkoutStarted => 'بدأ تمرينًا';
+
+  @override
+  String get adminEventWorkoutCompleted => 'أكمل تمرينًا';
+
+  @override
+  String get adminEventWorkoutAbandoned => 'ترك تمرينًا';
+
+  @override
+  String get adminEventWorkoutVoided => 'سحب تمرينًا';
+
+  @override
+  String get adminEventAiRequest => 'استخدم الذكاء الاصطناعي';
+
+  @override
+  String get adminEventDietImported => 'استورد نظامًا غذائيًا';
+
+  @override
+  String get adminEventDietCreated => 'كتب خطة غذائية';
+
+  @override
+  String get adminEventDisabled => 'أوقفه مسؤول';
+
+  @override
+  String get adminEventEnabled => 'أعاد مسؤول تفعيله';
+
+  @override
+  String get adminEventDeleted => 'حُذف الحساب';
+
+  @override
+  String get adminEventOther => 'حدث آخر';
+
+  @override
+  String adminEventMinutes(int minutes) {
+    return '$minutes د';
+  }
+
+  @override
+  String adminEventTokens(String tokens) {
+    return '$tokens رمز';
+  }
+
+  @override
+  String get dietHistory => 'السجل';
+
+  @override
+  String get dietHistoryTitle => 'سجل الأكل';
+
+  @override
+  String get dietHistoryEmpty =>
+      'لم يُسجَّل شيء بعد. ستظهر هنا الأيام التي تؤشّر فيها وجبة أو تسجّل طعامًا.';
+
+  @override
+  String dietHistoryMeals(int eaten, int planned) {
+    return '$eaten من $planned وجبات';
+  }
+
+  @override
+  String dietSkippedCount(int count) {
+    return '$count متخطّاة';
+  }
+
+  @override
+  String get dietMealStatusEaten => 'أُكلت';
+
+  @override
+  String get dietMealStatusModified => 'معدَّلة';
+
+  @override
+  String get dietMealStatusSkipped => 'تخطّيتها';
+
+  @override
+  String get dietMealStatusUnmarked => 'غير مؤشَّرة';
+
+  @override
+  String get dietSkipMeal => 'تخطّيت هذه الوجبة';
+
+  @override
+  String get dietUndoSkip => 'تم التخطّي · تراجع';
+
+  @override
+  String get dietOffPlan => 'خارج الخطة';
+
+  @override
+  String get dietPlanReconstructed =>
+      'سُجِّل بعد انتهاء اليوم — الأرقام المخطَّطة من خطتك الحالية.';
+
+  @override
+  String dietDayOfTarget(String target) {
+    return 'من هدف $target سعرة';
+  }
+
+  @override
+  String dietDayPlannedKcal(String kcal) {
+    return 'المخطَّط $kcal';
+  }
+
+  @override
+  String get askThoughtDietHistory => 'يراجع سجل أكلك…';
+
+  @override
+  String get askThoughtDietHistoryDone => 'راجع سجل أكلك';
 }

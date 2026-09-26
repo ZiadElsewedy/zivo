@@ -111,6 +111,7 @@ repos, provides `AppScope`, a `MaterialApp` on the chosen skin, `home: AuthGate`
 | **sleep** | Apple Health / Health Connect sleep + manual logging, with provenance on every number — training recovery | [`lib/features/sleep/`](lib/features/sleep/FEATURE.md) | [SLEEP_SYSTEM.md](docs/SLEEP_SYSTEM.md), [ADR-010](docs/DECISIONS/ADR-010-sleep-provenance.md) |
 | **device** | Pedometer step counter (Today's Move ring) | [`lib/features/device/`](lib/features/device/FEATURE.md) | — |
 | **reminders** | Simple customizable **local** notifications — meal/workout/activity reminders the user schedules | [`lib/features/reminders/`](lib/features/reminders/FEATURE.md) | [ADR-013](docs/DECISIONS/ADR-013-local-notifications.md) |
+| **admin** | Admin Console — users, activity, AI usage, suspend/delete; shown instead of the app to an `admin`-claim account. Server-enforced, counts never content | [`lib/features/admin/`](lib/features/admin/FEATURE.md) | [ADR-018](docs/DECISIONS/ADR-018-admin-console.md), [ADMIN.md](docs/ADMIN.md) |
 | **readiness** | The Daily Readiness call (train hard / go light / rest), fused from sleep + training load + recovery + weight — **derived, never stored** | [`lib/features/readiness/`](lib/features/readiness/FEATURE.md) | [ADR-015](docs/DECISIONS/ADR-015-readiness.md) |
 
 **Shared / cross-cutting (`lib/core/`):**
@@ -137,7 +138,8 @@ behind one seam), **`services/`** (the use-cases: `workout_import`, `diet_import
 `diet_generate`, `coach_report`, `sleep_insights`), **`analytics/`** (deterministic
 engines mirrored from Dart, pinned by shared golden vectors), **`speech/`** (voice), and
 **`shared/`** (`store.js` Firestore seam, `dates.js`, etc.). `functions/auth/activity.js`
-(auth event log + OTP mail). Each source file has a co-located `*.test.js` (`node --test`,
+(auth event log + OTP mail). **`functions/admin/`** — the Admin Console's
+admin-only callables and the triggers that derive product events (ADR-018). Each source file has a co-located `*.test.js` (`node --test`,
 offline).
 
 ---
@@ -222,25 +224,30 @@ runAiTurn: SYSTEM_PROMPT (cached) + uncached CONTEXT block (user's local
 - **Providers:** behind a `NormalizedRequest`/`NormalizedResponse` seam
   ([`providers/`](functions/ai/providers) + [`routing/router.js`](functions/ai/routing/router.js),
   models + prices in [`routing/models.js`](functions/ai/routing/models.js): Claude Sonnet 5 ·
-  Gemini Flash — one model per provider). **Automatic retry + fallback** (owner decision
-  2026-09-24, replacing the one-model-no-fallback rule from 2026-09-23): the model the user marks
-  active (`settings/ai.provider`, default `claude-sonnet`) answers chat, plan import and the plan
-  builder; on a TRANSIENT failure (overload, rate limit, server error, timeout, network — see
-  `isTransientFailure` in `providers/classify.js`) it's retried once on the same provider after a
-  short backoff, then automatically re-run on the OTHER provider if it's still failing. A
-  PERMANENT failure (bad key, out of credit — Anthropic sends that as a 400 —, retired model, a
-  malformed request) is never retried or fallen back for — it fails immediately with
-  `AiUnavailableError` → `HttpsError('unavailable', …, {reason:'ai_unavailable', provider, kind})`,
-  and the app names the provider and the reason with a "Switch model" action. A response that
-  needed fallback carries `requestedProvider`/`requestedModel`/`fallbackOccurred`/`fallbackReason`
-  so usage stays truthful about it. Only `food_search`'s grounding call always runs on Gemini and
-  never falls back (Anthropic has no search grounding).
-- **Usage** is logged for **every** AI request, not just chat turns (`aiUsage` v5, `feature` field:
+  Gemini Flash — one model per provider). **The selected model answers — no cross-provider
+  fallback** (owner decision 2026-09-26, replacing the automatic fallback of 2026-09-24): the
+  model the user marks active (`settings/ai.provider`, default `claude-sonnet`) answers chat,
+  plan import and the plan builder — Gemini selected → Gemini only, Claude → Claude only. A
+  TRANSIENT failure (overload, rate limit, server error, network — see `isTransientFailure` in
+  `providers/classify.js`) is retried on the SAME provider (twice; a timeout once); anything that
+  survives, and any PERMANENT failure (quota, bad key, out of credit — Anthropic sends that as a
+  400 —, retired model), fails with THAT provider's `AiUnavailableError` →
+  `HttpsError('unavailable', …, {reason:'ai_unavailable', provider, kind})`, and the app names the
+  provider and the reason with a "Switch model" action. The router is the only retry layer (SDK
+  clients run `maxRetries: 0`). The fallback path is kept but off (`CROSS_PROVIDER_FALLBACK`).
+  `food_search`'s grounding call always runs on Gemini (Anthropic has no search grounding).
+- **Scoped context:** each turn is routed deterministically (`chat/intent.js`, no model call) to
+  GENERAL · TRAINING · DIET · MONEY or AMBIGUOUS, and `chat/scope.js` hands the model only that
+  area's prompt modules + tools (AMBIGUOUS = everything, as before; scoped turns can widen with
+  `load_tools`). A tool is never exposed without its area's prompt module.
+- **Usage** is logged for **every** AI request, not just chat turns (`aiUsage` v7, `feature` field:
   chat · workout_import · diet_import · diet_generate · food_search · transcribe) —
   [`shared/usage_log.js`](functions/ai/shared/usage_log.js) meters the non-chat callables,
   [`chat/usage.js`](functions/ai/chat/usage.js) the turn: provider/model, type (`feature`),
-  tokens in/out, cost at the answering model's rate, status/errorKind, and (when a request
-  fell back) the requested provider/model and why. The chat daily cap counts chat records only.
+  tokens in/out, cost at the answering model's rate, status/errorKind, `perCall` rows (tokens
+  by bucket, stop reason, latency, provider `tries`) and, on a failure, `failedProvider`/
+  `failedModel`; chat turns add `intent`, `promptVersion` and a `context` size breakdown
+  (sizes only, never text). The chat daily cap counts chat records only.
   The app reads it on the AI usage page (Settings → AI usage): pick Claude or Gemini to see its
   total/chat/generate/import requests, tokens in/out, estimated cost and cost per request.
 
@@ -266,7 +273,7 @@ never model-supplied, and snapshotted at propose time so it can't drift.
 | `get_last_workout` | Just the single most recent completed session; each exercise's top working set precomputed. |
 | `get_training_analysis` | Deterministic workout analysis + typed `findings` + `planAdherence`. The model phrases, never computes. |
 | `get_exercise_analysis` | One lift by name → full session-by-session history, deltas, verdict/tone, deterministic insight. |
-| `get_readiness` | The Daily Readiness call (train hard / go light / rest), fusing sleep + load + recovery + weight. Owns "how am I today". |
+| `get_readiness` | The Daily Readiness call (train hard / go light / rest), fusing sleep + load + recovery + weight, plus `training` (last session + days ago, trained today, what the split has up next) — everything a "should I train today?" call rests on. Owns "how am I today". |
 | `get_sleep_summary` | Last night vs target + rolling average, for sleep-specific questions. |
 | `get_expenses` | Expenses, each with its real `id` (so edit/delete can target it). |
 | `summarize_week` | Trailing-week rollup across surfaces. |
@@ -307,9 +314,12 @@ form-submit is the user's own confirmation (no ADR-003 propose→confirm). Rule:
 
 ### System prompt — [`chat/prompt/`](functions/ai/chat/prompt) (composed in `system_prompt.js`, pinned by `gateway.test.js`)
 
-`persona` · `focus` (answer the exact question) · `formatting` (**plain text**, no Markdown) ·
+`persona` · `focus` (answer the exact question) · `length` (answer first, short by default —
+plus a per-message decision/detail directive from `chat/reply_shape.js`) · `language` (the
+user's language/dialect; Arabic the RTL screen can lay out) · `formatting` (**plain text**, no Markdown) ·
 `numbers` (look figures up, never invent) · `training`/`coaching` (lead with deterministic
-`findings`, never contradict/invent one) · `mutations` (propose→confirm; identify by real `id`) ·
+`findings`, never contradict/invent one) · `decisions` (make the call — fact → assessment →
+recommendation → action — never from data it didn't read) · `mutations` (propose→confirm; identify by real `id`) ·
 `elicitation` (read before you ask; one question per turn) · `safety`. The prompt is static and
 cached; only the appended `CONTEXT` block carries the date.
 

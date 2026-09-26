@@ -143,6 +143,11 @@ String formatWeekdayShortForIndex(BuildContext context, int weekday) {
 String formatFullDateLong(BuildContext context, DateTime date) =>
     _format(context, (l) => DateFormat('EEE, d MMMM y', l).format(date));
 
+/// "September 2026" — a month and its year, for headings that group by month
+/// (the Moments gallery's sections).
+String formatMonthYear(BuildContext context, DateTime date) =>
+    _format(context, (l) => DateFormat.yMMMM(l).format(date));
+
 /// "Aug 20, 2026" — an abbreviated date with the year, for a date of birth or
 /// any stamp that needs to be unambiguous across years.
 String formatDayMonthYear(BuildContext context, DateTime date) =>

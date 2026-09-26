@@ -48,6 +48,18 @@ class AppIcons {
   static const you = PhosphorIconsRegular.user;
   static const youFill = PhosphorIconsFill.user;
 
+  // Admin Console (features/admin) — its own shell's navigation and the
+  // account-management actions.
+  static const adminDashboard = PhosphorIconsRegular.gauge;
+  static const adminUsers = PhosphorIconsRegular.users;
+  static const adminActivity = PhosphorIconsRegular.pulse;
+  static const adminShield = PhosphorIconsRegular.shieldCheck;
+  static const filter = PhosphorIconsRegular.funnel;
+  static const suspend = PhosphorIconsRegular.prohibit;
+  static const reinstate = PhosphorIconsRegular.lockOpen;
+  static const refresh = PhosphorIconsRegular.arrowsClockwise;
+  static const device = PhosphorIconsRegular.deviceMobile;
+
   // Hub modules.
   static const workout = PhosphorIconsRegular.barbell;
   static const diet = PhosphorIconsRegular.forkKnife;

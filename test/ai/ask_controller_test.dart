@@ -317,6 +317,27 @@ void main() {
     expect(ai.sent.last.choice, isNull);
   });
 
+  test('the screen Ask was opened from rides the next turn only — and its '
+      'retry', () async {
+    final ai = _FakeAi(failSend: true);
+    final c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+
+    c.openedFrom('readiness');
+    c.input.text = 'why?';
+    await c.send();
+    expect(ai.sent.single.entryPoint, 'readiness');
+
+    await c.retry(c.activeConversationId!);
+    expect(ai.sent.last.entryPoint, 'readiness');
+
+    // The next message is part of the conversation, not a fresh open.
+    c.input.text = 'and tomorrow?';
+    await c.send();
+    expect(ai.sent.last.entryPoint, isNull);
+  });
+
   test('a second tap on an answered card sends nothing', () async {
     final ai = _FakeAi();
     final c = _controller(ai);
@@ -643,6 +664,80 @@ void main() {
     expect(targetAfterFallback, 'Let me check your plan.');
   });
 
+  test('REGRESSION: a provider retry after partial output never shows the '
+      'reply starting over', () async {
+    // The server (`live_text.js`) holds back a retry's words while they match
+    // what's already on screen, then sends one snapshot. Applied as a
+    // replace, the opening appears once — before, the retry's deltas were
+    // appended and the screen read "أيوه، بناءً على… أيوه، بناءً على…".
+    const opening = 'أيوه، بناءً على';
+    late final AskController c;
+    final targets = <String>[];
+    final ai = _FakeAi(
+      events: const [
+        AiDeltaEvent(opening),
+        AiDeltaEvent(' جدولك، آخر تمرين كان'),
+        // attempt 1 failed; the retry reproduced the words and went on
+        AiReplaceEvent('$opening جدولك، آخر تمرين كان من يومين.'),
+        AiDeltaEvent(' اتمرن Pull النهارده.'),
+      ],
+      afterEachEvent: () => targets.add(c.liveTargetText),
+    );
+    c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+    c.input.text = 'أروح الجيم النهارده؟';
+    await c.send();
+
+    for (final t in targets) {
+      expect(opening.allMatches(t).length, 1, reason: 'restarted: $t');
+    }
+    expect(
+      targets.last,
+      '$opening جدولك، آخر تمرين كان من يومين. اتمرن Pull النهارده.',
+    );
+    expect(c.streamed, isTrue);
+  });
+
+  test('a replace keeps the text it shares with the screen and rewrites '
+      'only where it differs', () async {
+    late final AskController c;
+    String? target;
+    final ai = _FakeAi(
+      events: const [
+        AiDeltaEvent('Yes — train today. You slept'),
+        AiReplaceEvent('Yes — rest today.'),
+      ],
+      afterEachEvent: () => target = c.liveTargetText,
+    );
+    c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+    c.input.text = 'should I train?';
+    await c.send();
+    expect(target, 'Yes — rest today.');
+    expect(c.liveText.length, lessThanOrEqualTo('Yes — '.length));
+  });
+
+  test('normal streaming still appends token by token', () async {
+    late final AskController c;
+    final targets = <String>[];
+    final ai = _FakeAi(
+      events: const [
+        AiDeltaEvent('Yes'),
+        AiDeltaEvent(' — train'),
+        AiDeltaEvent(' today.'),
+      ],
+      afterEachEvent: () => targets.add(c.liveTargetText),
+    );
+    c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+    c.input.text = 'should I train?';
+    await c.send();
+    expect(targets, ['Yes', 'Yes — train', 'Yes — train today.']);
+  });
+
   test('between tool rounds the rail says Analyzing what I found…', () async {
     final labels = <String>[];
     late final AskController c;
@@ -763,6 +858,7 @@ typedef _Sent = ({
   String? turnId,
   String modelSelection,
   AiChoiceSelection? choice,
+  String? entryPoint,
 });
 
 /// A scripted [AiRepository] — only the members Ask actually drives are
@@ -862,6 +958,7 @@ class _FakeAi implements AiRepository {
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   }) async {
     sent.add((
       conversationId: conversationId,
@@ -869,6 +966,7 @@ class _FakeAi implements AiRepository {
       turnId: clientTurnId,
       modelSelection: modelSelection,
       choice: choice,
+      entryPoint: entryPoint,
     ));
     for (final phase in phases) {
       observedPhases.add(phase);

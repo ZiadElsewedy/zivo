@@ -7,6 +7,7 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/util/deferred_write.dart';
+import '../../../../core/util/date_format.dart';
 import '../../../../core/util/time_ago.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/train_surfaces.dart';
@@ -210,19 +211,8 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
                     Expanded(
                       child: filtered.isEmpty
                           ? _MomentsEmptyState(title: _emptyLabel())
-                          : GridView.builder(
-                              padding: EdgeInsets.fromLTRB(
-                                14,
-                                6,
-                                14,
-                                TrainBottomInset.of(context),
-                              ),
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: _kGridColumns,
-                                    mainAxisSpacing: 6,
-                                    crossAxisSpacing: 6,
-                                  ),
+                          : _MonthSections(
+                              moments: filtered,
                               // A 3-up grid with one moment in it left a
                               // single tile marooned in a screenful of black,
                               // which reads as a gallery that failed to load
@@ -231,30 +221,20 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
                               // dashed "add" tiles: the row reads as a row,
                               // and the gap becomes an invitation. They stop
                               // appearing the moment there's real content.
-                              itemCount:
-                                  filtered.length +
-                                  _rowFillers(filtered.length),
-                              itemBuilder: (context, i) {
-                                if (i >= filtered.length) {
-                                  return _AddMomentTile(onTap: _newMoment);
-                                }
-                                final moment = filtered[i];
-                                return _GalleryTile(
-                                  moment: moment,
-                                  media: _media[moment.id],
-                                  now: now,
-                                  onTap: () {
-                                    if (moment.imagePath == null) {
-                                      _openEdit(moment);
-                                    } else {
-                                      _openPhoto(
-                                        photos,
-                                        photos.indexOf(moment),
-                                      );
-                                    }
-                                  },
-                                );
-                              },
+                              fillers: _rowFillers(filtered.length),
+                              onAdd: _newMoment,
+                              tileBuilder: (moment) => _GalleryTile(
+                                moment: moment,
+                                media: _media[moment.id],
+                                now: now,
+                                onTap: () {
+                                  if (moment.imagePath == null) {
+                                    _openEdit(moment);
+                                  } else {
+                                    _openPhoto(photos, photos.indexOf(moment));
+                                  }
+                                },
+                              ),
                             ),
                     ),
                   ],
@@ -274,6 +254,80 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
     MomentFilter.notes => l(context).momentsEmptyNotes,
     MomentFilter.all => l(context).momentsEmptyOther,
   };
+}
+
+/// The gallery as calendar months, newest first: a quiet month heading over
+/// each month's grid. A flat wall of tiles gives no sense of *when*; months
+/// are the unit people remember photos by, and the heading costs one line.
+///
+/// Grouping is by the moment's own [Moment.takenAt] in local time — the same
+/// on every device of the account, whichever one took the photo.
+class _MonthSections extends StatelessWidget {
+  const _MonthSections({
+    required this.moments,
+    required this.fillers,
+    required this.onAdd,
+    required this.tileBuilder,
+  });
+
+  /// Already filtered and sorted newest first (the repository's order).
+  final List<Moment> moments;
+
+  /// Dashed "add" tiles appended to the last section (see [_rowFillers]).
+  final int fillers;
+  final VoidCallback onAdd;
+  final Widget Function(Moment moment) tileBuilder;
+
+  static const _gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: _kGridColumns,
+    mainAxisSpacing: 6,
+    crossAxisSpacing: 6,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final sections = <List<Moment>>[];
+    for (final moment in moments) {
+      final t = moment.takenAt.toLocal();
+      final last = sections.isEmpty
+          ? null
+          : sections.last.first.takenAt.toLocal();
+      if (last != null && last.year == t.year && last.month == t.month) {
+        sections.last.add(moment);
+      } else {
+        sections.add([moment]);
+      }
+    }
+
+    return CustomScrollView(
+      slivers: [
+        for (var i = 0; i < sections.length; i++) ...[
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(18, i == 0 ? 6 : 22, 18, 10),
+            sliver: SliverToBoxAdapter(
+              child: TrainSectionLabel(
+                formatMonthYear(context, sections[i].first.takenAt.toLocal()),
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            sliver: SliverGrid.builder(
+              gridDelegate: _gridDelegate,
+              itemCount:
+                  sections[i].length + (i == sections.length - 1 ? fillers : 0),
+              itemBuilder: (context, j) => j < sections[i].length
+                  ? tileBuilder(sections[i][j])
+                  : _AddMomentTile(onTap: onAdd),
+            ),
+          ),
+        ],
+        SliverToBoxAdapter(
+          child: SizedBox(height: TrainBottomInset.of(context)),
+        ),
+      ],
+    );
+  }
 }
 
 class _FilterBar extends StatelessWidget {

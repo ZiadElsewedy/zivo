@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/util/bidi.dart';
 import '../../../../l10n/l10n.dart';
-import 'hue.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/theme/zivo_palette.dart';
 
 /// One glance line, like [SpendingGlanceRow] — "2 of 5 meals eaten · 1400
 /// kcal left". Values are live from the diet repository.
@@ -60,33 +59,111 @@ class DietGlanceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
+    final done = total > 0 && eaten >= total;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+      decoration: BoxDecoration(
+        gradient: TrainColors.cardGradient,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: TrainColors.hairline),
+      ),
       child: Row(
         children: [
-          const HueDot(ZHue.neutral),
-          const SizedBox(width: AppSpacing.m - 1),
           Expanded(
-            child: Text.rich(
-              TextSpan(
-                style: AppText.amount.copyWith(color: TrainColors.ink),
-                children: [
-                  TextSpan(text: l(context).dietMealsEaten(eaten, total)),
-                  TextSpan(
-                    text: '  ·  ${_kcalText(context)}',
-                    style: AppText.body.copyWith(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
-                      color: TrainColors.ink3,
-                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l(context).dietMealsEaten(eaten, total),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TrainType.ui(
+                    size: 15.5,
+                    weight: FontWeight.w800,
+                    tracking: -0.01,
+                    height: 1.1,
+                    color: TrainColors.ink,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 10),
+                _MealSegments(eaten: eaten, total: total, done: done),
+                const SizedBox(height: 9),
+                Text(
+                  _kcalText(context),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.body.copyWith(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: TrainColors.ink3,
+                  ),
+                ),
+              ],
             ),
           ),
+          const SizedBox(width: 10),
           Icon(Icons.chevron_right_rounded, size: 18, color: TrainColors.ink3),
         ],
       ),
+    );
+  }
+}
+
+/// One segment per planned meal, filled as it's eaten — the day's eating
+/// read as a sequence rather than a fraction. Only a finished day blooms. Past eight
+/// meals the segments would be slivers, so it becomes one continuous bar.
+class _MealSegments extends StatelessWidget {
+  const _MealSegments({
+    required this.eaten,
+    required this.total,
+    required this.done,
+  });
+
+  final int eaten;
+  final int total;
+  final bool done;
+
+  @override
+  Widget build(BuildContext context) {
+    final glow = done && ZivoTheme.brightness == Brightness.dark;
+    Widget segment(bool lit, {int flex = 1}) => Expanded(
+      flex: flex,
+      child: Container(
+        height: 6,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(3),
+          color: lit ? TrainColors.green : TrainColors.liftAt(0.08),
+          // The day's plan fully eaten is a completed goal — the one state
+          // that earns a bloom.
+          boxShadow: lit && glow
+              ? [
+                  BoxShadow(
+                    color: TrainColors.green.withValues(alpha: 0.25),
+                    blurRadius: 6,
+                  ),
+                ]
+              : null,
+        ),
+      ),
+    );
+
+    if (total <= 0) return const SizedBox(height: 6);
+    if (total > 8) {
+      final lit = (eaten.clamp(0, total) * 100 / total).round();
+      return Row(
+        children: [
+          if (lit > 0) segment(true, flex: lit),
+          if (lit < 100) segment(false, flex: 100 - lit),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        for (var i = 0; i < total; i++) ...[
+          if (i > 0) const SizedBox(width: 4),
+          segment(i < eaten),
+        ],
+      ],
     );
   }
 }

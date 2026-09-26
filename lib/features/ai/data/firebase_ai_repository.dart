@@ -181,6 +181,25 @@ Object aiFailureFrom(Object error) {
   });
 }
 
+/// The provider-named failure a streamed `aiChat` turn announces in its last
+/// chunk (`{type: 'error', reason: 'ai_unavailable', provider, kind}`), or
+/// null for any other chunk. The iOS plugin's stream path drops the callable
+/// error's code and details — every streamed error arrives as `unknown` — so
+/// the server says why as data, which does arrive intact, and this is what
+/// the stream's error is replaced with.
+AiFailure? aiFailureFromStreamChunk(Object? chunk) {
+  if (chunk is! Map ||
+      chunk['type'] != 'error' ||
+      chunk['reason'] != 'ai_unavailable') {
+    return null;
+  }
+  return AiFailure(
+    AiFailureKind.unavailable,
+    provider: chunk['provider'] as String?,
+    issue: aiProviderIssueFrom(chunk['kind']),
+  );
+}
+
 /// Runs [call], rethrowing a transport failure as its [AiFailure].
 Future<T> _asAiFailure<T>(Future<T> Function() call) async {
   try {
@@ -216,6 +235,7 @@ class FirebaseAiRepository implements AiRepository {
       String provider,
       String? clientTurnId,
       AiChoiceSelection? choice,
+      String? entryPoint,
     )?
     invokeChat,
     Future<void> Function(
@@ -225,6 +245,7 @@ class FirebaseAiRepository implements AiRepository {
       String provider,
       String? clientTurnId,
       AiChoiceSelection? choice,
+      String? entryPoint,
       void Function(AiTurnEvent event) onEvent,
     )?
     invokeChatStream,
@@ -275,6 +296,7 @@ class FirebaseAiRepository implements AiRepository {
     String provider,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   )
   _invokeChat;
   final Future<void> Function(
@@ -284,6 +306,7 @@ class FirebaseAiRepository implements AiRepository {
     String provider,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
     void Function(AiTurnEvent event) onEvent,
   )
   _invokeChatStream;
@@ -328,6 +351,7 @@ class FirebaseAiRepository implements AiRepository {
     String provider,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   )
   _defaultInvokeChat(FirebaseFunctions? functions) {
     return (
@@ -337,6 +361,7 @@ class FirebaseAiRepository implements AiRepository {
       provider,
       clientTurnId,
       choice,
+      entryPoint,
     ) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
@@ -352,6 +377,7 @@ class FirebaseAiRepository implements AiRepository {
             'provider': provider,
             'clientTurnId': ?clientTurnId,
             'choice': ?_choicePayload(choice),
+            'entryPoint': ?entryPoint,
             ...clientClockFields(),
           });
     };
@@ -373,6 +399,10 @@ class FirebaseAiRepository implements AiRepository {
   /// gates its per-token work on that flag, and the transport alone doesn't
   /// set it. Without it the turn silently degrades to buffered, dropping the
   /// whole reply on screen at once.
+  ///
+  /// `streamReplace: true` says this client understands `{type:'replace'}`
+  /// (see [AiReplaceEvent]); an older build that doesn't send it keeps the
+  /// plain append stream.
   static Future<void> Function(
     String conversationId,
     String message,
@@ -380,6 +410,7 @@ class FirebaseAiRepository implements AiRepository {
     String provider,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
     void Function(AiTurnEvent event) onEvent,
   )
   _defaultInvokeChatStream(FirebaseFunctions? functions) {
@@ -390,6 +421,7 @@ class FirebaseAiRepository implements AiRepository {
       provider,
       clientTurnId,
       choice,
+      entryPoint,
       onEvent,
     ) async {
       final f =
@@ -405,15 +437,30 @@ class FirebaseAiRepository implements AiRepository {
             'responseStyle': responseStyle,
             'provider': provider,
             'acceptsStreaming': true,
+            // This build applies `replace` snapshots of the live reply, so the
+            // server may supersede text already streamed (a retried attempt)
+            // instead of appending a second copy after it.
+            'streamReplace': true,
             'clientTurnId': ?clientTurnId,
             'choice': ?_choicePayload(choice),
+            'entryPoint': ?entryPoint,
             ...clientClockFields(),
           });
-      await for (final response in stream) {
-        if (response is Chunk) {
-          final event = aiTurnEventFromChunk(response.partialData);
-          if (event != null) onEvent(event);
+      // The failure the server announced before the stream errored — the
+      // real cause, which the stream's own error has lost on iOS.
+      AiFailure? announced;
+      try {
+        await for (final response in stream) {
+          if (response is Chunk) {
+            final data = response.partialData;
+            announced = aiFailureFromStreamChunk(data) ?? announced;
+            final event = aiTurnEventFromChunk(data);
+            if (event != null) onEvent(event);
+          }
         }
+      } catch (_) {
+        if (announced != null) throw announced;
+        rethrow;
       }
     };
   }
@@ -807,6 +854,7 @@ class FirebaseAiRepository implements AiRepository {
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   }) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return Future.value();
@@ -825,6 +873,7 @@ class FirebaseAiRepository implements AiRepository {
               provider,
               clientTurnId,
               choice,
+              entryPoint,
             )
           : _invokeChatStream(
               conversationId,
@@ -833,6 +882,7 @@ class FirebaseAiRepository implements AiRepository {
               provider,
               clientTurnId,
               choice,
+              entryPoint,
               onEvent,
             ),
     );

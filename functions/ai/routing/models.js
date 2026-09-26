@@ -28,6 +28,14 @@
  * @property {string} id The provider-native model id.
  * @property {string} label Human name, for logs.
  * @property {!ModelPricing} pricing
+ * @property {boolean=} serverOnly Never a user's selection — only the
+ *   server's reasoning policy (`../chat/reasoning_policy.js`) routes to it.
+ * @property {!Object<string, !Object>=} reasoning What each reasoning LEVEL
+ *   (`low` | `medium` | `high`) means for this model on the wire: the request
+ *   fields the provider adds. ONE table per model, so effort and thinking
+ *   can never be combined arbitrarily — a level either maps to a coherent
+ *   setting here or the model doesn't support it. Absent: the model takes no
+ *   reasoning settings (Gemini).
  */
 
 /** @const {!Object<string, !ModelSpec>} */
@@ -45,6 +53,34 @@ const MODELS = {
       outputPerMTok: 10,
       cacheWriteMultiplier: 1.25,
       cacheReadMultiplier: 0.1,
+    },
+    // Adaptive thinking at every level (on Sonnet 5 it's what an omitted
+    // `thinking` means anyway); the level is the effort. Effort, not a
+    // thinking-off switch, is the cost lever — disabling thinking invites
+    // tool calls written as text.
+    reasoning: {
+      low: {thinking: {type: "adaptive"}, output_config: {effort: "low"}},
+      medium: {thinking: {type: "adaptive"}, output_config: {effort: "medium"}},
+      high: {thinking: {type: "adaptive"}, output_config: {effort: "high"}},
+    },
+  },
+  // Server-only: the reasoning policy's model for simple lookups. $1 / $5 per
+  // 1M (checked 2026-09-26 against Anthropic's model table); cache write
+  // 1.25x, read 0.1x. Haiku 4.5 rejects `effort`, and its thinking is a
+  // fixed token budget — so it offers ONE level: `low`, no thinking.
+  "claude-haiku": {
+    provider: "anthropic",
+    id: "claude-haiku-4-5",
+    label: "Claude Haiku 4.5",
+    serverOnly: true,
+    pricing: {
+      inputPerMTok: 1,
+      outputPerMTok: 5,
+      cacheWriteMultiplier: 1.25,
+      cacheReadMultiplier: 0.1,
+    },
+    reasoning: {
+      low: {},
     },
   },
   // `gemini-flash-latest` is a ROLLING ALIAS — pinned point versions get
@@ -95,7 +131,9 @@ const LEGACY_SELECTIONS = {
   // key) — its users land on the Gemini model that works.
   "gemini-pro": "gemini-flash",
   // Removed 2026-09-24 — ZIVO offers exactly one model per provider now, so a
-  // user who had Haiku active lands on Sonnet, Anthropic's other option.
+  // user who had Haiku active lands on Sonnet. (Haiku is back in the catalog
+  // since Phase 8, but server-only: the reasoning policy picks it, never a
+  // user.)
   "claude-haiku": "claude-sonnet",
 };
 
@@ -140,7 +178,8 @@ function keyForModelId(id) {
 function preferredModelKey(selection) {
   if (typeof selection !== "string") return undefined;
   const key = LEGACY_SELECTIONS[selection] || selection;
-  return modelSpec(key) ? key : undefined;
+  const spec = modelSpec(key);
+  return spec && !spec.serverOnly ? key : undefined;
 }
 
 /**
@@ -184,8 +223,24 @@ function costUsd(usage, provider, modelId) {
   );
 }
 
+/**
+ * The request fields a reasoning level means for a model (see
+ * `ModelSpec.reasoning`), or null when the model takes no reasoning settings
+ * or doesn't offer that level.
+ * @param {(string|undefined)} key A catalog key.
+ * @param {(string|undefined)} level `low` | `medium` | `high`.
+ * @return {?Object}
+ */
+function reasoningFor(key, level) {
+  const spec = key ? modelSpec(key) : undefined;
+  if (!spec || !spec.reasoning || !level) return null;
+  return Object.prototype.hasOwnProperty.call(spec.reasoning, level) ?
+    spec.reasoning[level] : null;
+}
+
 module.exports = {
   MODELS,
+  reasoningFor,
   DEFAULT_MODEL_FOR_PROVIDER,
   FALLBACK_MODEL,
   modelSpec,

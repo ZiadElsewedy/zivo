@@ -109,11 +109,65 @@ function componentAnchors(ctx) {
   }
   for (const m of ctx.meals || []) {
     if (typeof m.kcal === "number") anchors.push(m.kcal);
+    // A ticked meal's foods are its plan items (they are no longer repeated
+    // in `logEntries` — see `mealsAndFoodsForModel`), so each item's figure is
+    // one the coach may cite.
+    for (const it of m.items || []) {
+      if (typeof it.calories === "number") anchors.push(it.calories);
+    }
   }
   for (const e of ctx.logEntries || []) {
     if (typeof e.kcal === "number") anchors.push(e.kcal);
   }
+  // A past day (`get_diet(day)`): what each meal was planned at and what was
+  // actually eaten from it, and the day's planned total.
+  for (const m of ctx.meals || []) {
+    if (typeof m.plannedKcal === "number") anchors.push(m.plannedKcal);
+    if (m.actual && typeof m.actual.kcal === "number") {
+      anchors.push(m.actual.kcal);
+    }
+  }
+  if (ctx.planned && typeof ctx.planned.kcal === "number") {
+    anchors.push(ctx.planned.kcal);
+  }
+  if (ctx.versusTarget && typeof ctx.versusTarget.kcal === "number") {
+    anchors.push(Math.abs(ctx.versusTarget.kcal));
+  }
+  // Every other day the turn read — or a history window — is citable too:
+  // "yesterday you were at 1,900, today 1,200" names two days' figures.
+  for (const other of ctx.otherDays || []) {
+    if (!other || typeof other !== "object") continue;
+    anchors.push(...dayAnchors(other));
+  }
   return anchors;
+}
+
+/**
+ * All the calorie figures one other diet payload states: a day's totals and
+ * components (`componentAnchors`), or a history window's rows and averages.
+ * @param {!Object} other A get_today / get_diet / get_diet_history result.
+ * @return {!Array<number>}
+ */
+function dayAnchors(other) {
+  const out = componentAnchors(Object.assign({}, other, {otherDays: []}));
+  const num = (v) => typeof v === "number" && Number.isFinite(v);
+  if (other.consumed && num(other.consumed.kcal)) out.push(other.consumed.kcal);
+  if (other.remaining && num(other.remaining.kcal)) {
+    out.push(other.remaining.kcal);
+  }
+  if (other.targets && num(other.targets.calories)) {
+    out.push(other.targets.calories);
+  }
+  const s = other.summary;
+  if (s && num(s.avgKcal)) out.push(s.avgKcal);
+  if (s && s.target && num(s.target.calories)) out.push(s.target.calories);
+  for (const r of [...(other.days || []), ...(other.weeks || [])]) {
+    if (num(r.kcal)) out.push(r.kcal);
+    if (num(r.avgKcal)) out.push(r.avgKcal);
+    if (num(r.vsTargetKcal)) out.push(Math.abs(r.vsTargetKcal));
+    if (num(r.offPlanKcal)) out.push(r.offPlanKcal);
+  }
+  return out;
 }
 
 // The keyword families that mark a sentence as being about the user's own
@@ -209,6 +263,10 @@ function detectContradictions(reply, ctx) {
   const remaining = ctx.remaining || null;
   const targets = ctx.targets || null;
   const base = componentAnchors(ctx);
+  // Another DAY in play (a different date, or a history window) — a second
+  // read of the same day doesn't count.
+  const multiDay = (ctx.otherDays || []).some((o) => o &&
+    (o.summary || (o.date && o.date !== ctx.date)));
 
   for (const sentence of sentences(reply)) {
     if (HYPOTHETICAL_RE.test(sentence)) continue;
@@ -219,7 +277,9 @@ function detectContradictions(reply, ctx) {
     // Qualitative: claiming the user ate, when nothing was logged. An empty
     // log means nothing was RECORDED, not that nothing was eaten — the prompt
     // is emphatic about this, so a flat "you've eaten…" is a contradiction.
-    if (quality.nothingLogged && hasConsumed &&
+    // Only when the reply is about this one day: with other days in play a
+    // sentence can't be pinned to today ("yesterday you ate…" is fine).
+    if (quality.nothingLogged && hasConsumed && !multiDay &&
         ATE_ASSERTION_RE.test(sentence)) {
       add({code: "ate_but_nothing_logged", kind: "contradiction"});
     }
@@ -262,7 +322,7 @@ function detectContradictions(reply, ctx) {
       // reason the state can give.
       if (hasTarget && quality.targetsUnset) {
         add({code: "target_but_unset", kind: "contradiction", value: n});
-      } else if (hasConsumed && quality.nothingLogged) {
+      } else if (hasConsumed && quality.nothingLogged && !multiDay) {
         add({code: "ate_but_nothing_logged", kind: "contradiction", value: n});
       } else {
         add({code: "numeric_contradiction", kind: "contradiction", value: n});

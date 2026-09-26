@@ -8,7 +8,6 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/util/money.dart';
 import '../../../core/scope/app_scope.dart';
 import '../../ai/presentation/pages/ask_page.dart';
-import '../../ai/presentation/widgets/quick_log_sheet.dart';
 import '../../profile/presentation/pages/profile_page.dart';
 import '../../capture/presentation/quick_capture_sheet.dart';
 import '../../expenses/domain/expense.dart';
@@ -43,6 +42,11 @@ class _HomeShellState extends State<HomeShell> {
   /// the sheet resolves with a transcript, it lands in Ask's composer, and
   /// the tab switches — one Ask instance, no duplicate route.
   final ValueNotifier<String?> _askDraft = ValueNotifier(null);
+
+  /// The screen Ask was just opened from, for the next turn's routing
+  /// (`aiChat`'s `entryPoint`). Set only by an in-context "ask about it" —
+  /// switching tabs by hand opens Ask from nowhere in particular.
+  final ValueNotifier<String?> _askEntryPoint = ValueNotifier(null);
 
   /// Whether the now-playing strip is on screen. This is the ONE input that
   /// changes the bottom chrome's height, so it is tracked here rather than
@@ -117,14 +121,9 @@ class _HomeShellState extends State<HomeShell> {
     _connectionSub?.cancel();
     _trackSub?.cancel();
     _linkedSub?.cancel();
+    _askDraft.dispose();
+    _askEntryPoint.dispose();
     super.dispose();
-  }
-
-  Future<void> _openQuickLog() async {
-    final text = await showQuickLogSheet(context);
-    if (text == null || !mounted) return;
-    _askDraft.value = text;
-    setState(() => _index = 2);
   }
 
   Future<void> _openCapture() async {
@@ -177,15 +176,18 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     // Built per-frame (not a static const list) so Today can be handed a
-    // live callback to switch tabs itself — needed for the pull-to-ask
-    // gesture, since HomeShell is the only thing that owns `_index`.
+    // live callback to switch tabs itself — the readiness card's "ask about
+    // it" needs one, since HomeShell is the only thing that owns `_index`.
     final tabs = [
       TodayPage(
-        onOpenAsk: () => setState(() => _index = 2),
-        onQuickLog: _openQuickLog,
+        // Today's only way into Ask is the readiness card's "ask about it".
+        onOpenAsk: () {
+          _askEntryPoint.value = 'readiness';
+          setState(() => _index = 2);
+        },
       ),
       const HubPage(),
-      AskPage(incomingDraft: _askDraft),
+      AskPage(incomingDraft: _askDraft, incomingEntryPoint: _askEntryPoint),
       const ProfilePage(),
     ];
     // The bottom is ONE object: the nav island, with the now-playing strip

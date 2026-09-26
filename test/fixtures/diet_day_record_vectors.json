@@ -1,0 +1,408 @@
+{
+  "//": "Generated from functions/diet/day_record.js — one daily record, read by BOTH suites (day_record.test.js rebuilds it; diet_day_record_test.dart parses it). Regenerate both sides together.",
+  "input": {
+    "dayKey": "2026-09-25",
+    "isPast": true,
+    "offsetMinutes": 180,
+    "plan": {
+      "id": "p1",
+      "name": "Cut",
+      "days": [
+        {
+          "weekday": null,
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "p1-d0-m0",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 228,
+                  "proteinG": 8.1,
+                  "carbsG": 40.2,
+                  "fatG": 4.1
+                },
+                {
+                  "name": "Milk",
+                  "quantity": 200,
+                  "unit": "ml",
+                  "calories": 100,
+                  "proteinG": 7,
+                  "carbsG": 10,
+                  "fatG": 3
+                }
+              ]
+            },
+            {
+              "id": "p1-d0-m1",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "p1-d0-m2",
+              "label": "Dinner",
+              "items": [
+                {
+                  "name": "Eggs",
+                  "quantity": 2,
+                  "unit": "piece",
+                  "calories": 140,
+                  "proteinG": 12,
+                  "carbsG": 1,
+                  "fatG": 10
+                }
+              ]
+            },
+            {
+              "id": "p1-d0-m3",
+              "label": "Snack",
+              "items": [
+                {
+                  "name": "Yogurt",
+                  "quantity": 170,
+                  "unit": "g",
+                  "calories": 100,
+                  "proteinG": 17,
+                  "carbsG": 6,
+                  "fatG": 0.7
+                }
+              ]
+            },
+            {
+              "id": "p1-d0-s",
+              "label": "Supplements",
+              "items": [
+                {
+                  "name": "Creatine",
+                  "quantity": 5,
+                  "unit": "g",
+                  "calories": 0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "planDay": {
+      "weekday": null,
+      "label": "Every day",
+      "meals": [
+        {
+          "id": "p1-d0-m0",
+          "label": "Breakfast",
+          "items": [
+            {
+              "name": "Oats",
+              "quantity": 60,
+              "unit": "g",
+              "calories": 228,
+              "proteinG": 8.1,
+              "carbsG": 40.2,
+              "fatG": 4.1
+            },
+            {
+              "name": "Milk",
+              "quantity": 200,
+              "unit": "ml",
+              "calories": 100,
+              "proteinG": 7,
+              "carbsG": 10,
+              "fatG": 3
+            }
+          ]
+        },
+        {
+          "id": "p1-d0-m1",
+          "label": "Lunch",
+          "items": [
+            {
+              "name": "Chicken",
+              "quantity": 200,
+              "unit": "g",
+              "calories": 330,
+              "proteinG": 62,
+              "carbsG": 0,
+              "fatG": 7,
+              "estimated": true
+            }
+          ]
+        },
+        {
+          "id": "p1-d0-m2",
+          "label": "Dinner",
+          "items": [
+            {
+              "name": "Eggs",
+              "quantity": 2,
+              "unit": "piece",
+              "calories": 140,
+              "proteinG": 12,
+              "carbsG": 1,
+              "fatG": 10
+            }
+          ]
+        },
+        {
+          "id": "p1-d0-m3",
+          "label": "Snack",
+          "items": [
+            {
+              "name": "Yogurt",
+              "quantity": 170,
+              "unit": "g",
+              "calories": 100,
+              "proteinG": 17,
+              "carbsG": 6,
+              "fatG": 0.7
+            }
+          ]
+        },
+        {
+          "id": "p1-d0-s",
+          "label": "Supplements",
+          "items": [
+            {
+              "name": "Creatine",
+              "quantity": 5,
+              "unit": "g",
+              "calories": 0
+            }
+          ]
+        }
+      ]
+    },
+    "targets": {
+      "goal": "fatLoss",
+      "calories": 2000,
+      "proteinG": 160,
+      "carbsG": null,
+      "fatG": null,
+      "source": "calculated"
+    },
+    "entries": [
+      {
+        "mealId": "p1-d0-m0",
+        "eaten": true
+      },
+      {
+        "mealId": "p1-d0-m1",
+        "eaten": true
+      },
+      {
+        "mealId": "p1-d0-m2",
+        "eaten": false,
+        "status": "skipped"
+      }
+    ],
+    "log": [
+      {
+        "id": "2026-09-25__p1-d0-m0-0",
+        "foodName": "Oats",
+        "quantity": 60,
+        "unit": "g",
+        "kcal": 228,
+        "proteinG": 8.1,
+        "carbsG": 40.2,
+        "fatG": 4.1,
+        "origin": "plannedMeal",
+        "estimated": false,
+        "mealId": "p1-d0-m0"
+      },
+      {
+        "id": "2026-09-25__p1-d0-m0-1",
+        "foodName": "Milk",
+        "quantity": 200,
+        "unit": "ml",
+        "kcal": 100,
+        "proteinG": 7,
+        "carbsG": 10,
+        "fatG": 3,
+        "origin": "plannedMeal",
+        "estimated": false,
+        "mealId": "p1-d0-m0"
+      },
+      {
+        "id": "2026-09-25__p1-d0-m1-0",
+        "foodName": "Chicken",
+        "quantity": 150,
+        "unit": "g",
+        "kcal": 248,
+        "proteinG": 46.5,
+        "carbsG": 0,
+        "fatG": 5.3,
+        "origin": "plannedMeal",
+        "estimated": true,
+        "mealId": "p1-d0-m1"
+      },
+      {
+        "id": "x1",
+        "foodName": "Apple",
+        "quantity": 1,
+        "unit": "piece",
+        "kcal": 95,
+        "proteinG": 0.5,
+        "carbsG": 25,
+        "fatG": 0.3,
+        "origin": "logged",
+        "estimated": false,
+        "mealId": null
+      }
+    ],
+    "existing": null
+  },
+  "record": {
+    "dayKey": "2026-09-25",
+    "schemaVersion": 1,
+    "offsetMinutes": 180,
+    "plan": {
+      "id": "p1",
+      "name": "Cut",
+      "dayLabel": "Every day"
+    },
+    "targets": {
+      "goal": "fatLoss",
+      "calories": 2000,
+      "proteinG": 160,
+      "carbsG": null,
+      "fatG": null
+    },
+    "plannedReconstructed": true,
+    "planned": {
+      "kcal": 898,
+      "proteinG": 106.1,
+      "carbsG": 57.2,
+      "fatG": 24.8
+    },
+    "meals": [
+      {
+        "mealId": "p1-d0-m0",
+        "label": "Breakfast",
+        "order": 0,
+        "isSupplement": false,
+        "planned": {
+          "kcal": 328,
+          "proteinG": 15.1,
+          "carbsG": 50.2,
+          "fatG": 7.1,
+          "estimated": false,
+          "itemCount": 2
+        },
+        "status": "eaten",
+        "actual": {
+          "kcal": 328,
+          "proteinG": 15.1,
+          "carbsG": 50.2,
+          "fatG": 7.1
+        }
+      },
+      {
+        "mealId": "p1-d0-m1",
+        "label": "Lunch",
+        "order": 1,
+        "isSupplement": false,
+        "planned": {
+          "kcal": 330,
+          "proteinG": 62,
+          "carbsG": 0,
+          "fatG": 7,
+          "estimated": true,
+          "itemCount": 1
+        },
+        "status": "modified",
+        "actual": {
+          "kcal": 248,
+          "proteinG": 46.5,
+          "carbsG": 0,
+          "fatG": 5.3
+        }
+      },
+      {
+        "mealId": "p1-d0-m2",
+        "label": "Dinner",
+        "order": 2,
+        "isSupplement": false,
+        "planned": {
+          "kcal": 140,
+          "proteinG": 12,
+          "carbsG": 1,
+          "fatG": 10,
+          "estimated": false,
+          "itemCount": 1
+        },
+        "status": "skipped",
+        "actual": null
+      },
+      {
+        "mealId": "p1-d0-m3",
+        "label": "Snack",
+        "order": 3,
+        "isSupplement": false,
+        "planned": {
+          "kcal": 100,
+          "proteinG": 17,
+          "carbsG": 6,
+          "fatG": 0.7,
+          "estimated": false,
+          "itemCount": 1
+        },
+        "status": "unmarked",
+        "actual": null
+      },
+      {
+        "mealId": "p1-d0-s",
+        "label": "Supplements",
+        "order": 4,
+        "isSupplement": true,
+        "planned": {
+          "kcal": 0,
+          "proteinG": null,
+          "carbsG": null,
+          "fatG": null,
+          "estimated": false,
+          "itemCount": 1
+        },
+        "status": "unmarked",
+        "actual": null
+      }
+    ],
+    "unplanned": {
+      "kcal": 95,
+      "proteinG": 0.5,
+      "carbsG": 25,
+      "fatG": 0.3,
+      "count": 1
+    },
+    "consumed": {
+      "kcal": 671,
+      "proteinG": 62.1,
+      "carbsG": 75.2,
+      "fatG": 12.7,
+      "basis": "logged",
+      "estimated": true,
+      "entryCount": 4,
+      "loggedCount": 1
+    },
+    "adherence": {
+      "mealsPlanned": 4,
+      "eaten": 1,
+      "modified": 1,
+      "skipped": 1,
+      "unmarked": 1
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import 'analysis/maintenance_calibration.dart';
 import 'body_profile.dart';
+import 'diet_day_record.dart';
 import 'diet_plan.dart';
 import 'diet_plan_status.dart';
 import 'nutrition/custom_food.dart';
@@ -106,6 +107,27 @@ abstract interface class DietRepository {
     required String mealId,
     required DateTime day,
     required bool eaten,
+  });
+
+  /// The meal ids the user marked **skipped** on [day] — a decision, unlike a
+  /// meal that simply wasn't ticked.
+  Stream<Set<String>> watchSkipped(DateTime day);
+
+  /// Marks a planned meal skipped on [day] (or clears the skip). Skipping a
+  /// ticked meal un-ticks it and removes the foods the tick logged — the same
+  /// write as [setMealEaten] with `eaten: false`, plus the reason.
+  Future<void> setMealSkipped({
+    required String mealId,
+    required DateTime day,
+    required bool skipped,
+  });
+
+  /// The server's daily records (`dietDays`, see [DietDayRecord]) across
+  /// [from]..[to] inclusive, oldest first. Days with nothing recorded are
+  /// **absent** — a missing day is not a day of zero.
+  Stream<List<DietDayRecord>> watchDietDays({
+    required DateTime from,
+    required DateTime to,
   });
 
   /// Everything logged on [day], oldest first.

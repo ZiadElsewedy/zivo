@@ -63,6 +63,7 @@ class _FlakyAi implements AiRepository {
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   }) async {
     if (failNext) {
       failNext = false;
@@ -219,6 +220,7 @@ class _SilentDropAi implements AiRepository {
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   }) async {}
 
   @override
@@ -379,6 +381,7 @@ class _HeldAi implements AiRepository {
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   }) async {
     await gate.future;
     return _inner.send(

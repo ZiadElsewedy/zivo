@@ -51,10 +51,18 @@ const {
   startOfDay,
 } = require("../shared/dates");
 const {readinessFromSignals} = require("../analytics/readiness");
-const {buildDietState, summariseHistory} = require("../../diet/state");
+const {
+  buildDietState, summariseHistory, BASIS_LABEL,
+} = require("../../diet/state");
+const {buildDietDayRecord} = require("../../diet/day_record");
 const {calibrateMaintenance, energyFor, ageFrom} = require("../../diet/energy");
 const {coachingFindings} = require("../../diet/rules");
 const {analyzeTraining} = require("../analytics/workout_analytics");
+const {
+  trainingCalendar,
+  qualifiesAsTrainingDay,
+  addDays,
+} = require("../analytics/training_calendar");
 const {analyzeExercise, analyzePlanAdherence} = require("../analytics/exercise_analytics");
 const {makeResolver, IDENTITY} = require("../analytics/exercise_identity");
 const {
@@ -191,15 +199,138 @@ function targetsPayload(targets) {
 }
 
 /**
+ * One plan item as the model reads it. `index` is its position within the
+ * meal — a FoodItem has no id of its own, so this is what
+ * search_food_alternatives / replace_meal_item address it by (both re-check
+ * the name at that index before writing). `estimated` appears only when true:
+ * provenance, not decoration — the figures came from an AI estimate at import.
+ * @param {!Object} it A plan FoodItem.
+ * @param {number} index
+ * @return {!Object}
+ */
+function planItemForModel(it, index) {
+  const out = {
+    index,
+    name: it.name,
+    quantity: it.quantity,
+    unit: it.unit,
+    calories: it.calories,
+    proteinG: it.proteinG,
+    carbsG: it.carbsG,
+    fatG: it.fatG,
+  };
+  if (it.estimated === true) out.estimated = true;
+  return out;
+}
+
+/**
+ * The day's meals and foods WITHOUT saying anything twice (Phase 6).
+ *
+ * Ticking a meal materialises one `plannedMeal` log entry per item, id
+ * `${dayKey}__${mealId}-${index}` (`planned_meal_log.dart`), with the plan's
+ * exact name and quantity — so for a ticked meal the log restated the plan's
+ * items word for word (2.4K of a 7K payload on a real day, pushing `get_diet`
+ * past the tool-result cap and truncating the last meal's items). Here each
+ * such entry is folded back into its meal:
+ *   - a ticked meal whose entries match every item: `eaten: true`, nothing
+ *     more — the items ARE what was eaten;
+ *   - one with only some left (a half-eaten meal): `eatenItems` lists the
+ *     indices still logged;
+ *   - anything the plan doesn't explain — food the user logged, or a planned
+ *     entry that no longer matches the plan (edited since) — stays in
+ *     `logEntries`, exactly as before.
+ * `itemsFor` picks which meals carry their items: "all" (get_diet — the plan
+ * is the subject) or "eaten" (get_today — what was consumed).
+ * @param {!Array<!Object>} stateMeals `state.meals`.
+ * @param {?Object} dietDay The resolved plan day.
+ * @param {!Array<!Object>} log The day's raw entries.
+ * @param {string} dayKey
+ * @param {string} itemsFor "all" | "eaten"
+ * @return {{meals: !Array<!Object>, logEntries: !Array<!Object>}}
+ */
+function mealsAndFoodsForModel(stateMeals, dietDay, log, dayKey, itemsFor) {
+  const planMeals = new Map(
+      ((dietDay && dietDay.meals) || []).map((m) => [m.id, m]));
+  const explained = new Map(); // mealId → Set of item indices
+  const unexplained = [];
+  for (const e of log) {
+    const meal = e.origin === "plannedMeal" && e.mealId ?
+      planMeals.get(e.mealId) : null;
+    const prefix = `${dayKey}__${e.mealId}-`;
+    const id = String(e.id || "");
+    const index = meal && id.startsWith(prefix) &&
+      /^\d+$/.test(id.slice(prefix.length)) ?
+      Number(id.slice(prefix.length)) : -1;
+    const item = index >= 0 ? (meal.items || [])[index] : null;
+    const stateMeal = meal ? stateMeals.find((s) => s.id === meal.id) : null;
+    if (item && stateMeal && stateMeal.eaten &&
+        e.foodName === item.name &&
+        Math.abs((e.quantity || 0) - (item.quantity || 0)) < 1e-6) {
+      if (!explained.has(meal.id)) explained.set(meal.id, new Set());
+      explained.get(meal.id).add(index);
+    } else {
+      unexplained.push(e);
+    }
+  }
+  // In the plan's own order (Breakfast … Dinner), as `planItems` was —
+  // `state.meals` is id-sorted for the shared vectors, which puts m10 before
+  // m2.
+  const byId = new Map(stateMeals.map((s) => [s.id, s]));
+  const ordered = [
+    ...[...planMeals.keys()].filter((id) => byId.has(id))
+        .map((id) => byId.get(id)),
+    ...stateMeals.filter((s) => !planMeals.has(s.id)),
+  ];
+  const meals = ordered.map((s) => {
+    const out = {id: s.id, label: s.label, eaten: s.eaten, kcal: s.kcal};
+    if (s.estimated) out.estimated = true;
+    if (s.isSupplement) out.isSupplement = true;
+    const plan = planMeals.get(s.id);
+    const items = (plan && plan.items) || [];
+    const kept = explained.get(s.id);
+    // A ticked meal with no materialised entries predates the food log (or
+    // the log was never written): its planned items stand, as before.
+    if (s.eaten && kept && kept.size < items.length) {
+      out.eatenItems = [...kept].sort((a, b) => a - b);
+    }
+    if (itemsFor === "all" || s.eaten) {
+      out.items = items.map(planItemForModel);
+    }
+    return out;
+  });
+  return {
+    meals,
+    logEntries: unexplained.map((e) => ({
+      food: e.foodName,
+      quantity: e.quantity,
+      unit: e.unit,
+      kcal: e.kcal,
+      proteinG: e.proteinG,
+      carbsG: e.carbsG,
+      fatG: e.fatG,
+      // `source` (usdaFdc/userCustom/dietPlan) stays on the stored entry for
+      // provenance; the coach doesn't need it and must never make the user
+      // think about where a figure came from — `estimated` says what matters.
+      origin: e.origin,
+      estimated: e.estimated,
+    })),
+  };
+}
+
+/**
  * Projects a `DietState` into the shape the model reads. Field order matters:
  * tool results are truncated from the END, so what the coach must never lose —
  * the date, the objective, where the user stands — is serialized first.
  * @param {!Object} state
  * @param {!Array<Object>} log The day's raw entries.
  * @param {?number} localHour The user's own hour of day, when known.
+ * @param {?Object=} dietDay The resolved plan day, for the meals' items.
+ * @param {string=} itemsFor "all" | "eaten" — see `mealsAndFoodsForModel`.
  * @return {!Object}
  */
-function stateForModel(state, log, localHour) {
+function stateForModel(state, log, localHour, dietDay, itemsFor = "eaten") {
+  const {meals, logEntries} = mealsAndFoodsForModel(
+      state.meals, dietDay || null, log, state.dayKey, itemsFor);
   return {
     date: state.dayKey,
     targets: state.targets,
@@ -224,24 +355,13 @@ function stateForModel(state, log, localHour) {
     plannedKcal: state.plannedKcal,
     mealsEaten: state.mealsEaten,
     mealsTotal: state.mealsTotal,
-    meals: state.meals,
     history: state.history,
-    // The individual foods, so the coach can talk about what was eaten rather
+    // The foods the ticked meals don't already account for — what the user
+    // logged themselves, so the coach can talk about what was eaten rather
     // than only about totals.
-    logEntries: log.map((e) => ({
-      food: e.foodName,
-      quantity: e.quantity,
-      unit: e.unit,
-      kcal: e.kcal,
-      proteinG: e.proteinG,
-      carbsG: e.carbsG,
-      fatG: e.fatG,
-      // `source` (usdaFdc/userCustom/dietPlan) stays on the stored entry for
-      // provenance; the coach doesn't need it and must never make the user
-      // think about where a figure came from — `estimated` says what matters.
-      origin: e.origin,
-      estimated: e.estimated,
-    })),
+    logEntries,
+    // Last: the block that can most afford to be truncated.
+    meals,
   };
 }
 
@@ -355,7 +475,7 @@ const TODAY_TOOL = {
     // serialized last is what disappears — the user's objective and where they
     // stand must never be silently half-delivered.
     return {
-      ...stateForModel(state, log, localHourAt(now, offsetMinutes)),
+      ...stateForModel(state, log, localHourAt(now, offsetMinutes), day),
       workouts: workouts.map((w) => ({
         title: w.title,
         performedAt: iso(w.performedAt),
@@ -615,35 +735,60 @@ const LAST_WORKOUT_TOOL = {
   },
 };
 
+const CALENDAR_WINDOW_DAYS = 28;
+
+/**
+ * Calendar adherence (`analytics/training_calendar.js`) over the last
+ * CALENDAR_WINDOW_DAYS on the user's local calendar — which days had a
+ * qualifying session. Never touches, and never describes, the rotation.
+ * @param {!Array<!Object>} sessions
+ * @param {Date} now
+ * @param {number=} offsetMinutes
+ * @return {?Object} Null with no training history.
+ */
+function calendarFor(sessions, now, offsetMinutes) {
+  const sessionsByDay = {};
+  for (const s of sessions || []) {
+    const at = s.completedAt || s.startedAt;
+    if (!at || !qualifiesAsTrainingDay(s)) continue;
+    const key = dayKeyFor(at, offsetMinutes);
+    sessionsByDay[key] = (sessionsByDay[key] || 0) + 1;
+  }
+  const today = dayKeyFor(now, offsetMinutes);
+  return trainingCalendar({
+    sessionsByDay,
+    from: addDays(today, -(CALENDAR_WINDOW_DAYS - 1)),
+    today,
+  });
+}
+
 const TRAINING_ANALYSIS_TOOL = {
   name: "get_training_analysis",
   description:
     "ZIVO's deterministic workout analysis over the user's whole session " +
-    "history — the SAME numbers the Progress screen shows, so you never have " +
-    "to compute strength, PRs or trends yourself (and must not contradict " +
-    "them). Returns: overallStatus + a plain summary; overallStrengthChangePercent " +
+    "history — the SAME numbers the Progress screen shows. Returns: " +
+    "overallStatus + a plain summary; overallStrengthChangePercent " +
     "(estimated 1RM change over ~6 weeks); per-exercise status " +
     "(progressing/maintaining/plateauing/regressing/building) with " +
-    "strengthChangePercent and currentE1RM; a simple per-muscle weekly rollup; " +
-    "weekly working volume vs last week; recentPrs (last 30 days); improving / " +
-    "needsAttention lists; a nextStep; `findings` — typed, ranked coaching " +
-    "conclusions each marked confidence 'fact' (measured) or 'interpretation'; " +
-    "and `planAdherence` — planned movements the user is SKIPPING (reason " +
-    "'neverTrained') or has let go STALE ('stale', with daysSinceLast). " +
-    "**Lead with findings**, keep facts and interpretations distinct, and if " +
-    "there is no data say so. This is the WHOLE-training summary — for one " +
-    "specific lift's session-by-session detail, use get_exercise_analysis. " +
-    "Estimated strength is e1RM — call it 'estimated strength', never expose " +
-    "the formula.",
+    "strengthChangePercent and currentE1RM; a per-muscle weekly rollup; " +
+    "weekly working volume vs last week; recentPrs (last 30 days); " +
+    "improving / needsAttention lists; a nextStep; ranked `findings` " +
+    "(confidence 'fact' or 'interpretation'); `planAdherence` (planned " +
+    "movements 'neverTrained' or 'stale' with daysSinceLast); and " +
+    "`trainingCalendar` (last 4 weeks: active vs inactive days with the " +
+    "inactive dates, training days per week, days since last training). " +
+    "The WHOLE-training summary — for one lift's session-by-session " +
+    "detail use get_exercise_analysis.",
   inputSchema: {type: "object", properties: {}},
   /**
    * @param {!Object} store
    * @param {string} uid
    * @param {!Object} input
    * @param {Date} now
+   * @param {number=} offsetMinutes
    * @return {!Promise<!Object>}
    */
-  async execute(store, uid, input, now) {
+  async execute(store, uid, input, now, offsetMinutes) {
     const {sessions, resolver} = await loadResolvedSessions(store, uid);
     // The active plan is what makes "what's being skipped" answerable; a store
     // without the reader (or with no plan) just yields empty adherence.
@@ -651,6 +796,7 @@ const TRAINING_ANALYSIS_TOOL = {
       await store.getActiveWorkoutPlan(uid) : null;
     const analysis = analyzeTraining({sessions, now});
     const adherence = analyzePlanAdherence({plan, sessions, now, resolver});
+    const calendar = calendarFor(sessions, now, offsetMinutes);
     return {
       ...analysis,
       // ISO the PR dates for the model.
@@ -663,6 +809,7 @@ const TRAINING_ANALYSIS_TOOL = {
         lastPerformedAt: iso(e.lastPerformedAt),
       })),
       planAdherence: adherence,
+      ...(calendar ? {trainingCalendar: calendar} : {}),
     };
   },
 };
@@ -670,23 +817,19 @@ const TRAINING_ANALYSIS_TOOL = {
 const EXERCISE_ANALYSIS_TOOL = {
   name: "get_exercise_analysis",
   description:
-    "ZIVO's deterministic drill-down for ONE exercise — the SAME session-by-" +
-    "session analysis its Exercise Analysis screen shows. Pass the exercise by " +
-    "name (e.g. 'incline dumbbell press'); it's matched against the user's " +
-    "logged movements. Use this for any question about a SPECIFIC lift ('how " +
-    "is my bench going', 'why did my incline improve', 'did I progress even " +
-    "with fewer reps', 'what should I do on squats next'). Returns the full " +
-    "history oldest→newest (each session's sets, reps, load, total volume, " +
-    "average load, rep range, estimated 1RM), the session-to-session " +
-    "`comparisons` (load/reps/volume/estimated-1RM deltas + typed `tags` + a " +
-    "`tone` of improved/declined/mixed/maintained), all-time PRs, frequency, " +
+    "ZIVO's deterministic drill-down for ONE exercise — the SAME " +
+    "session-by-session analysis its Exercise Analysis screen shows. Pass " +
+    "the exercise by name (e.g. 'incline dumbbell press'); it's matched " +
+    "against the user's logged movements. Use it for any question about a " +
+    "SPECIFIC lift ('how is my bench going', 'what should I do on squats " +
+    "next'). Returns the full history oldest→newest (each session's sets, " +
+    "reps, load, total volume, average load, rep range, estimated 1RM), " +
+    "the session-to-session `comparisons` (load/reps/volume/estimated-1RM " +
+    "deltas + typed `tags` + a `tone` of " +
+    "improved/declined/mixed/maintained), all-time PRs, frequency, " +
     "daysSinceLast, the overall `status`/`verdict`, and a deterministic " +
-    "`insight` (whatHappened / whyItMatters / whatToDo). These are FACTS — " +
-    "explain and coach on them; never recompute them or overturn the verdict. " +
-    "In particular a heavier load for fewer reps can be an improvement when " +
-    "estimated 1RM rose: trust `tone`/`verdict`, don't call it a regression " +
-    "because reps fell. If `matched` is false, tell the user and offer the " +
-    "listed candidates.",
+    "`insight` (whatHappened / whyItMatters / whatToDo). If `matched` is " +
+    "false, tell the user and offer the listed candidates.",
   inputSchema: {
     type: "object",
     properties: {
@@ -904,6 +1047,113 @@ function dailyTotals(rows) {
       .sort((a, b) => a.dayKey.localeCompare(b.dayKey));
 }
 
+/**
+ * A food-log row as the model reads it.
+ * @param {!Object} e
+ * @return {!Object}
+ */
+function logEntryForModel(e) {
+  return {
+    food: e.foodName, quantity: e.quantity, unit: e.unit, kcal: e.kcal,
+    proteinG: e.proteinG, carbsG: e.carbsG, fatG: e.fatG, origin: e.origin,
+    estimated: e.estimated,
+  };
+}
+
+/**
+ * Consumed minus target per figure, or null where no target was set.
+ * @param {!Object} consumed
+ * @param {?Object} targets
+ * @return {?Object}
+ */
+function versusTarget(consumed, targets) {
+  if (!targets) return null;
+  const d = (t, c) => (typeof t === "number" ? round1(c - t) : null);
+  return {
+    kcal: d(targets.calories, consumed.kcal),
+    proteinG: d(targets.proteinG, consumed.proteinG),
+    carbsG: d(targets.carbsG, consumed.carbsG),
+    fatG: d(targets.fatG, consumed.fatG),
+  };
+}
+
+/**
+ * A PAST day as the model reads it: the day's own record (`dietDays` — what
+ * was planned THAT day, frozen, and what happened) plus the foods behind it.
+ * Not today's live state: there is no "remaining" and no time-of-day advice
+ * for a day that is over.
+ * @param {!Object} record A `buildDietDayRecord` result.
+ * @param {!Array<!Object>} log That day's food-log rows.
+ * @return {!Object}
+ */
+function pastDayForModel(record, log) {
+  const eatenIds = new Set(record.meals
+      .filter((m) => m.status === "eaten" || m.status === "modified")
+      .map((m) => m.mealId));
+  const out = {
+    date: record.dayKey,
+    kind: "pastDay",
+    targets: record.targets,
+    consumed: Object.assign({}, record.consumed,
+        {basisLabel: BASIS_LABEL[record.consumed.basis]}),
+    versusTarget: versusTarget(record.consumed, record.targets),
+    plan: record.plan ? record.plan.name : null,
+    planned: record.planned,
+    adherence: record.adherence,
+    meals: record.meals.map((m) => {
+      const row = {id: m.mealId, label: m.label, status: m.status};
+      if (m.isSupplement) row.isSupplement = true;
+      if (m.planned) {
+        row.plannedKcal = m.planned.kcal;
+        row.plannedProteinG = m.planned.proteinG;
+      }
+      if (m.actual) row.actual = m.actual;
+      // What was eaten from it, by name — the rows are the plan's items.
+      const foods = log.filter((e) => e.origin === "plannedMeal" &&
+        e.mealId === m.mealId && eatenIds.has(m.mealId));
+      if (foods.length) {
+        row.foods = foods.map((e) => `${e.foodName} ${e.quantity}${e.unit}`);
+      }
+      return row;
+    }),
+    // Everything eaten outside the day's ticked meals, in full.
+    logEntries: log
+        .filter((e) => e.origin !== "plannedMeal" || !eatenIds.has(e.mealId))
+        .map(logEntryForModel),
+  };
+  // Said only when true: the day was first recorded after it ended, so its
+  // plan side is today's plan applied to it, not what was in force then.
+  if (record.plannedReconstructed) out.planReconstructed = true;
+  return out;
+}
+
+/**
+ * The stored record for a past day, or one built now from its sources when
+ * none is stored yet (a day from before the record existed) — marked
+ * reconstructed by the builder. Null when nothing was recorded that day.
+ * @param {!Object} store
+ * @param {string} uid
+ * @param {string} dayKey
+ * @param {!Array<!Object>} log
+ * @return {!Promise<?Object>}
+ */
+async function pastDayRecord(store, uid, dayKey, log) {
+  const stored = store.getDietDay ? await store.getDietDay(uid, dayKey) : null;
+  if (stored) return stored;
+  const [plan, entries, targets] = await Promise.all([
+    store.getActiveDietPlan(uid),
+    store.listDietEntries(uid, dayKey),
+    store.getDietTargets(uid),
+  ]);
+  return buildDietDayRecord({
+    dayKey, isPast: true, offsetMinutes: null, plan,
+    planDay: plan ?
+      resolveDietDay(plan.days || [], new Date(`${dayKey}T12:00:00Z`), 0) :
+      null,
+    targets, entries, log, existing: null,
+  });
+}
+
 const DIET_TOOL = {
   name: "get_diet",
   description:
@@ -913,7 +1163,8 @@ const DIET_TOOL = {
     "what's `remaining` of them. Every figure carries an `estimated` flag: " +
     "true means it was AI-estimated when the plan was imported, not stated " +
     "by the plan itself. `targets` is null when the user hasn't set an " +
-    "objective. day: optional 'yyyy-MM-dd'.",
+    "objective. day: optional 'yyyy-MM-dd'; a past day returns that day's " +
+    "own record (plan as it was then, meal statuses, consumed vs target).",
   inputSchema: {
     type: "object",
     properties: {day: {type: "string"}},
@@ -936,6 +1187,15 @@ const DIET_TOOL = {
       new Date(`${requested[0]}T12:00:00Z`) : now;
     const dateOffset = requested ? 0 : offsetMinutes;
 
+    // A day that is over is read from its own record — what was planned
+    // THEN, not the plan as it is now.
+    if (requested && requested[0] < dayKeyFor(now, offsetMinutes)) {
+      const log = await store.listFoodLogs(uid, requested[0]);
+      const record = await pastDayRecord(store, uid, requested[0], log);
+      return record ? pastDayForModel(record, log) :
+        {date: requested[0], kind: "pastDay", nothingRecorded: true};
+    }
+
     const [{plan, dietDay, eaten, log}, targets] = await Promise.all([
       loadDietDay(store, uid, date, dateOffset),
       store.getDietTargets(uid),
@@ -954,33 +1214,202 @@ const DIET_TOOL = {
       // An explicit `day` is a past/future date, so "what hour is it" doesn't
       // apply to it — time-sensitive rules correctly stay quiet.
       ...stateForModel(
-          state, log, requested ? null : localHourAt(now, offsetMinutes)),
-      // The plan's items, so the coach can discuss what the plan prescribes
-      // rather than only its totals. Last in the payload: it is the block
-      // that can most afford to be truncated.
-      planItems: !dietDay ? [] : dietDay.meals.map((m) => ({
-        id: m.id,
-        label: m.label,
-        items: m.items.map((it, index) => ({
-          // Position within THIS meal's items — a FoodItem has no id of its
-          // own (unlike a Meal), so this is what search_food_alternatives /
-          // replace_meal_item address it by. Not stable across a plan edit,
-          // which is why both re-check the name at that index before writing.
-          index,
-          name: it.name,
-          quantity: it.quantity,
-          unit: it.unit,
-          calories: it.calories,
-          proteinG: it.proteinG,
-          carbsG: it.carbsG,
-          fatG: it.fatG,
-          // Provenance, not decoration: true means this item's figures came
-          // from an AI estimate at import time, never from a measurement or
-          // the plan document itself.
-          estimated: it.estimated === true,
-        })),
-      })),
+          state, log, requested ? null : localHourAt(now, offsetMinutes),
+          dietDay, "all"),
     };
+  },
+};
+
+/** Longest window get_diet_history reads, and when rows become weeks. */
+const HISTORY_MAX_DAYS = 90;
+const HISTORY_DAILY_ROWS_MAX = 14;
+/** A day within ±10% of its calorie target counts as on target. */
+const ON_TARGET_BAND = 0.1;
+
+/**
+ * One recorded day as a compact history row.
+ * @param {!Object} r A stored `dietDays` record.
+ * @param {string} todayKey
+ * @return {!Object}
+ */
+function historyRow(r, todayKey) {
+  const row = {
+    date: r.dayKey,
+    kcal: r.consumed.kcal,
+    proteinG: r.consumed.proteinG,
+    carbsG: r.consumed.carbsG,
+    fatG: r.consumed.fatG,
+    basis: r.consumed.basis,
+    meals: `${r.adherence.eaten + r.adherence.modified}/` +
+      `${r.adherence.mealsPlanned}`,
+  };
+  const vs = versusTarget(r.consumed, r.targets);
+  if (vs) row.vsTargetKcal = vs.kcal;
+  if (r.adherence.skipped) row.skipped = r.adherence.skipped;
+  if (r.adherence.modified) row.modified = r.adherence.modified;
+  if (r.unplanned && r.unplanned.count) row.offPlanKcal = r.unplanned.kcal;
+  if (r.consumed.estimated) row.estimated = true;
+  if (r.dayKey === todayKey) row.inProgress = true;
+  return row;
+}
+
+/**
+ * The window's summary: averages over RECORDED days only (a day with nothing
+ * recorded is absent, never zero), days on/over/under target, and which meals
+ * went uneaten most — the pattern a coach acts on.
+ * @param {!Array<!Object>} records Stored records, oldest first.
+ * @param {string} todayKey
+ * @return {!Object}
+ */
+function historySummary(records, todayKey) {
+  // Today is still happening: shown, but not averaged or judged.
+  const done = records.filter((r) =>
+    r.dayKey !== todayKey && r.consumed.basis !== "nothingLogged");
+  const avg = (f) => done.length === 0 ? null :
+    round1(done.reduce((n, r) => n + (r.consumed[f] || 0), 0) / done.length);
+  const target = [...records].reverse().find((r) => r.targets);
+  const t = target ? target.targets : null;
+  let on = 0;
+  let over = 0;
+  let under = 0;
+  let proteinHit = 0;
+  for (const r of done) {
+    if (!r.targets) continue;
+    const band = r.targets.calories * ON_TARGET_BAND;
+    const delta = r.consumed.kcal - r.targets.calories;
+    if (Math.abs(delta) <= band) on++;
+    else if (delta > 0) over++;
+    else under++;
+    if (typeof r.targets.proteinG === "number" &&
+        r.consumed.proteinG >= r.targets.proteinG * 0.9) {
+      proteinHit++;
+    }
+  }
+  const missed = new Map();
+  const adherence = {mealsPlanned: 0, eaten: 0, modified: 0, skipped: 0,
+    unmarked: 0};
+  for (const r of records.filter((x) => x.dayKey !== todayKey)) {
+    for (const k of Object.keys(adherence)) adherence[k] += r.adherence[k];
+    for (const m of r.meals) {
+      if (m.isSupplement || !m.planned) continue;
+      if (m.status === "skipped" || m.status === "unmarked") {
+        const key = `${m.label}|${m.status}`;
+        missed.set(key, (missed.get(key) || 0) + 1);
+      }
+    }
+  }
+  return {
+    daysCounted: done.length,
+    avgKcal: avg("kcal"),
+    avgProteinG: avg("proteinG"),
+    avgCarbsG: avg("carbsG"),
+    avgFatG: avg("fatG"),
+    target: t ? {calories: t.calories, proteinG: t.proteinG} : null,
+    daysOnTarget: t ? on : null,
+    daysOver: t ? over : null,
+    daysUnder: t ? under : null,
+    daysProteinMet: t && typeof t.proteinG === "number" ? proteinHit : null,
+    daysFromTickedMealsOnly: done.filter(
+        (r) => r.consumed.basis === "tickedPlanMeals").length,
+    meals: adherence,
+    mostMissed: [...missed.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([key, days]) => {
+          const [label, status] = key.split("|");
+          return {meal: label, status, days};
+        }),
+  };
+}
+
+/**
+ * Seven-day buckets for a long window: the shape of a month without thirty
+ * rows.
+ * @param {!Array<!Object>} rows Daily rows, oldest first.
+ * @return {!Array<!Object>}
+ */
+function weeklyBuckets(rows) {
+  const out = [];
+  for (let i = 0; i < rows.length; i += 7) {
+    const week = rows.slice(i, i + 7).filter((r) => r.basis !== "nothingLogged");
+    if (week.length === 0) continue;
+    const avg = (f) =>
+      round1(week.reduce((n, r) => n + (r[f] || 0), 0) / week.length);
+    out.push({
+      from: rows[i].date,
+      to: rows[Math.min(i + 6, rows.length - 1)].date,
+      daysRecorded: week.length,
+      avgKcal: avg("kcal"),
+      avgProteinG: avg("proteinG"),
+    });
+  }
+  return out;
+}
+
+const DIET_HISTORY_TOOL = {
+  name: "get_diet_history",
+  description:
+    "The user's recorded diet over a range: a row per day (consumed, meals " +
+    "eaten/planned, skipped, vs target) and a summary (averages, days on/" +
+    "over/under target, meals most often missed). days: back from today " +
+    "(default 7, max 90), or from/to 'yyyy-MM-dd'.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      days: {type: "integer", minimum: 1, maximum: HISTORY_MAX_DAYS},
+      from: {type: "string"},
+      to: {type: "string"},
+    },
+  },
+  /**
+   * @param {!Object} store
+   * @param {string} uid
+   * @param {!Object} input
+   * @param {Date} now
+   * @param {number=} offsetMinutes
+   * @return {!Promise<!Object>}
+   */
+  async execute(store, uid, input, now, offsetMinutes) {
+    const todayKey = dayKeyFor(now, offsetMinutes);
+    const iso = (v) => typeof v === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? v.trim() : null;
+    const keyDaysBefore = (key, n) => new Date(
+        Date.parse(`${key}T12:00:00Z`) - n * 86400000)
+        .toISOString().slice(0, 10);
+    let to = iso(input.to) || todayKey;
+    if (to > todayKey) to = todayKey;
+    const days = Number.isInteger(input.days) ?
+      Math.min(Math.max(input.days, 1), HISTORY_MAX_DAYS) : 7;
+    let from = iso(input.from) || keyDaysBefore(to, days - 1);
+    if (from > to) from = to;
+    if (from < keyDaysBefore(to, HISTORY_MAX_DAYS - 1)) {
+      from = keyDaysBefore(to, HISTORY_MAX_DAYS - 1);
+    }
+    const records = await store.listDietDays(uid, from, to);
+    const byKey = new Map(records.map((r) => [r.dayKey, r]));
+    const rows = [];
+    const notRecorded = [];
+    for (let k = from; k <= to; k = keyDaysBefore(k, -1)) {
+      const r = byKey.get(k);
+      if (r) rows.push(historyRow(r, todayKey));
+      else notRecorded.push(k);
+    }
+    const out = {
+      from,
+      to,
+      today: todayKey,
+      summary: historySummary(records, todayKey),
+    };
+    if (rows.length > HISTORY_DAILY_ROWS_MAX) {
+      out.weeks = weeklyBuckets(rows);
+    } else {
+      out.days = rows;
+    }
+    // Absent, not zero: a day with no record had nothing recorded, which is
+    // not the same as eating nothing.
+    out.notRecorded = notRecorded.length > HISTORY_DAILY_ROWS_MAX ?
+      notRecorded.length : notRecorded;
+    return out;
   },
 };
 
@@ -1154,19 +1583,14 @@ const SEARCH_FOOD_ALTERNATIVES_TOOL = {
   // foods to look for (`../chat/choices.js` withMoreOption).
   moreOptions: true,
   description:
-    "Find realistic replacements for ONE item in the user's active plan they " +
-    "don't want (\"I don't want molokhia\"). YOU propose the candidates: 3–6 " +
-    "foods a real person would actually eat in that meal instead of it — the " +
-    "same kind of food (a vegetable dish for a vegetable dish, a protein for " +
-    "a protein, a starch for a starch), fitting the meal and the user's " +
-    "cuisine, as simple single foods the catalog can price (\"green beans\", " +
-    "\"zucchini\", \"okra\" — not \"grilled vegetable platter\"), never canned, " +
-    "processed or fast food unless the user asked. ZIVO prices each one from " +
-    "its catalog and sizes a portion to the original item's calories; a " +
-    "candidate it can't price comes back found:false — drop it, never " +
-    "estimate it. Changes nothing: show the found options with ask_choice and " +
-    "WAIT for the user to pick before replace_meal_item. Identify the item " +
-    "with mealId, itemIndex and itemName exactly as get_today/get_diet gave " +
+    "Find realistic replacements for ONE item in the user's active plan " +
+    "they don't want. Pass 3–6 candidate foods YOU choose (see MEAL " +
+    "REPLACEMENT for how) as simple single foods the catalog can price. " +
+    "ZIVO prices each one and sizes a portion to the original item's " +
+    "calories; a candidate it can't price comes back found:false — drop " +
+    "it, never estimate it. Changes nothing: show the found options with " +
+    "ask_choice and wait for the user's pick. Identify the item with " +
+    "mealId, itemIndex and itemName exactly as get_today/get_diet gave " +
     "them.",
   inputSchema: {
     type: "object",
@@ -1400,19 +1824,21 @@ const READINESS_TOOL = {
   name: "get_readiness",
   description:
     "ZIVO's Daily Readiness call — the SAME train-hard / go-light / rest " +
-    "recommendation the Today screen shows, fused deterministically from last " +
-    "night's sleep, the training stall/deload signal, how recently the user " +
-    "trained, and their body-weight trend. Use it for 'how am I today', 'should " +
-    "I train hard', 'what should I do today' and anything about recovery. " +
-    "Returns `available:false` when there is not enough data for a call. " +
-    "Otherwise returns `verdict` (trainHard | goLight | rest) and `factors` — " +
+    "recommendation the Today screen shows, fused from last night's " +
+    "sleep, the training stall/deload signal, how recently the user " +
+    "trained, and their body-weight trend. Use it for 'how am I today', " +
+    "'should I train hard', 'what should I do today' and recovery " +
+    "questions. Returns `available:false` when there is not enough data. " +
+    "Otherwise `verdict` (trainHard | goLight | rest) and `factors` — " +
     "each with the number behind it: `sleep` (sleepDurationMinutes, " +
-    "sleepDeltaMinutes vs target), `deload` (deloadExerciseCount stalled lifts), " +
-    "`recentLoad` (restDays since last session), `bodyWeight` (weightChangeKg " +
-    "over ~30 days) — and a `direction` of supports / caution / limits. LEAD " +
-    "with the verdict and cite the factors; these are FACTS — never invent a " +
-    "readiness number or overturn the call. It is a training guide, not a " +
-    "medical or HRV score.",
+    "sleepDeltaMinutes vs target), `deload` (deloadExerciseCount stalled " +
+    "lifts), `recentLoad` (restDays since last session), `bodyWeight` " +
+    "(weightChangeKg over ~30 days) — and a `direction` of supports / " +
+    "caution / limits. Always carries `training`: the last completed " +
+    "session (`lastSessionName`, `lastSessionDaysAgo`, null = never), " +
+    "`trainedToday`, and `upNext` — the next day in their split rotation " +
+    "(after today's session when one is done; null = no split). That's " +
+    "everything a 'should I train today' call needs in one read.",
   inputSchema: {type: "object", properties: {}},
   /**
    * @param {!Object} store
@@ -1431,19 +1857,38 @@ const READINESS_TOOL = {
     };
 
     // Training — the deload signal and how recently they trained.
-    const {sessions} = await loadResolvedSessions(store, uid);
+    const [{sessions}, plan] = await Promise.all([
+      loadResolvedSessions(store, uid),
+      store.getActiveWorkoutPlan ?
+        store.getActiveWorkoutPlan(uid) : Promise.resolve(null),
+    ]);
     const analysis = analyzeTraining({sessions, now});
     let lastSessionMs = null;
+    let lastSession = null;
     for (const s of sessions) {
       if (s.status !== "completed") continue;
       const at = s.completedAt || s.startedAt;
       const ms = at ? at.getTime() : null;
       if (ms !== null && (lastSessionMs === null || ms > lastSessionMs)) {
         lastSessionMs = ms;
+        lastSession = s;
       }
     }
     const lastSessionDaysAgo =
       lastSessionMs === null ? null : daysAgo(lastSessionMs);
+    // The facts a train-today decision rests on besides the readiness call
+    // itself — what was done last, and what the split has up next — so the
+    // coach decides from one read instead of guessing the half it didn't
+    // fetch. Facts only: the decision is the model's, grounded in these.
+    const hasSplit = plan && Array.isArray(plan.days) && plan.days.length > 0;
+    const training = {
+      lastSessionName: lastSession ?
+        String(lastSession.dayLabel || "").trim() || null : null,
+      lastSessionDaysAgo,
+      trainedToday: lastSessionDaysAgo === 0,
+      upNext: hasSplit ?
+        dayName(rotationFrom(plan.days, plan.cycleCursor)[0]) : null,
+    };
 
     // Sleep — only the newest night, and only if it is genuinely recent.
     const nights = store.listSleepNights ?
@@ -1480,27 +1925,28 @@ const READINESS_TOOL = {
       return {
         date: dayKeyFor(now, offsetMinutes),
         available: false,
-        reason: "Not enough data yet — no recent sleep, training, or weigh-in.",
+        reason: "No readiness call: last night's sleep, training load and " +
+          "weigh-ins are missing or show nothing notable.",
+        training,
       };
     }
-    return {date: dayKeyFor(now, offsetMinutes), available: true, ...readiness};
+    return {date: dayKeyFor(now, offsetMinutes), available: true, ...readiness,
+      training};
   },
 };
 
 const SLEEP_SUMMARY_TOOL = {
   name: "get_sleep_summary",
   description:
-    "A compact sleep summary: last night's sleep duration and how it compares " +
-    "to the user's sleep-duration target, plus a rolling average over their " +
-    "most recent nights. Use this for sleep-SPECIFIC questions — 'how did I " +
-    "sleep', 'how much am I sleeping', 'is my sleep improving'. For 'should I " +
-    "train today' / 'how am I today' use get_readiness instead — it already " +
-    "fuses sleep with training load and recovery into one call, so don't call " +
-    "both for a readiness question. Durations are in minutes; a positive " +
-    "`deltaMinutes` means over target, negative means short. `available:false` " +
-    "when no sleep is recorded. `latestNightDaysAgo` says how fresh the newest " +
-    "night is — when it's not last night, `lastNight` is null and you should " +
-    "say the freshest data is from N days ago rather than call it last night.",
+    "A compact sleep summary: last night's duration vs the user's " +
+    "sleep-duration target, plus a rolling average over their most recent " +
+    "nights. For sleep-SPECIFIC questions ('how did I sleep', 'is my " +
+    "sleep improving'); readiness questions belong to get_readiness. " +
+    "Durations are in minutes; a positive `deltaMinutes` means over " +
+    "target, negative means short. `available:false` when no sleep is " +
+    "recorded. `latestNightDaysAgo` says how fresh the newest night is — " +
+    "when it's not last night, `lastNight` is null: say the freshest data " +
+    "is from N days ago rather than call it last night.",
   inputSchema: {type: "object", properties: {}},
   /**
    * @param {!Object} store
@@ -1729,6 +2175,7 @@ const tools = [
   READINESS_TOOL,
   SLEEP_SUMMARY_TOOL,
   DIET_TOOL,
+  DIET_HISTORY_TOOL,
   RESOLVE_FOOD_TOOL,
   CALCULATE_MEAL_TOOL,
   SEARCH_FOOD_ALTERNATIVES_TOOL,

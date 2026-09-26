@@ -62,6 +62,7 @@ class _ScriptedAi implements AiRepository {
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   }) async {
     sentTurnIds.add(clientTurnId ?? '');
     sentTexts.add(text);

@@ -12,6 +12,7 @@
  */
 
 const {AiProvider} = require("./provider");
+const {keyForModelId, reasoningFor} = require("../routing/models");
 
 /** @const {!Object<string, string>} Anthropic stop_reason → normalized. */
 const STOP_REASON_MAP = {
@@ -190,6 +191,36 @@ function toAnthropicToolChoice(toolChoice) {
 }
 
 /**
+ * Marks the last cacheable block of the last message as a cache breakpoint
+ * (`NormalizedRequest.cacheTail`). Thinking blocks and empty text can't carry
+ * `cache_control`, so it walks back past them; with nothing eligible the
+ * request is left as-is. The marked block is a COPY — a round-tripped `raw`
+ * block is the caller's object and is re-sent on later calls, where a
+ * leftover marker would pile up past Anthropic's 4-breakpoint limit.
+ * @param {!Array<!Object>} messages Anthropic-shape messages, mutated.
+ * @param {string} cacheType e.g. `"ephemeral"`.
+ */
+function markCacheTail(messages, cacheType) {
+  const last = messages[messages.length - 1];
+  if (!last) return;
+  if (typeof last.content === "string") {
+    if (!last.content) return;
+    last.content = [{type: "text", text: last.content}];
+  }
+  for (let i = last.content.length - 1; i >= 0; i--) {
+    const block = last.content[i];
+    if (!block || typeof block === "string" || block.type === "thinking" ||
+        block.type === "redacted_thinking" ||
+        (block.type === "text" && !block.text)) {
+      continue;
+    }
+    last.content[i] = Object.assign({}, block,
+        {cache_control: {type: cacheType}});
+    return;
+  }
+}
+
+/**
  * @param {!Object} normalizedRequest
  * @return {!Object} An Anthropic Messages API request.
  */
@@ -199,6 +230,9 @@ function toAnthropicRequest(normalizedRequest) {
     max_tokens: normalizedRequest.maxTokens,
     messages: normalizedRequest.messages.map(toAnthropicMessage),
   };
+  if (normalizedRequest.cacheTail) {
+    markCacheTail(req.messages, normalizedRequest.cacheTail);
+  }
   if (normalizedRequest.system && normalizedRequest.system.length > 0) {
     req.system = normalizedRequest.system.map((block) => {
       const b = {type: "text", text: block.text};
@@ -211,6 +245,12 @@ function toAnthropicRequest(normalizedRequest) {
   }
   const toolChoice = toAnthropicToolChoice(normalizedRequest.toolChoice);
   if (toolChoice !== undefined) req.tool_choice = toolChoice;
+  // A reasoning level becomes whatever that model's catalog entry says it
+  // means (effort + thinking as ONE setting — `../routing/models.js`); a
+  // level the model doesn't offer adds nothing, never a half-setting.
+  const reasoning = reasoningFor(
+      keyForModelId(normalizedRequest.model), normalizedRequest.reasoning);
+  if (reasoning) Object.assign(req, JSON.parse(JSON.stringify(reasoning)));
   return req;
 }
 

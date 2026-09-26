@@ -116,6 +116,16 @@ class MediaService {
     return true;
   }
 
+  /// Whether this device holds a persisted connection owned by the signed-in
+  /// account. The side-effect-free twin of [_computeConnectionValid] — passive
+  /// reads call it, and a read must never tear a connection down.
+  Future<bool> _hasUsableConnection() async {
+    final provider = backup;
+    if (provider == null || !await provider.isDeviceConnected()) return false;
+    final current = currentAccountId?.call();
+    return current != null && await provider.connectedOwnerId() == current;
+  }
+
   /// Records [value] as the current connection state and returns it, so every
   /// path that decides the answer also announces it. [ValueNotifier] only
   /// notifies on a genuine change, so the repeated passive checks a photo grid
@@ -397,6 +407,14 @@ class MediaService {
       return const MediaResolution(MediaAvailability.nowhere);
     }
 
+    // Backed up, but this device can't reach the backup at all — no session
+    // and no connection for this account to restore silently. Reporting
+    // `cloudOnly` here pulsed "on its way" forever on a second phone that
+    // simply never connected Drive; the honest answer is a user action.
+    if (!provider.hasLiveSession && !await _hasUsableConnection()) {
+      return const MediaResolution(MediaAvailability.notConnected);
+    }
+
     // A file id is a location inside ONE cloud account. If this device is
     // connected to a different one, the bytes are not lost — they simply are
     // not here, and no retry will change that — so say `otherAccount` instead
@@ -643,9 +661,10 @@ class MediaService {
 
       final remoteId = await provider.upload(
         file: file,
-        fileName: p.posix.basename(object.relativePath),
+        fileName: remoteFileName(object),
         mimeType: object.mimeType,
-        accountFolder: object.ownerUid, // per-ZIVO-account isolation
+        accountFolder: object.ownerUid, // per-ZIVO-account, never per-device
+        subfolder: object.kind.remoteFolder,
         replaceRemoteId: object.remoteId,
         replaceInAccountKey: object.remoteAccountKey,
       );
@@ -687,6 +706,73 @@ class MediaService {
     } finally {
       _autoUploadsInFlight.remove(id);
     }
+  }
+
+  /// Pushes every photo this device holds locally that the connected account
+  /// doesn't have yet — silently, with no prompt and no UI.
+  ///
+  /// [capture] uploads immediately when it can, but "when it can" excludes a
+  /// capture taken offline, before Drive was connected on this device, or
+  /// while the session couldn't be restored. Without this pass those photos
+  /// stayed on the capturing phone until someone found "Back up now", and
+  /// every other device of the account showed a record with no image. The
+  /// app calls it on sign-in and on every return to the foreground.
+  ///
+  /// Same gates as the capture-time upload (a connection owned by this
+  /// account, a silently restorable session, auto-upload on — deferred
+  /// deletions are swept before that last one), one run at a time, and it
+  /// never throws. Each record goes through [_autoUpload], which
+  /// patches the result onto the freshest registry record, so an edit made
+  /// while the pass runs is never overwritten.
+  Future<void> uploadPendingInBackground() =>
+      _backgroundUpload ??= _drainPendingUploads()
+          .whenComplete(() => _backgroundUpload = null);
+
+  Future<void>? _backgroundUpload;
+
+  Future<void> _drainPendingUploads() async {
+    try {
+      final provider = backup;
+      if (provider == null) return;
+      if (!await _backupConnectionValidForCurrentAccount()) return;
+      if (!await _ensureSilentSession()) return;
+      final accountKey = provider.liveAccountKey;
+      if (accountKey == null) return;
+
+      // Finishing a deletion the user already asked for is not an upload, so
+      // it runs whatever the auto-upload setting says.
+      await sweepPendingRemoteDeletions();
+      final prefs = await preferences.read();
+      if (!prefs.autoUploadToDrive) return;
+      final pending =
+          await registry.pendingBackups(forAccountKey: accountKey);
+      for (final object in pending) {
+        if (provider.liveAccountKey != accountKey) break; // account changed
+        // Already being pushed by a capture on this device.
+        if (!_autoUploadsInFlight.add(object.id)) continue;
+        // Records whose bytes live only on another device are skipped inside
+        // (no local file) — that device uploads them on its own next pass.
+        await _autoUpload(object);
+      }
+    } catch (_) {
+      // Housekeeping: the next sign-in or resume tries again.
+    }
+  }
+
+  /// The name a file gets in the cloud: its capture time first, so a Drive
+  /// folder lists chronologically and reads as photos rather than hashes,
+  /// then a short slice of its id so two captures in the same second stay
+  /// distinguishable. Cosmetic — files are always addressed by remote id.
+  @visibleForTesting
+  static String remoteFileName(MediaObject object) {
+    final t = object.capturedAt.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final stamp = '${t.year}-${two(t.month)}-${two(t.day)} '
+        '${two(t.hour)}.${two(t.minute)}.${two(t.second)}';
+    final ext = p.posix.extension(object.relativePath);
+    final shortId =
+        object.id.length > 8 ? object.id.substring(0, 8) : object.id;
+    return 'ZIVO $stamp $shortId$ext';
   }
 
   /// True when a backup session is live when this returns. A live session
@@ -870,7 +956,10 @@ class MediaService {
     await _backupConnectionValidForCurrentAccount();
     // Reconnecting an account is exactly when deletions deferred against it
     // become possible again — do them before the user has to think about it.
-    if (connected) unawaited(sweepPendingRemoteDeletions());
+    // …and push whatever this device captured while it wasn't connected, so
+    // the account's other devices can open it without anyone tapping
+    // "Back up now". (The drain sweeps deferred deletions too.)
+    if (connected) unawaited(uploadPendingInBackground());
     return connected;
   }
 
@@ -924,12 +1013,19 @@ class MediaService {
       // the account it started against, and half a run's ids attributed to the
       // wrong account is worse than a run that stops.
       if (provider.liveAccountKey != accountKey) break;
+      // A background upload of this id is already running; a second one
+      // would create a duplicate file in Drive.
+      if (_autoUploadsInFlight.contains(object.id)) {
+        onProgress?.call(++done, total);
+        continue;
+      }
 
       final remoteId = await provider.upload(
         file: file,
-        fileName: p.posix.basename(object.relativePath),
+        fileName: remoteFileName(object),
         mimeType: object.mimeType,
-        accountFolder: object.ownerUid, // per-ZIVO-account isolation
+        accountFolder: object.ownerUid, // per-ZIVO-account, never per-device
+        subfolder: object.kind.remoteFolder,
         replaceRemoteId: object.remoteId,
         replaceInAccountKey: object.remoteAccountKey,
       );

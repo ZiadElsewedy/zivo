@@ -33,6 +33,7 @@ AiThoughtKind aiThoughtKindForTool(String tool) => switch (tool) {
   'get_training_analysis' ||
   'get_exercise_analysis' ||
   'get_readiness' ||
+  'get_diet_history' ||
   'summarize_week' => AiThoughtKind.analyzing,
   'calculate_meal_nutrition' => AiThoughtKind.calculating,
   'resolve_food' || 'search_food_product' => AiThoughtKind.searching,
@@ -82,6 +83,10 @@ Color aiThoughtTint(AiThoughtKind kind) => switch (kind) {
     switch (tool) {
       'get_today' => (s) => (s.askThoughtDay, s.askThoughtDayDone),
       'get_diet' => (s) => (s.askThoughtDiet, s.askThoughtDietDone),
+      'get_diet_history' => (s) => (
+        s.askThoughtDietHistory,
+        s.askThoughtDietHistoryDone,
+      ),
       'get_workouts' => (s) => (s.askThoughtWorkouts, s.askThoughtWorkoutsDone),
       'get_last_workout' => (s) => (
         s.askThoughtLastWorkout,

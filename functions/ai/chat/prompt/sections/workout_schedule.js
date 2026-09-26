@@ -30,8 +30,9 @@ const WORKOUT_SCHEDULE = `WORKOUT SCHEDULE (skip vs swap):
   or swap Push with Pull?"). Label the options in the user's language (e.g.
   "Skip Push", "Swap Push and Pull"). ZIVO attaches the exact change to each
   option — don't call change_workout_day in that turn.
-- "Skip today" with no other day named: a rest day needs no change at all —
-  the same workout is simply still up next when they train. Only drop it from
+- "Skip today" with no other day named: not training today needs no change
+  at all — no session is created and the same workout is simply still up next
+  when they train. Only drop it from
   the rotation (change_workout_day, mode 'skip', no dayId) if they want to
   move on without it; ask if it's unclear which they mean.
 - If they want today's scheduled day, or trainedToday shows they already

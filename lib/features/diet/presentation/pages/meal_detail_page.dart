@@ -54,6 +54,9 @@ class MealDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final diet = AppScope.of(context).diet;
     final now = DateTime.now();
+    // Opened together, outside the builders: a stream created inside the
+    // consumed builder would re-subscribe on every tick.
+    final skipped = diet.watchSkipped(now);
     return TrainScreen(
       tint: TrainColors.dietTint,
       child: StreamBuilder<Set<String>>(
@@ -61,57 +64,78 @@ class MealDetailPage extends StatelessWidget {
         initialData: const <String>{},
         builder: (context, snapshot) {
           final eaten = (snapshot.data ?? const <String>{}).contains(meal.id);
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screen,
-                  12,
-                  AppSpacing.screen,
-                  0,
-                ),
-                child: TrainPageHeader(title: isolate(meal.label)),
+          return StreamBuilder<Set<String>>(
+            stream: skipped,
+            initialData: const <String>{},
+            builder: (context, skippedSnapshot) => _body(
+              context,
+              eaten: eaten,
+              skipped: (skippedSnapshot.data ?? const <String>{}).contains(
+                meal.id,
               ),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screen,
-                    18,
-                    AppSpacing.screen,
-                    AppSpacing.s,
-                  ),
-                  children: [
-                    _Totals(meal: meal, isSupplement: isSupplement),
-                    const SizedBox(height: AppSpacing.l),
-                    TrainSectionLabel(
-                      l(context).dietWhatsInIt,
-                      trailing: meal.items.isEmpty
-                          ? null
-                          : ltrFor(
-                              context,
-                              l(context).dietItemCount(meal.items.length),
-                            ),
-                    ),
-                    const SizedBox(height: AppSpacing.m),
-                    if (meal.items.isEmpty)
-                      Text(
-                        l(context).dietNoItemsListed,
-                        style: AppText.body.copyWith(color: TrainColors.ink3),
-                      )
-                    else
-                      TrainListCard(
-                        rows: [
-                          for (final item in meal.items) _ItemRow(item: item),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
-              _ActionDock(meal: meal, eaten: eaten),
-            ],
+            ),
           );
         },
       ),
+    );
+  }
+
+  Widget _body(
+    BuildContext context, {
+    required bool eaten,
+    required bool skipped,
+  }) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screen,
+            12,
+            AppSpacing.screen,
+            0,
+          ),
+          child: TrainPageHeader(title: isolate(meal.label)),
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screen,
+              18,
+              AppSpacing.screen,
+              AppSpacing.s,
+            ),
+            children: [
+              _Totals(meal: meal, isSupplement: isSupplement),
+              const SizedBox(height: AppSpacing.l),
+              TrainSectionLabel(
+                l(context).dietWhatsInIt,
+                trailing: meal.items.isEmpty
+                    ? null
+                    : ltrFor(
+                        context,
+                        l(context).dietItemCount(meal.items.length),
+                      ),
+              ),
+              const SizedBox(height: AppSpacing.m),
+              if (meal.items.isEmpty)
+                Text(
+                  l(context).dietNoItemsListed,
+                  style: AppText.body.copyWith(color: TrainColors.ink3),
+                )
+              else
+                TrainListCard(
+                  rows: [for (final item in meal.items) _ItemRow(item: item)],
+                ),
+            ],
+          ),
+        ),
+        _ActionDock(
+          meal: meal,
+          eaten: eaten,
+          // Supplements aren't meals: nothing to skip.
+          skipped: isSupplement ? null : skipped,
+        ),
+      ],
     );
   }
 }
@@ -303,10 +327,17 @@ class _ItemRow extends StatelessWidget {
 /// only control at the furthest point from the thumb and made the card do two
 /// jobs. Docking it is the same call the Sleep page made, for the same reason.
 class _ActionDock extends StatefulWidget {
-  const _ActionDock({required this.meal, required this.eaten});
+  const _ActionDock({
+    required this.meal,
+    required this.eaten,
+    required this.skipped,
+  });
 
   final Meal meal;
   final bool eaten;
+
+  /// Null hides the skip action (supplements).
+  final bool? skipped;
 
   @override
   State<_ActionDock> createState() => _ActionDockState();
@@ -349,9 +380,19 @@ class _ActionDockState extends State<_ActionDock>
     );
   }
 
+  void _toggleSkip() {
+    HapticFeedback.selectionClick();
+    AppScope.of(context).diet.setMealSkipped(
+      mealId: widget.meal.id,
+      day: DateTime.now(),
+      skipped: widget.skipped != true,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final strings = l(context);
+    final skipped = widget.skipped;
     return Container(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.screen,
@@ -365,60 +406,89 @@ class _ActionDockState extends State<_ActionDock>
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [TrainColors.base.withValues(alpha: 0), TrainColors.base, TrainColors.base],
+          colors: [
+            TrainColors.base.withValues(alpha: 0),
+            TrainColors.base,
+            TrainColors.base,
+          ],
           stops: [0.0, 0.55, 1.0],
         ),
       ),
-      child: AnimatedBuilder(
-        animation: _t,
-        builder: (context, _) {
-          // Undo is not a commit, so it drops to the ghost pill rather than
-          // staying a filled green one. The spring drives the crossfade so the
-          // two states read as one control changing, not two swapping.
-          final tc = _t.value.clamp(0.0, 1.0);
-          return Stack(
-            children: [
-              Opacity(
-                opacity: 1 - tc,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _dockButton(strings),
+          // A quiet second action: "I skipped it" is a fact worth recording
+          // (the history tells it apart from a meal nobody ticked), but it
+          // is never the thing this screen is for.
+          if (skipped != null && !widget.eaten)
+            GestureDetector(
+              key: const Key('meal-skip-action'),
+              behavior: HitTestBehavior.opaque,
+              onTap: _toggleSkip,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 2),
+                child: Text(
+                  skipped ? strings.dietUndoSkip : strings.dietSkipMeal,
+                  style: AppText.meta.copyWith(color: TrainColors.ink3),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dockButton(AppLocalizations strings) {
+    return AnimatedBuilder(
+      animation: _t,
+      builder: (context, _) {
+        // Undo is not a commit, so it drops to the ghost pill rather than
+        // staying a filled green one. The spring drives the crossfade so the
+        // two states read as one control changing, not two swapping.
+        final tc = _t.value.clamp(0.0, 1.0);
+        return Stack(
+          children: [
+            Opacity(
+              opacity: 1 - tc,
+              child: IgnorePointer(
+                ignoring: widget.eaten,
+                child: TrainPrimaryButton(
+                  label: strings.dietMarkEaten,
+                  icon: Icon(
+                    Icons.check_rounded,
+                    size: 18,
+                    color: TrainColors.onGreen,
+                  ),
+                  color: TrainColors.green,
+                  labelColor: TrainColors.onGreen,
+                  height: 56,
+                  onTap: _toggle,
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: Opacity(
+                opacity: tc,
                 child: IgnorePointer(
-                  ignoring: widget.eaten,
-                  child: TrainPrimaryButton(
-                    label: strings.dietMarkEaten,
-                    icon: Icon(
-                      Icons.check_rounded,
-                      size: 18,
-                      color: TrainColors.onGreen,
-                    ),
-                    color: TrainColors.green,
-                    labelColor: TrainColors.onGreen,
+                  ignoring: !widget.eaten,
+                  child: TrainGhostButton(
+                    label: strings.dietMarkNotEaten,
+                    mono: false,
                     height: 56,
+                    icon: Icon(
+                      Icons.undo_rounded,
+                      size: 17,
+                      color: TrainColors.ink2,
+                    ),
                     onTap: _toggle,
                   ),
                 ),
               ),
-              Positioned.fill(
-                child: Opacity(
-                  opacity: tc,
-                  child: IgnorePointer(
-                    ignoring: !widget.eaten,
-                    child: TrainGhostButton(
-                      label: strings.dietMarkNotEaten,
-                      mono: false,
-                      height: 56,
-                      icon: Icon(
-                        Icons.undo_rounded,
-                        size: 17,
-                        color: TrainColors.ink2,
-                      ),
-                      onTap: _toggle,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

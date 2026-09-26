@@ -19,6 +19,8 @@ const {
   REFUSAL_MESSAGE,
 } = require("./gateway");
 
+const {systemPromptFor} = require("./chat/prompt/system_prompt");
+
 const UID = "user-1";
 const CONVERSATION_ID = "conv-1";
 
@@ -62,6 +64,11 @@ function makeStore(overrides) {
     },
     getTodayUsageTotals: async () => ({turns: 0, tokens: 0}),
     getRecentMessages: async () => [],
+    // A diet-routed turn prefetches today's plan (`chat/prefetch.js`).
+    getActiveDietPlan: async () => null,
+    listDietEntries: async () => [],
+    listFoodLogs: async () => [],
+    getDietTargets: async () => null,
     logUsage: async (uid, usageDoc) => {
       calls.logUsage.push({uid, usageDoc});
     },
@@ -330,8 +337,9 @@ test("the final step answers with tools disabled instead of being cut off",
       assert.equal(callModel.callCount(), 2);
       const last = callModel.requests[1];
       assert.deepEqual(last.tool_choice, {type: "none"});
-      // The directive rides AFTER the cached prompt, which is untouched.
-      assert.equal(last.system[0].text, SYSTEM_PROMPT);
+      // The directive rides AFTER the cached prompt, which is untouched —
+      // here the training prompt, since "training" routed the turn there.
+      assert.equal(last.system[0].text, systemPromptFor("training"));
       assert.match(last.system[last.system.length - 1].text, /STEP LIMIT/);
       assert.equal(result.status, "ok");
       assert.equal(result.terminalState, "completed");
@@ -909,6 +917,31 @@ test("the system prompt gives plain-text formatting rules the client can " +
   assert.match(SYSTEM_PROMPT, /Keep structure proportional/);
 });
 
+test("the system prompt sets a response-length policy: answer first, short " +
+    "by default, depth only when asked", () => {
+  assert.match(SYSTEM_PROMPT, /LENGTH — short by default/);
+  assert.match(SYSTEM_PROMPT, /The first line answers the/);
+  assert.match(SYSTEM_PROMPT, /never stop mid-thought/);
+});
+
+test("the system prompt answers in the user's language and dialect, with " +
+    "Arabic the RTL screen can lay out", () => {
+  assert.match(SYSTEM_PROMPT, /natural Egyptian Arabic/);
+  assert.match(SYSTEM_PROMPT,
+      /never an Arabic word followed by the English in/);
+  assert.match(SYSTEM_PROMPT,
+      /Start every line and every "• " bullet with an Arabic/);
+});
+
+test("the system prompt makes grounded decisions — fact, assessment, " +
+    "recommendation, action — and never decides from missing data", () => {
+  assert.match(SYSTEM_PROMPT, /1\. FACT/);
+  assert.match(SYSTEM_PROMPT, /3\. RECOMMENDATION/);
+  assert.match(SYSTEM_PROMPT, /Never decide from data you don't have/);
+  assert.match(SYSTEM_PROMPT, /TRAIN-TODAY CALLS — read get_readiness first/);
+  assert.match(SYSTEM_PROMPT, /DIET CALLS/);
+});
+
 test("usage is logged once with tokens/tools/iterations", async () => {
   const store = makeStore();
   const callModel = scriptedModel([
@@ -942,7 +975,7 @@ test("usage is logged once with tokens/tools/iterations", async () => {
   assert.equal(usageDoc.iterations, 2);
   assert.deepEqual(usageDoc.tools,
       [{name: "get_workouts", toolCallId: "call-1"}]);
-  assert.equal(usageDoc.schemaVersion, 6);
+  assert.equal(usageDoc.schemaVersion, 7);
   // v4: every AI request logs to aiUsage; a chat turn says it's chat.
   assert.equal(usageDoc.feature, "chat");
   assert.equal(usageDoc.status, "ok");
@@ -986,7 +1019,7 @@ test("the tool schemas + system prompt are sent as a cached prefix", async () =>
     callModel,
     uid: UID,
     conversationId: CONVERSATION_ID,
-    message: "hello",
+    message: "how am I doing?",
     now: makeClock(0),
   });
 
@@ -1015,7 +1048,7 @@ test("responseStyle 'balanced' (and an omitted/unrecognized value) adds " +
       callModel,
       uid: UID,
       conversationId: CONVERSATION_ID,
-      message: "hello",
+      message: "how am I doing?",
       responseStyle,
       now: makeClock(0),
     });
@@ -1048,7 +1081,7 @@ test("responseStyle 'concise'/'detailed' append an UNCACHED second system " +
       callModel,
       uid: UID,
       conversationId: CONVERSATION_ID,
-      message: "hello",
+      message: "how am I doing?",
       responseStyle,
       now: makeClock(0),
     });
@@ -1344,7 +1377,10 @@ test("a mutating tool emits no step — it proposes, it does not execute", async
     now: makeClock(0),
   });
 
-  assert.deepEqual(events.filter((e) => e.type === "step"), []);
+  // ("food" routes this turn DIET, so today's plan read may be prefetched —
+  // a read, not the mutation.)
+  assert.deepEqual(events.filter((e) => e.type === "step" &&
+    e.tool === "create_expense"), []);
   const phases = events.filter((e) => e.type === "phase").map((e) => e.phase);
   assert.ok(phases.includes("preparing_change"));
 });

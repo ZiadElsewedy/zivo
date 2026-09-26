@@ -23,11 +23,9 @@
  */
 
 const {dayKeyFor, localNowFacts, isUsableOffset} = require("../shared/dates");
-const {tools} = require("../tools/read");
-const {mutatingTools, mutatingToolsByName} = require("../tools/mutations");
-const {elicitationTools} = require("../tools/elicitations");
-const {foodSearchTools} = require("../tools/food_search_product");
+const {mutatingToolsByName} = require("../tools/mutations");
 const {validateAdvice} = require("./validator");
+const {LiveText, restates} = require("./live_text");
 const {AnthropicProvider} = require("../providers/anthropic_provider");
 const {legacyAnthropicClient} = require("../providers/legacy_client");
 
@@ -46,7 +44,7 @@ const {
 const {
   extractText,
   stripEmptyThinking,
-  toNormalizedMessage,
+  selectHistory,
   capToolResult,
 } = require("./messages");
 const {
@@ -55,7 +53,20 @@ const {
   isOverDailyCap,
   approxTokensFromChars,
 } = require("./usage");
-const {AiFeature, USAGE_SCHEMA_VERSION} = require("../shared/usage_log");
+const {
+  AiFeature,
+  USAGE_SCHEMA_VERSION,
+  callRow,
+  errorKindFor,
+} = require("../shared/usage_log");
+const {classifyIntent, Intent} = require("./intent");
+const {
+  CATALOG,
+  LOAD_TOOLS,
+  PROMPT_VERSION,
+  scopeFor,
+  widen,
+} = require("./scope");
 const {buildSystemBlocks} = require("./context");
 const {persistProposal, persistElicitation} = require("./actions");
 const {
@@ -66,6 +77,10 @@ const {
   withMoreOption,
 } = require("./choices");
 const {ContextLedger} = require("./context_ledger");
+const {prefetchFor} = require("./prefetch");
+const {planTurn} = require("./reasoning_policy");
+const {keyForModelId, modelSpec} = require("../routing/models");
+const {ReplyShape, replyShapeFor} = require("./reply_shape");
 const {
   TerminalState,
   terminalStateFor,
@@ -79,13 +94,30 @@ const {
 // practice (the step budget stops it first); the cap only guards the doc.
 const MAX_PERSISTED_ACTIVITY = 16;
 
-// The model sees read + mutating + elicitation tools. The gateway routes by
-// `tool.mutating` (propose→confirm) and `tool.elicits` (pause and ask); a bare
-// tool just executes and returns data.
-const allTools = tools.concat(mutatingTools).concat(elicitationTools)
-    .concat(foodSearchTools);
-const allToolsByName = new Map(allTools.map((t) => [t.name, t]));
+// Every executable tool, whichever the turn's scope exposes (`scope.js`).
+// The gateway routes by `tool.mutating` (propose→confirm) and `tool.elicits`
+// (pause and ask); a bare tool just executes and returns data. A call to a
+// tool outside the exposed scope still resolves here — nothing a tool can do
+// is unsafe (reads read, writes only propose) — and is counted in usage as
+// `unexposedToolCalls`, the signal that routing missed.
+const allToolsByName = new Map(CATALOG.map((t) => [t.name, t]));
 const {ASK_CHOICE} = require("../tools/elicitations");
+
+/**
+ * The provider + model a failed call was sent to — the selected model, since
+ * nothing falls back — from the router's error (`attempts`/`tries`), or
+ * null when the error didn't come from a provider.
+ * @param {*} err
+ * @return {?{provider: string, model: string}}
+ */
+function failedRouteOf(err) {
+  const list = err && (Array.isArray(err.tries) && err.tries.length ?
+    err.tries : err.attempts);
+  const last = Array.isArray(list) && list.length ?
+    list[list.length - 1] : null;
+  return last && last.provider ?
+    {provider: last.provider, model: last.model} : null;
+}
 
 /**
  * Whether a card built from `offer` gets ZIVO's own "Other options" chip —
@@ -143,8 +175,9 @@ function offersMore(offer) {
  *   meaningful together with `provider`; with the legacy seam, streaming is
  *   requested by passing `streamModel` instead.
  * @param {(function(!Object): void)=} args.onEvent Optional sink for live turn
- *   events — `{type:'phase', phase}`, `{type:'step', tool, status}` and
- *   `{type:'delta', text}`. Phases and steps are derived from the loop's real
+ *   events — `{type:'phase', phase}`, `{type:'step', tool, status}`,
+ *   `{type:'delta', text}` and (with `streamReplace`) `{type:'replace',
+ *   text}`. Phases and steps are derived from the loop's real
  *   state (never the model's reasoning): a step is emitted as each READ tool
  *   starts (`running`) and finishes (`ok`|`error`). Mutating tools emit none —
  *   they don't execute here, they become a proposal, which the
@@ -191,6 +224,13 @@ function offersMore(offer) {
  *   answered turn replays its assistant text without re-running the model,
  *   and a partially-written turn never appends a second user message. This
  *   is what makes a client retry after a false failure safe.
+ * @param {(string|undefined)} args.entryPoint The screen Ask was opened from
+ *   (untrusted; an unknown value is ignored) — one of the signals that route
+ *   the turn to an area's prompt and tools (`intent.js`).
+ * @param {boolean=} args.streamReplace The client applies `{type:'replace',
+ *   text}` snapshots of the live reply (`live_text.js`), so a retried or
+ *   restated step can supersede text already on screen instead of appending
+ *   a second copy after it. Absent (an older app): deltas only.
  * @return {!Promise<{status: string, assistantText: string, usage: ?Object}>}
  */
 async function runAiTurn({
@@ -213,6 +253,8 @@ async function runAiTurn({
   foodSearchProvider,
   fetchImpl,
   signal,
+  entryPoint,
+  streamReplace,
 }) {
   const activeProvider = provider ||
     new AnthropicProvider(legacyAnthropicClient(callModel, streamModel));
@@ -376,14 +418,84 @@ async function runAiTurn({
   }
 
   const history = await store.getRecentMessages(
-      uid, conversationId, cfg.historyWindow);
-  const messages = history.map(toNormalizedMessage);
+      uid, conversationId, cfg.historyFetchLimit);
+
+  // Which area this question is about, decided before any model call from
+  // deterministic signals (`intent.js`) — and with it the prompt and tools
+  // the model is handed (`scope.js`). Unsure → AMBIGUOUS: the full prompt and
+  // every tool, exactly as before scoping existed.
+  const routed = classifyIntent({
+    message: userContent,
+    boundTool: picked && picked.binding ? picked.binding.tool : null,
+    entryPoint,
+    history,
+    now: turnNow,
+  });
+  let scope = scopeFor(routed.intent);
+  // Which Claude model answers and how hard it reasons (`reasoning_policy.js`)
+  // — fixed for the whole turn, so the message cache survives every step and
+  // a `load_tools` widening. Null: the user's model at API defaults.
+  const activeSpec = modelSpec(keyForModelId(activeModel));
+  const plan = planTurn({
+    cfg: cfg.reasoning,
+    provider: activeSpec ? activeSpec.provider : "anthropic",
+    routed,
+    message: userContent,
+    picked: !!picked,
+  });
+  // Areas `load_tools` widened the turn to, in order — routing misses,
+  // measurable.
+  const expandedTo = [];
+
+  // The history the model reads: a character budget, the newest exchange
+  // verbatim, and never this turn's own message (it's persisted before this
+  // read, and the model gets its own copy below — it used to be sent twice).
+  const selected = selectHistory(history, {
+    clientTurnId,
+    content: userContent,
+    createdAt: turnNow,
+  }, {
+    charBudget: cfg.historyCharBudget,
+    verbatimMessages: cfg.historyVerbatimMessages,
+    olderReplyChars: cfg.historyOlderReplyChars,
+  });
+  const messages = selected.messages;
   // What the previous turn already looked up, still fresh enough to reuse
   // (`context_ledger.js`). A plan the user just confirmed a change to breaks
-  // the chain, so a follow-up never reasons over data it changed.
+  // the chain, so a follow-up never reasons over data it changed. A scoped
+  // turn carries only its own area's lookups.
   const ledger = ContextLedger.fromHistory(history, {now: turnNow, dayKey});
-  // History already holds this turn's user message on a retry; the model is
-  // handed the fresh copy below either way (the existing behaviour).
+  const ledgerDropped = scope.intent === Intent.AMBIGUOUS ?
+    0 : ledger.retainTools(scope.toolNames);
+  // The read this turn is all but certain to open with, run now so the model
+  // finds it in the ledger instead of spending a step on it (`prefetch.js`).
+  // A failure is dropped silently — the model can still call the tool.
+  const prefetched = [];
+  const planned = bindingFailure ? null : prefetchFor({
+    routed, entryPoint, message: userContent, ledger,
+  });
+  const prefetchTool = planned ? allToolsByName.get(planned.tool) : null;
+  // The turn is committed to running (past validation and the daily cap).
+  emitPhase("understanding");
+  if (prefetchTool && !(signal && signal.aborted)) {
+    const startedAt = Date.now();
+    emitStep(planned.tool, "running");
+    let status = "ok";
+    try {
+      const result = await prefetchTool.execute(
+          store, uid, planned.input, turnNow, offsetMinutes, {});
+      const content =
+        capToolResult(JSON.stringify(result), cfg.maxToolResultChars);
+      ledger.record(planned.tool, planned.input, content, turnNow, dayKey);
+      prefetched.push({name: planned.tool, status, resultChars: content.length,
+        latencyMs: Date.now() - startedAt});
+    } catch (_) {
+      status = "error";
+      prefetched.push({name: planned.tool, status,
+        latencyMs: Date.now() - startedAt});
+    }
+    emitStep(planned.tool, status);
+  }
   let userTurn = picked ? selectionNote(picked) : trimmed;
   if (bindingFailure) {
     userTurn += `\n[Proposing that change failed: ${bindingFailure} Re-read ` +
@@ -394,38 +506,71 @@ async function runAiTurn({
   // last thing the model reads. A failed binding means the plan moved: the
   // model is told to re-read, so nothing stale is offered to it.
   const earlier = bindingFailure ? "" : ledger.toPromptBlock(turnNow);
+  // Arabic-script message → the reply must be Arabic; every step's CONTEXT
+  // block says so (`context.js`), and when kilobytes of English lookups sit
+  // ahead of the user's words in this same message, a marker right before
+  // those words repeats it where the model reads last.
+  const replyLanguage = replyLanguageFor(userContent);
+  if (earlier && replyLanguage === "ar") {
+    userTurn = `[The user's message, in Arabic — reply in Arabic:]\n${userTurn}`;
+  }
   messages.push({
     role: "user",
     content: earlier ? `${earlier}\n\n${userTurn}` : userTurn,
   });
-
-  const normalizedTools = allTools.map((t) => ({
-    name: t.name,
-    description: t.description,
-    inputSchema: t.inputSchema,
-  }));
 
   // The tool schemas + system prompt are a fixed, deterministically-ordered
   // prefix re-sent on every model call in the turn. Render order is
   // tools → system → messages, so a single cache breakpoint on the system
   // block caches the tool schemas too — the whole static prefix reads back at
   // ~0.1x after the first call instead of full price. (ADR-003 Phase 3.5.)
+  // Each intent's prefix is fixed (`scope.js`), so each caches on its own.
   //
   // The style directive and the CONTEXT block (the user's local date/time) are
   // appended AFTER the cached prompt as uncached blocks — see context.js. That
-  // keeps element 0 (SYSTEM_PROMPT, cache: 'ephemeral') identical every turn.
+  // keeps element 0 (the intent's prompt, cache: 'ephemeral') identical on
+  // every turn of that intent.
   const nowFacts = localNowFacts(turnNow, offsetMinutes, zoneLabel);
-  const systemBlocks = buildSystemBlocks({responseStyle, facts: nowFacts});
+  // How much this message calls for — a decision, a request for detail, or
+  // the concise default (`reply_shape.js`) — decided before generation, never
+  // by cutting a reply short after it. A tapped option is an answer to the
+  // coach's own question, not a new request, so it keeps the default.
+  const replyShape = picked ? ReplyShape.DEFAULT : replyShapeFor(userContent);
+  let systemBlocks = buildSystemBlocks({responseStyle, replyShape,
+    facts: nowFacts, systemPrompt: scope.systemPrompt, replyLanguage});
+  let normalizedTools = scope.tools;
+  // What the turn handed the model, by size — the usage record's `context`
+  // breakdown. Sizes only; never the text.
+  const contextStats = {
+    systemChars: systemBlocks.reduce((n, b) => n + b.text.length, 0),
+    toolDefChars: scope.toolDefChars,
+    toolCount: scope.tools.length,
+    historyMessages: selected.stats.messages,
+    historyChars: selected.stats.chars,
+    historyDropped: selected.stats.dropped,
+    historyShortened: selected.stats.shortened,
+    ledgerEntries: ledger.entries.length,
+    ledgerChars: earlier.length,
+    ledgerDropped,
+    userChars: userTurn.length,
+    toolResultChars: 0,
+  };
 
   const usage = new TurnUsage();
+  // One row per model call, in order (usage `perCall`): the loop's own steps
+  // and any call a tool made through the chat provider.
+  const perCall = [];
   // The chat provider as the tools see it (`search_food_product`'s extraction
   // call): the same router-backed provider, but its tokens are folded into
   // THIS turn's usage — the turn's recorded cost is everything spent
   // answering, not just the loop's own calls.
   const toolChatProvider = {
     generate: async (request, opts) => {
+      const startedAt = Date.now();
       const r = await activeProvider.generate(request, opts);
       usage.add(r.usage, r.provider, r.model);
+      perCall.push(Object.assign({step: iterations, kind: "tool"},
+          callRow(r, Date.now() - startedAt)));
       return r;
     },
   };
@@ -468,6 +613,8 @@ async function runAiTurn({
   // on the assistant message, and the only source of the "here's what I
   // checked" text when the turn can't finish. Names only, never input/result.
   const activity = [];
+  // A prefetched read is work the turn did, like any other lookup.
+  for (const p of prefetched) activity.push({tool: p.name, status: p.status});
   // Failures per tool name this turn; see `cfg.maxToolFailuresPerTool`.
   const toolFailures = new Map();
   let toolErrorHit = false;
@@ -491,10 +638,20 @@ async function runAiTurn({
   // (from get_today/get_diet), kept so the reply can be validated against the
   // very numbers it read (Phase 7). Null when the turn read no diet data.
   let dietContext = null;
+  // Every OTHER diet payload read this turn (or carried) — another day, or a
+  // history window. A reply comparing yesterday with today cites both, so
+  // their figures are valid too (`validator.js` `otherDays`).
+  const otherDietPayloads = [];
   // A diet state carried from the previous turn is what a reply that reuses
   // it is checked against — the validator must see the numbers the model saw.
   const carriedDiet = ledger.latest(["get_today", "get_diet"]);
   if (carriedDiet) dietContext = carriedDiet.result;
+  for (const name of ["get_today", "get_diet", "get_diet_history"]) {
+    const carried = ledger.latest([name]);
+    if (carried && !(carriedDiet && carriedDiet.tool === name)) {
+      otherDietPayloads.push(carried.result);
+    }
+  }
   // An offer the previous turn verified, re-derived from its carried search
   // result — so "what were those options again?" can still show a bound card.
   // Never used for the prose safety net (that needs an offer made THIS turn).
@@ -513,17 +670,123 @@ async function runAiTurn({
   // persisted message keeps it, or the text the user watched being written
   // would shrink the moment the durable copy lands.
   const narration = [];
-  // Whether any earlier step already streamed visible text — the next step's
-  // text starts a new paragraph (see `onText` below).
-  let streamedAny = false;
+  // What the screen shows, mirrored (`live_text.js`): shapes each step's
+  // deltas, and makes sure a retried attempt or a step that restates the
+  // previous one's lead-in never shows the reply starting over.
+  const live = new LiveText(emit, {replace: streamReplace === true});
   // Set when the model tries to propose while an unexpired pending action
   // already awaits the user — the new proposal is suppressed (no duplicate).
   let proposalBlocked = false;
   // Phases are emitted once as the loop crosses each real boundary.
   let workingEmitted = false;
 
-  // The turn is committed to running (past validation and the daily cap).
-  emitPhase("understanding");
+  // Calls to a tool the turn's scope didn't expose (routing missed).
+  let unexposedToolCalls = 0;
+
+  // The turn's usage record — built at the end, or at a provider failure
+  // (then carried on the error for the callable to log).
+  const usageDocFor = ({status, errorKind, terminalState, finishedAt,
+    failedTries, failedRoute, validation}) => {
+    const usageDoc = {
+      feature: AiFeature.CHAT,
+      status,
+      dayKey,
+      // `tokensIn` is the total input volume (uncached + cache read + cache
+      // write) the daily cap and the client usage summary read; the three
+      // slices below make the cache's effect legible and let Claude vs Gemini
+      // be compared on the input they paid full price for (schema v3).
+      tokensIn: usage.tokensIn,
+      uncachedTokensIn: usage.uncachedTokensIn,
+      cacheReadTokens: usage.cacheReadTokens,
+      cacheWriteTokens: usage.cacheWriteTokens,
+      tokensOut: usage.tokensOut,
+      // Roughly how much of the input was tool-result JSON (own estimate, not
+      // the provider's tokenizer) — the lever the context-engineering pass
+      // moves, so it needs to be measurable. See `approxTokensFromChars`.
+      toolResultTokens: approxTokensFromChars(toolResultChars),
+      // The context ledger's effect, measurable: how many earlier lookups this
+      // turn was handed instead of re-running, and what they cost in input.
+      contextCarried: ledger.carriedCount,
+      contextCarriedTokens: bindingFailure ? 0 :
+        approxTokensFromChars(earlier.length),
+      // Priced at the provider that actually answered (Gemini on a fallback
+      // turn), not always Anthropic. Null (legacy seam) prices at the default.
+      costUsd: totalCostUsd(usage, usedProvider),
+      calls: iterations,
+      tools: toolCalls,
+      iterations,
+      // How the bounded loop ended (`outcome.js`) — the closed set a dashboard
+      // can count, alongside the finer-grained `status`.
+      terminalState,
+      // Which area the turn was routed to and why (`intent.js`), and every
+      // area load_tools widened it to — routing, measurable.
+      intent: routed.intent,
+      intentReason: routed.reason,
+      // The reasoning policy's plan for the turn (tier, model, level, why);
+      // null = the user's model at API defaults.
+      reasoning: plan,
+      // The reply shape the message was given (`reply_shape.js`).
+      replyShape,
+      // A fingerprint of every prompt and tool definition (`scope.js`), so
+      // before/after a prompt change compares like with like.
+      promptVersion: PROMPT_VERSION,
+      // Sizes of what the model was handed — never the text.
+      context: Object.assign({}, contextStats, {toolResultChars}),
+      // One row per model call: tokens by bucket, stop reason, latency, the
+      // tools it ran with their result sizes, and its provider requests.
+      perCall: perCall.slice(0, 2 * cfg.maxAgentSteps),
+      latencyMs: finishedAt.getTime() - turnNow.getTime(),
+      model: usedModel || (failedRoute && failedRoute.model) || activeModel,
+      createdAt: finishedAt,
+      schemaVersion: USAGE_SCHEMA_VERSION,
+    };
+    if (usedModelKey) usageDoc.modelKey = usedModelKey;
+    // The provider that answered (e.g. 'anthropic' | 'gemini'), when the router
+    // reported it — so a fallback is visible in usage, not silent.
+    if (usedProvider) usageDoc.provider = usedProvider;
+    // A turn whose SELECTED provider failed says so outright — which provider
+    // and model, and why — rather than leaving it to be read off the attempts.
+    // (There is no cross-provider fallback: the selected model answers or the
+    // turn fails with its error — `../routing/router.js`.)
+    if (failedRoute) {
+      usageDoc.failedProvider = failedRoute.provider;
+      usageDoc.failedModel = failedRoute.model;
+      if (!usageDoc.provider) usageDoc.provider = failedRoute.provider;
+    }
+    if (fellBack) {
+      usageDoc.fallbackOccurred = true;
+      usageDoc.fallbackReason = fallbackReason;
+      usageDoc.requestedProvider = requestedProvider;
+      usageDoc.requestedModel = requestedModel;
+      usageDoc.fallbackCount = fallbackCalls;
+      usageDoc.failedAttempts = failedAttempts.slice(0, MAX_PERSISTED_ACTIVITY);
+    }
+    // The turn's idempotency key, so a client can pair this usage record with
+    // the assistant MESSAGE it produced (both carry the same clientTurnId) —
+    // that's what the per-message "turn details" view queries on. Absent on
+    // turn-less writes, exactly as on the messages themselves.
+    if (clientTurnId) usageDoc.clientTurnId = clientTurnId;
+    // Recorded so the validator's real-world hit rate (and any false positives)
+    // are observable in production, not a black box.
+    if (validation) usageDoc.validation = validation;
+    if (failedTool) usageDoc.failedTool = failedTool;
+    // The read run before the first model call (`prefetch.js`) — whether it
+    // saved a step is read off `calls` and whether the model re-ran it.
+    if (prefetched.length) usageDoc.prefetched = prefetched;
+    if (expandedTo.length) usageDoc.expandedTo = expandedTo;
+    if (unexposedToolCalls) usageDoc.unexposedToolCalls = unexposedToolCalls;
+    if (errorKind) usageDoc.errorKind = errorKind;
+    // The request the selected provider failed on — its every provider
+    // request (`tries`), so a failed turn shows exactly which model failed.
+    if (failedTries) {
+      usageDoc.failedTries = failedTries.slice(0, MAX_PERSISTED_ACTIVITY);
+      if (!usageDoc.failedAttempts && failedAttempts.length) {
+        usageDoc.failedAttempts =
+          failedAttempts.slice(0, MAX_PERSISTED_ACTIVITY);
+      }
+    }
+    return usageDoc;
+  };
 
   // Records a failed tool call and decides whether the turn must stop: a
   // transient failure that survived its retry is fatal at once; any other
@@ -575,34 +838,29 @@ async function runAiTurn({
     // `none`, not dropping `tools`: the tool list is part of the cached
     // prefix (and a history holding tool calls needs it declared).
     if (finalStep) normalizedRequest.toolChoice = "none";
+    if (plan) {
+      normalizedRequest.modelKey = plan.model;
+      normalizedRequest.reasoning = plan.level;
+    }
+    // A second cache breakpoint on the message tail (Phase 5): the next step
+    // re-sends everything this one did — the style + CONTEXT blocks, history,
+    // ledger, earlier tool rounds — plus its own tool results, so it reads
+    // that prefix back at 0.1x instead of paying full price for it again.
+    // Not on the final step: nothing follows it, and its extra system block
+    // means no later request could share its prefix anyway.
+    if (!finalStep) normalizedRequest.cacheTail = "ephemeral";
     const genOpts = {};
     // Each step's text is its own paragraph, exactly as the persisted reply
-    // joins them (`narration` + the final text, "\n\n" apart): a step's
-    // leading whitespace is dropped and, when an earlier step already wrote
-    // something, the paragraph break is sent first — so the words streamed
-    // are the words saved, and nothing jumps when the saved copy lands.
-    // Trailing whitespace is held back until more text follows it in the
-    // same step (and dropped if none does) — the saved text is trimmed, so
-    // this keeps the two identical to the character.
-    const priorStreamed = streamedAny;
-    let stepStreamed = false;
-    let heldSpace = "";
+    // joins them (`narration` + the final text, "\n\n" apart) — shaped by
+    // `live_text.js`, so the words streamed are the words saved and nothing
+    // jumps when the saved copy lands.
+    live.beginStep();
     if (wantsStream) {
-      genOpts.onText = (text) => {
-        let t = String(text || "");
-        if (!stepStreamed) {
-          t = t.replace(/^\s+/, "");
-          if (!t) return;
-          if (priorStreamed) t = `\n\n${t}`;
-          stepStreamed = true;
-          streamedAny = true;
-        }
-        t = heldSpace + t;
-        const tail = /\s+$/.exec(t);
-        heldSpace = tail ? tail[0] : "";
-        if (tail) t = t.slice(0, t.length - heldSpace.length);
-        if (t) emit({type: "delta", text: t});
-      };
+      genOpts.onText = (text) => live.push(text);
+      // The router is re-running this step after a transient failure: what
+      // the failed attempt streamed must not stay on screen in front of the
+      // retry's answer (the "reply restarts from the beginning" bug).
+      genOpts.onRetry = () => live.retry();
     }
     if (signal) genOpts.signal = signal;
     // The router is about to re-run this step on the other provider after the
@@ -618,12 +876,11 @@ async function runAiTurn({
       }
       // The failed attempt's text is superseded: the client truncates back
       // to where this step began, and the retry starts its paragraph afresh.
-      stepStreamed = false;
-      streamedAny = priorStreamed;
-      heldSpace = "";
       emit({type: "fallback", from: info.from, to: info.to});
+      if (wantsStream) live.fallback();
     };
     let resp;
+    const callStartedAt = Date.now();
     try {
       resp = await activeProvider.generate(normalizedRequest, genOpts);
     } catch (err) {
@@ -640,9 +897,33 @@ async function runAiTurn({
       if (err && typeof err === "object" && !err.terminalState) {
         err.terminalState = TerminalState.PROVIDER_ERROR;
       }
+      // What the turn spent before it failed — the steps that did answer,
+      // the tools they ran, what the turn was routed to — rides the error to
+      // the callable, which logs it as this turn's failed usage record
+      // (`functions/index.js`). A failure is then as explainable as a
+      // success, instead of a record with only the provider's name on it.
+      if (err && typeof err === "object" && !err.turnUsage) {
+        for (const a of err.attempts || []) failedAttempts.push(a);
+        err.turnUsage = usageDocFor({
+          status: "error",
+          errorKind: errorKindFor(err),
+          terminalState: err.terminalState,
+          finishedAt: clock(),
+          failedTries: Array.isArray(err.tries) ? err.tries : undefined,
+          failedRoute: failedRouteOf(err),
+        });
+      }
       throw err;
     }
 
+    if (wantsStream) live.endStep();
+    // The step opened by restating the previous step's lead-in: that lead-in
+    // left the screen (`live_text.js`), so it leaves the saved reply too. A
+    // buffered turn applies the same rule to the finished texts.
+    const restatedLeadIn = wantsStream ? live.restatedPrevious :
+      restates(narration[narration.length - 1],
+          extractText(resp.content));
+    if (restatedLeadIn) narration.pop();
     if (resp.provider) usedProvider = resp.provider;
     if (resp.model) usedModel = resp.model;
     if (resp.modelKey) usedModelKey = resp.modelKey;
@@ -657,6 +938,18 @@ async function runAiTurn({
       fallbackReason = resp.fallbackReason;
     }
     usage.add(resp.usage, resp.provider, resp.model);
+    const row = Object.assign({step: iterations, kind: "step"},
+        callRow(resp, Date.now() - callStartedAt), {tools: []});
+    perCall.push(row);
+    // The context this call carried — its whole input plus what it wrote,
+    // which is what the next call must re-send. That, not the turn's running
+    // bill, is what the ceiling bounds: a cache read is context like any
+    // other token, but the cached prefix is in EVERY call's input, so summing
+    // calls would count it once per step and cut a healthy multi-step turn
+    // short (see `perTurnTokenCeiling` in config.js).
+    const u = resp.usage || {};
+    const stepContextTokens = (u.inputTokens || 0) + (u.cacheReadTokens || 0) +
+      (u.cacheWriteTokens || 0) + (u.outputTokens || 0);
 
     if (resp.stopReason === "refusal") {
       refusal = true;
@@ -691,6 +984,37 @@ async function runAiTurn({
       if (!block || block.type !== "tool_use") continue;
       const tool = allToolsByName.get(block.name);
       toolCalls.push({name: block.name, toolCallId: block.id});
+      // This call's row in the usage record: the tool's name and, for a
+      // read, how big its result was (sizes only — never the result).
+      const toolRow = {name: block.name};
+      row.tools.push(toolRow);
+
+      // load_tools widens the turn's scope (`scope.js`): the next step is
+      // handed the wider prompt and tools. It reads and changes nothing.
+      if (block.name === LOAD_TOOLS) {
+        const area = block.input && block.input.area;
+        const valid = ["training", "diet", "money", "all"].includes(area);
+        if (valid) {
+          scope = widen(scope, area);
+          expandedTo.push(area);
+          systemBlocks = buildSystemBlocks({responseStyle, replyShape,
+            facts: nowFacts, systemPrompt: scope.systemPrompt,
+            replyLanguage});
+          normalizedTools = scope.tools;
+        }
+        toolRow.area = valid ? area : null;
+        const loaded = {
+          type: "tool_result",
+          toolUseId: block.id,
+          content: JSON.stringify(valid ?
+            {loaded: area, note: "Those tools are now available — continue."} :
+            {error: "area must be training, diet, money or all."}),
+        };
+        if (!valid) loaded.isError = true;
+        toolResults.push(loaded);
+        continue;
+      }
+      if (!scope.toolNames.has(block.name)) unexposedToolCalls += 1;
 
       // Mutating tools never execute here. The first one whose input validates
       // becomes a proposal that ends the turn awaiting the user's Confirm;
@@ -817,7 +1141,10 @@ async function runAiTurn({
             // checked against what the model actually read (Phase 7). The
             // last one wins — the reply is about the most recently loaded day.
             if (block.name === "get_today" || block.name === "get_diet") {
+              if (dietContext) otherDietPayloads.push(dietContext);
               dietContext = resultPayload;
+            } else if (block.name === "get_diet_history") {
+              otherDietPayloads.push(resultPayload);
             }
             if (tool.search && resultPayload &&
                 Array.isArray(resultPayload.alternatives) &&
@@ -847,12 +1174,19 @@ async function runAiTurn({
       emitStep(block.name, isError ? "error" : "ok");
       activity.push({tool: block.name, status: isError ? "error" : "ok"});
       if (isError) noteToolFailure(block.name, fatal);
+      const rawResult = JSON.stringify(resultPayload);
       const toolResult = {
         type: "tool_result",
         toolUseId: block.id,
-        content: capToolResult(
-            JSON.stringify(resultPayload), cfg.maxToolResultChars),
+        content: capToolResult(rawResult, cfg.maxToolResultChars),
       };
+      // How big the result really was, and whether the cap cut it — the
+      // evidence for which tools are worth compacting.
+      toolRow.status = isError ? "error" : "ok";
+      toolRow.resultChars = toolResult.content.length;
+      if (rawResult.length > toolResult.content.length) {
+        toolRow.rawResultChars = rawResult.length;
+      }
       if (isError) toolResult.isError = true;
       else {
         ledger.record(block.name, block.input || {}, toolResult.content,
@@ -922,7 +1256,7 @@ async function runAiTurn({
 
     messages.push({role: "user", content: toolResults});
 
-    if (usage.total > cfg.perTurnTokenCeiling) tokenBudgetSpent = true;
+    if (stepContextTokens > cfg.perTurnTokenCeiling) tokenBudgetSpent = true;
   }
 
   // The safety net: the turn verified options but the model answered in prose
@@ -983,7 +1317,10 @@ async function runAiTurn({
     // the findings the rules engine already produced, which is why rejecting
     // is safe: there is always a correct answer to fall back to.
     if (dietContext) {
-      const result = validateAdvice(assistantText, dietContext);
+      const result = validateAdvice(assistantText,
+          otherDietPayloads.length ?
+            Object.assign({}, dietContext, {otherDays: otherDietPayloads}) :
+            dietContext);
       validation = {
         ok: result.ok,
         safe: result.safe,
@@ -1037,64 +1374,12 @@ async function runAiTurn({
     await store.appendMessage(uid, conversationId, reply);
   }
 
-  const usageDoc = {
-    feature: AiFeature.CHAT,
-    status: "ok",
-    dayKey,
-    // `tokensIn` is the total input volume (uncached + cache read + cache
-    // write) the daily cap and the client usage summary read; the three slices
-    // below make the cache's effect legible and let Claude vs Gemini be
-    // compared on the input they paid full price for (schema v3, Phase 3).
-    tokensIn: usage.tokensIn,
-    uncachedTokensIn: usage.uncachedTokensIn,
-    cacheReadTokens: usage.cacheReadTokens,
-    cacheWriteTokens: usage.cacheWriteTokens,
-    tokensOut: usage.tokensOut,
-    // Roughly how much of the input was tool-result JSON (own estimate, not the
-    // provider's tokenizer) — the lever the context-engineering pass moves, so
-    // it needs to be measurable, not inferred. See `approxTokensFromChars`.
-    toolResultTokens: approxTokensFromChars(toolResultChars),
-    // The context ledger's effect, measurable: how many earlier lookups this
-    // turn was handed instead of re-running, and what they cost in input.
-    contextCarried: ledger.carriedCount,
-    contextCarriedTokens: bindingFailure ? 0 :
-      approxTokensFromChars(earlier.length),
-    // Priced at the provider that actually answered (Gemini on a fallback
-    // turn), not always Anthropic. Null (legacy seam) prices at the default.
-    costUsd: totalCostUsd(usage, usedProvider),
-    calls: iterations,
-    tools: toolCalls,
-    iterations,
-    // How the bounded loop ended (`outcome.js`) — the closed set a dashboard
-    // can count, alongside the finer-grained `status`.
+  const usageDoc = usageDocFor({
+    status: cancelled ? "cancelled" : "ok",
     terminalState,
-    latencyMs: finishedAt.getTime() - turnNow.getTime(),
-    model: usedModel || activeModel,
-    createdAt: finishedAt,
-    schemaVersion: USAGE_SCHEMA_VERSION,
-  };
-  if (usedModelKey) usageDoc.modelKey = usedModelKey;
-  // The provider that answered (e.g. 'anthropic' | 'gemini'), when the router
-  // reported it — so a fallback is visible in usage, not silent.
-  if (usedProvider) usageDoc.provider = usedProvider;
-  if (fellBack) {
-    usageDoc.fallbackOccurred = true;
-    usageDoc.fallbackReason = fallbackReason;
-    usageDoc.requestedProvider = requestedProvider;
-    usageDoc.requestedModel = requestedModel;
-    usageDoc.fallbackCount = fallbackCalls;
-    usageDoc.failedAttempts = failedAttempts.slice(0, MAX_PERSISTED_ACTIVITY);
-  }
-  // The turn's idempotency key, so a client can pair this usage record with the
-  // assistant MESSAGE it produced (both carry the same clientTurnId) — that's
-  // what the per-message "turn details" view queries on. Absent on turn-less
-  // writes, exactly as on the messages themselves.
-  if (clientTurnId) usageDoc.clientTurnId = clientTurnId;
-  // Recorded so the validator's real-world hit rate (and any false positives)
-  // are observable in production, not a black box.
-  if (validation) usageDoc.validation = validation;
-  if (failedTool) usageDoc.failedTool = failedTool;
-  if (cancelled) usageDoc.status = "cancelled";
+    finishedAt,
+    validation,
+  });
   await store.logUsage(uid, usageDoc);
 
   // The durable record is written; the turn is done. Carries the terminal

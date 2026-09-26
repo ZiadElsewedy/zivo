@@ -58,8 +58,10 @@ edits their profile and every screen quietly picks a different one.
 Custom claims are for **authorization**, not profile: roles, tenant ids, plan tier —
 things security rules must branch on. They ride in every request's ID token, so they
 are capped (~1 KB), they go stale for up to an hour, and changing one needs a token
-refresh. ZIVO uses none today. If a role system ever lands, it goes there — and
-nothing else does.
+refresh. ZIVO has exactly one: **`admin: true`** (ADR-018), set only by the owner's
+`functions/scripts/set-admin.js`. It picks the Admin Console's shell on the client
+(`RoleAuthorization.hasRole`) and is re-checked against the Auth record by every
+admin callable. No Firestore rule branches on it. Nothing else goes in claims.
 
 ---
 
@@ -178,7 +180,9 @@ someone remembering `unawaited(...)` at seven call sites.
 
 Authorization is **deny-by-default and owner-scoped**. The uid *is* the ownership
 key: `users/{uid}/...`. No roles, no membership lookups, no `get()` on another
-document — so every rule is O(1) and hard to get subtly wrong.
+document — so every rule is O(1) and hard to get subtly wrong. (The one role,
+`admin`, lives entirely server-side in callables — it grants nothing in the rules.
+See ADR-018.)
 
 ### Policies stated on both sides of the wire
 

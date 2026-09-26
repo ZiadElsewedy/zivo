@@ -11,6 +11,11 @@
 const {Timestamp, FieldValue} = require("firebase-admin/firestore");
 const {dailyCapUsageFor} = require("../chat/usage");
 const {applyRotationChange} = require("../tools/workout_rotation");
+const {
+  buildDietDayRecord, offsetFromLocalMidnight,
+} = require("../../diet/day_record");
+const {entriesForPlannedMeal} = require("../../diet/planned_meal_log");
+const {resolveDietDay, dayKeyFor} = require("./dates");
 
 /**
  * `Timestamp` field `value` converted to a `Date`, or null.
@@ -29,6 +34,104 @@ function toDate(value) {
 function startOfDayFor(dayKey) {
   const [y, m, d] = dayKey.split("-").map(Number);
   return new Date(y, m - 1, d);
+}
+
+/**
+ * The instant the user's local day `dayKey` starts — what the app stores as a
+ * diet doc's `date` (device-local midnight). With no known offset this falls
+ * back to the old server-local midnight.
+ * @param {string} dayKey
+ * @param {?number=} offsetMinutes The user's UTC offset.
+ * @return {!Date}
+ */
+function localMidnightFor(dayKey, offsetMinutes) {
+  if (typeof offsetMinutes !== "number" || !Number.isFinite(offsetMinutes)) {
+    return startOfDayFor(dayKey);
+  }
+  return new Date(Date.parse(`${dayKey}T00:00:00Z`) - offsetMinutes * 60000);
+}
+
+/**
+ * One `foodLogs` doc as the tools and the day record read it.
+ * @param {string} id
+ * @param {!Object} d
+ * @return {!Object}
+ */
+function foodLogFromData(id, d) {
+  const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  return {
+    id,
+    foodId: d.foodId || "",
+    foodName: d.foodName || "",
+    quantity: num(d.quantity),
+    unit: d.unit || "g",
+    grams: num(d.grams),
+    kcal: Math.round(num(d.kcal)),
+    proteinG: num(d.proteinG),
+    carbsG: num(d.carbsG),
+    fatG: num(d.fatG),
+    source: d.source || "dietPlan",
+    sourceRef: d.sourceRef || "",
+    origin: d.origin === "logged" ? "logged" : "plannedMeal",
+    estimated: d.estimated === true,
+    mealId: d.mealId || null,
+    loggedAt: toDate(d.loggedAt),
+  };
+}
+
+/**
+ * One `dietEntries` doc. `status` is "skipped" only when the user said so;
+ * older docs (and older app builds) carry just `eaten`.
+ * @param {!Object} d
+ * @return {!Object}
+ */
+function dietEntryFromData(d) {
+  const eaten = !!d.eaten;
+  return {
+    mealId: d.mealId || "",
+    eaten,
+    status: eaten ? "eaten" :
+      (d.status === "skipped" ? "skipped" : "unmarked"),
+  };
+}
+
+/**
+ * `dietTargets/current` as the coach reads it, or null when it can't be read
+ * as a real target (no goal, no usable calorie figure).
+ * @param {?Object} d
+ * @return {?Object}
+ */
+function dietTargetsFromData(d) {
+  if (!d) return null;
+  const calories = typeof d.calories === "number" && d.calories > 0 ?
+    Math.round(d.calories) : null;
+  if (!d.goal || calories === null) return null;
+  const num = (v) =>
+    typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
+  return {
+    goal: String(d.goal),
+    calories,
+    proteinG: num(d.proteinG),
+    carbsG: num(d.carbsG),
+    fatG: num(d.fatG),
+    source: typeof d.source === "string" ? d.source : "manual",
+  };
+}
+
+/**
+ * The active plan among `dietPlans` docs ordered newest first, or null.
+ * @param {!Array<!Object>} docs
+ * @return {?Object}
+ */
+function activePlanFromDocs(docs) {
+  for (const doc of docs) {
+    const d = doc.data();
+    if (d.status === "active") {
+      return {id: doc.id, name: d.name || "", status: d.status,
+        days: d.days || []};
+    }
+  }
+  return null;
 }
 
 /** The Admin-SDK-backed `store` seam for the `aiChat` gateway. */
@@ -284,18 +387,7 @@ class FirestoreStore {
         .collection("dietPlans")
         .orderBy("createdAt", "desc")
         .get();
-    for (const doc of snap.docs) {
-      const d = doc.data();
-      if (d.status === "active") {
-        return {
-          id: doc.id,
-          name: d.name || "",
-          status: d.status,
-          days: d.days || [],
-        };
-      }
-    }
-    return null;
+    return activePlanFromDocs(snap.docs);
   }
 
   /**
@@ -335,20 +427,7 @@ class FirestoreStore {
         .doc("current")
         .get();
     if (!snap.exists) return null;
-    const d = snap.data() || {};
-    const calories = typeof d.calories === "number" && d.calories > 0 ?
-      Math.round(d.calories) : null;
-    if (!d.goal || calories === null) return null;
-    const num = (v) =>
-      typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
-    return {
-      goal: String(d.goal),
-      calories,
-      proteinG: num(d.proteinG),
-      carbsG: num(d.carbsG),
-      fatG: num(d.fatG),
-      source: typeof d.source === "string" ? d.source : "manual",
-    };
+    return dietTargetsFromData(snap.data() || {});
   }
 
   /**
@@ -494,28 +573,7 @@ class FirestoreStore {
         .collection("foodLogs")
         .where("dayKey", "==", dayKey)
         .get();
-    return snap.docs.map((doc) => {
-      const d = doc.data();
-      const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
-      return {
-        id: doc.id,
-        foodId: d.foodId || "",
-        foodName: d.foodName || "",
-        quantity: num(d.quantity),
-        unit: d.unit || "g",
-        grams: num(d.grams),
-        kcal: Math.round(num(d.kcal)),
-        proteinG: num(d.proteinG),
-        carbsG: num(d.carbsG),
-        fatG: num(d.fatG),
-        source: d.source || "dietPlan",
-        sourceRef: d.sourceRef || "",
-        origin: d.origin === "logged" ? "logged" : "plannedMeal",
-        estimated: d.estimated === true,
-        mealId: d.mealId || null,
-        loggedAt: toDate(d.loggedAt),
-      };
-    });
+    return snap.docs.map((doc) => foodLogFromData(doc.id, doc.data()));
   }
 
   /**
@@ -553,37 +611,154 @@ class FirestoreStore {
         .collection("dietEntries")
         .where("dayKey", "==", dayKey)
         .get();
-    return snap.docs.map((doc) => {
-      const d = doc.data();
-      return {mealId: d.mealId || "", eaten: !!d.eaten};
-    });
+    return snap.docs.map((doc) => dietEntryFromData(doc.data()));
   }
 
   /**
-   * Upserts the eaten-toggle for one meal on one day, mirroring the client's
-   * `FirestoreDietRepository.setMealEaten` write exactly (same doc id
-   * `dietEntries/{dayKey}__{mealId}`, same fields, merge) so either side's
-   * writes are indistinguishable in Firestore.
+   * Ticks, skips or un-ticks one planned meal on one day — the same two writes
+   * the app's `FirestoreDietRepository.setMealEaten` makes, in one batch:
+   *
+   *   - `dietEntries/{dayKey}__{mealId}` (same id, same fields, merge), now
+   *     with `status` so a skip is a fact rather than a missing tick;
+   *   - the meal's items materialised into `foodLogs` when eaten
+   *     (`diet/planned_meal_log.js`, ids identical to the app's), removed
+   *     again when not — never touching a food the user logged themselves.
    * @param {string} uid
-   * @param {string} dayKey 'yyyy-MM-dd' (`dayKeyFor`)
-   * @param {string} mealId
-   * @param {boolean} eaten
+   * @param {string} dayKey 'yyyy-MM-dd' in the user's timezone.
+   * @param {!Object} meal The plan Meal (`{id, items}`).
+   * @param {string} status "eaten" | "skipped" | "unmarked"
+   * @param {?number=} offsetMinutes The user's UTC offset, when known.
    * @return {!Promise<void>}
    */
-  async setDietEntry(uid, dayKey, mealId, eaten) {
+  async setMealTick(uid, dayKey, meal, status, offsetMinutes) {
     const now = FieldValue.serverTimestamp();
-    await this._user(uid)
-        .collection("dietEntries")
-        .doc(`${dayKey}__${mealId}`)
-        .set({
-          dayKey,
-          date: Timestamp.fromDate(startOfDayFor(dayKey)),
-          mealId,
-          eaten,
-          schemaVersion: 1,
-          createdAt: now,
-          updatedAt: now,
-        }, {merge: true});
+    const date = Timestamp.fromDate(localMidnightFor(dayKey, offsetMinutes));
+    const batch = this.db.batch();
+    batch.set(this._user(uid).collection("dietEntries")
+        .doc(`${dayKey}__${meal.id}`), {
+      dayKey,
+      date,
+      mealId: meal.id,
+      eaten: status === "eaten",
+      status,
+      schemaVersion: 1,
+      createdAt: now,
+      updatedAt: now,
+    }, {merge: true});
+    const logs = this._user(uid).collection("foodLogs");
+    for (const e of entriesForPlannedMeal(meal, dayKey)) {
+      if (status === "eaten") {
+        batch.set(logs.doc(e.id), foodLogWrite(e, date, now), {merge: true});
+      } else {
+        batch.delete(logs.doc(e.id));
+      }
+    }
+    await batch.commit();
+  }
+
+  /**
+   * The stored daily record for one day, or null.
+   * @param {string} uid
+   * @param {string} dayKey
+   * @return {!Promise<?Object>}
+   */
+  async getDietDay(uid, dayKey) {
+    const snap = await this._user(uid).collection("dietDays").doc(dayKey).get();
+    return snap.exists ? dietDayFromData(snap.data()) : null;
+  }
+
+  /**
+   * The stored daily records across a range of days, oldest first. One
+   * range query on the doc's own `dayKey` — at most one small document per
+   * day, never the log rows behind them.
+   * @param {string} uid
+   * @param {string} fromDayKey
+   * @param {string} toDayKey
+   * @return {!Promise<!Array<!Object>>}
+   */
+  async listDietDays(uid, fromDayKey, toDayKey) {
+    const snap = await this._user(uid)
+        .collection("dietDays")
+        .where("dayKey", ">=", fromDayKey)
+        .where("dayKey", "<=", toDayKey)
+        .get();
+    return snap.docs.map((doc) => dietDayFromData(doc.data()))
+        .sort((a, b) => a.dayKey.localeCompare(b.dayKey));
+  }
+
+  /**
+   * The user's UTC offset as their most recent daily record learned it:
+   * `undefined` when they have no record at all (no day to refresh), `null`
+   * when the record couldn't tell.
+   * @param {string} uid
+   * @return {!Promise<(?number|undefined)>}
+   */
+  async latestDietDayOffset(uid) {
+    const snap = await this._user(uid)
+        .collection("dietDays")
+        .orderBy("dayKey", "desc")
+        .limit(1)
+        .get();
+    if (snap.docs.length === 0) return undefined;
+    const o = snap.docs[0].data().offsetMinutes;
+    return typeof o === "number" ? o : null;
+  }
+
+  /**
+   * Rebuilds `dietDays/{dayKey}` from `dietPlans`, `dietEntries` and
+   * `foodLogs` (`diet/day_record.js`), inside a transaction so concurrent
+   * rebuilds — one tick writes several docs, each firing one — converge on
+   * the state after the last write rather than whichever finished last.
+   * Idempotent: an unchanged record is not rewritten; a day that no longer
+   * holds anything loses its record.
+   * @param {string} uid
+   * @param {string} dayKey
+   * @param {{now: !Date, localMidnight: (?Date|undefined)}} opts
+   *   `localMidnight` is the triggering doc's `date`, which reveals the user's
+   *   UTC offset when the app wrote it.
+   * @return {!Promise<string>} "written" | "unchanged" | "deleted" | "none"
+   */
+  async rebuildDietDay(uid, dayKey, {now, localMidnight}) {
+    const user = this._user(uid);
+    const ref = user.collection("dietDays").doc(dayKey);
+    return this.db.runTransaction(async (tx) => {
+      const [daySnap, logSnap, entrySnap, planSnap, targetSnap] =
+        await Promise.all([
+          tx.get(ref),
+          tx.get(user.collection("foodLogs").where("dayKey", "==", dayKey)),
+          tx.get(user.collection("dietEntries").where("dayKey", "==", dayKey)),
+          tx.get(user.collection("dietPlans").orderBy("createdAt", "desc")),
+          tx.get(user.collection("dietTargets").doc("current")),
+        ]);
+      const existing = daySnap.exists ? dietDayFromData(daySnap.data()) : null;
+      const offsetMinutes = offsetFromLocalMidnight(dayKey, localMidnight) ??
+        (existing ? existing.offsetMinutes : null);
+      const plan = activePlanFromDocs(planSnap.docs);
+      const noon = new Date(`${dayKey}T12:00:00Z`);
+      const record = buildDietDayRecord({
+        dayKey,
+        isPast: dayKey < dayKeyFor(now, offsetMinutes ?? 0),
+        offsetMinutes,
+        plan,
+        planDay: plan ? resolveDietDay(plan.days || [], noon, 0) : null,
+        targets: targetSnap.exists ?
+          dietTargetsFromData(targetSnap.data()) : null,
+        entries: entrySnap.docs.map((d) => dietEntryFromData(d.data())),
+        log: logSnap.docs.map((d) => foodLogFromData(d.id, d.data())),
+        existing,
+      });
+      if (!record) {
+        if (!existing) return "none";
+        tx.delete(ref);
+        return "deleted";
+      }
+      if (existing && sameRecord(existing, record)) return "unchanged";
+      tx.set(ref, Object.assign({}, record, {
+        date: Timestamp.fromDate(localMidnightFor(dayKey, offsetMinutes)),
+        updatedAt: FieldValue.serverTimestamp(),
+      }));
+      return "written";
+    });
   }
 
   /**
@@ -744,6 +919,18 @@ class FirestoreStore {
           if (d.choice) m.choice = d.choice;
           if (d.preface) m.preface = d.preface;
           if (d.context) m.context = d.context;
+          // The turn's own user message is recognised by this and left out of
+          // the history the model reads (`../chat/messages.js`).
+          if (d.clientTurnId) m.clientTurnId = d.clientTurnId;
+          // Which tools a reply ran / which change a card proposes — names
+          // only — so the next turn can tell which area it continues
+          // (`../chat/intent.js`).
+          if (Array.isArray(d.activity)) {
+            m.activity = d.activity
+                .filter((a) => a && typeof a.tool === "string")
+                .map((a) => ({tool: a.tool}));
+          }
+          if (d.actionKind) m.actionKind = d.actionKind;
           return m;
         })
         .reverse();
@@ -1162,37 +1349,78 @@ class FirestoreStore {
    * pending action overwrites rather than duplicating.
    * @param {string} uid
    * @param {!Array<Object>} entries
+   * @param {?number=} offsetMinutes The user's UTC offset, so `date` is their
+   *   local midnight exactly as the app writes it.
    * @return {!Promise<void>}
    */
-  async writeFoodLog(uid, entries) {
+  async writeFoodLog(uid, entries, offsetMinutes) {
     if (!Array.isArray(entries) || entries.length === 0) return;
     const now = FieldValue.serverTimestamp();
     const collection = this._user(uid).collection("foodLogs");
     const batch = this.db.batch();
     for (const e of entries) {
-      batch.set(collection.doc(e.id), {
-        dayKey: e.dayKey,
-        date: Timestamp.fromDate(startOfDayFor(e.dayKey)),
-        loggedAt: now,
-        foodId: e.foodId,
-        foodName: e.foodName,
-        quantity: e.quantity,
-        unit: e.unit,
-        grams: e.grams,
-        kcal: Math.round(e.kcal),
-        proteinG: e.proteinG,
-        carbsG: e.carbsG,
-        fatG: e.fatG,
-        source: e.source,
-        sourceRef: e.sourceRef,
-        origin: e.origin,
-        estimated: e.estimated === true,
-        mealId: e.mealId || null,
-        schemaVersion: 1,
-      });
+      const date =
+        Timestamp.fromDate(localMidnightFor(e.dayKey, offsetMinutes));
+      batch.set(collection.doc(e.id), foodLogWrite(e, date, now));
     }
     await batch.commit();
   }
 }
 
-module.exports = {FirestoreStore};
+/**
+ * A `foodLogs` doc body — the exact fields the app writes (`_entryToMap`) and
+ * `firestore.rules` allows.
+ * @param {!Object} e A row in `entriesForPlannedMeal` / `log_food` shape.
+ * @param {!Timestamp} date
+ * @param {*} loggedAt
+ * @return {!Object}
+ */
+function foodLogWrite(e, date, loggedAt) {
+  return {
+    dayKey: e.dayKey,
+    date,
+    loggedAt,
+    foodId: e.foodId,
+    foodName: e.foodName,
+    quantity: e.quantity,
+    unit: e.unit,
+    grams: e.grams,
+    kcal: Math.round(e.kcal),
+    proteinG: e.proteinG,
+    carbsG: e.carbsG,
+    fatG: e.fatG,
+    source: e.source,
+    sourceRef: e.sourceRef,
+    origin: e.origin,
+    estimated: e.estimated === true,
+    mealId: e.mealId || null,
+    schemaVersion: 1,
+  };
+}
+
+/**
+ * A stored `dietDays` doc minus its write bookkeeping (`date`, `updatedAt`),
+ * i.e. exactly what `buildDietDayRecord` returns.
+ * @param {!Object} d
+ * @return {!Object}
+ */
+function dietDayFromData(d) {
+  const {date, updatedAt, ...record} = d; // eslint-disable-line no-unused-vars
+  return record;
+}
+
+/**
+ * Whether two records say the same thing (key order aside).
+ * @param {!Object} a
+ * @param {!Object} b
+ * @return {boolean}
+ */
+function sameRecord(a, b) {
+  const canon = (v) => Array.isArray(v) ? v.map(canon) :
+    v && typeof v === "object" ?
+      Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) :
+      v;
+  return JSON.stringify(canon(a)) === JSON.stringify(canon(b));
+}
+
+module.exports = {FirestoreStore, localMidnightFor};

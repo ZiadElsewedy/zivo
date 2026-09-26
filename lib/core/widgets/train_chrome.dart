@@ -7,6 +7,7 @@ import '../motion/springs.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_icons.dart';
 import '../theme/train_tokens.dart';
+import '../theme/zivo_palette.dart';
 import 'pressable_scale.dart';
 
 /// The shared chrome of the workout-tracking screens (Today · Active Set ·
@@ -73,11 +74,11 @@ class TrainPrimaryButton extends StatelessWidget {
     this.height = 60,
     this.glowAlpha = 0.32,
     super.key,
-  // `this._x`, which the lint asks for here, is not a thing Dart will
-  // accept: a named parameter cannot be private. The field is private
-  // so that the public name can be the *resolved* getter below, which
-  // is what keeps this constructor `const` (ADR-011).
-  // ignore: prefer_initializing_formals
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
   }) : _color = color;
 
   final String label;
@@ -241,11 +242,11 @@ class TrainCircleButton extends StatelessWidget {
     Color? fill,
     this.border,
     super.key,
-  // `this._x`, which the lint asks for here, is not a thing Dart will
-  // accept: a named parameter cannot be private. The field is private
-  // so that the public name can be the *resolved* getter below, which
-  // is what keeps this constructor `const` (ADR-011).
-  // ignore: prefer_initializing_formals
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
   }) : _fill = fill;
 
   final Widget child;
@@ -402,11 +403,11 @@ class TrainSegmentCaptions extends StatelessWidget {
     this.leftSemanticLabel,
     this.leftKey,
     super.key,
-  // `this._x`, which the lint asks for here, is not a thing Dart will
-  // accept: a named parameter cannot be private. The field is private
-  // so that the public name can be the *resolved* getter below, which
-  // is what keeps this constructor `const` (ADR-011).
-  // ignore: prefer_initializing_formals
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
   }) : _rightColor = rightColor;
 
   final String left;
@@ -501,11 +502,18 @@ class TrainMetricRing extends StatelessWidget {
     this.unit,
     this.glyph,
     this.subColor,
+    this.earned,
     super.key,
   });
 
   /// 0..1.
   final double progress;
+
+  /// Whether a closed ring represents something achieved, and so may bloom.
+  /// Defaults to "closed" (progress 1); a caller whose full ring means
+  /// something else — a first week with nothing to compare against — says
+  /// false.
+  final bool? earned;
   final Color color;
 
   /// "Trained" / "Steps" / "Volume".
@@ -528,8 +536,8 @@ class TrainMetricRing extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 74,
-          height: 74,
+          width: 80,
+          height: 80,
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -538,52 +546,69 @@ class TrainMetricRing extends StatelessWidget {
                   tween: Tween(begin: 0, end: progress.clamp(0.0, 1.0)),
                   duration: const Duration(milliseconds: 620),
                   curve: Curves.easeOutCubic,
-                  builder: (context, t, _) =>
-                      CustomPaint(painter: _RingPainter(t, color)),
+                  builder: (context, t, _) => CustomPaint(
+                    painter: _RingPainter(
+                      t,
+                      color,
+                      glow:
+                          (earned ?? progress >= 1) &&
+                          ZivoTheme.brightness == Brightness.dark,
+                    ),
+                  ),
                 ),
               ),
               if (value != null)
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      value!,
-                      style: TrainType.mono(
-                        size: 20,
-                        tracking: -0.03,
-                        color: TrainColors.ink,
-                      ),
-                    ),
-                    if (unit != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        unit!,
-                        style: TrainType.mono(
-                          size: 8,
-                          weight: FontWeight.w500,
-                          tracking: 0.12,
-                          color: TrainColors.inkAt(0.38),
+                // Held inside the stroke: a four-character figure ("22.0")
+                // used to run edge to edge and touch the ring.
+                SizedBox(
+                  width: 52,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          value!,
+                          style: TrainType.mono(
+                            size: 20,
+                            weight: FontWeight.w500,
+                            tracking: -0.04,
+                            color: TrainColors.ink,
+                          ),
                         ),
-                      ),
-                    ],
-                  ],
+                        if (unit != null && unit!.isNotEmpty) ...[
+                          const SizedBox(height: 1),
+                          Text(
+                            unit!,
+                            style: TrainType.mono(
+                              size: 8,
+                              weight: FontWeight.w600,
+                              tracking: 0.14,
+                              color: TrainColors.inkAt(0.4),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 )
               else
                 ?glyph,
             ],
           ),
         ),
-        const SizedBox(height: 11),
+        const SizedBox(height: 12),
         Text(
           label,
           style: TrainType.ui(
-            size: 12.5,
-            weight: FontWeight.w700,
+            size: 13,
+            weight: FontWeight.w800,
+            tracking: -0.01,
             height: 1,
             color: TrainColors.inkPlain,
           ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 6),
         Text(
           sub,
           textAlign: TextAlign.center,
@@ -600,34 +625,64 @@ class TrainMetricRing extends StatelessWidget {
   }
 }
 
+/// A Today ring: a matte track and a solid arc in the metric's colour. The
+/// one effect is earned — a ring that has closed (today's session done, the
+/// step goal hit) carries a faint bloom on the dark skin. A ring that is
+/// still filling stays flat.
 class _RingPainter extends CustomPainter {
-  const _RingPainter(this.progress, this.color);
+  const _RingPainter(this.progress, this.color, {required this.glow});
 
   final double progress;
   final Color color;
 
+  /// Whether a closed ring may bloom — dark skin only; on paper a glow is a
+  /// smudge.
+  final bool glow;
+
+  static const _stroke = 5.0;
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
-    final radius = math.min(size.width, size.height) / 2 - 5;
+    final radius = math.min(size.width, size.height) / 2 - _stroke;
     final rect = Rect.fromCircle(center: center, radius: radius);
-    final track = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..color = TrainColors.hairline;
-    canvas.drawCircle(center, radius, track);
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _stroke
+        ..color = TrainColors.hairline,
+    );
     if (progress <= 0) return;
-    final arc = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round
-      ..color = color;
-    canvas.drawArc(rect, -math.pi / 2, 2 * math.pi * progress, false, arc);
+    final sweep = 2 * math.pi * progress;
+    if (glow && progress >= 1) {
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _stroke
+          ..color = color.withValues(alpha: 0.22)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+      );
+    }
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      sweep,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _stroke
+        ..strokeCap = StrokeCap.round
+        ..color = color,
+    );
   }
 
   @override
   bool shouldRepaint(_RingPainter old) =>
-      old.progress != progress || old.color != color;
+      old.progress != progress || old.color != color || old.glow != glow;
 }
 
 /// A mono micro-caption above a block ("TODAY", "NEXT SESSION", "NOW").
@@ -638,11 +693,11 @@ class TrainCaption extends StatelessWidget {
     this.size = 9.5,
     this.tracking = 0.2,
     super.key,
-  // `this._x`, which the lint asks for here, is not a thing Dart will
-  // accept: a named parameter cannot be private. The field is private
-  // so that the public name can be the *resolved* getter below, which
-  // is what keeps this constructor `const` (ADR-011).
-  // ignore: prefer_initializing_formals
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
   }) : _color = color;
 
   final String text;
@@ -726,10 +781,8 @@ class TrainPauseGlyph extends StatelessWidget {
   final double size;
 
   @override
-  Widget build(BuildContext context) => CustomPaint(
-    size: Size(size * 0.93, size),
-    painter: _PausePainter(color),
-  );
+  Widget build(BuildContext context) =>
+      CustomPaint(size: Size(size * 0.93, size), painter: _PausePainter(color));
 }
 
 class _PausePainter extends CustomPainter {

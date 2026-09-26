@@ -24,6 +24,12 @@ the split is invisible to `index.js` and the other importers.
 | **The user-facing "can't answer" copy** | [`outcome.js`](outcome.js) (activity-aware) + [`config.js`](config.js) |
 | **How a turn ends** (terminal states, tool retry rules) | [`outcome.js`](outcome.js) |
 | **What a follow-up reuses** (carried tool results) | [`context_ledger.js`](context_ledger.js) |
+| **Which area a turn is about** (intent routing) | [`intent.js`](intent.js) |
+| **What's read before the first model call** (prefetch) | [`prefetch.js`](prefetch.js) |
+| **Which Claude model + reasoning level a turn gets** (Phase 8) | [`reasoning_policy.js`](reasoning_policy.js) + `reasoning` in [`../routing/models.js`](../routing/models.js) |
+| **Which prompt + tools a turn gets** (per-intent scope, `load_tools`) | [`scope.js`](scope.js) |
+| **How long a reply should be** (decision / detail / default, per message) | [`reply_shape.js`](reply_shape.js) + [`prompt/sections/length.js`](prompt/sections/length.js) |
+| **What streams to the screen** (deltas, retry/restatement `replace`) | [`live_text.js`](live_text.js) |
 
 ## The files
 
@@ -55,6 +61,20 @@ the split is invisible to `index.js` and the other importers.
 - **`messages.js`** — history normalization, assistant-text extraction, empty
   thinking-block stripping, and tool-result capping. Pure string/array helpers.
 - **`errors.js`** — `GatewayError` (gRPC-style `code`) and the document-id guard.
+- **`live_text.js`** — what a streaming turn puts on screen. Mirrors the
+  client's text (one segment per step), shapes deltas so streamed == saved,
+  and guarantees **a reply never visibly starts over**: when a same-provider
+  retry (the router's `onRetry`) or a step that restates the previous step's
+  lead-in would repeat words already on screen, it holds them back and sends
+  one `{type:'replace', text}` snapshot instead (the client keeps the shared
+  prefix). A restated lead-in is dropped from the saved reply too
+  (`restatedPrevious`; a buffered turn applies the same `restates` rule).
+  `replace` goes only to a client that sends `streamReplace: true`.
+- **`reply_shape.js`** — the per-message length decision, deterministic like
+  `intent.js`: DECISION ("should I…", "أروح الجيم؟") → the verdict first;
+  DETAIL ("explain", "بالتفصيل") → depth is welcome; otherwise the prompt's
+  concise default. A non-default shape adds one uncached system block
+  (`context.js`); nothing is truncated after generation.
 - **`validator.js`** — the advice validator + safety intercept (Diet Coach Phase 7):
   checks a diet-reading turn's final text against the state it read and, on a
   violation, replaces it with the findings' deterministic sentences (or a safety
@@ -137,11 +157,17 @@ provider failure (after the router's own retry + fallback) → thrown, tagged pr
   (`selectionNote`). Typed picks ("option 2") still work: history carries the
   options numbered with their values (`messages.js` `toNormalizedMessage`).
   Proposal cards carry their status.
-- **Fallback is visible.** `router.generate` calls `opts.onFallback` just
-  before trying the other provider; the turn emits `{type:'fallback', from, to}`
-  (model keys) and persists `{kind:'fallback', from, to}` in `activity`. Per
-  request the provider is sticky (`router.stickyProvider`): after one
-  fallback, the rest of the turn uses the model that answered.
+- **A retry never shows twice.** The router gates each attempt's `onText`
+  (an abandoned attempt can't keep streaming) and calls `onRetry` before a
+  same-provider retry; `live_text.js` turns that into a `replace` so the
+  half-answer the failed attempt wrote isn't followed by the whole answer
+  again. Pinned by `turn_stream.test.js`.
+- **No cross-provider fallback.** The selected model answers or its own
+  failure ends the turn (`../routing/router.js`, `CROSS_PROVIDER_FALLBACK`
+  off). The turn attaches its usage record to the error (`err.turnUsage`:
+  steps that did run, intent, `failedProvider`/`failedModel`, `failedTries`)
+  and the callable logs it. The `onFallback` → `{type:'fallback'}` path and
+  the sticky provider are kept for when fallback is switched back on.
 
 ## The prompt (`prompt/`)
 
@@ -153,6 +179,9 @@ substrings, not order. Sections:
 |---|---|---|
 | `persona.js` | Who ZIVO is + how it talks (voice) | no — free to tune |
 | `focus.js` | Answer the exact question; pull only relevant context | tested (focus) |
+| `length.js` | Response-length policy: answer first, short by default, depth when asked | tested (length) |
+| `language.js` | Reply in the user's language/dialect (Egyptian Arabic); Arabic the RTL screen can lay out | tested (language) |
+| `decisions.js` | Make the call: FACT → ASSESSMENT → RECOMMENDATION → ACTION; never from missing data (+ per-area train-today / diet calls) | tested (decisions) |
 | `activity.js` | Say what you did (not what you thought); plan within the step budget; don't re-call a failed lookup | no |
 | `formatting.js` | Plain-text structure the client can actually render | tested (formatting) |
 | `numbers.js` | Every figure comes from a tool, never invented | **yes** — tested, safety-critical |
@@ -182,14 +211,20 @@ data.** Concretely, and worth keeping intact:
   unconditionally is the one-line `CONTEXT` date block; everything else arrives
   only when the model calls a tool for it. There is no RAG, no vector store, no
   eager preamble — and adding one would be a regression, not a feature.
-- **The cached prefix must stay stable — so tools are NOT varied per turn.**
-  Anthropic's cache prefix order is `tools → system → messages`, so changing the
-  tool set invalidates the cache for the system prompt too. Exposing a different
-  subset of tools per turn ("conditional tool exposure") therefore trades the
-  ~0.1× cache read on the whole prefix for a smaller-but-uncached one, and
-  fragments the cache across domains. It was evaluated and **deliberately not
-  done**; revisit only if telemetry (below) shows cold-prefix cost actually
-  dominates. Keep `SYSTEM_PROMPT` element 0 and the tool list stable.
+- **Tools and prompt are scoped by INTENT — and each scope is stable.**
+  (Owner decision 2026-09-26, reversing the earlier "never vary tools per
+  turn".) `intent.js` routes a turn deterministically (no model call) to
+  GENERAL · TRAINING · DIET · MONEY · AMBIGUOUS; `scope.js` hands the model
+  that area's prompt modules (`prompt/system_prompt.js`) and tools, built once
+  at load so each intent's prefix is byte-identical turn to turn and caches on
+  its own. At ZIVO's traffic a cache READ of the full ~56K-char prefix was
+  cheap, but every cold turn paid a 1.25× WRITE on all of it and every call
+  re-processed it; a scoped prefix is 30–70% smaller even when it's cold.
+  AMBIGUOUS is the full prompt + every tool (the old behaviour), and a scoped
+  turn can widen itself with `load_tools`. Invariant: a tool is never exposed
+  without its area's module, so a tool description never needs to repeat the
+  area's policy. `intent`, `expandedTo` and `unexposedToolCalls` in usage
+  show when routing misses.
 - **Prefer a narrow tool over a broad one.** `get_last_workout` reads ONE session
   (not a week) for "what did I do last workout"; `get_sleep_summary` returns last
   night + a rolling average for sleep questions (`get_readiness` still owns "how
@@ -201,7 +236,13 @@ data.** Concretely, and worth keeping intact:
   every iteration and mean nothing. It is **not** applied to the diet tools: there
   `null` is a signal the prompt reasons about (`targets: null` = no objective set;
   a null macro in `remaining` = untracked, not zero) and the tests pin it.
-- **Every turn's cost is observable (usage schema v3).** `turn.js` logs, per turn:
+- **History is a character budget** (`messages.js` `selectHistory`,
+  `config.js` `history*`): the current message is never in it (it was sent
+  twice), the newest 4 messages are verbatim, older replies are shortened,
+  user messages and open cards are kept whole, and older messages stop at
+  the budget. The ledger is capped at 8K and filtered to the turn's area.
+- **Every turn's cost is observable (usage schema v3, now v7 — `perCall`,
+  `context` sizes, `intent`, `promptVersion`).** `turn.js` logs, per turn:
   `provider`, `model`, `tokensIn` (total), `uncachedTokensIn`, `cacheReadTokens`,
   `cacheWriteTokens`, `tokensOut`, `toolResultTokens` (approx), `tools`,
   `iterations`, `latencyMs`, `costUsd`. This is what makes Claude-vs-Gemini and

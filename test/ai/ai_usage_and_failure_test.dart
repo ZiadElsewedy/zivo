@@ -166,58 +166,61 @@ void main() {
   });
 
   group('usage records', () {
-    test('usageRecords reads every feature, newest first, any schema', () async {
-      final firestore = FakeFirebaseFirestore();
-      final log = firestore
-          .collection('users')
-          .doc('u')
-          .collection('aiUsage');
-      // A pre-v4 chat turn: no feature, no status.
-      await log.add({
-        'model': 'claude-sonnet-5',
-        'tokensIn': 100,
-        'tokensOut': 10,
-        'costUsd': 0.0005,
-        'createdAt': Timestamp.fromDate(DateTime(2026, 9, 20)),
-      });
-      await log.add({
-        'feature': 'diet_generate',
-        'provider': 'gemini',
-        'model': 'gemini-flash-latest',
-        'tokensIn': 6000,
-        'tokensOut': 3000,
-        'costUsd': 0.009,
-        'status': 'ok',
-        'createdAt': Timestamp.fromDate(DateTime(2026, 9, 23)),
-      });
-      await log.add({
-        'feature': 'workout_import',
-        'provider': 'gemini',
-        'status': 'error',
-        'errorKind': 'rate_limit',
-        'tokensIn': 0,
-        'tokensOut': 0,
-        'costUsd': 0,
-        'createdAt': Timestamp.fromDate(DateTime(2026, 9, 22)),
-      });
-      final repo = FirebaseAiRepository(
-        firestore: firestore,
-        uidSource: _signedInAs('u'),
-      );
+    test(
+      'usageRecords reads every feature, newest first, any schema',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final log = firestore
+            .collection('users')
+            .doc('u')
+            .collection('aiUsage');
+        // A pre-v4 chat turn: no feature, no status.
+        await log.add({
+          'model': 'claude-sonnet-5',
+          'tokensIn': 100,
+          'tokensOut': 10,
+          'costUsd': 0.0005,
+          'createdAt': Timestamp.fromDate(DateTime(2026, 9, 20)),
+        });
+        await log.add({
+          'feature': 'diet_generate',
+          'provider': 'gemini',
+          'model': 'gemini-flash-latest',
+          'tokensIn': 6000,
+          'tokensOut': 3000,
+          'costUsd': 0.009,
+          'status': 'ok',
+          'createdAt': Timestamp.fromDate(DateTime(2026, 9, 23)),
+        });
+        await log.add({
+          'feature': 'workout_import',
+          'provider': 'gemini',
+          'status': 'error',
+          'errorKind': 'rate_limit',
+          'tokensIn': 0,
+          'tokensOut': 0,
+          'costUsd': 0,
+          'createdAt': Timestamp.fromDate(DateTime(2026, 9, 22)),
+        });
+        final repo = FirebaseAiRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('u'),
+        );
 
-      final records = await repo.usageRecords();
+        final records = await repo.usageRecords();
 
-      expect(records.map((r) => r.feature), [
-        'diet_generate',
-        'workout_import',
-        'chat',
-      ]);
-      expect(records[1].failed, isTrue);
-      expect(records[1].errorKind, 'rate_limit');
-      // Legacy turn: attributed to Claude by its model id, status ok.
-      expect(records.last.provider, 'anthropic');
-      expect(records.last.status, 'ok');
-    });
+        expect(records.map((r) => r.feature), [
+          'diet_generate',
+          'workout_import',
+          'chat',
+        ]);
+        expect(records[1].failed, isTrue);
+        expect(records[1].errorKind, 'rate_limit');
+        // Legacy turn: attributed to Claude by its model id, status ok.
+        expect(records.last.provider, 'anthropic');
+        expect(records.last.status, 'ok');
+      },
+    );
 
     test('totals group by provider and by feature, most expensive first', () {
       final records = [
@@ -300,6 +303,44 @@ void main() {
       final a = aiProviderStats(const [], 'anthropic');
       expect(a.totalRequests, 0);
       expect(a.costPerRequestUsd, 0);
+    });
+  });
+  group('aiFailureFromStreamChunk — the reason a streamed turn announces', () {
+    // The iOS plugin drops a streamed callable error's code/details, so the
+    // server repeats the cause as a final data chunk.
+    test('an ai_unavailable chunk becomes the provider-named failure', () {
+      final f = aiFailureFromStreamChunk({
+        'type': 'error',
+        'reason': 'ai_unavailable',
+        'provider': 'gemini',
+        'model': 'gemini-flash-latest',
+        'kind': 'overloaded',
+      });
+      expect(f, isNotNull);
+      expect(f!.kind, AiFailureKind.unavailable);
+      expect(f.provider, 'gemini');
+      expect(f.issue, AiProviderIssue.overloaded);
+    });
+
+    test('quota and billing keep their own issue', () {
+      AiProviderIssue? issueOf(String kind) => aiFailureFromStreamChunk({
+        'type': 'error',
+        'reason': 'ai_unavailable',
+        'provider': 'gemini',
+        'kind': kind,
+      })?.issue;
+      expect(issueOf('quota'), AiProviderIssue.quotaExceeded);
+      expect(issueOf('billing'), AiProviderIssue.outOfCredit);
+    });
+
+    test('any other chunk is not a failure', () {
+      expect(aiFailureFromStreamChunk({'type': 'delta', 'text': 'hi'}), isNull);
+      expect(
+        aiFailureFromStreamChunk({'type': 'error', 'reason': 'other'}),
+        isNull,
+      );
+      expect(aiFailureFromStreamChunk('error'), isNull);
+      expect(aiFailureFromStreamChunk(null), isNull);
     });
   });
 }

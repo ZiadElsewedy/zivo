@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/scope/app_scope.dart';
+import '../../admin/presentation/admin_shell.dart';
 import '../../profile/domain/session_state.dart';
 import '../../profile/domain/user_profile.dart';
 import '../../profile/presentation/pages/profile_completion_page.dart';
@@ -66,7 +67,7 @@ class _AuthGateState extends State<AuthGate> {
         // profile subscription is opened beneath this branch rather than at
         // the root — a signed-out visitor never opens a Firestore listener.
         if (authState is Authenticated) {
-          return _SessionGate(user: authState.user);
+          return _RoleGate(user: authState.user);
         }
         return _screenFor(
           resolveSessionState(
@@ -75,6 +76,62 @@ class _AuthGateState extends State<AuthGate> {
             profileLoaded: false,
           ),
         );
+      },
+    );
+  }
+}
+
+/// The role for the ADMIN CONSOLE: an account whose ID token carries the
+/// `admin` claim gets [AdminShell] instead of the normal app (and needs no
+/// ZIVO profile to get there — an admin account is an operator, not a
+/// trainee). Everyone else continues to [_SessionGate], unchanged.
+///
+/// This picks a screen, nothing more: the claim is granted only by the
+/// owner's `set-admin` script, and every admin callable re-checks it on the
+/// server, so a client that forced this branch would see an empty console.
+///
+/// The check reads the cached token (no network), once per uid.
+class _RoleGate extends StatefulWidget {
+  const _RoleGate({required this.user});
+
+  final AuthUser user;
+
+  @override
+  State<_RoleGate> createState() => _RoleGateState();
+}
+
+class _RoleGateState extends State<_RoleGate> {
+  Future<bool>? _isAdmin;
+  String? _uid;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _ensure();
+  }
+
+  @override
+  void didUpdateWidget(covariant _RoleGate old) {
+    super.didUpdateWidget(old);
+    if (old.user.uid != widget.user.uid) _ensure();
+  }
+
+  void _ensure() {
+    if (_isAdmin != null && _uid == widget.user.uid) return;
+    _uid = widget.user.uid;
+    _isAdmin = AppScope.of(context).auth.hasRole('admin');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _isAdmin,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const SplashScreen();
+        }
+        if (snapshot.data == true) return const AdminShell();
+        return _SessionGate(user: widget.user);
       },
     );
   }

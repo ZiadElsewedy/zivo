@@ -75,6 +75,7 @@ class _GatedAi implements AiRepository {
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   }) async {
     await gate.future;
     await _inner.send(

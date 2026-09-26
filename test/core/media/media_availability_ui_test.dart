@@ -61,6 +61,7 @@ class _ConnectedTo implements MediaBackupProvider {
     required String fileName,
     required String mimeType,
     required String accountFolder,
+    String? subfolder,
     String? replaceRemoteId,
     String? replaceInAccountKey,
   }) async =>
@@ -73,6 +74,22 @@ class _ConnectedTo implements MediaBackupProvider {
   Future<bool> deleteRemote(String remoteId,
           {required String expectedAccountKey}) async =>
       false;
+}
+
+/// The second phone that never connected Drive: no session, no connection.
+class _NotConnected extends _ConnectedTo {
+  _NotConnected() : super('none');
+
+  @override
+  bool get hasLiveSession => false;
+  @override
+  String? get liveAccountKey => null;
+  @override
+  Future<String?> connectedAccountKey() async => null;
+  @override
+  Future<bool> isDeviceConnected() async => false;
+  @override
+  Future<String?> connectedOwnerId() async => null;
 }
 
 void main() {
@@ -136,6 +153,34 @@ void main() {
     // one; this state must not.)
     expect(tester.binding.transientCallbackCount, 0,
         reason: 'the tile must be at rest, not animating a fetch');
+  });
+
+  testWidgets('a backed-up photo on a device without Drive asks for the '
+      'connection, at rest, and the tile leads to Storage & Sync',
+      (tester) async {
+    final unconnected = MediaService(
+      store: LocalMediaStore(rootOverride: root),
+      registry: registry,
+      preferences: InMemoryMediaPreferencesRepository(),
+      backup: _NotConnected(),
+      currentAccountId: () => 'u1',
+    );
+    await tester.pumpWidget(
+      wrapWithScope(
+        const SizedBox(width: 120, height: 120, child: _Host()),
+        media: unconnected,
+        auth: signedInAuth(),
+      ),
+    );
+    await _settleEnough(tester);
+
+    expect(find.text('Connect Drive to view'), findsOneWidget);
+    // Nothing is in flight, so nothing may pulse "on its way".
+    expect(tester.binding.transientCallbackCount, 0);
+
+    await tester.tap(find.text('Connect Drive to view'));
+    await _settleEnough(tester);
+    expect(find.byType(StorageSyncPage), findsOneWidget);
   });
 
   testWidgets('Storage & Sync names the photos left in the other account',

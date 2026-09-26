@@ -26,6 +26,7 @@ class FirestoreDeviceSessionRepository implements DeviceSessionRepository {
       'sessionId': session.sessionId,
       'deviceId': session.deviceId,
       'platform': session.platform,
+      if (session.appVersion != null) 'appVersion': session.appVersion,
       'createdAt': FieldValue.serverTimestamp(),
       'lastSeenAt': FieldValue.serverTimestamp(),
     });

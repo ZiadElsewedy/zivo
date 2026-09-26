@@ -76,6 +76,7 @@ class _RecordingAi implements AiRepository {
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   }) {
     sentStyles.add(responseStyle);
     sentModels.add(modelSelection);

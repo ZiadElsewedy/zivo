@@ -189,11 +189,13 @@ test("get_today's diet snapshot carries per-meal kcal and adherence totals",
       assert.equal(result.date, "2026-08-17");
       assert.equal(result.plannedKcal, 550);
       assert.equal(result.consumed.kcal, 220);
+      // get_today carries the items of the meals that were EATEN (what was
+      // consumed); the rest of the plan is get_diet's.
       assert.deepEqual(result.meals, [
         {id: "breakfast", label: "Breakfast", eaten: true, kcal: 220,
-          estimated: false, isSupplement: false},
-        {id: "dinner", label: "Dinner", eaten: false, kcal: 330,
-          estimated: false, isSupplement: false},
+          items: [{index: 0, name: "Oats", quantity: 60, unit: "g",
+            calories: 220, proteinG: 8, carbsG: 38, fatG: 4}]},
+        {id: "dinner", label: "Dinner", eaten: false, kcal: 330},
       ]);
     });
 
@@ -562,8 +564,9 @@ test("diet figures carry their estimated provenance to the model",
 
       const result = await tool.execute(store, UID, {}, NOW);
 
-      assert.equal(result.planItems[0].items[0].estimated, true);
-      assert.equal(result.planItems[0].items[1].estimated, false);
+      assert.equal(result.meals[0].items[0].estimated, true);
+      // Absent means false: only an estimate is worth the characters.
+      assert.equal(result.meals[0].items[1].estimated, undefined);
       // One estimated item makes the whole meal an estimate.
       assert.equal(result.meals[0].estimated, true);
     });
@@ -867,11 +870,11 @@ test("an explicit past day gets no time-sensitive findings", async () => {
   const result = await tool.execute(
       store, UID, {day: "2026-08-10"}, new Date("2026-08-17T20:00:00Z"), 180);
 
-  const nothing = result.findings.find((f) => f.code === "nothing_logged");
-  assert.ok(nothing);
-  // Info, not the evening nudge — the hour of *now* says nothing about a day
-  // a week ago.
-  assert.equal(nothing.severity, "info");
+  // A past day is read from its own record (get_diet's history path), and an
+  // empty one says so plainly — no findings at all, so certainly not the
+  // evening nudge: the hour of *now* says nothing about a day a week ago.
+  assert.equal(result.nothingRecorded, true);
+  assert.equal(result.findings, undefined);
 });
 
 // --- Narrow tools: get_last_workout + get_sleep_summary ---------------------
@@ -1161,4 +1164,351 @@ test("search_food_alternatives: avoided foods are not offered", async () => {
     avoid: ["turkey"],
   }, NOW);
   assert.ok(result.alternatives.every((a) => !/turkey/i.test(a.name)));
+});
+
+test("get_training_analysis reports calendar adherence apart from progression",
+    async () => {
+      const day = (d, dayId) => {
+        const at = new Date(`${d}T12:00:00`);
+        return {id: d, planId: "p", dayId, dayLabel: dayId,
+          status: "completed", startedAt: at, completedAt: at,
+          exercises: [{id: "e", exerciseId: "e", name: "Bench", sets: [
+            {id: "s", actualReps: 8, actualWeightKg: 60, type: "working",
+              outcome: "completed"}]}]};
+      };
+      const store = {
+        // Push on the 14th, nothing on the 15th, Pull on the 16th; today the
+        // 17th is still open.
+        listWorkoutSessions: async () => [
+          day("2026-08-14", "push"), day("2026-08-16", "pull"),
+        ],
+      };
+      const result = await toolsByName.get("get_training_analysis")
+          .execute(store, UID, {}, NOW);
+      const c = result.trainingCalendar;
+      assert.deepEqual(c.inactiveDates, ["2026-08-15"]);
+      assert.equal(c.activeDays, 2);
+      assert.equal(c.trainingSessions, 2);
+      assert.equal(c.trainedToday, false);
+      assert.equal(JSON.stringify(result).includes("rest"), false,
+          "no rest-day vocabulary reaches the coach");
+    });
+
+// --- Phase 6: the diet payload says nothing twice ------------------------
+
+/**
+ * A planned-meal log entry exactly as ticking materialises it.
+ * @param {string} mealId
+ * @param {number} index
+ * @param {!Object} item
+ * @return {!Object}
+ */
+const tickEntry = (mealId, index, item) => ({
+  id: `2026-08-17__${mealId}-${index}`, foodName: item.name,
+  quantity: item.quantity, unit: item.unit, kcal: item.calories,
+  proteinG: item.proteinG, carbsG: item.carbsG, fatG: item.fatG,
+  origin: "plannedMeal", estimated: false, mealId,
+});
+
+const TWO_ITEM_PLAN = {
+  name: "Cut",
+  status: "active",
+  days: [{weekday: null, label: "Every day", meals: [
+    {id: "lunch", label: "Lunch", items: [
+      {name: "Rice", quantity: 150, unit: "g", calories: 195, proteinG: 4,
+        carbsG: 42, fatG: 0},
+      {name: "Chicken", quantity: 200, unit: "g", calories: 330,
+        proteinG: 62, carbsG: 0, fatG: 7},
+    ]},
+    {id: "dinner", label: "Dinner", items: [
+      {name: "Eggs", quantity: 2, unit: "piece", calories: 140, proteinG: 12,
+        carbsG: 1, fatG: 10},
+    ]},
+  ]}],
+};
+
+const dietStore = (log, entries) => ({
+  getActiveDietPlan: async () => TWO_ITEM_PLAN,
+  getDietTargets: async () => null,
+  listFoodLogs: async () => log,
+  listFoodLogRange: async () => [],
+  listWorkouts: async () => [],
+  listDietEntries: async () => entries,
+});
+
+test("a fully ticked meal's items are not repeated as log entries", async () => {
+  const lunch = TWO_ITEM_PLAN.days[0].meals[0];
+  const logged = {id: "x1", foodName: "Apple", quantity: 1, unit: "piece",
+    kcal: 95, proteinG: 0.5, carbsG: 25, fatG: 0.3, origin: "logged",
+    estimated: false, mealId: null};
+  const store = dietStore(
+      [tickEntry("lunch", 0, lunch.items[0]),
+        tickEntry("lunch", 1, lunch.items[1]), logged],
+      [{mealId: "lunch", eaten: true}]);
+  const result = await toolsByName.get("get_diet").execute(store, UID, {}, NOW);
+  // The user's own food stays; the ticked meal's two entries fold into it.
+  assert.deepEqual(result.logEntries.map((e) => e.food), ["Apple"]);
+  assert.equal(result.meals[0].eaten, true);
+  assert.equal(result.meals[0].eatenItems, undefined);
+  assert.deepEqual(result.meals[0].items.map((i) => [i.index, i.name]),
+      [[0, "Rice"], [1, "Chicken"]]);
+  // Consumption is still computed from the full log.
+  assert.equal(result.consumed.kcal, 195 + 330 + 95);
+});
+
+test("a half-eaten meal says which items are still logged", async () => {
+  const lunch = TWO_ITEM_PLAN.days[0].meals[0];
+  const store = dietStore([tickEntry("lunch", 1, lunch.items[1])],
+      [{mealId: "lunch", eaten: true}]);
+  const result = await toolsByName.get("get_diet").execute(store, UID, {}, NOW);
+  assert.deepEqual(result.meals[0].eatenItems, [1]);
+  assert.deepEqual(result.logEntries, []);
+});
+
+test("a planned entry the plan no longer matches stays a log entry",
+    async () => {
+      const lunch = TWO_ITEM_PLAN.days[0].meals[0];
+      // Ticked, then the plan's rice amount was edited: the log keeps what was
+      // ticked, and the model must see that figure, not the new plan's.
+      const stale = Object.assign(tickEntry("lunch", 0, lunch.items[0]),
+          {quantity: 100, kcal: 130});
+      const store = dietStore(
+          [stale, tickEntry("lunch", 1, lunch.items[1])],
+          [{mealId: "lunch", eaten: true}]);
+      const result =
+        await toolsByName.get("get_diet").execute(store, UID, {}, NOW);
+      assert.deepEqual(result.logEntries.map((e) => [e.food, e.quantity]),
+          [["Rice", 100]]);
+      assert.deepEqual(result.meals[0].eatenItems, [1]);
+    });
+
+test("get_diet carries every meal's items; get_today only the eaten ones",
+    async () => {
+      const store = dietStore([], [{mealId: "lunch", eaten: true}]);
+      const diet =
+        await toolsByName.get("get_diet").execute(store, UID, {}, NOW);
+      const today =
+        await toolsByName.get("get_today").execute(store, UID, {}, NOW);
+      assert.ok(diet.meals.every((m) => Array.isArray(m.items)));
+      assert.ok(Array.isArray(today.meals[0].items));
+      assert.equal(today.meals[1].items, undefined);
+    });
+
+test("a full real-sized day stays under the tool-result cap", async () => {
+  // 4 meals × 4 USDA-named items, all ticked — the day that used to serialize
+  // to ~7K and lose its last meal's items to the 6K cap.
+  const name = (m, i) => `Food item with a long USDA name ${m}-${i}, cooked`;
+  const meals = [0, 1, 2, 3].map((m) => ({
+    id: `1790240866116023-d0-m${m}`, label: `Meal ${m}`,
+    items: [0, 1, 2, 3].map((i) => ({name: name(m, i), quantity: 125,
+      unit: "g", calories: 210, proteinG: 18.5, carbsG: 22.5, fatG: 6.5,
+      estimated: true})),
+  }));
+  const plan = {name: "Cut — 2250 kcal", status: "active",
+    days: [{weekday: null, label: "Every day", meals}]};
+  const log = meals.flatMap(
+      (m) => m.items.map((it, i) => tickEntry(m.id, i, it)));
+  const store = {
+    getActiveDietPlan: async () => plan,
+    getDietTargets: async () => ({goal: "fatLoss", calories: 2300,
+      proteinG: 187, carbsG: 244.3, fatG: 63.9, source: "calculated"}),
+    listFoodLogs: async () => log,
+    listDietEntries: async () =>
+      meals.map((m) => ({mealId: m.id, eaten: true})),
+  };
+  const result = await toolsByName.get("get_diet").execute(store, UID, {}, NOW);
+  const chars = JSON.stringify(result).length;
+  assert.ok(chars < 5000, `get_diet serialized to ${chars} chars`);
+  assert.equal(result.meals[3].items[3].index, 3);
+  assert.deepEqual(result.logEntries, []);
+});
+
+// --- diet history: past days and ranges ------------------------------------
+
+const {buildDietDayRecord} = require("../../diet/day_record");
+
+/**
+ * A stored record for `dayKey` in TWO_ITEM_PLAN, as the trigger writes it.
+ * @param {string} dayKey
+ * @param {!Object} over buildDietDayRecord args to override.
+ * @return {!Object}
+ */
+function storedDay(dayKey, over) {
+  return buildDietDayRecord(Object.assign({
+    dayKey, isPast: false, offsetMinutes: 180, plan: TWO_ITEM_PLAN,
+    planDay: TWO_ITEM_PLAN.days[0],
+    targets: {goal: "fatLoss", calories: 2000, proteinG: 150, carbsG: null,
+      fatG: null, source: "manual"},
+    entries: [], log: [], existing: null,
+  }, over));
+}
+
+test("get_diet for a past day reads that day's record, not today's plan",
+    async () => {
+      const lunch = TWO_ITEM_PLAN.days[0].meals[0];
+      const log = [tickEntry("lunch", 0, lunch.items[0]),
+        tickEntry("lunch", 1, lunch.items[1])].map((e) =>
+        Object.assign(e, {id: e.id.replace("2026-08-17", "2026-08-16")}));
+      const record = storedDay("2026-08-16", {
+        entries: [{mealId: "lunch", eaten: true},
+          {mealId: "dinner", eaten: false, status: "skipped"}],
+        log,
+      });
+      let planRead = false;
+      const store = {
+        getDietDay: async (uid, key) => key === "2026-08-16" ? record : null,
+        listFoodLogs: async () => log,
+        getActiveDietPlan: async () => {
+          planRead = true; return TWO_ITEM_PLAN;
+        },
+      };
+      const result = await toolsByName.get("get_diet").execute(
+          store, UID, {day: "2026-08-16"}, NOW);
+      assert.equal(planRead, false, "the frozen record answers alone");
+      assert.equal(result.kind, "pastDay");
+      assert.deepEqual(result.meals.map((m) => [m.label, m.status]),
+          [["Lunch", "eaten"], ["Dinner", "skipped"]]);
+      assert.deepEqual(result.meals[0].foods, ["Rice 150g", "Chicken 200g"]);
+      assert.equal(result.consumed.kcal, 525);
+      assert.equal(result.versusTarget.kcal, 525 - 2000);
+      assert.deepEqual(result.logEntries, []);
+      assert.equal(result.remaining, undefined);
+    });
+
+test("get_diet for a past day with no record builds one, marked " +
+    "reconstructed; an empty day says nothing was recorded", async () => {
+  const lunch = TWO_ITEM_PLAN.days[0].meals[0];
+  const store = (log, entries) => ({
+    getDietDay: async () => null,
+    listFoodLogs: async () => log,
+    listDietEntries: async () => entries,
+    getActiveDietPlan: async () => TWO_ITEM_PLAN,
+    getDietTargets: async () => null,
+  });
+  const built = await toolsByName.get("get_diet").execute(
+      store([tickEntry("lunch", 0, lunch.items[0])],
+          [{mealId: "lunch", eaten: true}]),
+      UID, {day: "2026-08-10"}, NOW);
+  assert.equal(built.planReconstructed, true);
+  assert.equal(built.meals[0].status, "modified");
+  const empty = await toolsByName.get("get_diet").execute(
+      store([], []), UID, {day: "2026-08-10"}, NOW);
+  assert.deepEqual(empty,
+      {date: "2026-08-10", kind: "pastDay", nothingRecorded: true});
+});
+
+test("get_diet for today is unchanged by the history path", async () => {
+  const store = dietStore([], [{mealId: "lunch", eaten: true}]);
+  store.getDietDay = async () => {
+    throw new Error("today must not read the stored record");
+  };
+  const result = await toolsByName.get("get_diet").execute(
+      store, UID, {day: "2026-08-17"}, NOW);
+  assert.equal(result.kind, undefined);
+  assert.ok(result.remaining === null || typeof result.remaining === "object");
+});
+
+test("get_diet_history: one row per recorded day, averages over recorded " +
+    "days only, and the meals most often missed", async () => {
+  const lunch = TWO_ITEM_PLAN.days[0].meals[0];
+  const ate = (day) => [tickEntry("lunch", 0, lunch.items[0]),
+    tickEntry("lunch", 1, lunch.items[1])].map((e) =>
+    Object.assign(e, {id: e.id.replace("2026-08-17", day)}));
+  const records = [
+    storedDay("2026-08-14", {entries: [{mealId: "lunch", eaten: true},
+      {mealId: "dinner", eaten: false, status: "skipped"}],
+    log: ate("2026-08-14")}),
+    storedDay("2026-08-16", {entries: [{mealId: "lunch", eaten: true}],
+      log: ate("2026-08-16")}),
+    storedDay("2026-08-17", {entries: [{mealId: "lunch", eaten: true}],
+      log: ate("2026-08-17")}),
+  ];
+  let range = null;
+  const store = {listDietDays: async (uid, from, to) => {
+    range = [from, to];
+    return records.filter((r) => r.dayKey >= from && r.dayKey <= to);
+  }};
+  const result = await toolsByName.get("get_diet_history").execute(
+      store, UID, {days: 7}, NOW);
+  assert.deepEqual(range, ["2026-08-11", "2026-08-17"]);
+  assert.deepEqual(result.days.map((d) => d.date),
+      ["2026-08-14", "2026-08-16", "2026-08-17"]);
+  assert.equal(result.days[2].inProgress, true);
+  assert.equal(result.days[0].skipped, 1);
+  assert.deepEqual(result.notRecorded,
+      ["2026-08-11", "2026-08-12", "2026-08-13", "2026-08-15"]);
+  // Today is in progress: shown, not averaged.
+  assert.equal(result.summary.daysCounted, 2);
+  assert.equal(result.summary.avgKcal, 525);
+  assert.equal(result.summary.daysUnder, 2);
+  assert.deepEqual(result.summary.mostMissed[0],
+      {meal: "Dinner", status: "skipped", days: 1});
+  assert.ok(JSON.stringify(result).length < 1500,
+      `a week of history is ${JSON.stringify(result).length} chars`);
+});
+
+test("get_diet_history: a long window comes back as weeks, bounded", async () => {
+  const records = [];
+  for (let d = 1; d <= 60; d++) {
+    const key = new Date(Date.UTC(2026, 5, 18 + d)).toISOString().slice(0, 10);
+    records.push(storedDay(key, {entries: [{mealId: "lunch", eaten: true}]}));
+  }
+  const store = {listDietDays: async (uid, from, to) =>
+    records.filter((r) => r.dayKey >= from && r.dayKey <= to)};
+  const result = await toolsByName.get("get_diet_history").execute(
+      store, UID, {days: 200}, NOW);
+  assert.equal(result.days, undefined);
+  assert.ok(result.weeks.length >= 8 && result.weeks.length <= 13);
+  assert.equal(result.from, "2026-05-20", "clamped to 90 days");
+  assert.ok(JSON.stringify(result).length < 3000);
+});
+
+test("get_readiness always carries the training facts a train-today call " +
+    "rests on — last session, today, and what the split has up next",
+async () => {
+  const tool = toolsByName.get("get_readiness");
+  const day = 24 * 60 * 60 * 1000;
+  const store = {
+    listWorkoutSessions: async () => [{
+      id: "s1", dayLabel: "Push", status: "completed",
+      startedAt: new Date(NOW.getTime() - 3 * day),
+      completedAt: new Date(NOW.getTime() - 3 * day),
+      exercises: [],
+    }],
+    listSleepNights: async () => [],
+    listBodyWeights: async () => [],
+    getActiveWorkoutPlan: async () => ({
+      name: "PPL", cycleCursor: 1,
+      days: [
+        {id: "d0", label: "Push", order: 0, exercises: []},
+        {id: "d1", label: "Pull", order: 1, exercises: []},
+        {id: "d2", label: "Legs", order: 2, exercises: []},
+      ],
+    }),
+  };
+  const result = await tool.execute(store, UID, {}, NOW, 0);
+  assert.deepEqual(result.training, {
+    lastSessionName: "Push",
+    lastSessionDaysAgo: 3,
+    trainedToday: false,
+    upNext: "Pull",
+  });
+});
+
+test("get_readiness with no readiness call still says what it knows about " +
+    "training, and never invents a split", async () => {
+  const tool = toolsByName.get("get_readiness");
+  const store = {
+    listWorkoutSessions: async () => [],
+    listSleepNights: async () => [],
+    listBodyWeights: async () => [],
+  };
+  const result = await tool.execute(store, UID, {}, NOW, 0);
+  assert.equal(result.available, false);
+  assert.deepEqual(result.training, {
+    lastSessionName: null,
+    lastSessionDaysAgo: null,
+    trainedToday: false,
+    upNext: null,
+  });
 });

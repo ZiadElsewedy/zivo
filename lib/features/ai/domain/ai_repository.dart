@@ -132,6 +132,12 @@ abstract interface class AiRepository {
     /// option's stable id. The server resolves the answer from it (and
     /// rejects a stale or unknown one) — [text] is only what the bubble shows.
     AiChoiceSelection? choice,
+
+    /// The screen Ask was opened from (e.g. 'readiness'), when the user came
+    /// from one. A routing hint for the server — it picks the area's prompt
+    /// and tools, and may read that screen's data up front — never a filter:
+    /// an unknown value is ignored there.
+    String? entryPoint,
   });
 
   /// Confirms a proposed action (ADR-003), executing its write server-side via

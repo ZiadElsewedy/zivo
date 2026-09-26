@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../core/env/app_environment.dart';
 import '../core/firebase/uid_source.dart';
@@ -27,6 +28,9 @@ import '../core/theme/zivo_palette.dart';
 import '../core/theme/zivo_scroll_behavior.dart';
 import '../core/widgets/deferred_write_reporter.dart';
 import '../l10n/app_localizations.dart';
+import '../features/admin/data/callable_admin_repository.dart';
+import '../features/admin/data/in_memory_admin_repository.dart';
+import '../features/admin/domain/admin_repository.dart';
 import '../features/ai/data/audio_recorder.dart';
 import '../features/ai/data/fake_ai_repository.dart';
 import '../features/ai/data/firebase_ai_repository.dart';
@@ -160,6 +164,7 @@ class ZivoApp extends StatefulWidget {
     this.music,
     this.locale,
     this.theme,
+    this.admin,
     super.key,
   });
 
@@ -217,6 +222,9 @@ class ZivoApp extends StatefulWidget {
   /// choice.
   final ThemeController? theme;
 
+  /// Overridable so a test can drive the Admin Console without Firebase.
+  final AdminRepository? admin;
+
   @override
   State<ZivoApp> createState() => _ZivoAppState();
 }
@@ -235,6 +243,10 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
         repository: _useFirestore
             ? FirestoreDeviceSessionRepository()
             : InMemoryDeviceSessionRepository(),
+        readAppVersion: () async {
+          final info = await PackageInfo.fromPlatform();
+          return '${info.version}+${info.buildNumber}';
+        },
       );
   late final ProfileRepository _profiles =
       widget.profiles ?? FirestoreProfileRepository();
@@ -304,6 +316,12 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
         customFoods: () => _diet.listCustomFoods(),
       );
   late final AiRepository _ai = widget.ai ?? _defaultAi();
+
+  /// The Admin Console's callables. Built for every run (it is inert until
+  /// an admin opens the console) and resolves Firebase lazily.
+  late final AdminRepository _admin =
+      widget.admin ??
+      (_useFirestore ? CallableAdminRepository() : InMemoryAdminRepository());
   late final AudioRecorderService _recorder =
       widget.recorder ?? RecordAudioRecorderService();
 
@@ -445,6 +463,10 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       if (uid != null) _syncSleep();
       if (uid != null) _sweepStaleSessions();
       if (uid != null) _syncExerciseIdentities();
+      // Photos captured while this device couldn't reach Drive (offline, not
+      // yet connected) go up now, so the account's other devices can open
+      // them. Silent and gated on the account's auto-upload setting.
+      if (uid != null) unawaited(_media.uploadPendingInBackground());
       // Accrue a step history from now on (see [_startStepSnapshots]). Signed
       // out, the writer stops — its writes would be denied anyway.
       if (uid != null) {
@@ -534,6 +556,10 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       // again the next morning.
       if (_auth.currentUser != null) _sweepStaleSessions();
       if (_auth.currentUser != null) _syncExerciseIdentities();
+      // A photo taken offline uploads once the app is back with a network.
+      if (_auth.currentUser != null) {
+        unawaited(_media.uploadPendingInBackground());
+      }
     }
   }
 
@@ -766,6 +792,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       music: _music,
       locale: _locale,
       theme: _theme,
+      admin: _admin,
       // Rebuilds the whole MaterialApp on a language change, which is what
       // swaps both the strings and the text direction: `locale: null` means
       // "resolve against the device", so RTL follows from the locale itself

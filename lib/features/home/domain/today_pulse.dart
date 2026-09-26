@@ -179,13 +179,14 @@ List<PulseInsight> buildInsights({
   required int? stepsToday,
   required WeightTrend? weight,
   required DateTime now,
+  List<TrainingDayMark> marks = const [],
   int max = 3,
 }) {
   final result = <PulseInsight>[];
 
   // -- Training ------------------------------------------------------------
   final activity = weekActivity(sessions, now);
-  final streak = trainingStreakDays(sessions, now);
+  final streak = trainingStreakDays(sessions, now, marks: marks);
   final lastDone = activity.lastWhere(
     (d) => d.workouts > 0,
     orElse: () => activity.last,

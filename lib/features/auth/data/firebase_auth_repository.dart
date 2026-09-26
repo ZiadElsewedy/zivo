@@ -260,6 +260,36 @@ class FirebaseAuthRepository implements AuthRepository {
     });
   }
 
+  @override
+  Future<AuthResult> reauthenticate({String? password}) async {
+    final user = _auth.currentUser;
+    if (user == null) return _expiredSession;
+    return _guardProvider(() async {
+      final failed = await _reauthenticate(user, password);
+      if (failed != null) return failed;
+      // The fresh `auth_time` has to reach the server in the next call's
+      // token, not the one cached before the reauthentication.
+      await user.getIdToken(true);
+      return AuthSuccess(mapFirebaseUser(user));
+    });
+  }
+
+  // --- authorization ---------------------------------------------------------
+
+  @override
+  Future<bool> hasRole(String role) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    try {
+      final token = await user.getIdTokenResult();
+      return token.claims?[role] == true;
+    } catch (_) {
+      // Unknown means "not privileged": the normal app is the safe screen,
+      // and the server would refuse the privileged calls anyway.
+      return false;
+    }
+  }
+
   /// Re-proves the person behind [user], by whichever means their account
   /// actually has. Returns null on success, or the failure to surface.
   ///

@@ -138,6 +138,23 @@ renders it, Today's glance renders it, and the coach is handed it — mirrored i
 USDA). Stored at `foodLogs/` and `customFoods/`. UI:
 `presentation/widgets/log_food_sheet.dart`.
 
+**Daily history (`dietDays`) — what was planned vs what happened, per day:**
+`domain/diet_day_record.dart` (`DietDayRecord`, `MealTrackingStatus` eaten ·
+modified · skipped · unmarked). A **server-built read model** at
+`users/{uid}/dietDays/{dayKey}` (`functions/diet/day_record.js`), rebuilt by
+triggers (`functions/diet/triggers.js`) on every `foodLogs` / `dietEntries` write
+and on plan edits (today only). Rules make it read-only to clients. It is not a
+source of truth: `foodLogs` stays the ledger, `dietEntries` the tick state. Past
+days keep a **frozen meal-level snapshot** of what was planned, so editing the
+plan never rewrites yesterday; a past day first recorded late says
+`plannedReconstructed`. "Modified" is judged against that snapshot. A skip is
+`dietEntries.status = 'skipped'` + `eaten: false` (older builds read it as
+uneaten). UI: `pages/diet_history_page.dart` (list + past-day page), Skip on the
+meal page, "Skipped" on today's meal row. Today's screen still builds live from
+`DietState`, never from the record (it can trail a tap). Pinned by
+`test/fixtures/diet_day_record_vectors.json` (both suites). Backfill:
+`functions/scripts/backfill_diet_days.js` (owner action).
+
 **Nutrition data (the source of truth for what a food is worth):**
 `domain/nutrition/food_reference.dart` (`FoodReference`, `NutritionSource`,
 `FoodPreparation`, `FoodPortion`), `resolved_food.dart` (`FoodMatch` — the sealed

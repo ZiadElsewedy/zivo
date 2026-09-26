@@ -173,6 +173,17 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   set. **Phosphor icons already match text direction** — never `Transform.flip` them.
 - The splits-migration tie-break resolves to **oldest-by-`createdAt`** on purpose (matches
   `deleteSplit()` re-pointing).
+- **Progression and the calendar are two systems — don't mix them.**
+  TRAIN → a session is created → the rotation advances (`finish` /
+  `finishNow` → `advanceToAfterDay`). DON'T TRAIN → no session → the rotation
+  waits; the same workout is still up next tomorrow. Nothing ever writes a
+  session (or a "rest day") for a day the user didn't train, and a calendar day
+  passing never moves the cursor. Calendar adherence ("did they train on Sep
+  22?") is derived from session history only — `trainedDayCounts` /
+  `weekActivity` / the streak engine here, `analytics/training_calendar.js` for
+  the coach. There is no rest-day concept in the plan model (a rest-day type
+  was tried and removed, 2026-09-25); add one only as its own decision.
+  Pinned in `test/workout/training_progression_test.dart`.
 - Home's Training card and the Workout page read the **same** `watchActivePlan()` →
   `plan.nextDay` source, so they stay in sync — don't add a separate Home workout source.
 - **Training out of rotation defaults to a SWAP, not a skip.** `advanceToAfterDay`

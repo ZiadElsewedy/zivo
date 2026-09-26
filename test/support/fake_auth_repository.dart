@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:zivo/features/auth/domain/auth_repository.dart';
 import 'package:zivo/features/auth/domain/auth_result.dart';
 import 'package:zivo/features/auth/domain/auth_state.dart';
@@ -10,7 +12,8 @@ import 'package:zivo/features/auth/domain/otp_result.dart';
 /// test process entirely: it drives [AuthState] through a controller and
 /// returns scripted [AuthResult]s.
 class FakeAuthRepository implements AuthRepository {
-  FakeAuthRepository({AuthState initial = const AuthUnknown()}) : _state = initial;
+  FakeAuthRepository({AuthState initial = const AuthUnknown()})
+    : _state = initial;
 
   final StreamController<AuthState> _controller =
       StreamController<AuthState>.broadcast();
@@ -73,8 +76,10 @@ class FakeAuthRepository implements AuthRepository {
   Future<AuthResult> signInWithApple() => _resolve(appleResult);
 
   /// Scripted OTP outcomes for verify-screen tests. Default to a happy path.
-  OtpSendResult sendOtpResult =
-      const OtpSendSuccess(cooldownSeconds: 60, expiresInSeconds: 600);
+  OtpSendResult sendOtpResult = const OtpSendSuccess(
+    cooldownSeconds: 60,
+    expiresInSeconds: 600,
+  );
   OtpVerifyResult verifyOtpResult = const OtpVerifySuccess();
 
   int sendOtpCount = 0;
@@ -96,8 +101,10 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   /// Scripted outcomes for the password-reset + account-management flows.
-  OtpSendResult sendResetOtpResult =
-      const OtpSendSuccess(cooldownSeconds: 60, expiresInSeconds: 600);
+  OtpSendResult sendResetOtpResult = const OtpSendSuccess(
+    cooldownSeconds: 60,
+    expiresInSeconds: 600,
+  );
   OtpVerifyResult resetPasswordResult = const OtpVerifySuccess();
   AuthResult? changePasswordResult;
   AuthResult? deleteAccountResult;
@@ -133,6 +140,24 @@ class FakeAuthRepository implements AuthRepository {
   }) async {
     changePasswordCount++;
     return changePasswordResult ?? AuthSuccess(successUser);
+  }
+
+  /// Roles [hasRole] reports for the signed-in user.
+  Set<String> roles = <String>{};
+
+  int reauthenticateCount = 0;
+  AuthResult? reauthenticateResult;
+
+  /// Synchronous so `AuthGate`'s role check resolves in the same frame, and
+  /// app-root tests keep their existing pump counts.
+  @override
+  Future<bool> hasRole(String role) =>
+      SynchronousFuture(currentUser != null && roles.contains(role));
+
+  @override
+  Future<AuthResult> reauthenticate({String? password}) async {
+    reauthenticateCount++;
+    return reauthenticateResult ?? AuthSuccess(successUser);
   }
 
   @override

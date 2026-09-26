@@ -7,6 +7,7 @@ import 'package:zivo/core/media/data/local_media_store.dart';
 import 'package:zivo/core/media/domain/media_backup_provider.dart';
 import 'package:zivo/core/media/domain/media_kind.dart';
 import 'package:zivo/core/media/domain/media_object.dart';
+import 'package:zivo/core/media/domain/media_storage_preferences.dart';
 import 'package:zivo/core/media/media_service.dart';
 
 /// A scriptable [DriveBackupClient] — no real Google/network.
@@ -31,6 +32,7 @@ class _FakeDriveClient implements MediaBackupProvider {
   String accountKey = 'acc-1';
 
   final List<String> uploadedFolders = [];
+  final List<String?> uploadedSubfolders = [];
   final List<String> uploaded = [];
   final List<String> downloaded = [];
   int connectCalls = 0;
@@ -88,11 +90,13 @@ class _FakeDriveClient implements MediaBackupProvider {
     required String fileName,
     required String mimeType,
     required String accountFolder,
+    String? subfolder,
     String? replaceRemoteId,
     String? replaceInAccountKey,
   }) async {
     uploaded.add(fileName);
     uploadedFolders.add(accountFolder);
+    uploadedSubfolders.add(subfolder);
     return uploadId;
   }
 
@@ -202,6 +206,104 @@ void main() {
     });
   });
 
+  group('background upload of pending photos', () {
+    // The photo taken while this device couldn't reach Drive (offline, or
+    // before Drive was connected here). Without this pass it stayed on this
+    // phone until someone tapped "Back up now", and the account's other
+    // devices showed a record with no image.
+    test('pushes a local photo the account does not have yet, into the '
+        "account's Moments folder", () async {
+      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1', owner: 'u1');
+      final registry = InMemoryMediaRegistry();
+      await registry.put(makeObject());
+      final client = _FakeDriveClient(
+        connectAccount: const BackupAccount(id: '1', email: 'x@e.com'),
+        deviceConnected: true,
+        ownerId: 'u1',
+        uploadId: 'drive-xyz',
+      );
+      final service = buildService(client, registry);
+
+      await service.uploadPendingInBackground();
+
+      expect(client.uploadedFolders, ['u1'], reason: 'keyed by account, not device');
+      expect(client.uploadedSubfolders, ['Moments']);
+      final record = await registry.get('m1');
+      expect(record!.remoteId, 'drive-xyz');
+      expect(record.remoteBackup, BackupState.done);
+      expect(record.remoteAccountKey, 'acc-1');
+    });
+
+    test("skips a record whose bytes live only on another device", () async {
+      final registry = InMemoryMediaRegistry();
+      await registry.put(makeObject()); // no local file for it here
+      final client = _FakeDriveClient(
+        connectAccount: const BackupAccount(id: '1', email: 'x@e.com'),
+        deviceConnected: true,
+        liveSession: true,
+        ownerId: 'u1',
+      );
+      await buildService(client, registry).uploadPendingInBackground();
+
+      expect(client.uploaded, isEmpty);
+      expect((await registry.get('m1'))!.remoteBackup, BackupState.pending,
+          reason: 'still pending — the device holding the bytes will push it');
+    });
+
+    test('respects auto-upload being off, and a device with no connection',
+        () async {
+      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1', owner: 'u1');
+      final registry = InMemoryMediaRegistry();
+      await registry.put(makeObject());
+
+      final off = _FakeDriveClient(deviceConnected: true, liveSession: true, ownerId: 'u1');
+      final prefs = InMemoryMediaPreferencesRepository();
+      await prefs.save(const MediaStoragePreferences(autoUploadToDrive: false));
+      await MediaService(
+        store: store,
+        registry: registry,
+        preferences: prefs,
+        backup: off,
+        currentAccountId: () => 'u1',
+      ).uploadPendingInBackground();
+      expect(off.uploaded, isEmpty);
+
+      final unconnected = _FakeDriveClient();
+      await buildService(unconnected, registry).uploadPendingInBackground();
+      expect(unconnected.uploaded, isEmpty);
+      expect(unconnected.restoreCalls, 0, reason: 'never prompts or restores');
+    });
+
+    test('overlapping calls share one pass (no duplicate Drive files)', () async {
+      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1', owner: 'u1');
+      final registry = InMemoryMediaRegistry();
+      await registry.put(makeObject());
+      final client = _FakeDriveClient(deviceConnected: true, liveSession: true, ownerId: 'u1');
+      final service = buildService(client, registry);
+
+      await Future.wait([
+        service.uploadPendingInBackground(),
+        service.uploadPendingInBackground(),
+      ]);
+
+      expect(client.uploaded, hasLength(1));
+    });
+  });
+
+  test('cloud file names lead with the capture time', () {
+    final name = MediaService.remoteFileName(MediaObject(
+      id: 'abcdef1234567890',
+      ownerUid: 'u1',
+      kind: MediaKind.moment,
+      relativePath: 'media/u1/moments/abcdef1234567890.png',
+      mimeType: 'image/png',
+      byteSize: 1,
+      contentHash: 'h',
+      capturedAt: DateTime(2026, 9, 25, 11, 15, 3),
+    ));
+    expect(name, 'ZIVO 2026-09-25 11.15.03 abcdef12.png');
+  });
+
   group('backupNow (manual)', () {
     test('uploads pending media to the per-account folder and records the id', () async {
       await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1', owner: 'u1');
@@ -213,7 +315,7 @@ void main() {
       final pushed = await service.backupNow();
 
       expect(pushed, 1);
-      expect(client.uploaded, ['m1.jpg']);
+      expect(client.uploaded, ['ZIVO 2026-01-01 00.00.00 m1.jpg']);
       expect(client.uploadedFolders, ['acct-9']); // per-account subfolder
       expect((await registry.get('m1'))!.remoteId, 'drive-xyz');
       expect((await registry.get('m1'))!.remoteBackup, BackupState.done);
@@ -244,7 +346,7 @@ void main() {
 
       await service.backupNow();
       expect(client.restoreCalls, 1);
-      expect(client.uploaded, ['m1.jpg']);
+      expect(client.uploaded, ['ZIVO 2026-01-01 00.00.00 m1.jpg']);
     });
   });
 

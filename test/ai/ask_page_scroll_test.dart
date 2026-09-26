@@ -58,6 +58,7 @@ class _LongThreadAi implements AiRepository {
     String modelSelection = kDefaultAiModelSelection,
     String? clientTurnId,
     AiChoiceSelection? choice,
+    String? entryPoint,
   }) async {
     onEvent?.call(const AiPhaseEvent(AiPhase.done));
   }

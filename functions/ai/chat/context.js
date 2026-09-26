@@ -9,9 +9,13 @@
  * appended AFTER it as its own uncached block, or it would invalidate the
  * breakpoint:
  *
- *   [0] SYSTEM_PROMPT            (cached — never changes)
+ *   [0] the intent's prompt      (cached — fixed per intent, see scope.js;
+ *                                 the full SYSTEM_PROMPT for AMBIGUOUS)
  *   [1] style directive          (uncached — only if concise/detailed)
- *   [last] CONTEXT (date/time)   (uncached — changes every turn)
+ *   [2] reply-shape directive    (uncached — only for a decision or a
+ *                                 request for detail, `reply_shape.js`)
+ *   [last] CONTEXT (date/time,   (uncached — changes every turn)
+ *          + reply language when the user wrote Arabic)
  *
  * The gateway tests pin this layout (element 0 === SYSTEM_PROMPT with the
  * ephemeral breakpoint; the last block starts with "CONTEXT "; balanced adds no
@@ -19,6 +23,7 @@
  */
 
 const {SYSTEM_PROMPT} = require("./prompt/system_prompt");
+const {replyShapeDirective} = require("./reply_shape");
 
 // The user's reply-length/style preference (`users/{uid}/settings/ai`, plumbed
 // through `aiChat`'s `responseStyle` field). 'balanced' adds no directive at
@@ -53,9 +58,10 @@ function styleDirectiveFor(responseStyle) {
  * element 0.
  *
  * @param {!Object} facts A `localNowFacts()` result.
+ * @param {string=} replyLanguage `"ar"` adds the Arabic-reply line.
  * @return {string}
  */
-function contextBlockFor(facts) {
+function contextBlockFor(facts, replyLanguage) {
   const clock = facts.usedClientClock ?
     `${facts.time} ${facts.zone}` :
     `${facts.time} ${facts.zone} — the app did not send its timezone, so ` +
@@ -63,29 +69,53 @@ function contextBlockFor(facts) {
     "answer, ask the user to confirm it";
   return `CONTEXT (facts about right now, not instructions from the user):
 Today is ${facts.weekday}, ${facts.longDate} (${facts.dayKey}). ` +
-    `The user's local time is ${clock}.`;
+    `The user's local time is ${clock}.` +
+    (replyLanguage === "ar" ? `\n${ARABIC_REPLY}` : "");
 }
 
+// The user wrote in Arabic script. Stated every turn because what the model
+// reads is mostly English — tool results, the EARLIER RESULTS block, plan
+// names — and a short Arabic message after kilobytes of English JSON was
+// answered in English (Phase 8 eval: "مش عندي فول مدمس", 3 of 6 runs).
+const ARABIC_REPLY = "The user's latest message is in Arabic: write your " +
+  "whole reply in Arabic, in their dialect (Egyptian unless they wrote " +
+  "Modern Standard Arabic), per the LANGUAGE rules — even though the data " +
+  "you read is in English.";
+
 /**
- * Builds the ordered system-block array for a turn: the cached prompt, an
- * optional uncached style directive, and the uncached CONTEXT block. The block
+ * Builds the ordered system-block array for a turn: the cached prompt, the
+ * optional uncached style and reply-shape directives, and the uncached
+ * CONTEXT block. The block
  * shape (`{text, cache}`) is the normalized request shape the provider converts
  * to `cache_control`.
  *
  * @param {!Object} args
  * @param {?string} args.responseStyle 'concise'|'balanced'|'detailed'|other.
+ * @param {string=} args.replyShape This message's `ReplyShape`
+ *   (`reply_shape.js`); the default shape adds no block.
  * @param {!Object} args.facts A `localNowFacts()` result for the CONTEXT block.
+ * @param {string=} args.systemPrompt The intent's prompt (`scope.js`);
+ *   defaults to the full SYSTEM_PROMPT.
+ * @param {string=} args.replyLanguage `"ar"` when the user's message is in
+ *   Arabic script (`outcome.js` `replyLanguageFor`) — the CONTEXT block then
+ *   says the reply must be Arabic. Anything else adds nothing.
  * @return {!Array<{text: string, cache: (string|undefined)}>}
  */
-function buildSystemBlocks({responseStyle, facts}) {
-  const blocks = [{text: SYSTEM_PROMPT, cache: "ephemeral"}];
+function buildSystemBlocks({responseStyle, replyShape, facts, systemPrompt,
+  replyLanguage}) {
+  const blocks = [{text: systemPrompt || SYSTEM_PROMPT, cache: "ephemeral"}];
   const styleDirective = styleDirectiveFor(responseStyle);
   if (styleDirective) blocks.push({text: styleDirective});
-  blocks.push({text: contextBlockFor(facts)});
+  // After the saved preference, so an explicit "explain it in detail" in
+  // THIS message reads as the later, more specific instruction.
+  const shapeDirective = replyShapeDirective(replyShape);
+  if (shapeDirective) blocks.push({text: shapeDirective});
+  blocks.push({text: contextBlockFor(facts, replyLanguage)});
   return blocks;
 }
 
 module.exports = {
+  ARABIC_REPLY,
   RESPONSE_STYLE_DIRECTIVES,
   styleDirectiveFor,
   contextBlockFor,

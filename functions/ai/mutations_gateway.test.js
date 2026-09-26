@@ -53,6 +53,8 @@ function makeStore(overrides) {
     touchConversation: async () => {},
     getActiveDietPlan: async () => null,
     listDietEntries: async () => [],
+    listFoodLogs: async () => [],
+    getDietTargets: async () => null,
     getTodayUsageTotals: async () => ({turns: 0, tokens: 0}),
     getRecentMessages: async () => [],
     logUsage: async () => {},
@@ -136,6 +138,17 @@ function toolUse(name, input, id = "tool-1") {
     content: [{type: "tool_use", id, name, input}],
     usage: {input_tokens: 10, output_tokens: 5},
   };
+}
+
+/**
+ * The text of a wire message's content — a plain string, or (once the chat
+ * loop marks the tail as a cache breakpoint) its text blocks joined.
+ * @param {(string|!Array<!Object>)} content
+ * @return {string}
+ */
+function wireText(content) {
+  return typeof content === "string" ? content :
+    content.filter((b) => b.type === "text").map((b) => b.text).join("");
 }
 
 /**
@@ -374,8 +387,9 @@ function dietStore(overrides) {
 test("confirmAction applies mark_meal_eaten through the store", async () => {
   const writes = {entries: []};
   const store = dietStore({
-    setDietEntry: async (uid, dayKey, mealId, eaten) => {
-      writes.entries.push({uid, dayKey, mealId, eaten});
+    setMealTick: async (uid, dayKey, meal, status, offsetMinutes) => {
+      writes.entries.push({uid, dayKey, mealId: meal.id, status,
+        items: meal.items.length, offsetMinutes});
     },
   });
   const callModel = scriptedModel([
@@ -394,8 +408,11 @@ test("confirmAction applies mark_meal_eaten through the store", async () => {
     now: makeClock(2000),
   });
   assert.equal(confirmed.status, "applied");
+  // The tick is written with the plan's own Meal, so the store materialises
+  // its items into the food log exactly as the app does.
   assert.deepEqual(writes.entries, [{
-    uid: UID, dayKey: "2026-08-17", mealId: "lunch-2", eaten: true,
+    uid: UID, dayKey: "2026-08-17", mealId: "lunch-2", status: "eaten",
+    items: 0, offsetMinutes: 0,
   }]);
   // The card and the result line name the meal the PLAN names, not the one
   // the model remembered.
@@ -409,7 +426,7 @@ test("a meal id that isn't in the plan never becomes a proposal", async () => {
   // and quietly wrong in every "meals eaten" count afterwards.
   const writes = {entries: []};
   const store = dietStore({
-    setDietEntry: async (...args) => {
+    setMealTick: async (...args) => {
       writes.entries.push(args);
     },
   });
@@ -471,7 +488,7 @@ test("confirm re-checks the plan: a meal deleted after the proposal is " +
   let plan = DIET_PLAN;
   const store = makeStore({
     getActiveDietPlan: async () => plan,
-    setDietEntry: async (...args) => {
+    setMealTick: async (...args) => {
       writes.entries.push(args);
     },
   });
@@ -1089,8 +1106,9 @@ test("'I don't want molokhia': search offers options, a same-turn replace is " +
     "refused, and the turn ends on the user's choice — nothing proposed",
 async () => {
   const store = molokhiaStore();
+  // No get_diet step: a diet turn finds today's plan already read
+  // (`chat/prefetch.js`) in its EARLIER RESULTS.
   const callModel = scriptedModel([
-    toolUse("get_diet", {}, "t-diet"),
     toolUse("search_food_alternatives", MOLOKHIA_CANDIDATES, "t-search"),
     // The model tries to pick for the user…
     toolUse("replace_meal_item", {
@@ -1121,12 +1139,12 @@ async () => {
   assert.equal(result.actionId, null, "no change proposed during discovery");
   assert.equal(store.pendingActions.size, 0);
   // The refused proposal went back to the model as an error to act on.
-  const afterReplace = callModel.requests[3].messages
+  const afterReplace = callModel.requests[2].messages
       .flatMap((m) => Array.isArray(m.content) ? m.content : [])
       .find((b) => b.type === "tool_result" && b.tool_use_id === "t-replace");
   assert.equal(afterReplace.is_error, true);
   assert.match(afterReplace.content, /hasn't chosen yet/);
-  // The user saw what ran: diet read, then the alternatives search.
+  // The user saw what ran: the (prefetched) diet read, then the search.
   const steps = events.filter((e) => e.type === "step" && e.status === "ok")
       .map((e) => e.tool);
   assert.deepEqual(steps, ["get_diet", "search_food_alternatives"]);
@@ -1253,8 +1271,9 @@ const TURKEY = "usda:171501";
  * @return {!Promise<!Object>} The turn result.
  */
 async function discoverEggSwaps(store, lastResponse) {
+  // Today's plan is prefetched (`chat/prefetch.js`), so the model starts at
+  // the search.
   const callModel = scriptedModel([
-    toolUse("get_diet", {}, "t-diet"),
     toolUse("search_food_alternatives", EGG_SEARCH, "t-search"),
     lastResponse || toolUse("ask_choice", {
       prompt: "I found 3 verified swaps that are close to the original " +
@@ -1448,7 +1467,7 @@ test("structured choices: a bound pick whose item moved hands the model the " +
   });
   assert.equal(result.status, "ok");
   assert.equal(store.pendingActions.size, 0);
-  const sent = callModel.requests[0].messages.pop().content;
+  const sent = wireText(callModel.requests[0].messages.pop().content);
   assert.match(sent, /value=usda:173420/);
   assert.match(sent, /Proposing that change failed/);
 });
@@ -1490,8 +1509,10 @@ test("structured choices are generic: an unbound question's pick reaches " +
     });
     assert.equal(answer.status, "ok");
     const label = scenario.options.find((o) => o.value === scenario.pick).label;
-    const sent = callModel.requests[0].messages.pop().content;
-    assert.ok(sent.startsWith(label));
+    const sent = wireText(callModel.requests[0].messages.pop().content);
+    // The pick opens the user's words — after any EARLIER RESULTS block (a
+    // diet-sounding label prefetches today's plan, `chat/prefetch.js`).
+    assert.ok(sent.startsWith(label) || sent.includes(`]\n\n${label}`));
     assert.match(sent, new RegExp(`value=${scenario.pick}`));
     assert.equal(store.messages.filter((m) => m.role === "user").pop().content,
         label);
@@ -1535,8 +1556,7 @@ test("context ledger: the turn after a choice reuses the diet + search it " +
   });
   assert.equal(result.status, "ok");
   const lastUser = callModel.requests[0].messages.at(-1);
-  const text = typeof lastUser.content === "string" ?
-    lastUser.content : JSON.stringify(lastUser.content);
+  const text = wireText(lastUser.content);
   assert.match(text, /EARLIER RESULTS/);
   assert.match(text, /get_diet/);
   assert.match(text, /search_food_alternatives/);
@@ -1578,7 +1598,8 @@ test("'Other options' is ZIVO's own chip: tapping it reaches the model as " +
   assert.equal(result.status, "ok");
   // Nothing was proposed — "none of these" means no change.
   assert.equal(store.pendingActions.size, 0);
-  const lastUser = callModel.requests[0].messages.at(-1).content;
+  const lastUser =
+      wireText(callModel.requests[0].messages.at(-1).content);
   assert.match(lastUser, /DIFFERENT/);
   assert.match(lastUser, /Feta cheese, Tuna salad, Turkey breast/);
   assert.match(lastUser, /EARLIER RESULTS/);

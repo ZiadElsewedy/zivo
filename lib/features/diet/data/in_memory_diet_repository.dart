@@ -3,6 +3,7 @@ import 'dart:async';
 import '../domain/analysis/maintenance_calibration.dart';
 import '../domain/body_profile.dart';
 import '../domain/diet_day.dart';
+import '../domain/diet_day_record.dart';
 import '../domain/diet_format.dart';
 import '../domain/diet_plan.dart';
 import '../domain/diet_plan_status.dart';
@@ -40,6 +41,14 @@ class InMemoryDietRepository implements DietRepository {
   /// against one behaves like the app against the other.
   final List<DietPlan> _plans = [];
   final Map<String, Set<String>> _consumed = {};
+  final Map<String, Set<String>> _skipped = {};
+
+  /// Daily records, as the server would have built them. Nothing here builds
+  /// them — the record is a server read model (`functions/diet/day_record.js`)
+  /// — so offline history is whatever [seedDietDays] put in.
+  final List<DietDayRecord> _dietDays = [];
+  final StreamController<void> _dietDaysController =
+      StreamController<void>.broadcast();
 
   /// Deliberately null at seed. The demo plan exists so the page has something
   /// to render; a demo *target* would be a number the user never chose, which
@@ -325,6 +334,7 @@ class InMemoryDietRepository implements DietRepository {
 
     if (eaten) {
       set.add(mealId);
+      _skipped[key]?.remove(mealId);
       // Materialise the meal's items into the log — see
       // `entriesForPlannedMeal`. Guarded so a double-tick can't double-count.
       if (!log.any((e) => e.mealId == mealId)) {
@@ -347,6 +357,65 @@ class InMemoryDietRepository implements DietRepository {
     }
     _consumedController.add(key);
     _foodLogController.add(key);
+  }
+
+  @override
+  Stream<Set<String>> watchSkipped(DateTime day) async* {
+    final key = _dayKey(day);
+    yield Set.unmodifiable(_skipped[key] ?? const <String>{});
+    yield* _consumedController.stream
+        .where((changedKey) => changedKey == key)
+        .map(
+          (_) => Set<String>.unmodifiable(_skipped[key] ?? const <String>{}),
+        );
+  }
+
+  @override
+  Future<void> setMealSkipped({
+    required String mealId,
+    required DateTime day,
+    required bool skipped,
+  }) async {
+    final key = _dayKey(day);
+    if (skipped) {
+      // A skip is also "not eaten": un-tick first, which removes the foods
+      // the tick logged.
+      await setMealEaten(mealId: mealId, day: day, eaten: false);
+      _skipped.putIfAbsent(key, () => <String>{}).add(mealId);
+    } else {
+      _skipped[key]?.remove(mealId);
+    }
+    _consumedController.add(key);
+  }
+
+  @override
+  Stream<List<DietDayRecord>> watchDietDays({
+    required DateTime from,
+    required DateTime to,
+  }) async* {
+    List<DietDayRecord> inRange() {
+      final lo = _dayKey(from);
+      final hi = _dayKey(to);
+      return List.unmodifiable(
+        _dietDays.where(
+          (r) => r.dayKey.compareTo(lo) >= 0 && r.dayKey.compareTo(hi) <= 0,
+        ),
+      );
+    }
+
+    yield inRange();
+    yield* _dietDaysController.stream.map((_) => inRange());
+  }
+
+  /// Puts [records] in place of any with the same day — for tests and the
+  /// offline demo, since this repository can't build them.
+  void seedDietDays(List<DietDayRecord> records) {
+    for (final r in records) {
+      _dietDays.removeWhere((x) => x.dayKey == r.dayKey);
+      _dietDays.add(r);
+    }
+    _dietDays.sort((a, b) => a.dayKey.compareTo(b.dayKey));
+    _dietDaysController.add(null);
   }
 
   Meal? _mealById(String mealId) {
@@ -457,5 +526,6 @@ class InMemoryDietRepository implements DietRepository {
     _bodyProfileController.close();
     _foodLogController.close();
     _customFoodsController.close();
+    _dietDaysController.close();
   }
 }

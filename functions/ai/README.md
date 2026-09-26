@@ -26,7 +26,8 @@ ai/
 ├─ gateway.js        the aiChat entry facade — re-exports chat/ (runAiTurn, confirm/cancel)
 │
 ├─ chat/             CORE / ORCHESTRATION: turn loop, actions, context, usage, messages,
-│  │                 errors, the reply validator — see chat/README.md
+│  │                 errors, the reply validator, intent routing (intent.js) and the
+│  │                 per-intent prompt + tool scope (scope.js) — see chat/README.md
 │  └─ prompt/        the system prompt, composed from sections/
 │
 ├─ tools/            everything the model can call
@@ -61,7 +62,8 @@ ai/
 │  │                 shared golden vectors in <repo>/test/fixtures/. The model reads
 │  │                 their output; it never recomputes it.
 │  ├─ workout_analytics.js · exercise_analytics.js
-│  └─ readiness.js · plan_fitting.js
+│  ├─ readiness.js · plan_fitting.js
+│  └─ training_calendar.js   calendar adherence (trained / inactive days) from sessions
 │
 ├─ speech/           the voice subsystem, self-contained (gateway + providers + routing)
 │

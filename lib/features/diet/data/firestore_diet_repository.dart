@@ -6,6 +6,7 @@ import '../../../core/firebase/uid_source.dart';
 import '../domain/analysis/maintenance_calibration.dart';
 import '../domain/body_profile.dart';
 import '../domain/diet_day.dart';
+import '../domain/diet_day_record.dart';
 import '../domain/diet_format.dart';
 import '../domain/diet_plan.dart';
 import '../domain/diet_plan_status.dart';
@@ -441,14 +442,99 @@ class FirestoreDietRepository implements DietRepository {
   }
 
   @override
+  Stream<Set<String>> watchSkipped(DateTime day) => _watchUidQuery(
+    (uid) =>
+        _dietEntriesCollection(uid).where('dayKey', isEqualTo: dayKey(day)),
+    (snapshot) => {
+      for (final doc in snapshot.docs)
+        if (doc.data()['status'] == 'skipped' &&
+            doc.data()['eaten'] != true &&
+            doc.data()['mealId'] is String)
+          doc.data()['mealId'] as String,
+    },
+    const <String>{},
+  );
+
+  /// One small document per day — never the log rows behind it.
+  @override
+  Stream<List<DietDayRecord>> watchDietDays({
+    required DateTime from,
+    required DateTime to,
+  }) => _watchUidQuery(
+    (uid) => _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('dietDays')
+        .where('dayKey', isGreaterThanOrEqualTo: dayKey(from))
+        .where('dayKey', isLessThanOrEqualTo: dayKey(to)),
+    (snapshot) =>
+        [for (final doc in snapshot.docs) ?DietDayRecord.fromMap(doc.data())]
+          ..sort((a, b) => a.dayKey.compareTo(b.dayKey)),
+    const <DietDayRecord>[],
+  );
+
+  /// A uid-scoped query stream: re-subscribes when the signed-in user
+  /// changes, emits [empty] when signed out — the same shape as
+  /// [watchConsumed], for queries that only differ in what they read.
+  Stream<T> _watchUidQuery<T>(
+    Query<Map<String, dynamic>> Function(String uid) query,
+    T Function(QuerySnapshot<Map<String, dynamic>> snapshot) map,
+    T empty,
+  ) {
+    late final StreamController<T> controller;
+    StreamSubscription<String?>? uidSub;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? querySub;
+
+    void onUidChanged(String? uid) {
+      querySub?.cancel();
+      if (uid == null) {
+        controller.add(empty);
+        return;
+      }
+      querySub = query(uid).snapshots().listen(
+        (snapshot) => controller.add(map(snapshot)),
+        onError: (Object e, StackTrace s) => controller.addError(e, s),
+      );
+    }
+
+    controller = StreamController<T>.broadcast(
+      onListen: () => uidSub = _uidWithInitial().listen(onUidChanged),
+      onCancel: () {
+        uidSub?.cancel();
+        uidSub = null;
+        querySub?.cancel();
+        querySub = null;
+      },
+    );
+    return controller.stream;
+  }
+
+  @override
   Future<void> setMealEaten({
     required String mealId,
     required DateTime day,
     required bool eaten,
-  }) async {
+  }) => _setMealStatus(mealId, day, eaten ? 'eaten' : 'unmarked');
+
+  @override
+  Future<void> setMealSkipped({
+    required String mealId,
+    required DateTime day,
+    required bool skipped,
+  }) => _setMealStatus(mealId, day, skipped ? 'skipped' : 'unmarked');
+
+  /// One write path for a meal's state on a day: `eaten`, `skipped` or
+  /// `unmarked`. A skip is `eaten: false` + `status: 'skipped'`, so an older
+  /// build that only reads `eaten` still sees an uneaten meal.
+  Future<void> _setMealStatus(
+    String mealId,
+    DateTime day,
+    String status,
+  ) async {
     final uid = _requireUid();
     final key = dayKey(day);
     final startOfDay = DateTime(day.year, day.month, day.day);
+    final eaten = status == 'eaten';
 
     // `dietEntries` stays the tick state and keeps its exact shape — older app
     // builds still read it, and the rules still validate it. What's new is the
@@ -458,6 +544,7 @@ class FirestoreDietRepository implements DietRepository {
       'date': Timestamp.fromDate(startOfDay),
       'mealId': mealId,
       'eaten': eaten,
+      'status': status,
       'schemaVersion': 1,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),

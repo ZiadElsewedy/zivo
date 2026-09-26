@@ -149,6 +149,7 @@ test("mark_meal_eaten: eaten defaults to true; label and date default to null",
       assert.deepEqual(v, {
         mealId: "breakfast-1",
         label: null,
+        status: "eaten",
         eaten: true,
         dateIso: null,
       });
@@ -164,9 +165,21 @@ test("mark_meal_eaten: accepts eaten:false, a label, and a date", () => {
   assert.deepEqual(v, {
     mealId: "lunch-2",
     label: "Lunch",
+    status: "not_eaten",
     eaten: false,
     dateIso: "2026-08-25T00:00:00.000Z",
   });
+});
+
+test("mark_meal_eaten: a skipped meal is its own status, not an undo", () => {
+  const v = markMealEaten.validate({mealId: "dinner-3", status: "skipped"});
+  assert.equal(v.status, "skipped");
+  assert.equal(v.eaten, false);
+  assert.equal(markMealEaten.summarize(Object.assign({}, v, {label: "Dinner"})),
+      "Mark Dinner skipped");
+  // A pending action from before `status` existed still reads correctly.
+  assert.equal(markMealEaten.summarize({label: "Dinner", eaten: false}),
+      "Mark Dinner not eaten");
 });
 
 test("mark_meal_eaten: rejects a missing/blank mealId; coerces odd eaten",

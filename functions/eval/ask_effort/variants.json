@@ -1,0 +1,8 @@
+{
+  "baseline": {"label": "prod today", "description": "Production as deployed: the user's Sonnet 5, no reasoning settings sent (API default: effort high, adaptive thinking).", "reasoning": {"mode": "off"}},
+  "v1": {"label": "haiku low", "description": "Every turn forced to Claude Haiku 4.5, level low (no thinking, no effort param).", "reasoning": {"mode": "off", "override": {"model": "claude-haiku", "level": "low"}}},
+  "v2": {"label": "sonnet low", "description": "Every turn forced to Sonnet 5 at effort low, adaptive thinking.", "reasoning": {"mode": "off", "override": {"model": "claude-sonnet", "level": "low"}}},
+  "v3": {"label": "sonnet medium", "description": "Every turn forced to Sonnet 5 at effort medium, adaptive thinking.", "reasoning": {"mode": "off", "override": {"model": "claude-sonnet", "level": "medium"}}},
+  "v4": {"label": "sonnet high", "description": "Every turn forced to Sonnet 5 at effort high, adaptive thinking, sent explicitly - the same effective setting as baseline, so it measures run-to-run noise.", "reasoning": {"mode": "off", "override": {"model": "claude-sonnet", "level": "high"}}},
+  "v5": {"label": "policy auto", "description": "The reasoning policy's starting rules: general -> Haiku low; change / picked option / plain context / ambiguous -> Sonnet medium; decision -> Sonnet high.", "reasoning": {"mode": "auto"}}
+}

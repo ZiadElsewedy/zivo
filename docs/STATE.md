@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-25 · **Active branch:** `feature/ai-gemini-provider`
+**Last updated:** 2026-09-26 · **Active branch:** `feature/ai-gemini-provider`
 (cut from `feature/readiness`); music-reactive session background on `upgrades`;
 Diet Builder wizard on `claude/affectionate-wozniak-wcnkpm`; AI food/diet
 interaction layer — all 5 phases shipped and deployed, on
@@ -96,6 +96,257 @@ notifications)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- 2026-09-26 (`upgrades`, NOT deployed — functions) — **Ask Phase 8: per-turn
+  reasoning policy (model + low/medium/high), on by default.**
+  - `functions/ai/chat/reasoning_policy.js` picks a TIER per turn; a tier is a
+    fixed (model, level); a level is ONE effort+thinking setting per model in
+    the catalog (`routing/models.js` `reasoning`), applied only by the Claude
+    provider — no free-floating effort/thinking knobs. Plan fixed per turn
+    (cache-safe); logged as aiUsage `reasoning {tier, model, level, reason}`.
+  - Production tiers (from the eval): lookup (general/small talk) = Sonnet
+    low · standard (one-area contextual read, change request, tapped option)
+    = Sonnet medium · deep (decision/recommendation, safety — pain, injury,
+    very low kcal, setting targets — and AMBIGUOUS) = Sonnet high (= every
+    turn before Phase 8). Rollback: `config.reasoning.mode = "off"`.
+  - Applies only when the user's provider is Claude (the router honours the
+    policy's model only within the user's provider); Gemini unchanged; the
+    app's Claude/Gemini picker unchanged.
+  - Claude Haiku 4.5 is in the catalog as server-only (never user-selectable)
+    but in NO tier: it lost all 18 judged eval turns (Egyptian-dialect slips).
+  - **Eval closed by the owner** (paid testing stopped): ≈$2.50 pilot + a
+    partial full run; see `functions/eval/ask_effort/README.md`. All paid
+    entry points are locked behind `ZIVO_EVAL_PAID_APPROVED` (owner only).
+    Expected effect is modest: ~35–40% fewer output tokens on low/medium
+    turns, ≈8% cost/turn; latency gain too small to resolve at this n.
+  - **Pilot results were auto-committed to this PUBLIC repo** (`3382d1f`,
+    `.claude/hillclimb/ask-effort/`: diet targets/meals, lifts, one expense —
+    no ids/emails/body metrics). Removed from the tree and gitignored; still
+    in history — purging needs a force-push (owner decision).
+  - Routing gaps from the eval — FIXED (`chat/intent.js`, tests in
+    `scope.test.js`): Egyptian negation "م…ش" exposes the verb (متمرنش →
+    TRAINING, ماكلتش → DIET, مصرفتش → MONEY); bulking/cutting words (بضخم,
+    تنشيف, bdakhm) and sugar/salt/vitamins → DIET; "coach"/"كوتش"/"كابتن"
+    are small talk; a general-knowledge question that names an area word
+    ("what does creatine do?") → GENERAL — but not when it asks for figures
+    (calories, macros, prices: the NUMBERS rule needs tools), is personal,
+    came from a screen's entry point, or has no area word (follow-ups keep
+    continuity).
+  - Arabic answered in English — FIXED in code, unverified live: a short
+    Arabic message after ~5K chars of English JSON (prefetch / EARLIER
+    RESULTS) got English replies. Arabic-script turns now carry an
+    Arabic-reply line in the uncached CONTEXT block (every step; cache
+    untouched) and a marker before the user's words when data precedes them.
+    Still open: Arabic bullets starting with English exercise names.
+  - Separate findings (not fixed): "Log 3 eggs and a banana" → tool-error in both
+    prod reps; "no rest day" claim (incl. prod's reply) contradicting the rotation.
+  - **Verify after deploy:** aiUsage `reasoning.level` mix; DIET/MONEY
+    medium turns' output tokens vs pre-deploy; validator `ok` rate and
+    safety-intercepts unchanged; no `stop_reason: max_tokens`.
+
+- 2026-09-26 (`claude/zivo-ai-experience-audit-faa1ce`, NOT deployed —
+  functions + app) — **Ask AI experience pass: streaming never restarts,
+  grounded decisions, short-by-default, Arabic that reads right.**
+  - **Streaming bug (the reply "restarting from the beginning").** Two causes,
+    both server-side: (1) the router's same-provider retry after partial
+    output reused the first attempt's `onText`, so the retry's full answer was
+    appended after the half already on screen; (2) Gemini restating a step's
+    lead-in after a tool call. Fix: the router gates each attempt's stream and
+    calls `onRetry`; `chat/live_text.js` mirrors the screen and, instead of
+    appending duplicate words, sends one `{type:'replace', text}` snapshot
+    (a restated lead-in is dropped from the saved reply too). App:
+    `AiReplaceEvent` → `AskController._replaceLive` (keeps the shared prefix).
+    Gated on the app sending `streamReplace: true` — an old build keeps plain
+    deltas. Regression tests: `turn_stream.test.js`, `live_text.test.js`,
+    router tests, `ask_controller_test.dart`.
+  - **Decisions.** New `decisions` prompt section (FACT → ASSESSMENT →
+    RECOMMENDATION → ACTION; never decide from missing data) + per-area
+    train-today / diet calls. `get_readiness` now carries `training` (last
+    session + days ago, trained today, split's `upNext`) and a training
+    decision question prefetches it.
+  - **Length.** New `length` section (answer first, short by default) +
+    `chat/reply_shape.js`: a deterministic per-message DECISION / DETAIL
+    directive (an uncached system block; the cached prompt is untouched;
+    usage logs `replyShape`). No post-generation truncation.
+  - **Arabic.** New `language` section (reply in the user's dialect — natural
+    Egyptian Arabic; no English glosses in parentheses; don't start a line with
+    English/a number; ranges in words). App: `assistant_text.dart` display
+    pass — direction from the dominant script, Latin/number runs isolated in
+    RTL, stray Markdown stripped, even paragraph spacing.
+  - **Owner action:** `firebase deploy --only functions` (prompt + tools +
+    streaming) and ship the app build (for `replace`). Check real Gemini
+    replies in Egyptian Arabic after deploy — offline tests can't judge tone.
+
+- 2026-09-26 (`upgrades`, NOT deployed — functions + app) — **Ask token
+  efficiency Phase 7: prefetch + the app sends `entryPoint`.**
+  - **Prefetch** (`functions/ai/chat/prefetch.js`, run in `turn.js` before
+    the first model call): a DIET turn (keywords / entry point / continuity)
+    gets today's `get_diet` read up front into the context ledger — so the
+    model answers in one call instead of spending step 1 asking for it; the
+    Readiness entry point gets `get_readiness`. Skipped when the ledger
+    already holds today's diet state (or readiness), when the message names
+    another day (yesterday / last week / امبارح / الاسبوع …), and for
+    AMBIGUOUS / GENERAL / MONEY / bound picks. `get_diet`, not `get_today`:
+    get_today lists items only for eaten meals, so swaps still needed
+    get_diet. A failed prefetch is dropped (the model can still read). Why
+    DIET only: every v7 DIET turn with an empty ledger opened with a diet
+    read; TRAINING turns opened with a different read each time.
+  - It rides the ledger, so it's fenced the same way, seeds the validator,
+    shows as a step on the rail + in the reply's activity, and carries to the
+    next turn. aiUsage: `prefetched: [{name, status, resultChars,
+    latencyMs}]`; `contextCarried` still counts only the previous turn's.
+  - **App:** `AiRepository.send(entryPoint:)` → `aiChat` payload.
+    Readiness's "Ask about it" → `HomeShell._askEntryPoint = 'readiness'` →
+    `AskPage.incomingEntryPoint` → `AskController.openedFrom`; sent with the
+    next turn only (and its retry). Tab taps send none.
+  - **Verify after deploy:** DIET turns with `prefetched` should mostly be
+    `calls=1`; a `get_diet` in `perCall[0].tools` right after a prefetch means
+    the model re-read (wasted). Compare DIET `calls`/`costUsd`/`latencyMs` vs
+    the pre-Phase-7 v7 rows (08:24 diet/keywords: 2 calls).
+  - Tests: 766 backend (new `chat/prefetch.test.js`; 3 old scripts dropped
+    their now-prefetched `get_diet` step), 301 Flutter (ai/home/readiness/shell).
+
+- 2026-09-26 (`upgrades`, committed `35fcf37`, NOT deployed) — **Phase 6 (diet
+  payload trim) + daily diet tracking (`dietDays`) + diet history in Ask.**
+  - **Phase 6:** `get_diet`/`get_today` no longer repeat a ticked meal's items
+    as log rows (they fold into `meals[].items`; `eatenItems` for a half-eaten
+    meal; user-logged / stale rows stay in `logEntries`). Real payload
+    7,029 → 4,131 chars — it was over the 6K cap and truncating the last meal's
+    item indices. Validator anchors item calories.
+  - **Daily record:** `users/{uid}/dietDays/{dayKey}` built by
+    `functions/diet/day_record.js` (pure, shared vector) via Firestore triggers
+    (`diet/triggers.js`: foodLogs, dietEntries, dietPlans→today). Transactional,
+    idempotent, deletes itself when a day empties. Past days' plan snapshot is
+    frozen (user's offset read off the app's local-midnight `date`).
+  - **Ask:** `mark_meal_eaten` status eaten|skipped|not_eaten, and now writes
+    the meal's `foodLogs` rows like the app (it used to write only the tick);
+    AI writes store the user's local midnight. `get_diet(day)` for a past day
+    reads its record; new `get_diet_history` (days/from/to, weekly buckets past
+    14 rows). Multi-day replies validate against every day read. DIET prefix
+    13,693 → 14,137 tokens (+444); real `get_diet(yesterday)` 1.9K chars,
+    `get_diet_history(7)` 1.1K.
+  - **App:** Skip on the meal page, "Skipped" on today's row, Diet → History →
+    past day. Rules: `dietEntries.status`, read-only `dietDays`.
+  - **Owner actions:** deploy functions + `firestore.rules`, then
+    `node scripts/backfill_diet_days.js --apply` (dry run found 9 days).
+  - **Roadmap unchanged:** Phase 7 (entryPoint + prefetch) → 8 → 9 next.
+
+- 2026-09-26 (`upgrades`, NOT deployed — functions changes need an owner
+  deploy) — **Ask token efficiency: Phase 4 read + greeting routing fix +
+  Phase 5 (in-turn tail caching).**
+  - **Phase 4 (first v7 data, 7 turns — an early sample):** scoped prefixes
+    match `count_prompt_tokens.js` within 0.5% (DIET 13,625 vs 13,693);
+    like-for-like cost −13% on the sample. All 3 AMBIGUOUS turns were
+    Egyptian greetings ("عامل إيه", "3amel eh", "إيه الأخبار"); area routing
+    was 4/4; no `load_tools`, no out-of-scope calls, no tool hit the 6K cap.
+    Cold cache writes were 46% of cost, fresh (uncached) input 29% — mostly
+    the ledger, re-sent uncached on every step.
+  - **Routing fix** (`chat/intent.js`): Egyptian/Arabizi small talk joins
+    `SMALL_TALK` (whole-message only, so "إيه ده" stays AMBIGUOUS); the
+    tokenizer now splits on ، ؛ ؟ — "التمرين؟" used to miss TRAINING.
+  - **Phase 5, in-turn only:** every non-final chat step sets
+    `cacheTail: "ephemeral"`; the Anthropic adapter puts a 2nd breakpoint on
+    the last message block (a copy — never the round-tripped raw block), so
+    the next tool step reads history + ledger + earlier rounds at 0.1x.
+    Gemini ignores it. Cross-turn tail caching / moving CONTEXT into the user
+    message was deliberately NOT done (history + ledger change every turn).
+    Verify after deploy: step ≥2 `perCall.cacheReadTokens` > the intent
+    prefix, `inputTokens` ≈ just the new tool results.
+
+- 2026-09-26 (`upgrades`, NOT deployed — functions changes need an owner
+  deploy) — **Ask token efficiency (audit Phases 1–3) + no cross-provider
+  fallback.**
+  - **Provider selection is deterministic.** Gemini selected → Gemini only;
+    Claude selected → Claude only. A failure (quota, billing, auth, overload
+    after same-provider retries, timeout) is returned as THAT provider's
+    `AiUnavailableError` — the other provider is never called
+    (`router.js` `CROSS_PROVIDER_FALLBACK = false`; the path is kept, off).
+    One retry owner: SDK clients now `maxRetries: 0`; the router retries a
+    fast transient failure twice and a timeout once, same provider.
+  - **Intent-scoped prompt + tools** (`chat/intent.js`, `chat/scope.js`):
+    deterministic routing (keywords en/ar/Arabizi, bound choice, optional
+    `entryPoint`, continuity of the last reply) → GENERAL · TRAINING · DIET ·
+    MONEY · AMBIGUOUS (= the full prompt + all 26 tools, unchanged). Scoped
+    turns get a `load_tools` escape hatch. Prefix chars: general 17K,
+    money 21K, training 31K, diet 37K vs 56K before. Prompt split along
+    section lines (numbers → core + diet; mutations → core + money + diet;
+    DATES → core); tool descriptions lost only policy their area module
+    already states.
+  - **Context:** the current user message was sent twice every turn — fixed.
+    History is a character budget (8K + newest 4 verbatim, older replies
+    shortened, open cards kept) instead of 10 messages; ledger capped at 8K
+    and filtered to the turn's area; `perTurnTokenCeiling` now bounds one
+    step's context, not the sum of cached re-reads (it cut 4-step turns short).
+  - **Observability (aiUsage v7):** `intent`/`intentReason`/`expandedTo`,
+    `promptVersion`, `context` size breakdown, `perCall` (tokens by
+    bucket, stop reason, latency, tool result sizes, provider `tries`),
+    `failedProvider`/`failedModel`; a failed turn logs its full record;
+    `bad_request` failures are no longer silently unlogged.
+    `functions/scripts/count_prompt_tokens.js` gives real token counts with a
+    key (`--offline` for chars).
+  - **Owner actions:** deploy functions; run the token script with a key;
+    after a few days compare `aiUsage` by `promptVersion`/`intent`.
+
+- 2026-09-25 (`upgrades`) — **Progression vs calendar, made explicit (the
+  short-lived rest-day feature is reverted).** The rest-day day type, "Take a
+  rest day", the rest cards and all planned-rest logic were removed after
+  review; saved plans and session history are untouched (the feature was never
+  deployed, and it wrote no new fields to existing data). The model is:
+  TRAIN → session → rotation advances; DON'T TRAIN → no session → rotation
+  waits. Kept from that work: Today's Momentum streak row and its streak
+  insight now count restores like every other streak surface (they silently
+  ignored them). New: the coach's `get_training_analysis` carries a
+  `trainingCalendar` block (`functions/ai/analytics/training_calendar.js`) —
+  active vs inactive calendar days derived from sessions only, with no rest
+  vocabulary — and the prompt keeps progression and calendar apart. The
+  "Earn the rest day." motivation line is replaced. Tests:
+  `test/workout/training_progression_test.dart` (real controller end to end).
+  **Owner action:** deploy `functions`.
+  Pre-existing failures, failing identically on the base: Flutter
+  `light_mode_smoke_test` "the Hub reads on paper"; functions: chat cap ×2 and
+  choice-card persistence.
+
+- 2026-09-25 (`upgrades`) — **Moments reach every device of the account without a
+  manual "Back up now"; Drive gets a readable layout; the gallery is by month.**
+  Traced end to end: media was already keyed by **account, never device**
+  (`users/{uid}/moments` + `users/{uid}/media`, local refs `media/{uid}/…`, Drive
+  folder `ZIVO/{uid}/`). What broke cross-device was that the upload happened only
+  once, at capture, and only if Drive was connected *and* reachable right then; a
+  photo taken offline or before connecting stayed on that phone until someone
+  tapped "Back up now", so every other device showed a record with no image. Now
+  `MediaService.uploadPendingInBackground()` pushes any local, not-yet-uploaded
+  photo on sign-in, on every app resume, and right after connecting Drive (silent;
+  gated on the account's auto-upload setting; one pass at a time; each record
+  patched onto the freshest registry row). Drive layout is
+  `ZIVO/{uid}/Moments/ZIVO 2026-09-25 11.15.03 ab12cd34.jpg` (new uploads only;
+  existing files stay put and resolve by id). A backed-up photo on a device with
+  no Drive connection now reads **"Connect Drive to view"** (new
+  `MediaAvailability.notConnected`, opens Storage & Sync, tiles re-resolve when
+  Drive connects) instead of pulsing "on its way" forever. The Moments grid is
+  sectioned by month. **Needs on-device verification:** a photo uploaded from iOS
+  opening on Android — this relies on `drive.file` grants being shared by the iOS
+  and Android OAuth clients of `zivo-63f15`. Still per device by design: each
+  phone connects Drive once, and signing out clears that phone's connection.
+
+- 2026-09-25 (`upgrades`) — **Admin Console** ([ADR-018](DECISIONS/ADR-018-admin-console.md),
+  [ADMIN.md](ADMIN.md), NOT deployed). An account with the `admin` custom claim
+  lands in `AdminShell` (Dashboard · Users · Activity; sidebar/rail/bottom-bar)
+  instead of the app. Everything goes through 7 admin-only callables that re-check
+  the claim against the Auth record, and the client never reads admin data from
+  Firestore. Product events are derived server-side by 6 Firestore triggers from writes the
+  app already makes (session claim = app opened, session status, plans, diet
+  plans, `aiUsage`; `account_created` is recorded when an account's summary is
+  first seeded — no 1st-gen Auth trigger, Gen1 has no Node 24) into `adminEvents` + per-account
+  `adminUsers` counters. Metrics are `count()`/`sum()` aggregations, and the users
+  table is indexed and cursor-paginated. Only counts and dates are shown, never
+  content. Suspend/re-enable (revokes refresh tokens); delete reuses the one
+  `eraseAccount` (the user's own `deleteAccount` now calls it too) and requires a
+  fresh `auth_time`, a typed code, and not-self/not-admin. Every admin action is
+  written to `adminAudit`. `session/current` now carries `appVersion`. Tests: 37
+  functions (admin/*), 207 rules, 10 Flutter (test/admin).
+  **Owner actions:** deploy `firestore:rules,firestore:indexes` then
+  `functions`; `node functions/scripts/set-admin.js grant <email>`; sign in as
+  that account → Dashboard → **Rebuild summaries** once.
 
 - 2026-09-25 (`upgrades`) — **Workout redesign: exercise navigation + identity
   completed** (ADR-017, NOT deployed). Live session: next/previous arrows + swipe,
@@ -2558,6 +2809,25 @@ notifications)**.
 > against the code before assuming otherwise.
 
 ## Owner action items (blockers only the owner can clear — not code bugs)
+
+- **OPEN (owner-held, 2026-09-26) — Ask daily cap / usage limits / cost
+  controls. Not started in code; do NOT finalize, deploy or close it until the
+  owner has settled testing strategy, limits and cost controls. No paid API
+  calls for it.**
+  - Trigger: the owner's account (ziadtawfiikk@) hit "You've reached ZIVO's
+    daily Ask limit" on 2026-09-26 after 33 turns — the TOKEN ceiling
+    (`config.js` `perDayTokenCeiling` 500,000; turns cap 100), counted by
+    `usage.js` `dailyCapUsageFor` (fresh input + output; cache reads free).
+    509,450 counted: Gemini 346,654 (~18 turns), Claude 162,796. Not the
+    Phase 8 eval (it wrote only to the emulator; 0 `ev-*` conversations).
+  - Root cause of the skew: Gemini reports no cache reads, so every Gemini
+    turn counts its full 12–50K input; Claude's cached prefix is excluded.
+    Gemini users hit the cap ~3x sooner per turn.
+  - Options discussed (none chosen): cap by cost (USD, already on every
+    usage record) instead of raw tokens; exempt admin accounts (the admin
+    claim from `functions/scripts/set-admin.js`); raise the token ceiling;
+    reword the limit copy ("Claude and Gemini are still available" reads as
+    if switching models would help — ZIVO blocks both).
 
 - **Rules deploy for single-device sessions (2026-09-10):**
   `firebase deploy --only firestore:rules` (owner creds). Until it ships, the
