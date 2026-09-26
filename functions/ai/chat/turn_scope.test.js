@@ -337,13 +337,15 @@ test("the reasoning plan is fixed for every step of the turn and logged; " +
 
   const lookup = makeStore();
   const lookupProvider = scriptedProvider([answer("hey!")]);
-  await run(lookup, lookupProvider, "hi", {config: {reasoning: {mode: "auto"}}});
-  assert.equal(lookupProvider.requests[0].modelKey, "claude-haiku");
+  // No config: the production default is the policy.
+  await run(lookup, lookupProvider, "hi");
+  assert.equal(lookupProvider.requests[0].modelKey, "claude-sonnet");
   assert.equal(lookupProvider.requests[0].reasoning, "low");
 
   const off = makeStore();
   const offProvider = scriptedProvider([answer("ok")]);
-  await run(off, offProvider, "how is my bench progressing?");
+  await run(off, offProvider, "how is my bench progressing?",
+      {config: {reasoning: {mode: "off"}}});
   assert.equal(offProvider.requests[0].modelKey, undefined);
   assert.equal(offProvider.requests[0].reasoning, undefined);
   assert.equal(off.logged[0].reasoning, null);

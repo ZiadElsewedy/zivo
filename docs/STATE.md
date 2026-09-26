@@ -97,6 +97,40 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- 2026-09-26 (`upgrades`, NOT deployed — functions) — **Ask Phase 8: per-turn
+  reasoning policy (model + low/medium/high), on by default.**
+  - `functions/ai/chat/reasoning_policy.js` picks a TIER per turn; a tier is a
+    fixed (model, level); a level is ONE effort+thinking setting per model in
+    the catalog (`routing/models.js` `reasoning`), applied only by the Claude
+    provider — no free-floating effort/thinking knobs. Plan fixed per turn
+    (cache-safe); logged as aiUsage `reasoning {tier, model, level, reason}`.
+  - Production tiers (from the eval): lookup (general/small talk) = Sonnet
+    low · standard (one-area contextual read, change request, tapped option)
+    = Sonnet medium · deep (decision/recommendation, safety — pain, injury,
+    very low kcal, setting targets — and AMBIGUOUS) = Sonnet high (= every
+    turn before Phase 8). Rollback: `config.reasoning.mode = "off"`.
+  - Applies only when the user's provider is Claude (the router honours the
+    policy's model only within the user's provider); Gemini unchanged; the
+    app's Claude/Gemini picker unchanged.
+  - Claude Haiku 4.5 is in the catalog as server-only (never user-selectable)
+    but in NO tier: it lost all 18 judged eval turns (Egyptian-dialect slips).
+  - **Eval closed by the owner** (paid testing stopped): ≈$2.50 pilot + a
+    partial full run; see `functions/eval/ask_effort/README.md`. All paid
+    entry points are locked behind `ZIVO_EVAL_PAID_APPROVED` (owner only).
+    Expected effect is modest: ~35–40% fewer output tokens on low/medium
+    turns, ≈8% cost/turn; latency gain too small to resolve at this n.
+  - **Pilot results were auto-committed to this PUBLIC repo** (`3382d1f`,
+    `.claude/hillclimb/ask-effort/`: diet targets/meals, lifts, one expense —
+    no ids/emails/body metrics). Removed from the tree and gitignored; still
+    in history — purging needs a force-push (owner decision).
+  - Separate findings (not fixed): routing gaps (متمرنش, بضخم, sugar, Arabizi
+    greetings, "شكرا يا كوتش" → AMBIGUOUS; creatine → DIET); Sonnet sometimes
+    answers Arabic in English; "Log 3 eggs and a banana" → tool-error in both
+    prod reps; "no rest day" claim (incl. prod's reply) contradicting the rotation.
+  - **Verify after deploy:** aiUsage `reasoning.level` mix; DIET/MONEY
+    medium turns' output tokens vs pre-deploy; validator `ok` rate and
+    safety-intercepts unchanged; no `stop_reason: max_tokens`.
+
 - 2026-09-26 (`claude/zivo-ai-experience-audit-faa1ce`, NOT deployed —
   functions + app) — **Ask AI experience pass: streaming never restarts,
   grounded decisions, short-by-default, Arabic that reads right.**

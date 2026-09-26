@@ -59,3 +59,6 @@ pubsub-debug.log
 # Written by `flutter gen-l10n` — the keys not yet in app_ar.arb.
 # A build artifact, not a source file; test/core/l10n_test.dart is the gate.
 l10n-untranslated.txt
+
+# Eval results (Phase 8+): traces quote the owner's real data — local only.
+.claude/hillclimb/

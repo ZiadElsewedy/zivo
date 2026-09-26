@@ -507,7 +507,22 @@ function pathSafeId(id) {
   return `${cleaned.slice(0, 120)}-${createHash('sha256').update(raw).digest('hex').slice(0, 8)}`;
 }
 
+// PAID-CALL LOCK. The owner closed the Phase 8 eval on 2026-09-26: every
+// real model or judge call spends Anthropic credit, and none may run without
+// their explicit approval for that specific run. Dry runs (EVAL_DRY=1, fake
+// provider, no network) are unaffected.
+function assertPaidRunApproved() {
+  if (DRY) return;
+  if (process.env.ZIVO_EVAL_PAID_APPROVED !== 'yes-i-approve-paid-api-calls') {
+    console.error('REFUSING: this eval makes paid Anthropic API calls (Ask turns + Opus judge).');
+    console.error('The owner closed paid evaluation on 2026-09-26. Get their explicit approval for');
+    console.error('this run, then have THEM set ZIVO_EVAL_PAID_APPROVED=yes-i-approve-paid-api-calls.');
+    process.exit(3);
+  }
+}
+
 async function main() {
+  assertPaidRunApproved();
   const args = parseArgs(process.argv.slice(2));
   const vdir = join(args.flow, args.variant);
   mkdirSync(join(vdir, 'traces'), { recursive: true });

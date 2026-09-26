@@ -26,6 +26,7 @@ the split is invisible to `index.js` and the other importers.
 | **What a follow-up reuses** (carried tool results) | [`context_ledger.js`](context_ledger.js) |
 | **Which area a turn is about** (intent routing) | [`intent.js`](intent.js) |
 | **What's read before the first model call** (prefetch) | [`prefetch.js`](prefetch.js) |
+| **Which Claude model + reasoning level a turn gets** (Phase 8) | [`reasoning_policy.js`](reasoning_policy.js) + `reasoning` in [`../routing/models.js`](../routing/models.js) |
 | **Which prompt + tools a turn gets** (per-intent scope, `load_tools`) | [`scope.js`](scope.js) |
 | **How long a reply should be** (decision / detail / default, per message) | [`reply_shape.js`](reply_shape.js) + [`prompt/sections/length.js`](prompt/sections/length.js) |
 | **What streams to the screen** (deltas, retry/restatement `replace`) | [`live_text.js`](live_text.js) |

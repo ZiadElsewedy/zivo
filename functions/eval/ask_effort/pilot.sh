@@ -9,6 +9,12 @@
 # once, and again whenever the runner changes); it is passed to the first
 # variant only.
 set -uo pipefail
+# PAID-CALL LOCK (owner, 2026-09-26): no paid run without their explicit
+# approval — see assertPaidRunApproved in run.mjs.
+if [ "${EVAL_DRY:-}" != "1" ] && [ "${ZIVO_EVAL_PAID_APPROVED:-}" != "yes-i-approve-paid-api-calls" ]; then
+  echo "REFUSING: paid Anthropic eval runs are closed (owner, 2026-09-26). Needs the owner's explicit approval." >&2
+  exit 3
+fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
 export EVAL_CASES="real-greet-ar,probe-diet-left,real-skip-today,probe-log-2-eggs,var-spend-week-ar,probe-training-progress,probe-900kcal,real-no-ful"
 APPROVE="${1:-}"

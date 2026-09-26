@@ -8,6 +8,12 @@
 # The Anthropic key is read from the project's Secret Manager for this run
 # only; it is never written to disk.
 set -euo pipefail
+# PAID-CALL LOCK (owner, 2026-09-26): no paid run without their explicit
+# approval — see assertPaidRunApproved in run.mjs.
+if [ "${EVAL_DRY:-}" != "1" ] && [ "${ZIVO_EVAL_PAID_APPROVED:-}" != "yes-i-approve-paid-api-calls" ]; then
+  echo "REFUSING: paid Anthropic eval runs are closed (owner, 2026-09-26). Needs the owner's explicit approval." >&2
+  exit 3
+fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 VARIANT="$1"; shift

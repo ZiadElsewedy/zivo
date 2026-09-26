@@ -70,13 +70,12 @@ const DEFAULT_CONFIG = {
   maxTokens: 2048,
   // The reasoning policy (`reasoning_policy.js`): which Claude model answers
   // and at what reasoning level, decided per turn and fixed for the whole
-  // turn (a mid-turn change would invalidate the message cache). `mode`
-  // "off" runs every turn as before Phase 8 (the user's model, API-default
-  // reasoning); "auto" lets the policy pick a tier. `tiers` overrides the
-  // policy's tier table; `override` ({model, level}) forces one plan for
-  // every turn (the eval's fixed variants). Off until the Phase 8 eval
-  // (`functions/eval/ask_effort/`) sets the production policy.
-  reasoning: {mode: "off", tiers: null, override: null},
+  // turn (a mid-turn change would invalidate the message cache). "auto" lets
+  // the policy pick a tier (Phase 8's production setting); "off" runs every
+  // turn as before Phase 8 (the user's model, API-default reasoning — the
+  // one-line rollback). `tiers` overrides the tier table; `override`
+  // ({model, level}) forces one plan for every turn (eval variants only).
+  reasoning: {mode: "auto", tiers: null, override: null},
   // How long a proposed (pending) action can wait before it expires (ADR-003).
   pendingActionTtlMs: 60 * 60 * 1000,
 };
