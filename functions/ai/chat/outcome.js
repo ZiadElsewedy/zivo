@@ -99,6 +99,7 @@ const TOOL_PHRASES = Object.freeze({
   en: {
     get_today: ["checked your day", "today's details"],
     get_diet: ["checked your diet", "your diet details"],
+    get_diet_history: ["looked back at your diet", "your diet history"],
     get_workouts: ["checked your workouts", "your workout details"],
     get_last_workout: ["checked your last workout", "your last workout"],
     get_training_analysis: ["reviewed your training", "your training analysis"],
@@ -122,6 +123,7 @@ const TOOL_PHRASES = Object.freeze({
   ar: {
     get_today: ["راجعت يومك", "تفاصيل يومك"],
     get_diet: ["راجعت نظامك الغذائي", "تفاصيل نظامك الغذائي"],
+    get_diet_history: ["راجعت سجل أكلك", "سجل أكلك"],
     get_workouts: ["راجعت تمارينك", "تفاصيل تمارينك"],
     get_last_workout: ["راجعت آخر تمرين لك", "آخر تمرين لك"],
     get_training_analysis: ["راجعت تحليل تمرينك", "تحليل تمرينك"],

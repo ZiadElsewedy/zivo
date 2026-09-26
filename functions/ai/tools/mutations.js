@@ -180,22 +180,47 @@ const CREATE_EXPENSE = {
   },
 };
 
+/**
+ * How a mark_meal_eaten payload reads on its card: eaten / skipped / not
+ * eaten. A pending action from before `status` existed carries only `eaten`.
+ * @param {!Object} v
+ * @return {string}
+ */
+function mealStateLabel(v) {
+  const status = v.status || (v.eaten === false ? "not_eaten" : "eaten");
+  return status === "skipped" ? "skipped" :
+    status === "not_eaten" ? "not eaten" : "eaten";
+}
+
+/**
+ * `{offsetMinutes}` when the turn knew the user's UTC offset, else nothing.
+ * @param {*} offsetMinutes
+ * @return {!Object}
+ */
+function offsetPatch(offsetMinutes) {
+  return typeof offsetMinutes === "number" && Number.isFinite(offsetMinutes) ?
+    {offsetMinutes} : {};
+}
+
 const MARK_MEAL_EATEN = {
   name: "mark_meal_eaten",
   mutating: true,
   kind: "mark_meal_eaten",
   description:
-    "Propose marking a meal from the user's active diet plan as eaten (or " +
-    "not eaten) for a day — does not save until the user confirms. Requires " +
-    "mealId: use an id EXACTLY as it appeared in get_today/get_diet output. " +
-    "Optional: eaten (default true; false to undo), date (ISO 8601, default " +
-    "today), label (the meal's name, shown on the confirmation card).",
+    "Propose marking a meal from the user's active diet plan as eaten, " +
+    "skipped, or not eaten (undo) for a day — does not save until the user " +
+    "confirms. Requires mealId: use an id EXACTLY as it appeared in " +
+    "get_today/get_diet output. Optional: status ('eaten' default, " +
+    "'skipped' when they say they skipped it, 'not_eaten' to undo), date " +
+    "(ISO 8601, default today), label (the meal's name, shown on the " +
+    "confirmation card).",
   inputSchema: {
     type: "object",
     properties: {
       mealId: {type: "string", description: "exact id from get_today/get_diet"},
       label: {type: "string", description: "meal name for the confirmation card"},
-      eaten: {type: "boolean", description: "true (default) to mark eaten; false to undo"},
+      status: {type: "string", enum: ["eaten", "skipped", "not_eaten"]},
+      eaten: {type: "boolean", description: "legacy: false = not_eaten"},
       date: {type: "string", description: "ISO 8601 day, optional, default today"},
     },
     required: ["mealId"],
@@ -208,10 +233,17 @@ const MARK_MEAL_EATEN = {
     const mealId = requireText(input.mealId, "meal id", 200);
     const label = input.label == null || String(input.label).trim() === "" ?
       null : requireText(input.label, "label", 200);
+    // `status` when given; else the legacy boolean, where anything other
+    // than exactly true reads as "not eaten" — a deliberate toggle.
+    const status = ["eaten", "skipped", "not_eaten"].includes(input.status) ?
+      input.status :
+      (input.eaten === undefined || input.eaten === true ?
+        "eaten" : "not_eaten");
     return {
       mealId,
       label,
-      eaten: input.eaten === undefined ? true : input.eaten === true,
+      status,
+      eaten: status === "eaten",
       dateIso: optionalIso(input.date, "date"),
     };
   },
@@ -268,19 +300,22 @@ const MARK_MEAL_EATEN = {
           `${dayKey}. Call get_diet and use an exact id from it. Meals ` +
           `that day: ${available}.`);
     }
-    return {dayKey, label: meal.label};
+    // The user's offset rides along so the confirmed write stores their own
+    // local midnight as `date`, exactly as the app does.
+    return Object.assign({dayKey, label: meal.label},
+        offsetPatch(offsetMinutes));
   },
   fields(v) {
     return {
       meal: v.label || v.mealId,
-      state: v.eaten ? "eaten" : "not eaten",
+      state: mealStateLabel(v),
     };
   },
   summarize(v) {
-    return `Mark ${v.label || v.mealId} ${v.eaten ? "eaten" : "not eaten"}`;
+    return `Mark ${v.label || v.mealId} ${mealStateLabel(v)}`;
   },
   result(v) {
-    return `Marked ${v.label || v.mealId} ${v.eaten ? "eaten" : "not eaten"}.`;
+    return `Marked ${v.label || v.mealId} ${mealStateLabel(v)}.`;
   },
 };
 
@@ -613,6 +648,7 @@ const LOG_FOOD = {
 
     return {
       dayKey,
+      ...offsetPatch(offsetMinutes),
       entries,
       totals: {
         kcal: Math.round(kcal),

@@ -6818,4 +6818,65 @@ class AppLocalizationsEn extends AppLocalizations {
   String adminEventTokens(String tokens) {
     return '$tokens tokens';
   }
+
+  @override
+  String get dietHistory => 'History';
+
+  @override
+  String get dietHistoryTitle => 'Diet history';
+
+  @override
+  String get dietHistoryEmpty =>
+      'Nothing recorded yet. Days you tick a meal or log food show up here.';
+
+  @override
+  String dietHistoryMeals(int eaten, int planned) {
+    return '$eaten of $planned meals';
+  }
+
+  @override
+  String dietSkippedCount(int count) {
+    return '$count skipped';
+  }
+
+  @override
+  String get dietMealStatusEaten => 'Eaten';
+
+  @override
+  String get dietMealStatusModified => 'Changed';
+
+  @override
+  String get dietMealStatusSkipped => 'Skipped';
+
+  @override
+  String get dietMealStatusUnmarked => 'Not marked';
+
+  @override
+  String get dietSkipMeal => 'I skipped this meal';
+
+  @override
+  String get dietUndoSkip => 'Skipped · Undo';
+
+  @override
+  String get dietOffPlan => 'Outside the plan';
+
+  @override
+  String get dietPlanReconstructed =>
+      'Recorded after the day ended — planned figures come from your current plan.';
+
+  @override
+  String dietDayOfTarget(String target) {
+    return 'of $target kcal target';
+  }
+
+  @override
+  String dietDayPlannedKcal(String kcal) {
+    return 'Planned $kcal';
+  }
+
+  @override
+  String get askThoughtDietHistory => 'Looking back at your meals…';
+
+  @override
+  String get askThoughtDietHistoryDone => 'Looked back at your meals';
 }

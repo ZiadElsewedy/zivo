@@ -166,7 +166,7 @@ function turnFields(turn) {
  * @param {string} uid
  * @param {string} dayKey 'yyyy-MM-dd'
  * @param {string} mealId
- * @return {!Promise<void>}
+ * @return {!Promise<!Object>} The plan's Meal — what the write materialises.
  */
 async function requireMealInPlan(store, uid, dayKey, mealId) {
   const plan = await store.getActiveDietPlan(uid);
@@ -177,12 +177,14 @@ async function requireMealInPlan(store, uid, dayKey, mealId) {
   }
   const day = resolveDietDay(plan.days || [], new Date(`${dayKey}T12:00:00Z`), 0);
   const meals = day && Array.isArray(day.meals) ? day.meals : [];
-  if (!meals.some((m) => m && m.id === mealId)) {
+  const meal = meals.find((m) => m && m.id === mealId);
+  if (!meal) {
     throw new GatewayError(
         "failed-precondition",
         "That meal isn't in your plan any more — the plan changed since I " +
         "suggested it. Ask me again and I'll use the current one.");
   }
+  return meal;
 }
 
 /**
@@ -225,8 +227,12 @@ async function applyProposedAction(store, uid, action) {
       // carries only `dateIso`, hence the fallback.
       const key = v.dayKey ||
         dayKeyFor(v.dateIso ? new Date(v.dateIso) : new Date());
-      await requireMealInPlan(store, uid, key, v.mealId);
-      return store.setDietEntry(uid, key, v.mealId, v.eaten);
+      const meal = await requireMealInPlan(store, uid, key, v.mealId);
+      // The tick AND its food-log rows, as the app writes them — a meal
+      // ticked from Ask used to leave the log without its foods.
+      const status = v.status === "skipped" ? "skipped" :
+        v.eaten === false || v.status === "not_eaten" ? "unmarked" : "eaten";
+      return store.setMealTick(uid, key, meal, status, v.offsetMinutes);
     }
     case "create_custom_food":
       // Doc id derives from actionId, like log_food's entries — a
@@ -250,7 +256,7 @@ async function applyProposedAction(store, uid, action) {
       // rows rather than duplicating the meal.
       const entries = (v.entries || []).map((e, i) =>
         Object.assign({}, e, {id: `${id}__${i}`}));
-      return store.writeFoodLog(uid, entries);
+      return store.writeFoodLog(uid, entries, v.offsetMinutes);
     }
     case "replace_meal_item": {
       // Same discipline as mark_meal_eaten's requireMealInPlan: the item was

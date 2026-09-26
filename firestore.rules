@@ -746,7 +746,7 @@ service cloud.firestore {
       allow read: if isOwner(userId);
       allow write: if canWrite(userId)
         && request.resource.data.keys().hasOnly(
-             ['dayKey', 'date', 'mealId', 'eaten', 'schemaVersion',
+             ['dayKey', 'date', 'mealId', 'eaten', 'status', 'schemaVersion',
               'createdAt', 'updatedAt'])
         && request.resource.data.dayKey is string
         && request.resource.data.dayKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
@@ -754,8 +754,21 @@ service cloud.firestore {
         && request.resource.data.mealId.size() > 0
         && request.resource.data.mealId.size() <= 200
         && request.resource.data.eaten is bool
+        // Optional (older builds write only `eaten`). A skip is `eaten:false`
+        // + `status:'skipped'`, so a reader that only knows `eaten` is right.
+        && (!('status' in request.resource.data)
+            || request.resource.data.status in ['eaten', 'skipped', 'unmarked'])
         && request.resource.data.date is timestamp
         && request.resource.data.schemaVersion is int;
+    }
+
+    // The daily diet record (functions/diet/day_record.js): a READ MODEL
+    // rebuilt server-side from dietPlans + dietEntries + foodLogs on every
+    // write to them. The owner reads it; nothing client-side may write it —
+    // a record a client could edit would be a second source of truth.
+    match /users/{userId}/dietDays/{dayKey} {
+      allow read: if isOwner(userId);
+      allow write: if false;
     }
 
     // AI conversations: the user owns their chat threads. Client-writable

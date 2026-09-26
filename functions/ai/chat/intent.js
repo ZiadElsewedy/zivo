@@ -49,6 +49,7 @@ const TOOL_AREAS = {
   // day's targets, meals, what's left), so it lives here.
   get_today: Intent.DIET,
   get_diet: Intent.DIET,
+  get_diet_history: Intent.DIET,
   resolve_food: Intent.DIET,
   calculate_meal_nutrition: Intent.DIET,
   search_food_alternatives: Intent.DIET,

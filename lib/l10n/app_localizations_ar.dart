@@ -6932,4 +6932,65 @@ class AppLocalizationsAr extends AppLocalizations {
   String adminEventTokens(String tokens) {
     return '$tokens رمز';
   }
+
+  @override
+  String get dietHistory => 'السجل';
+
+  @override
+  String get dietHistoryTitle => 'سجل الأكل';
+
+  @override
+  String get dietHistoryEmpty =>
+      'لم يُسجَّل شيء بعد. ستظهر هنا الأيام التي تؤشّر فيها وجبة أو تسجّل طعامًا.';
+
+  @override
+  String dietHistoryMeals(int eaten, int planned) {
+    return '$eaten من $planned وجبات';
+  }
+
+  @override
+  String dietSkippedCount(int count) {
+    return '$count متخطّاة';
+  }
+
+  @override
+  String get dietMealStatusEaten => 'أُكلت';
+
+  @override
+  String get dietMealStatusModified => 'معدَّلة';
+
+  @override
+  String get dietMealStatusSkipped => 'تخطّيتها';
+
+  @override
+  String get dietMealStatusUnmarked => 'غير مؤشَّرة';
+
+  @override
+  String get dietSkipMeal => 'تخطّيت هذه الوجبة';
+
+  @override
+  String get dietUndoSkip => 'تم التخطّي · تراجع';
+
+  @override
+  String get dietOffPlan => 'خارج الخطة';
+
+  @override
+  String get dietPlanReconstructed =>
+      'سُجِّل بعد انتهاء اليوم — الأرقام المخطَّطة من خطتك الحالية.';
+
+  @override
+  String dietDayOfTarget(String target) {
+    return 'من هدف $target سعرة';
+  }
+
+  @override
+  String dietDayPlannedKcal(String kcal) {
+    return 'المخطَّط $kcal';
+  }
+
+  @override
+  String get askThoughtDietHistory => 'يراجع سجل أكلك…';
+
+  @override
+  String get askThoughtDietHistoryDone => 'راجع سجل أكلك';
 }

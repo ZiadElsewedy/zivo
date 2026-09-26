@@ -30,6 +30,7 @@ import '../../domain/analysis/maintenance_calibration.dart';
 import '../widgets/body_measures_builder.dart';
 import '../widgets/log_food_sheet.dart';
 import '../today_diet.dart';
+import 'diet_history_page.dart';
 import 'diet_plan_details_page.dart';
 import 'diet_plan_edit_page.dart';
 import 'diet_plans_page.dart';
@@ -168,11 +169,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.restaurant_rounded,
-              size: 30,
-              color: TrainColors.ink3,
-            ),
+            Icon(Icons.restaurant_rounded, size: 30, color: TrainColors.ink3),
             const SizedBox(height: 12),
             Text(
               shelvedPlans == 0
@@ -281,6 +278,7 @@ class _PlanBodyForTargets extends StatefulWidget {
 
 class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
   Stream<Set<String>>? _consumedStream;
+  Stream<Set<String>>? _skippedStream;
   Stream<List<FoodLogEntry>>? _logStream;
 
   @override
@@ -288,6 +286,7 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
     super.didChangeDependencies();
     final diet = AppScope.of(context).diet;
     _consumedStream ??= diet.watchConsumed(widget.now);
+    _skippedStream ??= diet.watchSkipped(widget.now);
     _logStream ??= diet.watchFoodLog(widget.now);
   }
 
@@ -319,15 +318,20 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
         // coaching read must all rest on one maintenance figure. A widget
         // that assembled its own is how a screen starts disagreeing with
         // itself.
-        builder: (context, consumedSnapshot) => BodyMeasuresBuilder(
-          builder: (context, measures, calibration) => _buildList(
-            context,
-            log: logSnapshot.data ?? const <FoodLogEntry>[],
-            consumed: consumedSnapshot.data ?? const <String>{},
-            consumedLoading:
-                consumedSnapshot.connectionState == ConnectionState.waiting,
-            measures: measures,
-            calibration: calibration,
+        builder: (context, consumedSnapshot) => StreamBuilder<Set<String>>(
+          stream: _skippedStream,
+          initialData: const <String>{},
+          builder: (context, skippedSnapshot) => BodyMeasuresBuilder(
+            builder: (context, measures, calibration) => _buildList(
+              context,
+              log: logSnapshot.data ?? const <FoodLogEntry>[],
+              consumed: consumedSnapshot.data ?? const <String>{},
+              skipped: skippedSnapshot.data ?? const <String>{},
+              consumedLoading:
+                  consumedSnapshot.connectionState == ConnectionState.waiting,
+              measures: measures,
+              calibration: calibration,
+            ),
           ),
         ),
       ),
@@ -338,6 +342,7 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
     BuildContext context, {
     required List<FoodLogEntry> log,
     required Set<String> consumed,
+    required Set<String> skipped,
     required bool consumedLoading,
     required BodyMeasuresResolution measures,
     required CalibrationResult calibration,
@@ -418,6 +423,9 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
                 meal: meal,
                 number: index + 1,
                 eaten: consumed.contains(meal.id),
+                // Ticking a skipped meal is the user changing their mind:
+                // the eaten write clears the skip.
+                skipped: skipped.contains(meal.id),
                 onToggle: () => diet.setMealEaten(
                   mealId: meal.id,
                   day: now,
@@ -475,11 +483,23 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
         const SizedBox(height: 22),
         // The door to everything this screen no longer shows. One quiet row,
         // not a card: it is a way out, not a thing to read.
-        _PlanDetailsRow(
-          planName: plan.name,
+        _ExitRow(
+          key: const Key('plan-details-row'),
+          icon: Icons.tune_rounded,
+          title: l(context).dietPlanDetails,
+          trailing: plan.name,
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => DietPlanDetailsPage(plan: plan)),
           ),
+        ),
+        // What was planned and eaten on the days before this one.
+        _ExitRow(
+          key: const Key('diet-history-row'),
+          icon: Icons.history_rounded,
+          title: l(context).dietHistory,
+          onTap: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const DietHistoryPage())),
         ),
       ],
     );
@@ -491,10 +511,18 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
 ///
 /// A row, not a card, and last on the screen — it is an exit, and an exit that
 /// looks like content is how a screen grows a sixth thing to read.
-class _PlanDetailsRow extends StatelessWidget {
-  const _PlanDetailsRow({required this.planName, required this.onTap});
+class _ExitRow extends StatelessWidget {
+  const _ExitRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.trailing,
+    required this.onTap,
+  });
 
-  final String planName;
+  final IconData icon;
+  final String title;
+  final String? trailing;
   final VoidCallback onTap;
 
   @override
@@ -505,27 +533,27 @@ class _PlanDetailsRow extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Padding(
-          key: const Key('plan-details-row'),
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
           child: Row(
             children: [
-              Icon(Icons.tune_rounded, size: 17, color: TrainColors.ink3),
+              Icon(icon, size: 17, color: TrainColors.ink3),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  l(context).dietPlanDetails,
+                  title,
                   style: AppText.rowTitle.copyWith(color: TrainColors.ink2),
                 ),
               ),
-              Flexible(
-                child: Text(
-                  planName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
-                  style: AppText.meta.copyWith(color: TrainColors.ink4),
+              if (trailing != null)
+                Flexible(
+                  child: Text(
+                    trailing!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: AppText.meta.copyWith(color: TrainColors.ink4),
+                  ),
                 ),
-              ),
               const SizedBox(width: 6),
               Icon(
                 Icons.chevron_right_rounded,
@@ -604,10 +632,9 @@ class _LogEntryRow extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   [
-                    l(context).dietQuantityUnit(
-                      _trim(entry.quantity),
-                      entry.unit,
-                    ),
+                    l(
+                      context,
+                    ).dietQuantityUnit(_trim(entry.quantity), entry.unit),
                     // Where a figure came from (a catalog, the user's own
                     // food) is provenance, kept on the entry — not something
                     // the user needs to read. Only "from your plan" stays: it
@@ -932,7 +959,9 @@ String _heroLabel(
 ) {
   final strings = l(context);
   if (progress != null) {
-    final estimated = progress.consumed.estimated ? strings.dietEstPrefixCaps : '';
+    final estimated = progress.consumed.estimated
+        ? strings.dietEstPrefixCaps
+        : '';
     return progress.overTarget
         ? '$estimated${strings.dietKcalOverCaps}'
         : '$estimated${strings.dietKcalLeftCaps}';
@@ -1015,6 +1044,7 @@ class _MealRow extends StatefulWidget {
     required this.meal,
     required this.number,
     required this.eaten,
+    this.skipped = false,
     required this.onToggle,
   });
 
@@ -1026,6 +1056,10 @@ class _MealRow extends StatefulWidget {
   final int number;
 
   final bool eaten;
+
+  /// The user said they skipped it. Shown quietly — a decision recorded, not
+  /// a failure — and only while the meal isn't ticked.
+  final bool skipped;
   final VoidCallback onToggle;
 
   @override
@@ -1082,6 +1116,7 @@ class _MealRowState extends State<_MealRow>
         : l(context).dietMealNumber(widget.number);
     // "Eggs · Ful medames · Baladi bread" — what's in it, without opening it.
     final items = meal.items.map((i) => i.name).join(' · ');
+    final skipped = widget.skipped && !widget.eaten;
 
     return AnimatedBuilder(
       animation: _fill,
@@ -1093,10 +1128,7 @@ class _MealRowState extends State<_MealRow>
             behavior: HitTestBehavior.opaque,
             onTap: _open,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 17,
-                vertical: 14,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
               decoration: BoxDecoration(
                 color: Color.lerp(
                   TrainColors.glass,
@@ -1174,7 +1206,19 @@ class _MealRowState extends State<_MealRow>
                             ],
                           ],
                         ),
-                        if (items.isNotEmpty) ...[
+                        if (skipped) ...[
+                          const SizedBox(height: 5),
+                          Text(
+                            l(context).dietMealStatusSkipped,
+                            key: Key('meal-skipped-${meal.id}'),
+                            style: TrainType.ui(
+                              size: 13,
+                              weight: FontWeight.w600,
+                              color: TrainColors.ink3,
+                              height: 1.3,
+                            ),
+                          ),
+                        ] else if (items.isNotEmpty) ...[
                           const SizedBox(height: 5),
                           Text(
                             items,

@@ -572,10 +572,20 @@ async function runAiTurn({
   // (from get_today/get_diet), kept so the reply can be validated against the
   // very numbers it read (Phase 7). Null when the turn read no diet data.
   let dietContext = null;
+  // Every OTHER diet payload read this turn (or carried) — another day, or a
+  // history window. A reply comparing yesterday with today cites both, so
+  // their figures are valid too (`validator.js` `otherDays`).
+  const otherDietPayloads = [];
   // A diet state carried from the previous turn is what a reply that reuses
   // it is checked against — the validator must see the numbers the model saw.
   const carriedDiet = ledger.latest(["get_today", "get_diet"]);
   if (carriedDiet) dietContext = carriedDiet.result;
+  for (const name of ["get_today", "get_diet", "get_diet_history"]) {
+    const carried = ledger.latest([name]);
+    if (carried && !(carriedDiet && carriedDiet.tool === name)) {
+      otherDietPayloads.push(carried.result);
+    }
+  }
   // An offer the previous turn verified, re-derived from its carried search
   // result — so "what were those options again?" can still show a bound card.
   // Never used for the prose safety net (that needs an offer made THIS turn).
@@ -1064,7 +1074,10 @@ async function runAiTurn({
             // checked against what the model actually read (Phase 7). The
             // last one wins — the reply is about the most recently loaded day.
             if (block.name === "get_today" || block.name === "get_diet") {
+              if (dietContext) otherDietPayloads.push(dietContext);
               dietContext = resultPayload;
+            } else if (block.name === "get_diet_history") {
+              otherDietPayloads.push(resultPayload);
             }
             if (tool.search && resultPayload &&
                 Array.isArray(resultPayload.alternatives) &&
@@ -1237,7 +1250,10 @@ async function runAiTurn({
     // the findings the rules engine already produced, which is why rejecting
     // is safe: there is always a correct answer to fall back to.
     if (dietContext) {
-      const result = validateAdvice(assistantText, dietContext);
+      const result = validateAdvice(assistantText,
+          otherDietPayloads.length ?
+            Object.assign({}, dietContext, {otherDays: otherDietPayloads}) :
+            dietContext);
       validation = {
         ok: result.ok,
         safe: result.safe,

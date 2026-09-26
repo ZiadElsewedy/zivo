@@ -385,8 +385,9 @@ function dietStore(overrides) {
 test("confirmAction applies mark_meal_eaten through the store", async () => {
   const writes = {entries: []};
   const store = dietStore({
-    setDietEntry: async (uid, dayKey, mealId, eaten) => {
-      writes.entries.push({uid, dayKey, mealId, eaten});
+    setMealTick: async (uid, dayKey, meal, status, offsetMinutes) => {
+      writes.entries.push({uid, dayKey, mealId: meal.id, status,
+        items: meal.items.length, offsetMinutes});
     },
   });
   const callModel = scriptedModel([
@@ -405,8 +406,11 @@ test("confirmAction applies mark_meal_eaten through the store", async () => {
     now: makeClock(2000),
   });
   assert.equal(confirmed.status, "applied");
+  // The tick is written with the plan's own Meal, so the store materialises
+  // its items into the food log exactly as the app does.
   assert.deepEqual(writes.entries, [{
-    uid: UID, dayKey: "2026-08-17", mealId: "lunch-2", eaten: true,
+    uid: UID, dayKey: "2026-08-17", mealId: "lunch-2", status: "eaten",
+    items: 0, offsetMinutes: 0,
   }]);
   // The card and the result line name the meal the PLAN names, not the one
   // the model remembered.
@@ -420,7 +424,7 @@ test("a meal id that isn't in the plan never becomes a proposal", async () => {
   // and quietly wrong in every "meals eaten" count afterwards.
   const writes = {entries: []};
   const store = dietStore({
-    setDietEntry: async (...args) => {
+    setMealTick: async (...args) => {
       writes.entries.push(args);
     },
   });
@@ -482,7 +486,7 @@ test("confirm re-checks the plan: a meal deleted after the proposal is " +
   let plan = DIET_PLAN;
   const store = makeStore({
     getActiveDietPlan: async () => plan,
-    setDietEntry: async (...args) => {
+    setMealTick: async (...args) => {
       writes.entries.push(args);
     },
   });

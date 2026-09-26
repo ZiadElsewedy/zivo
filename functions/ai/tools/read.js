@@ -51,7 +51,10 @@ const {
   startOfDay,
 } = require("../shared/dates");
 const {readinessFromSignals} = require("../analytics/readiness");
-const {buildDietState, summariseHistory} = require("../../diet/state");
+const {
+  buildDietState, summariseHistory, BASIS_LABEL,
+} = require("../../diet/state");
+const {buildDietDayRecord} = require("../../diet/day_record");
 const {calibrateMaintenance, energyFor, ageFrom} = require("../../diet/energy");
 const {coachingFindings} = require("../../diet/rules");
 const {analyzeTraining} = require("../analytics/workout_analytics");
@@ -196,15 +199,138 @@ function targetsPayload(targets) {
 }
 
 /**
+ * One plan item as the model reads it. `index` is its position within the
+ * meal — a FoodItem has no id of its own, so this is what
+ * search_food_alternatives / replace_meal_item address it by (both re-check
+ * the name at that index before writing). `estimated` appears only when true:
+ * provenance, not decoration — the figures came from an AI estimate at import.
+ * @param {!Object} it A plan FoodItem.
+ * @param {number} index
+ * @return {!Object}
+ */
+function planItemForModel(it, index) {
+  const out = {
+    index,
+    name: it.name,
+    quantity: it.quantity,
+    unit: it.unit,
+    calories: it.calories,
+    proteinG: it.proteinG,
+    carbsG: it.carbsG,
+    fatG: it.fatG,
+  };
+  if (it.estimated === true) out.estimated = true;
+  return out;
+}
+
+/**
+ * The day's meals and foods WITHOUT saying anything twice (Phase 6).
+ *
+ * Ticking a meal materialises one `plannedMeal` log entry per item, id
+ * `${dayKey}__${mealId}-${index}` (`planned_meal_log.dart`), with the plan's
+ * exact name and quantity — so for a ticked meal the log restated the plan's
+ * items word for word (2.4K of a 7K payload on a real day, pushing `get_diet`
+ * past the tool-result cap and truncating the last meal's items). Here each
+ * such entry is folded back into its meal:
+ *   - a ticked meal whose entries match every item: `eaten: true`, nothing
+ *     more — the items ARE what was eaten;
+ *   - one with only some left (a half-eaten meal): `eatenItems` lists the
+ *     indices still logged;
+ *   - anything the plan doesn't explain — food the user logged, or a planned
+ *     entry that no longer matches the plan (edited since) — stays in
+ *     `logEntries`, exactly as before.
+ * `itemsFor` picks which meals carry their items: "all" (get_diet — the plan
+ * is the subject) or "eaten" (get_today — what was consumed).
+ * @param {!Array<!Object>} stateMeals `state.meals`.
+ * @param {?Object} dietDay The resolved plan day.
+ * @param {!Array<!Object>} log The day's raw entries.
+ * @param {string} dayKey
+ * @param {string} itemsFor "all" | "eaten"
+ * @return {{meals: !Array<!Object>, logEntries: !Array<!Object>}}
+ */
+function mealsAndFoodsForModel(stateMeals, dietDay, log, dayKey, itemsFor) {
+  const planMeals = new Map(
+      ((dietDay && dietDay.meals) || []).map((m) => [m.id, m]));
+  const explained = new Map(); // mealId → Set of item indices
+  const unexplained = [];
+  for (const e of log) {
+    const meal = e.origin === "plannedMeal" && e.mealId ?
+      planMeals.get(e.mealId) : null;
+    const prefix = `${dayKey}__${e.mealId}-`;
+    const id = String(e.id || "");
+    const index = meal && id.startsWith(prefix) &&
+      /^\d+$/.test(id.slice(prefix.length)) ?
+      Number(id.slice(prefix.length)) : -1;
+    const item = index >= 0 ? (meal.items || [])[index] : null;
+    const stateMeal = meal ? stateMeals.find((s) => s.id === meal.id) : null;
+    if (item && stateMeal && stateMeal.eaten &&
+        e.foodName === item.name &&
+        Math.abs((e.quantity || 0) - (item.quantity || 0)) < 1e-6) {
+      if (!explained.has(meal.id)) explained.set(meal.id, new Set());
+      explained.get(meal.id).add(index);
+    } else {
+      unexplained.push(e);
+    }
+  }
+  // In the plan's own order (Breakfast … Dinner), as `planItems` was —
+  // `state.meals` is id-sorted for the shared vectors, which puts m10 before
+  // m2.
+  const byId = new Map(stateMeals.map((s) => [s.id, s]));
+  const ordered = [
+    ...[...planMeals.keys()].filter((id) => byId.has(id))
+        .map((id) => byId.get(id)),
+    ...stateMeals.filter((s) => !planMeals.has(s.id)),
+  ];
+  const meals = ordered.map((s) => {
+    const out = {id: s.id, label: s.label, eaten: s.eaten, kcal: s.kcal};
+    if (s.estimated) out.estimated = true;
+    if (s.isSupplement) out.isSupplement = true;
+    const plan = planMeals.get(s.id);
+    const items = (plan && plan.items) || [];
+    const kept = explained.get(s.id);
+    // A ticked meal with no materialised entries predates the food log (or
+    // the log was never written): its planned items stand, as before.
+    if (s.eaten && kept && kept.size < items.length) {
+      out.eatenItems = [...kept].sort((a, b) => a - b);
+    }
+    if (itemsFor === "all" || s.eaten) {
+      out.items = items.map(planItemForModel);
+    }
+    return out;
+  });
+  return {
+    meals,
+    logEntries: unexplained.map((e) => ({
+      food: e.foodName,
+      quantity: e.quantity,
+      unit: e.unit,
+      kcal: e.kcal,
+      proteinG: e.proteinG,
+      carbsG: e.carbsG,
+      fatG: e.fatG,
+      // `source` (usdaFdc/userCustom/dietPlan) stays on the stored entry for
+      // provenance; the coach doesn't need it and must never make the user
+      // think about where a figure came from — `estimated` says what matters.
+      origin: e.origin,
+      estimated: e.estimated,
+    })),
+  };
+}
+
+/**
  * Projects a `DietState` into the shape the model reads. Field order matters:
  * tool results are truncated from the END, so what the coach must never lose —
  * the date, the objective, where the user stands — is serialized first.
  * @param {!Object} state
  * @param {!Array<Object>} log The day's raw entries.
  * @param {?number} localHour The user's own hour of day, when known.
+ * @param {?Object=} dietDay The resolved plan day, for the meals' items.
+ * @param {string=} itemsFor "all" | "eaten" — see `mealsAndFoodsForModel`.
  * @return {!Object}
  */
-function stateForModel(state, log, localHour) {
+function stateForModel(state, log, localHour, dietDay, itemsFor = "eaten") {
+  const {meals, logEntries} = mealsAndFoodsForModel(
+      state.meals, dietDay || null, log, state.dayKey, itemsFor);
   return {
     date: state.dayKey,
     targets: state.targets,
@@ -229,24 +355,13 @@ function stateForModel(state, log, localHour) {
     plannedKcal: state.plannedKcal,
     mealsEaten: state.mealsEaten,
     mealsTotal: state.mealsTotal,
-    meals: state.meals,
     history: state.history,
-    // The individual foods, so the coach can talk about what was eaten rather
+    // The foods the ticked meals don't already account for — what the user
+    // logged themselves, so the coach can talk about what was eaten rather
     // than only about totals.
-    logEntries: log.map((e) => ({
-      food: e.foodName,
-      quantity: e.quantity,
-      unit: e.unit,
-      kcal: e.kcal,
-      proteinG: e.proteinG,
-      carbsG: e.carbsG,
-      fatG: e.fatG,
-      // `source` (usdaFdc/userCustom/dietPlan) stays on the stored entry for
-      // provenance; the coach doesn't need it and must never make the user
-      // think about where a figure came from — `estimated` says what matters.
-      origin: e.origin,
-      estimated: e.estimated,
-    })),
+    logEntries,
+    // Last: the block that can most afford to be truncated.
+    meals,
   };
 }
 
@@ -360,7 +475,7 @@ const TODAY_TOOL = {
     // serialized last is what disappears — the user's objective and where they
     // stand must never be silently half-delivered.
     return {
-      ...stateForModel(state, log, localHourAt(now, offsetMinutes)),
+      ...stateForModel(state, log, localHourAt(now, offsetMinutes), day),
       workouts: workouts.map((w) => ({
         title: w.title,
         performedAt: iso(w.performedAt),
@@ -932,6 +1047,113 @@ function dailyTotals(rows) {
       .sort((a, b) => a.dayKey.localeCompare(b.dayKey));
 }
 
+/**
+ * A food-log row as the model reads it.
+ * @param {!Object} e
+ * @return {!Object}
+ */
+function logEntryForModel(e) {
+  return {
+    food: e.foodName, quantity: e.quantity, unit: e.unit, kcal: e.kcal,
+    proteinG: e.proteinG, carbsG: e.carbsG, fatG: e.fatG, origin: e.origin,
+    estimated: e.estimated,
+  };
+}
+
+/**
+ * Consumed minus target per figure, or null where no target was set.
+ * @param {!Object} consumed
+ * @param {?Object} targets
+ * @return {?Object}
+ */
+function versusTarget(consumed, targets) {
+  if (!targets) return null;
+  const d = (t, c) => (typeof t === "number" ? round1(c - t) : null);
+  return {
+    kcal: d(targets.calories, consumed.kcal),
+    proteinG: d(targets.proteinG, consumed.proteinG),
+    carbsG: d(targets.carbsG, consumed.carbsG),
+    fatG: d(targets.fatG, consumed.fatG),
+  };
+}
+
+/**
+ * A PAST day as the model reads it: the day's own record (`dietDays` — what
+ * was planned THAT day, frozen, and what happened) plus the foods behind it.
+ * Not today's live state: there is no "remaining" and no time-of-day advice
+ * for a day that is over.
+ * @param {!Object} record A `buildDietDayRecord` result.
+ * @param {!Array<!Object>} log That day's food-log rows.
+ * @return {!Object}
+ */
+function pastDayForModel(record, log) {
+  const eatenIds = new Set(record.meals
+      .filter((m) => m.status === "eaten" || m.status === "modified")
+      .map((m) => m.mealId));
+  const out = {
+    date: record.dayKey,
+    kind: "pastDay",
+    targets: record.targets,
+    consumed: Object.assign({}, record.consumed,
+        {basisLabel: BASIS_LABEL[record.consumed.basis]}),
+    versusTarget: versusTarget(record.consumed, record.targets),
+    plan: record.plan ? record.plan.name : null,
+    planned: record.planned,
+    adherence: record.adherence,
+    meals: record.meals.map((m) => {
+      const row = {id: m.mealId, label: m.label, status: m.status};
+      if (m.isSupplement) row.isSupplement = true;
+      if (m.planned) {
+        row.plannedKcal = m.planned.kcal;
+        row.plannedProteinG = m.planned.proteinG;
+      }
+      if (m.actual) row.actual = m.actual;
+      // What was eaten from it, by name — the rows are the plan's items.
+      const foods = log.filter((e) => e.origin === "plannedMeal" &&
+        e.mealId === m.mealId && eatenIds.has(m.mealId));
+      if (foods.length) {
+        row.foods = foods.map((e) => `${e.foodName} ${e.quantity}${e.unit}`);
+      }
+      return row;
+    }),
+    // Everything eaten outside the day's ticked meals, in full.
+    logEntries: log
+        .filter((e) => e.origin !== "plannedMeal" || !eatenIds.has(e.mealId))
+        .map(logEntryForModel),
+  };
+  // Said only when true: the day was first recorded after it ended, so its
+  // plan side is today's plan applied to it, not what was in force then.
+  if (record.plannedReconstructed) out.planReconstructed = true;
+  return out;
+}
+
+/**
+ * The stored record for a past day, or one built now from its sources when
+ * none is stored yet (a day from before the record existed) — marked
+ * reconstructed by the builder. Null when nothing was recorded that day.
+ * @param {!Object} store
+ * @param {string} uid
+ * @param {string} dayKey
+ * @param {!Array<!Object>} log
+ * @return {!Promise<?Object>}
+ */
+async function pastDayRecord(store, uid, dayKey, log) {
+  const stored = store.getDietDay ? await store.getDietDay(uid, dayKey) : null;
+  if (stored) return stored;
+  const [plan, entries, targets] = await Promise.all([
+    store.getActiveDietPlan(uid),
+    store.listDietEntries(uid, dayKey),
+    store.getDietTargets(uid),
+  ]);
+  return buildDietDayRecord({
+    dayKey, isPast: true, offsetMinutes: null, plan,
+    planDay: plan ?
+      resolveDietDay(plan.days || [], new Date(`${dayKey}T12:00:00Z`), 0) :
+      null,
+    targets, entries, log, existing: null,
+  });
+}
+
 const DIET_TOOL = {
   name: "get_diet",
   description:
@@ -941,7 +1163,8 @@ const DIET_TOOL = {
     "what's `remaining` of them. Every figure carries an `estimated` flag: " +
     "true means it was AI-estimated when the plan was imported, not stated " +
     "by the plan itself. `targets` is null when the user hasn't set an " +
-    "objective. day: optional 'yyyy-MM-dd'.",
+    "objective. day: optional 'yyyy-MM-dd'; a past day returns that day's " +
+    "own record (plan as it was then, meal statuses, consumed vs target).",
   inputSchema: {
     type: "object",
     properties: {day: {type: "string"}},
@@ -964,6 +1187,15 @@ const DIET_TOOL = {
       new Date(`${requested[0]}T12:00:00Z`) : now;
     const dateOffset = requested ? 0 : offsetMinutes;
 
+    // A day that is over is read from its own record — what was planned
+    // THEN, not the plan as it is now.
+    if (requested && requested[0] < dayKeyFor(now, offsetMinutes)) {
+      const log = await store.listFoodLogs(uid, requested[0]);
+      const record = await pastDayRecord(store, uid, requested[0], log);
+      return record ? pastDayForModel(record, log) :
+        {date: requested[0], kind: "pastDay", nothingRecorded: true};
+    }
+
     const [{plan, dietDay, eaten, log}, targets] = await Promise.all([
       loadDietDay(store, uid, date, dateOffset),
       store.getDietTargets(uid),
@@ -982,33 +1214,202 @@ const DIET_TOOL = {
       // An explicit `day` is a past/future date, so "what hour is it" doesn't
       // apply to it — time-sensitive rules correctly stay quiet.
       ...stateForModel(
-          state, log, requested ? null : localHourAt(now, offsetMinutes)),
-      // The plan's items, so the coach can discuss what the plan prescribes
-      // rather than only its totals. Last in the payload: it is the block
-      // that can most afford to be truncated.
-      planItems: !dietDay ? [] : dietDay.meals.map((m) => ({
-        id: m.id,
-        label: m.label,
-        items: m.items.map((it, index) => ({
-          // Position within THIS meal's items — a FoodItem has no id of its
-          // own (unlike a Meal), so this is what search_food_alternatives /
-          // replace_meal_item address it by. Not stable across a plan edit,
-          // which is why both re-check the name at that index before writing.
-          index,
-          name: it.name,
-          quantity: it.quantity,
-          unit: it.unit,
-          calories: it.calories,
-          proteinG: it.proteinG,
-          carbsG: it.carbsG,
-          fatG: it.fatG,
-          // Provenance, not decoration: true means this item's figures came
-          // from an AI estimate at import time, never from a measurement or
-          // the plan document itself.
-          estimated: it.estimated === true,
-        })),
-      })),
+          state, log, requested ? null : localHourAt(now, offsetMinutes),
+          dietDay, "all"),
     };
+  },
+};
+
+/** Longest window get_diet_history reads, and when rows become weeks. */
+const HISTORY_MAX_DAYS = 90;
+const HISTORY_DAILY_ROWS_MAX = 14;
+/** A day within ±10% of its calorie target counts as on target. */
+const ON_TARGET_BAND = 0.1;
+
+/**
+ * One recorded day as a compact history row.
+ * @param {!Object} r A stored `dietDays` record.
+ * @param {string} todayKey
+ * @return {!Object}
+ */
+function historyRow(r, todayKey) {
+  const row = {
+    date: r.dayKey,
+    kcal: r.consumed.kcal,
+    proteinG: r.consumed.proteinG,
+    carbsG: r.consumed.carbsG,
+    fatG: r.consumed.fatG,
+    basis: r.consumed.basis,
+    meals: `${r.adherence.eaten + r.adherence.modified}/` +
+      `${r.adherence.mealsPlanned}`,
+  };
+  const vs = versusTarget(r.consumed, r.targets);
+  if (vs) row.vsTargetKcal = vs.kcal;
+  if (r.adherence.skipped) row.skipped = r.adherence.skipped;
+  if (r.adherence.modified) row.modified = r.adherence.modified;
+  if (r.unplanned && r.unplanned.count) row.offPlanKcal = r.unplanned.kcal;
+  if (r.consumed.estimated) row.estimated = true;
+  if (r.dayKey === todayKey) row.inProgress = true;
+  return row;
+}
+
+/**
+ * The window's summary: averages over RECORDED days only (a day with nothing
+ * recorded is absent, never zero), days on/over/under target, and which meals
+ * went uneaten most — the pattern a coach acts on.
+ * @param {!Array<!Object>} records Stored records, oldest first.
+ * @param {string} todayKey
+ * @return {!Object}
+ */
+function historySummary(records, todayKey) {
+  // Today is still happening: shown, but not averaged or judged.
+  const done = records.filter((r) =>
+    r.dayKey !== todayKey && r.consumed.basis !== "nothingLogged");
+  const avg = (f) => done.length === 0 ? null :
+    round1(done.reduce((n, r) => n + (r.consumed[f] || 0), 0) / done.length);
+  const target = [...records].reverse().find((r) => r.targets);
+  const t = target ? target.targets : null;
+  let on = 0;
+  let over = 0;
+  let under = 0;
+  let proteinHit = 0;
+  for (const r of done) {
+    if (!r.targets) continue;
+    const band = r.targets.calories * ON_TARGET_BAND;
+    const delta = r.consumed.kcal - r.targets.calories;
+    if (Math.abs(delta) <= band) on++;
+    else if (delta > 0) over++;
+    else under++;
+    if (typeof r.targets.proteinG === "number" &&
+        r.consumed.proteinG >= r.targets.proteinG * 0.9) {
+      proteinHit++;
+    }
+  }
+  const missed = new Map();
+  const adherence = {mealsPlanned: 0, eaten: 0, modified: 0, skipped: 0,
+    unmarked: 0};
+  for (const r of records.filter((x) => x.dayKey !== todayKey)) {
+    for (const k of Object.keys(adherence)) adherence[k] += r.adherence[k];
+    for (const m of r.meals) {
+      if (m.isSupplement || !m.planned) continue;
+      if (m.status === "skipped" || m.status === "unmarked") {
+        const key = `${m.label}|${m.status}`;
+        missed.set(key, (missed.get(key) || 0) + 1);
+      }
+    }
+  }
+  return {
+    daysCounted: done.length,
+    avgKcal: avg("kcal"),
+    avgProteinG: avg("proteinG"),
+    avgCarbsG: avg("carbsG"),
+    avgFatG: avg("fatG"),
+    target: t ? {calories: t.calories, proteinG: t.proteinG} : null,
+    daysOnTarget: t ? on : null,
+    daysOver: t ? over : null,
+    daysUnder: t ? under : null,
+    daysProteinMet: t && typeof t.proteinG === "number" ? proteinHit : null,
+    daysFromTickedMealsOnly: done.filter(
+        (r) => r.consumed.basis === "tickedPlanMeals").length,
+    meals: adherence,
+    mostMissed: [...missed.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([key, days]) => {
+          const [label, status] = key.split("|");
+          return {meal: label, status, days};
+        }),
+  };
+}
+
+/**
+ * Seven-day buckets for a long window: the shape of a month without thirty
+ * rows.
+ * @param {!Array<!Object>} rows Daily rows, oldest first.
+ * @return {!Array<!Object>}
+ */
+function weeklyBuckets(rows) {
+  const out = [];
+  for (let i = 0; i < rows.length; i += 7) {
+    const week = rows.slice(i, i + 7).filter((r) => r.basis !== "nothingLogged");
+    if (week.length === 0) continue;
+    const avg = (f) =>
+      round1(week.reduce((n, r) => n + (r[f] || 0), 0) / week.length);
+    out.push({
+      from: rows[i].date,
+      to: rows[Math.min(i + 6, rows.length - 1)].date,
+      daysRecorded: week.length,
+      avgKcal: avg("kcal"),
+      avgProteinG: avg("proteinG"),
+    });
+  }
+  return out;
+}
+
+const DIET_HISTORY_TOOL = {
+  name: "get_diet_history",
+  description:
+    "The user's recorded diet over a range: a row per day (consumed, meals " +
+    "eaten/planned, skipped, vs target) and a summary (averages, days on/" +
+    "over/under target, meals most often missed). days: back from today " +
+    "(default 7, max 90), or from/to 'yyyy-MM-dd'.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      days: {type: "integer", minimum: 1, maximum: HISTORY_MAX_DAYS},
+      from: {type: "string"},
+      to: {type: "string"},
+    },
+  },
+  /**
+   * @param {!Object} store
+   * @param {string} uid
+   * @param {!Object} input
+   * @param {Date} now
+   * @param {number=} offsetMinutes
+   * @return {!Promise<!Object>}
+   */
+  async execute(store, uid, input, now, offsetMinutes) {
+    const todayKey = dayKeyFor(now, offsetMinutes);
+    const iso = (v) => typeof v === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? v.trim() : null;
+    const keyDaysBefore = (key, n) => new Date(
+        Date.parse(`${key}T12:00:00Z`) - n * 86400000)
+        .toISOString().slice(0, 10);
+    let to = iso(input.to) || todayKey;
+    if (to > todayKey) to = todayKey;
+    const days = Number.isInteger(input.days) ?
+      Math.min(Math.max(input.days, 1), HISTORY_MAX_DAYS) : 7;
+    let from = iso(input.from) || keyDaysBefore(to, days - 1);
+    if (from > to) from = to;
+    if (from < keyDaysBefore(to, HISTORY_MAX_DAYS - 1)) {
+      from = keyDaysBefore(to, HISTORY_MAX_DAYS - 1);
+    }
+    const records = await store.listDietDays(uid, from, to);
+    const byKey = new Map(records.map((r) => [r.dayKey, r]));
+    const rows = [];
+    const notRecorded = [];
+    for (let k = from; k <= to; k = keyDaysBefore(k, -1)) {
+      const r = byKey.get(k);
+      if (r) rows.push(historyRow(r, todayKey));
+      else notRecorded.push(k);
+    }
+    const out = {
+      from,
+      to,
+      today: todayKey,
+      summary: historySummary(records, todayKey),
+    };
+    if (rows.length > HISTORY_DAILY_ROWS_MAX) {
+      out.weeks = weeklyBuckets(rows);
+    } else {
+      out.days = rows;
+    }
+    // Absent, not zero: a day with no record had nothing recorded, which is
+    // not the same as eating nothing.
+    out.notRecorded = notRecorded.length > HISTORY_DAILY_ROWS_MAX ?
+      notRecorded.length : notRecorded;
+    return out;
   },
 };
 
@@ -1748,6 +2149,7 @@ const tools = [
   READINESS_TOOL,
   SLEEP_SUMMARY_TOOL,
   DIET_TOOL,
+  DIET_HISTORY_TOOL,
   RESOLVE_FOOD_TOOL,
   CALCULATE_MEAL_TOOL,
   SEARCH_FOOD_ALTERNATIVES_TOOL,

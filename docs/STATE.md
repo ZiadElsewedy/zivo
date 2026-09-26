@@ -97,6 +97,31 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- 2026-09-26 (`upgrades`, UNCOMMITTED, NOT deployed) — **Phase 6 (diet
+  payload trim) + daily diet tracking (`dietDays`) + diet history in Ask.**
+  - **Phase 6:** `get_diet`/`get_today` no longer repeat a ticked meal's items
+    as log rows (they fold into `meals[].items`; `eatenItems` for a half-eaten
+    meal; user-logged / stale rows stay in `logEntries`). Real payload
+    7,029 → 4,131 chars — it was over the 6K cap and truncating the last meal's
+    item indices. Validator anchors item calories.
+  - **Daily record:** `users/{uid}/dietDays/{dayKey}` built by
+    `functions/diet/day_record.js` (pure, shared vector) via Firestore triggers
+    (`diet/triggers.js`: foodLogs, dietEntries, dietPlans→today). Transactional,
+    idempotent, deletes itself when a day empties. Past days' plan snapshot is
+    frozen (user's offset read off the app's local-midnight `date`).
+  - **Ask:** `mark_meal_eaten` status eaten|skipped|not_eaten, and now writes
+    the meal's `foodLogs` rows like the app (it used to write only the tick);
+    AI writes store the user's local midnight. `get_diet(day)` for a past day
+    reads its record; new `get_diet_history` (days/from/to, weekly buckets past
+    14 rows). Multi-day replies validate against every day read. DIET prefix
+    13,693 → 14,137 tokens (+444); real `get_diet(yesterday)` 1.9K chars,
+    `get_diet_history(7)` 1.1K.
+  - **App:** Skip on the meal page, "Skipped" on today's row, Diet → History →
+    past day. Rules: `dietEntries.status`, read-only `dietDays`.
+  - **Owner actions:** deploy functions + `firestore.rules`, then
+    `node scripts/backfill_diet_days.js --apply` (dry run found 9 days).
+  - **Roadmap unchanged:** Phase 7 (entryPoint + prefetch) → 8 → 9 next.
+
 - 2026-09-26 (`upgrades`, NOT deployed — functions changes need an owner
   deploy) — **Ask token efficiency: Phase 4 read + greeting routing fix +
   Phase 5 (in-turn tail caching).**

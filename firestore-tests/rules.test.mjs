@@ -721,6 +721,32 @@ describe('dietEntries shape validation', () => {
   it('rejects unknown fields smuggled onto the entry', async () => {
     await assertFails(write(entry({ calories: 9999 })));
   });
+
+  it('accepts a skip, and rejects a status outside the vocabulary', async () => {
+    await assertSucceeds(write(entry({ eaten: false, status: 'skipped' })));
+    await assertSucceeds(write(entry({ status: 'eaten' })));
+    await assertSucceeds(write(entry({ eaten: false, status: 'unmarked' })));
+    await assertFails(write(entry({ status: 'maybe' })));
+    await assertFails(write(entry({ status: true })));
+  });
+});
+
+// The daily diet record is a server-built read model: the owner reads it,
+// and no client — not even the owner — may write it.
+describe('dietDays is read-only to clients', () => {
+  const record = { dayKey: '2026-01-01', schemaVersion: 1, meals: [] };
+
+  it('the owner can read it; nobody else can', async () => {
+    await seed(`users/${OWNER}/dietDays/2026-01-01`, record);
+    await assertSucceeds(getDoc(doc(ownerDb(), `users/${OWNER}/dietDays/2026-01-01`)));
+    await assertFails(getDoc(doc(otherDb(), `users/${OWNER}/dietDays/2026-01-01`)));
+  });
+
+  it('no client may create, edit or delete it', async () => {
+    await assertFails(setDoc(doc(ownerDb(), `users/${OWNER}/dietDays/2026-01-02`), record));
+    await seed(`users/${OWNER}/dietDays/2026-01-03`, record);
+    await assertFails(deleteDoc(doc(ownerDb(), `users/${OWNER}/dietDays/2026-01-03`)));
+  });
 });
 
 // The user's objective. Everything the coach says is measured against this, so

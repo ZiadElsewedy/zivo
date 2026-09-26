@@ -77,6 +77,7 @@ const {OpenAiSpeechProvider} = require("./ai/speech/providers/openai_speech_prov
 const speechRouter = require("./ai/speech/routing/speech_router");
 const {AdminService} = require("./admin/service");
 const {buildAdminHandlers} = require("./admin/handlers");
+const {buildDietDayTriggers} = require("./diet/triggers");
 
 initializeApp();
 const db = getFirestore();
@@ -1822,6 +1823,11 @@ exports.weeklyCoachReport = onSchedule(
       logger.info("weeklyCoachReport", {reported, skipped});
     },
 );
+
+// --- Daily diet record (functions/diet/day_record.js) ------------------------
+// `dietDays/{dayKey}` is rebuilt server-side whenever a food log, a meal tick
+// or the plan changes, so history is one small document per day.
+Object.assign(exports, buildDietDayTriggers({store: new FirestoreStore(db)}));
 
 // --- Admin Console (ADR-018, docs/ADMIN.md) ----------------------------------
 // Admin-only callables (each re-checks the `admin` claim server-side) and the

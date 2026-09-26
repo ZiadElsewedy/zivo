@@ -11465,6 +11465,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{tokens} tokens'**
   String adminEventTokens(String tokens);
+
+  /// Row on the Diet screen that opens the day-by-day history of what was planned and eaten.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get dietHistory;
+
+  /// Title of the day-by-day diet history screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Diet history'**
+  String get dietHistoryTitle;
+
+  /// Diet history when no day has anything recorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing recorded yet. Days you tick a meal or log food show up here.'**
+  String get dietHistoryEmpty;
+
+  /// How many of the day's planned meals were eaten, on a history row.
+  ///
+  /// In en, this message translates to:
+  /// **'{eaten} of {planned} meals'**
+  String dietHistoryMeals(int eaten, int planned);
+
+  /// How many planned meals the user marked skipped that day.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} skipped'**
+  String dietSkippedCount(int count);
+
+  /// A past meal's status: ticked, and eaten as planned.
+  ///
+  /// In en, this message translates to:
+  /// **'Eaten'**
+  String get dietMealStatusEaten;
+
+  /// A past meal's status: ticked, but items were removed or amounts changed.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed'**
+  String get dietMealStatusModified;
+
+  /// A meal's status: the user said they skipped it.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped'**
+  String get dietMealStatusSkipped;
+
+  /// A past meal's status: nothing was recorded — not the same as skipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Not marked'**
+  String get dietMealStatusUnmarked;
+
+  /// Quiet action on a meal: record that it was skipped today.
+  ///
+  /// In en, this message translates to:
+  /// **'I skipped this meal'**
+  String get dietSkipMeal;
+
+  /// Shown on a skipped meal; tapping clears the skip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped · Undo'**
+  String get dietUndoSkip;
+
+  /// Section heading on a past day for food eaten outside the planned meals.
+  ///
+  /// In en, this message translates to:
+  /// **'Outside the plan'**
+  String get dietOffPlan;
+
+  /// Note on a past day whose plan side had to be rebuilt from today's plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded after the day ended — planned figures come from your current plan.'**
+  String get dietPlanReconstructed;
+
+  /// After a day's consumed calories on the history screen; target is a formatted number.
+  ///
+  /// In en, this message translates to:
+  /// **'of {target} kcal target'**
+  String dietDayOfTarget(String target);
+
+  /// A past meal's planned calories; kcal is a formatted number.
+  ///
+  /// In en, this message translates to:
+  /// **'Planned {kcal}'**
+  String dietDayPlannedKcal(String kcal);
+
+  /// Live thought line in Ask while ZIVO reads the diet history. Present tense, keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking back at your meals…'**
+  String get askThoughtDietHistory;
+
+  /// The same step once finished, in the expanded list of what ZIVO did (the diet history). Past tense, no ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Looked back at your meals'**
+  String get askThoughtDietHistoryDone;
 }
 
 class _AppLocalizationsDelegate

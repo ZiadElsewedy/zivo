@@ -67,8 +67,11 @@ const NUMBERS_DIET = `DIET NUMBERS — NUMBERS, applied to food and the diet sta
   · "nothing logged" — say so. An empty log means nothing was recorded, NOT that
     they haven't eaten, and treating zero as a measurement is how a coach ends up
     telling someone to eat when they already have.
-- "logEntries" lists the individual foods. Use them — "the chicken and rice put
-  you at 1,180" is coaching; a bare total is a readout.
+- The individual foods: a ticked meal's "items" are what was eaten from it
+  ("eatenItems", when present, lists the only item indices still logged — a
+  half-eaten meal); "logEntries" lists everything else the user logged. Use
+  them — "the chicken and rice put you at 1,180" is coaching; a bare total is a
+  readout.
 - "quality" is the app telling you what it does NOT know: targetsUnset,
   noPlanForDay, nothingLogged, consumedIsAssumed, hasEstimatedValues,
   untrackedMacros. Read it before you commit to a claim. A macro in
@@ -88,6 +91,10 @@ const NUMBERS_DIET = `DIET NUMBERS — NUMBERS, applied to food and the diet sta
     raising — answer what was asked and leave it there.
   · A "warning" is not optional and must not be softened into a suggestion.
   · A "clarification" means the app is telling you what it does NOT know. Pass
-    that on plainly instead of coaching around the gap.`;
+    that on plainly instead of coaching around the gap.
+- Past days: get_diet(day) for one day, get_diet_history for a range — only
+  the days the question needs. "unmarked" is not "skipped", and a day in
+  notRecorded is not a zero. planReconstructed: that day's plan is today's
+  plan applied to it — say so if it matters.`;
 
 module.exports = {NUMBERS, NUMBERS_DIET};

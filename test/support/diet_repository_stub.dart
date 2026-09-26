@@ -1,5 +1,6 @@
 import 'package:zivo/features/diet/domain/analysis/maintenance_calibration.dart';
 import 'package:zivo/features/diet/domain/body_profile.dart';
+import 'package:zivo/features/diet/domain/diet_day_record.dart';
 import 'package:zivo/features/diet/domain/diet_plan.dart';
 import 'package:zivo/features/diet/domain/diet_repository.dart';
 import 'package:zivo/features/diet/domain/nutrition/custom_food.dart';
@@ -81,6 +82,23 @@ abstract class DietRepositoryStub implements DietRepository {
     required DateTime day,
     required bool eaten,
   }) async {}
+
+  @override
+  Stream<Set<String>> watchSkipped(DateTime day) =>
+      Stream.value(const <String>{});
+
+  @override
+  Future<void> setMealSkipped({
+    required String mealId,
+    required DateTime day,
+    required bool skipped,
+  }) async {}
+
+  @override
+  Stream<List<DietDayRecord>> watchDietDays({
+    required DateTime from,
+    required DateTime to,
+  }) => Stream.value(const <DietDayRecord>[]);
 
   @override
   Stream<List<FoodLogEntry>> watchFoodLog(DateTime day) =>

@@ -1892,5 +1892,22 @@
   "adminEventDeleted": "حُذف الحساب",
   "adminEventOther": "حدث آخر",
   "adminEventMinutes": "{minutes} د",
-  "adminEventTokens": "{tokens} رمز"
+  "adminEventTokens": "{tokens} رمز",
+  "dietHistory": "السجل",
+  "dietHistoryTitle": "سجل الأكل",
+  "dietHistoryEmpty": "لم يُسجَّل شيء بعد. ستظهر هنا الأيام التي تؤشّر فيها وجبة أو تسجّل طعامًا.",
+  "dietHistoryMeals": "{eaten} من {planned} وجبات",
+  "dietSkippedCount": "{count} متخطّاة",
+  "dietMealStatusEaten": "أُكلت",
+  "dietMealStatusModified": "معدَّلة",
+  "dietMealStatusSkipped": "تخطّيتها",
+  "dietMealStatusUnmarked": "غير مؤشَّرة",
+  "dietSkipMeal": "تخطّيت هذه الوجبة",
+  "dietUndoSkip": "تم التخطّي · تراجع",
+  "dietOffPlan": "خارج الخطة",
+  "dietPlanReconstructed": "سُجِّل بعد انتهاء اليوم — الأرقام المخطَّطة من خطتك الحالية.",
+  "dietDayOfTarget": "من هدف {target} سعرة",
+  "dietDayPlannedKcal": "المخطَّط {kcal}",
+  "askThoughtDietHistory": "يراجع سجل أكلك…",
+  "askThoughtDietHistoryDone": "راجع سجل أكلك"
 }
