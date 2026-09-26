@@ -97,7 +97,7 @@ notifications)**.
 
 ## Recently landed (verified in code on `version-1`)
 
-- 2026-09-26 (`upgrades`, UNCOMMITTED, NOT deployed) — **Phase 6 (diet
+- 2026-09-26 (`upgrades`, committed `35fcf37`, NOT deployed) — **Phase 6 (diet
   payload trim) + daily diet tracking (`dietDays`) + diet history in Ask.**
   - **Phase 6:** `get_diet`/`get_today` no longer repeat a ticked meal's items
     as log rows (they fold into `meals[].items`; `eatenItems` for a half-eaten
