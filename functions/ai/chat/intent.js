@@ -19,6 +19,8 @@
  *   4. Continuity — the tools the previous reply ran, when it's recent ("is
  *      there another option?" continues the diet conversation it follows).
  *   5. Small talk / general knowledge with no personal reference → GENERAL.
+ *      (A general-knowledge question with no figures to look up goes GENERAL
+ *      before the keyword step — "what does creatine do?" needs no data.)
  *   Otherwise → AMBIGUOUS.
  *
  * Pure: no I/O. `turn.js` hands it what it already loaded.
@@ -108,7 +110,9 @@ const EN = {
     "apple*", "salad", "pasta", "potato*", "cheese", "koshari", "ful",
     "molokhia", "swap*", "portion*", "grams", "serving*", "supplement*",
     "creatine", "whey", "water", "fasting", "bulk*", "cutting",
+    "sugar*", "salt", "sodium", "caffeine", "vitamin*",
     "akl", "akalt", "kalt", "fetar", "ghada", "8ada", "3asha", "dayet",
+    "bdakhm", "badakhm", "dakhm", "tadkheem", "tanshif", "bnashef",
   ],
   [Intent.MONEY]: [
     "spend*", "spent", "expense*", "cost*", "paid", "pay", "paying",
@@ -123,7 +127,7 @@ const EN = {
 const AR = {
   [Intent.TRAINING]: [
     "تمرين", "تمارين", "التمرين", "اتمرن", "اتمرنت", "هتمرن", "بتمرن",
-    "تمرنت", "جيم", "الجيم", "جلسه", "بنش", "سكوات", "ديدلفت", "عضل",
+    "تمرنت", "تمرن", "جيم", "الجيم", "جلسه", "بنش", "سكوات", "ديدلفت", "عضل",
     "عضله", "عضلات", "رفع", "اوزان", "مجموعات", "عدات", "تكرار",
     "قوه", "نوم", "نمت", "النوم", "تعبان", "استشفاء", "كارديو", "سبليت",
     "بوش", "بول", "ليج", "صدر", "كتف", "تراي",
@@ -135,6 +139,8 @@ const AR = {
     "كاربوهيدرات", "دهون", "ملوخيه", "رز", "ارز", "فراخ", "بيض", "عيش",
     "خبز", "لحمه", "تونه", "فول", "كشري", "جرام", "مكمل", "مكملات",
     "كرياتين", "مايه", "مياه", "صيام", "جعان",
+    // Bulking / cutting ("انا بضخم", "بنشف") and sugar.
+    "ضخم", "تضخيم", "تنشيف", "نشف", "كتله", "سكر", "سكريات",
   ],
   [Intent.MONEY]: [
     "صرفت", "مصاريف", "مصروف", "مصروفات", "فلوس", "جنيه", "جنيهات",
@@ -160,6 +166,8 @@ const SMALL_TALK = new Set([
   "3amel", "3amla", "eh", "eih", "ezayak", "ezayek", "izayak", "ezzayak",
   "akhbarak", "a5barak", "el", "akhbar", "a5bar", "kwayes", "kowayes",
   "alhamdulillah", "el7amdulillah", "7amdella", "ya", "basha", "merci",
+  // How users address the coach: "3amel eh ya coach", "شكرا يا كوتش".
+  "coach", "captain", "bro", "كوتش", "كابتن",
 ]);
 
 // "What is …", "explain …" — a knowledge question.
@@ -211,6 +219,10 @@ function tokenize(text) {
  */
 function arabicStems(token) {
   const out = new Set([token]);
+  // Egyptian negation wraps the verb: "متمرنش" (didn't train) is "تمرن",
+  // "ماكلتش" is "كلت", "مصرفتش" is "صرفت" — so the verb's own stem counts.
+  const negated = /^(?:ما|م)(.{3,})ش$/.exec(token);
+  if (negated) out.add(negated[1]);
   let t = token;
   for (let i = 0; i < 2; i++) {
     const m = /^[وفبلك]/.exec(t);
@@ -287,6 +299,30 @@ function isGeneral(text) {
     !tokens.some((t) => PERSONAL.has(t));
 }
 
+// Words that make a question about NUMBERS — calories, macros, prices. Those
+// figures must come from a tool (the NUMBERS rule), so such a question keeps
+// its area even when phrased as general knowledge ("what are the calories in
+// koshari?").
+const FIGURE_WORDS = new RegExp("\\b(calorie\\w*|kcal|cal|cals|protein\\w*|" +
+  "carb\\w*|fat|fats|macro\\w*|fiber|sugar\\w*|sodium|price\\w*|cost\\w*|" +
+  "egp|grams?)\\b|سعرات|كالوري|بروتين|كارب|دهون|سعر|تمن");
+
+/**
+ * A general-knowledge question — "what does creatine do?", "what is a
+ * deload?" — with nothing about the user and no figures to look up. It goes
+ * GENERAL even when it names an area's word: it needs no data and no tools
+ * (and a scoped turn can still `load_tools` if it turns out otherwise).
+ * @param {string} text
+ * @return {boolean}
+ */
+function isKnowledgeQuestion(text) {
+  const lower = normalizeArabic(String(text || "").trim().toLowerCase());
+  if (!GENERAL_OPENERS.test(lower)) return false;
+  if (tokenize(text).some((t) => PERSONAL.has(t))) return false;
+  return !FIGURE_WORDS.test(lower) && !FOOD_AMOUNT.test(lower) &&
+    !MONEY_AMOUNT.test(lower);
+}
+
 /**
  * The single area of a list of tool names, or null when they span several
  * areas (or name none).
@@ -315,12 +351,20 @@ function classifyIntent({message, boundTool, entryPoint, history, now}) {
   const boundArea = boundTool ? TOOL_AREAS[boundTool] : null;
   if (boundArea) return {intent: boundArea, reason: "bound_choice"};
 
+
   const areas = areasInText(message);
+  const entry = typeof entryPoint === "string" ?
+    ENTRY_POINTS[entryPoint.trim().toLowerCase()] : null;
+  // Only when an area's word is what would narrow it, and not when Ask was
+  // opened from a screen ("what is readiness?" there is about THEIR score):
+  // with no area words the later signals decide (a follow-up "what's the
+  // other option?" continues the conversation's area).
+  if (areas.size > 0 && !entry && isKnowledgeQuestion(message)) {
+    return {intent: Intent.GENERAL, reason: "knowledge"};
+  }
   if (areas.size === 1) return {intent: [...areas][0], reason: "keywords"};
   if (areas.size > 1) return {intent: Intent.AMBIGUOUS, reason: "multi_area"};
 
-  const entry = typeof entryPoint === "string" ?
-    ENTRY_POINTS[entryPoint.trim().toLowerCase()] : null;
   if (entry) return {intent: entry, reason: "entry_point"};
 
   const carried = continuityArea(history, now);
@@ -367,6 +411,7 @@ module.exports = {
   classifyIntent,
   areasInText,
   isGeneral,
+  isKnowledgeQuestion,
   areaOfTools,
   normalizeArabic,
 };

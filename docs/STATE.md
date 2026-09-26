@@ -123,8 +123,16 @@ notifications)**.
     `.claude/hillclimb/ask-effort/`: diet targets/meals, lifts, one expense —
     no ids/emails/body metrics). Removed from the tree and gitignored; still
     in history — purging needs a force-push (owner decision).
-  - Separate findings (not fixed): routing gaps (متمرنش, بضخم, sugar, Arabizi
-    greetings, "شكرا يا كوتش" → AMBIGUOUS; creatine → DIET); Sonnet sometimes
+  - Routing gaps from the eval — FIXED (`chat/intent.js`, tests in
+    `scope.test.js`): Egyptian negation "م…ش" exposes the verb (متمرنش →
+    TRAINING, ماكلتش → DIET, مصرفتش → MONEY); bulking/cutting words (بضخم,
+    تنشيف, bdakhm) and sugar/salt/vitamins → DIET; "coach"/"كوتش"/"كابتن"
+    are small talk; a general-knowledge question that names an area word
+    ("what does creatine do?") → GENERAL — but not when it asks for figures
+    (calories, macros, prices: the NUMBERS rule needs tools), is personal,
+    came from a screen's entry point, or has no area word (follow-ups keep
+    continuity).
+  - Separate findings (not fixed): Sonnet sometimes
     answers Arabic in English; "Log 3 eggs and a banana" → tool-error in both
     prod reps; "no rest day" claim (incl. prod's reply) contradicting the rotation.
   - **Verify after deploy:** aiUsage `reasoning.level` mix; DIET/MONEY

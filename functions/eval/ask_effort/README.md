@@ -48,8 +48,10 @@ is ~16% of cost). Small samples — ambiguous and safety turns stay at high.
 
 ## Separate findings (not fixed in Phase 8)
 
-- Routing gaps: "متمرنش…", "انا بضخم", "sugar", "3amel eh ya coach",
-  "شكرا يا كوتش" → AMBIGUOUS; "What does creatine actually do?" → DIET.
+- ~~Routing gaps~~ — FIXED 2026-09-26 in `ai/chat/intent.js`: "متمرنش…"
+  (Egyptian negation م…ش), "انا بضخم", "sugar", "3amel eh ya coach",
+  "شكرا يا كوتش" no longer AMBIGUOUS; "What does creatine actually do?" is
+  GENERAL (a knowledge question with no figures to look up).
 - Sonnet sometimes answers Arabic in English ("مش عندي فول مدمس", 3 variants
   incl. the control; "التمرين الجاي ايه؟" mostly English in both prod reps).
   Arabizi got Arabic-script replies in both prod reps — possibly intended.

@@ -96,6 +96,50 @@ test("unclear or multi-area questions are AMBIGUOUS (the full fallback)", () => 
   assert.equal(intentOf(""), Intent.AMBIGUOUS);
 });
 
+test("the Phase 8 eval's routing gaps route to their area", () => {
+  const cases = [
+    // Egyptian negation wraps the verb: متمرنش = didn't train.
+    ["حابب اعرف عادي متمرنش انهرده ولا هقع عصب", Intent.TRAINING],
+    ["ماكلتش الغدا", Intent.DIET],
+    ["مصرفتش حاجه النهارده", Intent.MONEY],
+    // Bulking / cutting, in Arabic and Arabizi.
+    ["انا بضخم", Intent.DIET],
+    ["ana bdakhm", Intent.DIET],
+    ["Am I over or under on sugar today?", Intent.DIET],
+    // How users address the coach is small talk.
+    ["3amel eh ya coach", Intent.GENERAL],
+    ["شكرا يا كوتش", Intent.GENERAL],
+  ];
+  for (const [message, want] of cases) {
+    assert.equal(intentOf(message), want, message);
+  }
+  // A word that merely starts with م and ends with ش isn't a negated verb.
+  assert.equal(intentOf("مشمش"), Intent.AMBIGUOUS);
+});
+
+test("a general-knowledge question goes GENERAL even when it names an " +
+    "area's word — unless it asks for figures, is personal, or has no " +
+    "area word to begin with", () => {
+  assert.equal(intentOf("What does creatine actually do?"), Intent.GENERAL);
+  assert.equal(intentOf("what is a deload?"), Intent.GENERAL);
+  // Figures come from tools (the NUMBERS rule): the area keeps them.
+  assert.equal(intentOf("What are the calories in koshari?"), Intent.DIET);
+  assert.equal(intentOf("what are good sources of protein?"), Intent.DIET);
+  assert.equal(intentOf("how many calories are in 100g of rice?"),
+      Intent.DIET);
+  // About the user: their data, their area.
+  assert.equal(intentOf("what is my protein target?"), Intent.DIET);
+  // Opened from a screen: about that screen's data.
+  assert.equal(intentOf("what is readiness?", {entryPoint: "readiness"}),
+      Intent.TRAINING);
+  // No area word: a follow-up still continues the conversation's area.
+  const now = new Date(Date.UTC(2026, 8, 26, 12));
+  const history = [{role: "assistant", activity: [{tool: "get_diet"}],
+    createdAt: new Date(now.getTime() - 5 * 60 * 1000)}];
+  assert.equal(intentOf("what's the other option?", {history, now}),
+      Intent.DIET);
+});
+
 test("a bound choice routes by the change it's bound to", () => {
   const r = classifyIntent(
       {message: "Green beans", boundTool: "replace_meal_item"});
