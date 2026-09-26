@@ -77,6 +77,8 @@ const {
 } = require("./choices");
 const {ContextLedger} = require("./context_ledger");
 const {prefetchFor} = require("./prefetch");
+const {planTurn} = require("./reasoning_policy");
+const {keyForModelId, modelSpec} = require("../routing/models");
 const {
   TerminalState,
   terminalStateFor,
@@ -422,10 +424,17 @@ async function runAiTurn({
     now: turnNow,
   });
   let scope = scopeFor(routed.intent);
-  // The whole turn runs at its routed intent's effort (`config.js`
-  // `effortByIntent`) — fixed for the turn, so the message cache survives
-  // a `load_tools` widening.
-  const effort = (cfg.effortByIntent || {})[routed.intent] || null;
+  // Which Claude model answers and how hard it reasons (`reasoning_policy.js`)
+  // — fixed for the whole turn, so the message cache survives every step and
+  // a `load_tools` widening. Null: the user's model at API defaults.
+  const activeSpec = modelSpec(keyForModelId(activeModel));
+  const plan = planTurn({
+    cfg: cfg.reasoning,
+    provider: activeSpec ? activeSpec.provider : "anthropic",
+    routed,
+    message: userContent,
+    picked: !!picked,
+  });
   // Areas `load_tools` widened the turn to, in order — routing misses,
   // measurable.
   const expandedTo = [];
@@ -691,8 +700,9 @@ async function runAiTurn({
       // area load_tools widened it to — routing, measurable.
       intent: routed.intent,
       intentReason: routed.reason,
-      // Claude's effort for the turn; null = the API default (`high`).
-      effort,
+      // The reasoning policy's plan for the turn (tier, model, level, why);
+      // null = the user's model at API defaults.
+      reasoning: plan,
       // A fingerprint of every prompt and tool definition (`scope.js`), so
       // before/after a prompt change compares like with like.
       promptVersion: PROMPT_VERSION,
@@ -804,7 +814,10 @@ async function runAiTurn({
     // `none`, not dropping `tools`: the tool list is part of the cached
     // prefix (and a history holding tool calls needs it declared).
     if (finalStep) normalizedRequest.toolChoice = "none";
-    if (effort) normalizedRequest.effort = effort;
+    if (plan) {
+      normalizedRequest.modelKey = plan.model;
+      normalizedRequest.reasoning = plan.level;
+    }
     // A second cache breakpoint on the message tail (Phase 5): the next step
     // re-sends everything this one did — the style + CONTEXT blocks, history,
     // ledger, earlier tool rounds — plus its own tool results, so it reads

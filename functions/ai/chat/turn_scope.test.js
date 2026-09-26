@@ -324,20 +324,44 @@ test("a metered request records one perCall row per model call", async () => {
   assert.equal(record.provider, "gemini");
 });
 
-test("effort follows the routed intent for every step of the turn, and is " +
-    "logged; an intent without one sends none", async () => {
+test("the reasoning plan is fixed for every step of the turn and logged; " +
+    "off, it sends nothing new", async () => {
   const store = makeStore();
   const provider = scriptedProvider([toolUse("get_workouts"), answer("ok")]);
   await run(store, provider, "how is my bench progressing?",
-      {config: {effortByIntent: {training: "medium", general: "low"}}});
-  assert.deepEqual(provider.requests.map((r) => r.effort),
-      ["medium", "medium"]);
-  assert.equal(store.logged[0].effort, "medium");
+      {config: {reasoning: {mode: "auto"}}});
+  assert.deepEqual(provider.requests.map((r) => [r.modelKey, r.reasoning]),
+      [["claude-sonnet", "high"], ["claude-sonnet", "high"]]);
+  assert.deepEqual(store.logged[0].reasoning, {tier: "deep",
+    model: "claude-sonnet", level: "high", reason: "decision"});
 
-  const other = makeStore();
-  const otherProvider = scriptedProvider([answer("ok")]);
-  await run(other, otherProvider, "how am I doing?",
-      {config: {effortByIntent: {training: "medium"}}});
-  assert.equal(otherProvider.requests[0].effort, undefined);
-  assert.equal(other.logged[0].effort, null);
+  const lookup = makeStore();
+  const lookupProvider = scriptedProvider([answer("hey!")]);
+  await run(lookup, lookupProvider, "hi", {config: {reasoning: {mode: "auto"}}});
+  assert.equal(lookupProvider.requests[0].modelKey, "claude-haiku");
+  assert.equal(lookupProvider.requests[0].reasoning, "low");
+
+  const off = makeStore();
+  const offProvider = scriptedProvider([answer("ok")]);
+  await run(off, offProvider, "how is my bench progressing?");
+  assert.equal(offProvider.requests[0].modelKey, undefined);
+  assert.equal(offProvider.requests[0].reasoning, undefined);
+  assert.equal(off.logged[0].reasoning, null);
+});
+
+test("a forced plan (the eval's variants) applies to every turn; a Gemini " +
+    "user gets no Claude plan", async () => {
+  const store = makeStore();
+  const provider = scriptedProvider([answer("ok")]);
+  await run(store, provider, "hi", {config: {reasoning: {mode: "off",
+    override: {model: "claude-sonnet", level: "low"}}}});
+  assert.equal(provider.requests[0].modelKey, "claude-sonnet");
+  assert.equal(provider.requests[0].reasoning, "low");
+
+  const gemini = makeStore();
+  const geminiProvider = scriptedProvider([answer("ok")]);
+  await run(gemini, geminiProvider, "hi", {model: "gemini-flash-latest",
+    config: {reasoning: {mode: "auto"}}});
+  assert.equal(geminiProvider.requests[0].modelKey, undefined);
+  assert.equal(gemini.logged[0].reasoning, null);
 });

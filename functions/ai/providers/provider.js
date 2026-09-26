@@ -113,9 +113,13 @@
  *   Omit for the provider's default (Anthropic: `auto`). `none` keeps the
  *   tools declared but forbids calling one — the chat loop's final step.
  * @property {!Array<!NormalizedMessage>} messages
- * @property {('low'|'medium'|'high'|'xhigh'|'max')=} effort Claude's
- *   `output_config.effort` — thinking depth and token spend. Omit for the
- *   API default (`high`). Anthropic only; Gemini ignores it.
+ * @property {string=} modelKey A catalog key (`../routing/models.js`) the
+ *   server's reasoning policy picked for this request. The router honours it
+ *   only for a model of the user's own provider; otherwise it's ignored.
+ * @property {('low'|'medium'|'high')=} reasoning The policy's reasoning
+ *   level. The provider turns it into the answering model's own setting
+ *   (`ModelSpec.reasoning`: effort + thinking together); omit for the API
+ *   defaults. Anthropic only; Gemini ignores it.
  * @property {string=} cacheTail Set to `"ephemeral"` to add a prompt-caching
  *   breakpoint on the last message's last block, so a follow-up call that
  *   re-sends this conversation reads it back from cache (the chat loop's

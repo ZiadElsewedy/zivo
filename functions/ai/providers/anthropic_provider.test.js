@@ -113,13 +113,29 @@ test("cacheTail skips thinking and empty text, and never mutates a raw block",
               .messages[0].content[0].cache_control, undefined);
     });
 
-test("effort becomes output_config.effort; without it none is sent", () => {
-  const base = {model: "m", maxTokens: 10,
-    messages: [{role: "user", content: "hi"}]};
-  assert.deepEqual(
-      toAnthropicRequest(Object.assign({effort: "low"}, base)).output_config,
+test("a reasoning level becomes the answering model's own setting — " +
+    "effort and thinking together, never half of it", () => {
+  const req = (model, reasoning) => toAnthropicRequest({model, maxTokens: 10,
+    reasoning, messages: [{role: "user", content: "hi"}]});
+  for (const level of ["low", "medium", "high"]) {
+    const r = req("claude-sonnet-5", level);
+    assert.deepEqual(r.output_config, {effort: level});
+    assert.deepEqual(r.thinking, {type: "adaptive"});
+  }
+  // Haiku 4.5 takes no effort: its one level adds nothing, and a level it
+  // doesn't offer adds nothing either.
+  for (const level of ["low", "high"]) {
+    const r = req("claude-haiku-4-5", level);
+    assert.equal(r.output_config, undefined);
+    assert.equal(r.thinking, undefined);
+  }
+  // No level (policy off) or an unknown model: the API defaults, as before.
+  assert.equal(req("claude-sonnet-5", undefined).output_config, undefined);
+  assert.equal(req("some-model", "low").thinking, undefined);
+  // The catalog's table is never shared by reference into a request.
+  req("claude-sonnet-5", "low").output_config.effort = "max";
+  assert.deepEqual(req("claude-sonnet-5", "low").output_config,
       {effort: "low"});
-  assert.equal(toAnthropicRequest(base).output_config, undefined);
 });
 
 test("without cacheTail no message block carries cache_control", () => {

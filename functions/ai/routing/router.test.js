@@ -328,3 +328,22 @@ test("a user cancel is rethrown unchanged", async () => {
       () => generate(registry, "chat", REQ, {signal: controller.signal}),
       (err) => err.name === "AbortError");
 });
+
+test("the reasoning policy's model is honoured within the user's provider " +
+    "only — never across providers", async () => {
+  const {registry, anthropic, gemini} = bothHealthy();
+  const resp = await generate(registry, "chat",
+      Object.assign({modelKey: "claude-haiku"}, REQ));
+  assert.equal(anthropic.calls[0].model, "claude-haiku-4-5");
+  assert.equal(resp.modelKey, "claude-haiku");
+
+  // A Gemini user: the policy's Claude model is ignored.
+  await generate(registry, "chat", Object.assign({modelKey: "claude-haiku"},
+      REQ), undefined, {preferModel: "gemini-flash"});
+  assert.equal(gemini.calls.length, 1);
+  assert.equal(anthropic.calls.length, 1);
+
+  // Unknown keys are ignored too.
+  await generate(registry, "chat", Object.assign({modelKey: "gpt-9"}, REQ));
+  assert.equal(anthropic.calls[1].model, "claude-sonnet-5");
+});

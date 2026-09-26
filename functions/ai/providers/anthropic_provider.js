@@ -12,6 +12,7 @@
  */
 
 const {AiProvider} = require("./provider");
+const {keyForModelId, reasoningFor} = require("../routing/models");
 
 /** @const {!Object<string, string>} Anthropic stop_reason → normalized. */
 const STOP_REASON_MAP = {
@@ -244,9 +245,12 @@ function toAnthropicRequest(normalizedRequest) {
   }
   const toolChoice = toAnthropicToolChoice(normalizedRequest.toolChoice);
   if (toolChoice !== undefined) req.tool_choice = toolChoice;
-  if (normalizedRequest.effort) {
-    req.output_config = {effort: normalizedRequest.effort};
-  }
+  // A reasoning level becomes whatever that model's catalog entry says it
+  // means (effort + thinking as ONE setting — `../routing/models.js`); a
+  // level the model doesn't offer adds nothing, never a half-setting.
+  const reasoning = reasoningFor(
+      keyForModelId(normalizedRequest.model), normalizedRequest.reasoning);
+  if (reasoning) Object.assign(req, JSON.parse(JSON.stringify(reasoning)));
   return req;
 }
 

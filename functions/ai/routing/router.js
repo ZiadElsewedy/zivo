@@ -146,11 +146,25 @@ function resolve(capability, opts) {
     throw new Error(`No AI route configured for capability: ${capability}`);
   }
   const preferred = opts && opts.preferModel;
-  if (preferred && SELECTABLE_CAPABILITIES.has(capability) &&
-      modelSpec(preferred)) {
+  const spec = preferred ? modelSpec(preferred) : undefined;
+  if (spec && !spec.serverOnly && SELECTABLE_CAPABILITIES.has(capability)) {
     return route(preferred);
   }
   return route(fallbackKey);
+}
+
+/**
+ * The route with the server's per-request model (`NormalizedRequest.modelKey`,
+ * set by the chat reasoning policy) swapped in — but ONLY for another model of
+ * the same provider: the user's provider choice is never overridden, so a
+ * Gemini user's turn never reaches Claude because of the policy.
+ * @param {!CapabilityRoute} base The route the user's selection resolved to.
+ * @param {(string|undefined)} modelKey
+ * @return {!CapabilityRoute}
+ */
+function withPolicyModel(base, modelKey) {
+  const spec = modelKey ? modelSpec(modelKey) : undefined;
+  return spec && spec.provider === base.provider ? route(modelKey) : base;
 }
 
 /**
@@ -309,7 +323,8 @@ async function runRoute(
 async function generate(
     registry, capability, normalizedRequest, opts, routeOpts) {
   const ro = routeOpts || {};
-  const primary = resolve(capability, ro);
+  const primary = withPolicyModel(
+      resolve(capability, ro), normalizedRequest.modelKey);
   const primaryResult = await runRoute(
       registry, primary, normalizedRequest, opts, ro.attemptTimeoutMs, true);
   if (primaryResult.ok) {

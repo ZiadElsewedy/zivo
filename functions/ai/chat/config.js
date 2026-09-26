@@ -68,13 +68,15 @@ const DEFAULT_CONFIG = {
   maxMessageChars: 2000,
   // `max_tokens` passed to the model on every call.
   maxTokens: 2048,
-  // Claude's `output_config.effort` per routed intent (`intent.js`) — how
-  // much the model thinks and how many tokens it spends. An intent absent
-  // here sends none, i.e. the API default (`high`). Keyed by the turn's
-  // ROUTED intent, not a `load_tools` widening: changing effort mid-turn
-  // would invalidate the message cache. Gemini ignores it. Empty until the
-  // Phase 8 eval (`functions/eval/ask_effort/`) shows which levels hold.
-  effortByIntent: {},
+  // The reasoning policy (`reasoning_policy.js`): which Claude model answers
+  // and at what reasoning level, decided per turn and fixed for the whole
+  // turn (a mid-turn change would invalidate the message cache). `mode`
+  // "off" runs every turn as before Phase 8 (the user's model, API-default
+  // reasoning); "auto" lets the policy pick a tier. `tiers` overrides the
+  // policy's tier table; `override` ({model, level}) forces one plan for
+  // every turn (the eval's fixed variants). Off until the Phase 8 eval
+  // (`functions/eval/ask_effort/`) sets the production policy.
+  reasoning: {mode: "off", tiers: null, override: null},
   // How long a proposed (pending) action can wait before it expires (ADR-003).
   pendingActionTtlMs: 60 * 60 * 1000,
 };
