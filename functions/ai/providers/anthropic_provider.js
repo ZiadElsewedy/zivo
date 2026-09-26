@@ -244,6 +244,9 @@ function toAnthropicRequest(normalizedRequest) {
   }
   const toolChoice = toAnthropicToolChoice(normalizedRequest.toolChoice);
   if (toolChoice !== undefined) req.tool_choice = toolChoice;
+  if (normalizedRequest.effort) {
+    req.output_config = {effort: normalizedRequest.effort};
+  }
   return req;
 }
 

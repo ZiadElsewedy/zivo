@@ -15,6 +15,7 @@
       "source": "functions",
       "ignore": [
         "node_modules",
+        "eval",
         ".git",
         "firebase-debug.log",
         "firebase-debug.*.log",

@@ -113,6 +113,15 @@ test("cacheTail skips thinking and empty text, and never mutates a raw block",
               .messages[0].content[0].cache_control, undefined);
     });
 
+test("effort becomes output_config.effort; without it none is sent", () => {
+  const base = {model: "m", maxTokens: 10,
+    messages: [{role: "user", content: "hi"}]};
+  assert.deepEqual(
+      toAnthropicRequest(Object.assign({effort: "low"}, base)).output_config,
+      {effort: "low"});
+  assert.equal(toAnthropicRequest(base).output_config, undefined);
+});
+
 test("without cacheTail no message block carries cache_control", () => {
   const req = toAnthropicRequest({model: "m", maxTokens: 10,
     messages: [{role: "user", content: "hi"}]});

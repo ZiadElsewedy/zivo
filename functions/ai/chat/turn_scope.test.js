@@ -323,3 +323,21 @@ test("a metered request records one perCall row per model call", async () => {
   assert.equal(record.perCall[0].inputTokens, 7);
   assert.equal(record.provider, "gemini");
 });
+
+test("effort follows the routed intent for every step of the turn, and is " +
+    "logged; an intent without one sends none", async () => {
+  const store = makeStore();
+  const provider = scriptedProvider([toolUse("get_workouts"), answer("ok")]);
+  await run(store, provider, "how is my bench progressing?",
+      {config: {effortByIntent: {training: "medium", general: "low"}}});
+  assert.deepEqual(provider.requests.map((r) => r.effort),
+      ["medium", "medium"]);
+  assert.equal(store.logged[0].effort, "medium");
+
+  const other = makeStore();
+  const otherProvider = scriptedProvider([answer("ok")]);
+  await run(other, otherProvider, "how am I doing?",
+      {config: {effortByIntent: {training: "medium"}}});
+  assert.equal(otherProvider.requests[0].effort, undefined);
+  assert.equal(other.logged[0].effort, null);
+});

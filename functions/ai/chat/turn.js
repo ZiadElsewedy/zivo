@@ -422,6 +422,10 @@ async function runAiTurn({
     now: turnNow,
   });
   let scope = scopeFor(routed.intent);
+  // The whole turn runs at its routed intent's effort (`config.js`
+  // `effortByIntent`) — fixed for the turn, so the message cache survives
+  // a `load_tools` widening.
+  const effort = (cfg.effortByIntent || {})[routed.intent] || null;
   // Areas `load_tools` widened the turn to, in order — routing misses,
   // measurable.
   const expandedTo = [];
@@ -687,6 +691,8 @@ async function runAiTurn({
       // area load_tools widened it to — routing, measurable.
       intent: routed.intent,
       intentReason: routed.reason,
+      // Claude's effort for the turn; null = the API default (`high`).
+      effort,
       // A fingerprint of every prompt and tool definition (`scope.js`), so
       // before/after a prompt change compares like with like.
       promptVersion: PROMPT_VERSION,
@@ -798,6 +804,7 @@ async function runAiTurn({
     // `none`, not dropping `tools`: the tool list is part of the cached
     // prefix (and a history holding tool calls needs it declared).
     if (finalStep) normalizedRequest.toolChoice = "none";
+    if (effort) normalizedRequest.effort = effort;
     // A second cache breakpoint on the message tail (Phase 5): the next step
     // re-sends everything this one did — the style + CONTEXT blocks, history,
     // ledger, earlier tool rounds — plus its own tool results, so it reads

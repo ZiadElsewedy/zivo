@@ -68,6 +68,13 @@ const DEFAULT_CONFIG = {
   maxMessageChars: 2000,
   // `max_tokens` passed to the model on every call.
   maxTokens: 2048,
+  // Claude's `output_config.effort` per routed intent (`intent.js`) — how
+  // much the model thinks and how many tokens it spends. An intent absent
+  // here sends none, i.e. the API default (`high`). Keyed by the turn's
+  // ROUTED intent, not a `load_tools` widening: changing effort mid-turn
+  // would invalidate the message cache. Gemini ignores it. Empty until the
+  // Phase 8 eval (`functions/eval/ask_effort/`) shows which levels hold.
+  effortByIntent: {},
   // How long a proposed (pending) action can wait before it expires (ADR-003).
   pendingActionTtlMs: 60 * 60 * 1000,
 };
